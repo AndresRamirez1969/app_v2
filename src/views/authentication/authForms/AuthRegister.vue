@@ -1,21 +1,25 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import axiosInstance from '@/utils/axios';
 // icons
 import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons-vue';
 const show1 = ref(false);
 const password = ref('');
 const email = ref('');
 const Regform = ref();
-const firstname = ref('');
-const lastname = ref('');
+const name = ref('');
+const confPassword = ref('');
 // Password validation rules
 const passwordRules = ref([
   (v: string) => !!v || 'Password is required',
   (v: string) => v === v.trim() || 'Password cannot start or end with spaces',
-  (v: string) => v.length <= 10 || 'Password must be less than 10 characters'
+  (v: string) => v.length <= 12 || 'Password must be less than 10 characters'
 ]);
-const firstRules = ref([(v: string) => !!v || 'First Name is required']);
-const lastRules = ref([(v: string) => !!v || 'Last Name is required']);
+const confPasswordRules = ref([
+  (v: string) => !!v || 'Confirma la contrasena',
+  (v: string) => v === password.value || 'Las contrasenas son diferentes'
+]);
+const nameRules = ref([(v: string) => !!v || 'Name is required']);
 // Email validation rules
 const emailRules = ref([
   (v: string) => !!v.trim() || 'E-mail is required',
@@ -26,8 +30,18 @@ const emailRules = ref([
   (v: string) => /.+@.+\..+/.test(v.trim()) || 'E-mail must be valid'
 ]);
 
-function validate() {
-  Regform.value.validate();
+const validate = async () => {
+  try {
+    const res = await axiosInstance.post('/register', {
+      name: name.value,
+      email: email.value,
+      password: password.value,
+      password_confirmation: confPassword.value
+    });
+    console.log("success!", res);
+  } catch (err) {
+    console.log("Epic fail!", err);
+  }
 }
 </script>
 
@@ -40,41 +54,22 @@ function validate() {
     <v-row class="my-0">
       <v-col cols="12" sm="6" class="py-0">
         <div class="mb-6">
-          <v-label>First Name*</v-label>
+          <v-label>Nombre*</v-label>
           <v-text-field
-            v-model="firstname"
-            :rules="firstRules"
+            v-model="name"
+            :rules="nameRules"
             hide-details="auto"
             required
             variant="outlined"
             class="mt-2"
             color="primary"
-            placeholder="John"
-          ></v-text-field>
-        </div>
-      </v-col>
-      <v-col cols="12" sm="6" class="py-0">
-        <div class="mb-6">
-          <v-label>Last Name*</v-label>
-          <v-text-field
-            v-model="lastname"
-            :rules="lastRules"
-            hide-details="auto"
-            required
-            variant="outlined"
-            class="mt-2"
-            color="primary"
-            placeholder="Doe"
+            placeholder="Juan"
           ></v-text-field>
         </div>
       </v-col>
     </v-row>
     <div class="mb-6">
-      <v-label>Company</v-label>
-      <v-text-field hide-details="auto" variant="outlined" class="mt-2" color="primary" placeholder="Demo Inc."></v-text-field>
-    </div>
-    <div class="mb-6">
-      <v-label>Email Address*</v-label>
+      <v-label>Correo*</v-label>
       <v-text-field
         v-model="email"
         :rules="emailRules"
@@ -88,7 +83,7 @@ function validate() {
       ></v-text-field>
     </div>
     <div class="mb-6">
-      <v-label>Password</v-label>
+      <v-label>Contrasena</v-label>
       <v-text-field
         v-model="password"
         :rules="passwordRules"
@@ -100,6 +95,27 @@ function validate() {
         :type="show1 ? 'text' : 'password'"
         class="mt-2"
         @input="password"
+      >
+        <template v-slot:append-inner>
+          <v-btn color="secondary" icon rounded variant="text">
+            <EyeInvisibleOutlined :style="{ color: 'rgb(var(--v-theme-secondary))' }" v-if="show1 == false" @click="show1 = !show1" />
+            <EyeOutlined :style="{ color: 'rgb(var(--v-theme-secondary))' }" v-if="show1 == true" @click="show1 = !show1" />
+          </v-btn>
+        </template>
+      </v-text-field>
+    </div>
+    <div class="mb-6">
+      <v-label>Confirma Contrasena</v-label>
+      <v-text-field
+        v-model="confPassword"
+        :rules="confPasswordRules"
+        placeholder="*****"
+        required
+        variant="outlined"
+        color="primary"
+        hide-details="auto"
+        :type="show1 ? 'text' : 'password'"
+        class="mt-2"
       >
         <template v-slot:append-inner>
           <v-btn color="secondary" icon rounded variant="text">
