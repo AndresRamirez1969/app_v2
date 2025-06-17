@@ -29,8 +29,7 @@ const authStore = useAuthStore();
         <img src="@/assets/images/users/avatar-1.png" width="32" alt="Julia" />
       </v-avatar>
       <div>
-        <h6 class="text-h6 mb-0">JWT User</h6>
-        <p class="text-caption mb-0">UI/UX Designer</p>
+        <h6 class="text-h6 mb-0">{{ authStore.user?.name || 'Guest' }}</h6>
       </div>
       <div class="ml-auto">
         <v-btn variant="text" color="primary" rounded="sm" icon size="large" @click="authStore.logout()">

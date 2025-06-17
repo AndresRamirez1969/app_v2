@@ -5,11 +5,13 @@ import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons-vue';
 import { Form } from 'vee-validate';
 import axiosInstance from '@/utils/axios';
 import {useRouter} from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 
 const valid = ref(false);
 const show1 = ref(false);
 const password = ref('');
-const username = ref('');
+const email = ref('');
+const authStore = useAuthStore();
 const router = useRouter();
 // Password validation rules
 const passwordRules = ref([
@@ -28,11 +30,7 @@ const emailRules = ref([
  
 const validate = async () => {
   try {
-    const res = await axiosInstance.post('/login', {
-      email: username.value,
-      password: password.value,
-    });
-    console.log("Success!", res);
+    await authStore.login(email.value, password.value);
     router.push('/sample-page');
   } catch (err) {
     console.log("Failure", err);
@@ -49,7 +47,7 @@ const validate = async () => {
       <v-label>Correo/Usuario</v-label>
       <v-text-field
         aria-label="email address"
-        v-model="username"
+        v-model="email"
         :rules="emailRules"
         class="mt-2"
         required
@@ -57,7 +55,7 @@ const validate = async () => {
         variant="outlined"
         color="primary"
         placeholder="example@domain.com"
-        @input="username"
+        @input="email"
       ></v-text-field>
     </div>
     <div>

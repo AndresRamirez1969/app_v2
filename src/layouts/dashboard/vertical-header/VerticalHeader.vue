@@ -7,8 +7,10 @@ import { MenuFoldOutlined, SearchOutlined, GithubOutlined } from '@ant-design/ic
 import NotificationDD from './NotificationDD.vue';
 import Searchbar from './SearchBarPanel.vue';
 import ProfileDD from './ProfileDD.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const customizer = useCustomizerStore();
+const authStore = useAuthStore();
 </script>
 
 <template>
@@ -104,7 +106,7 @@ const customizer = useCustomizerStore();
             <v-avatar class="mr-sm-2 mr-0 py-2">
               <img src="@/assets/images/users/avatar-1.png" alt="Julia" />
             </v-avatar>
-            <h6 class="text-subtitle-1 mb-0 d-sm-block d-none">JWT User</h6>
+            <h6 class="text-subtitle-1 mb-0 d-sm-block d-none">{{ authStore.user?.name || 'Guest' }}</h6>
           </div>
         </v-btn>
       </template>
