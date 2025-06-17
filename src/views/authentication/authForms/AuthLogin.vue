@@ -2,51 +2,51 @@
 import { ref } from 'vue';
 // icons
 import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons-vue';
-import { useAuthStore } from '@/stores/auth';
 import { Form } from 'vee-validate';
+import axiosInstance from '@/utils/axios';
+import {useRouter} from 'vue-router';
 
-const checkbox = ref(false);
 const valid = ref(false);
 const show1 = ref(false);
-const password = ref('admin123');
-const username = ref('info@codedthemes.com');
+const password = ref('');
+const username = ref('');
+const router = useRouter();
 // Password validation rules
 const passwordRules = ref([
-  (v: string) => !!v || 'Password is required',
-  (v: string) => v === v.trim() || 'Password cannot start or end with spaces',
-  (v: string) => v.length <= 10 || 'Password must be less than 10 characters'
+  (v: string) => !!v || 'Ingresa tu contrasena',
 ]);
 // Email validation rules
 const emailRules = ref([
-  (v: string) => !!v.trim() || 'E-mail is required',
+  (v: string) => !!v.trim() || 'Ingresa tu correo',
   (v: string) => {
     const trimmedEmail = v.trim();
-    return !/\s/.test(trimmedEmail) || 'E-mail must not contain spaces';
+    return !/\s/.test(trimmedEmail) || 'El correo no puede contener espacios';
   },
   (v: string) => /.+@.+\..+/.test(v.trim()) || 'E-mail must be valid'
 ]);
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function validate(values: any, { setErrors }: any) {
-  // Trim the username before validation
-  const trimmedUsername = username.value.trim();
-
-  // Update the username with trimmed value
-  username.value = trimmedUsername;
-
-  const authStore = useAuthStore();
-  return authStore.login(trimmedUsername, password.value).catch((error) => setErrors({ apiError: error }));
+ 
+const validate = async () => {
+  try {
+    const res = await axiosInstance.post('/login', {
+      email: username.value,
+      password: password.value,
+    });
+    console.log("Success!", res);
+    router.push('/sample-page');
+  } catch (err) {
+    console.log("Failure", err);
+  }
 }
 </script>
 
 <template>
   <div class="d-flex justify-space-between align-center">
     <h3 class="text-h3 text-center mb-0">Login</h3>
-    <router-link to="/register" class="text-primary text-decoration-none">Don't Have an account?</router-link>
   </div>
-  <Form @submit="validate" class="mt-7 loginForm" v-slot="{ errors, isSubmitting }">
+  <Form @submit="validate" class="mt-7 loginForm" v-slot="{isSubmitting }">
     <div class="mb-6">
-      <v-label>Email Address</v-label>
+      <v-label>Correo/Usuario</v-label>
       <v-text-field
         aria-label="email address"
         v-model="username"
@@ -56,11 +56,12 @@ function validate(values: any, { setErrors }: any) {
         hide-details="auto"
         variant="outlined"
         color="primary"
+        placeholder="example@domain.com"
         @input="username"
       ></v-text-field>
     </div>
     <div>
-      <v-label>Password</v-label>
+      <v-label>Contrasena</v-label>
       <v-text-field
         aria-label="password"
         v-model="password"
@@ -71,6 +72,7 @@ function validate(values: any, { setErrors }: any) {
         hide-details="auto"
         :type="show1 ? 'text' : 'password'"
         class="mt-2"
+        placeholder="*******"
         @input="password"
       >
         <template v-slot:append-inner>
@@ -83,25 +85,13 @@ function validate(values: any, { setErrors }: any) {
     </div>
 
     <div class="d-flex align-center mt-4 mb-7 mb-sm-0">
-      <v-checkbox
-        v-model="checkbox"
-        :rules="[(v: any) => !!v || 'You must agree to continue!']"
-        label="Keep me sign in"
-        required
-        color="primary"
-        class="ms-n2"
-        hide-details
-      ></v-checkbox>
       <div class="ml-auto">
         <router-link to="/login1" class="text-darkText link-hover">Forgot Password?</router-link>
       </div>
     </div>
-    <v-btn color="primary" :loading="isSubmitting" block class="mt-5" variant="flat" size="large" :disabled="valid" type="submit">
+    <v-btn color="primary" :loading="isSubmitting" block class="mt-5" variant="flat" size="large" :disabled="valid" @click="validate()">
       Login</v-btn
     >
-    <div v-if="errors.apiError" class="mt-2">
-      <v-alert color="error">{{ errors.apiError }}</v-alert>
-    </div>
   </Form>
 </template>
 <style lang="scss">
