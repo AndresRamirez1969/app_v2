@@ -17,6 +17,7 @@ export const useAuthStore = defineStore('auth', {
       const response = await axiosInstance.post('/login', { email, password});
       this.token = response.data.token;
       this.user = response.data.user;
+      console.log(this.token, this.user);
       localStorage.setItem('authToken', JSON.stringify(this.token));
       localStorage.setItem('authUser', JSON.stringify(this.user));
     },

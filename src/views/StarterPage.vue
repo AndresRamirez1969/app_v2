@@ -4,6 +4,7 @@ import AddressAutocomplete from '@/utils/helpers/AddressAutocomplete.vue';
 
 import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
+import axiosInstance from '@/utils/axios';
 
 const page = ref({ title: 'Organizaciones' });
 const breadcrumbs = shallowRef([
@@ -13,6 +14,31 @@ const breadcrumbs = shallowRef([
     href: '#'
   }
 ]);
+
+const Regform = ref('');
+const legal_name = ref('');
+const alias = ref('');
+const description = ref('');
+const parsedAddress = ref({});
+
+const handleParsedAddress = (val) => {
+  parsedAddress.value = val;
+}
+
+const validate = async () => {
+  try {
+    console.log("Parsed Address front:", parsedAddress.value);
+    const res = await axiosInstance.post('/orgStore', {
+      legal_name: legal_name.value,
+      alias: alias.value,
+      description: description.value,
+      address: parsedAddress.value
+    });
+    console.log("Organization added", res);
+  } catch (err) {
+    console.log("Failed to save org", err);
+  }
+}
 </script>
 
 <template>
@@ -49,7 +75,7 @@ const breadcrumbs = shallowRef([
     <div class="mb-6">
       <v-label>Descripcion</v-label>
       <v-text-field
-        v-model="descripcion"
+        v-model="description"
         variant="outlined"
         color="primary"
         class="mt-2"
@@ -57,11 +83,11 @@ const breadcrumbs = shallowRef([
       </v-text-field>
     </div>
   <div class="mb-6">
-    <AddressAutocomplete />
+    <AddressAutocomplete @update:parsedAddress="handleParsedAddress"/>
   </div>
     <div class="d-sm-inline-flex align-center mt-2 mb-7 mb-sm-0 font-weight-bold">
     </div>
-    <v-btn color="primary" block class="mt-4" variant="flat" size="large" @click="validate()">Create Account</v-btn>
+    <v-btn color="primary" block class="mt-4" variant="flat" size="large" @click="validate()">Guardar Organizacion</v-btn>
   </v-form>
       </UiParentCard>
     </v-col>

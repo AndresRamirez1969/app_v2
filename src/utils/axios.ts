@@ -2,15 +2,16 @@ import axios from 'axios';
 
 const axiosInstance = axios.create({
     baseURL: "http://localhost:8000/api",
-    withCredentials: true
+    withCredentials: false,
 });
 
 axiosInstance.interceptors.request.use((config) => {
-    const token = localStorage.getItem('authToken');
+    const token = JSON.parse(localStorage.getItem('authToken') || 'null');
     if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
-})
+  });
+
 
 export default axiosInstance;

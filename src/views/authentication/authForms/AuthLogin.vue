@@ -3,7 +3,6 @@ import { ref } from 'vue';
 // icons
 import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons-vue';
 import { Form } from 'vee-validate';
-import axiosInstance from '@/utils/axios';
 import {useRouter} from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 

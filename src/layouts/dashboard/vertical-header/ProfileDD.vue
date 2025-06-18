@@ -14,9 +14,16 @@ import {
   WalletOutlined
 } from '@ant-design/icons-vue';
 import { useAuthStore } from '@/stores/auth';
+import { useRouter } from 'vue-router';
 
 const tab = ref(null);
 const authStore = useAuthStore();
+const router = useRouter();
+
+const handleLogout = () => {
+  authStore.logout();
+  router.push('/login');
+}
 </script>
 
 <template>
@@ -30,11 +37,6 @@ const authStore = useAuthStore();
       </v-avatar>
       <div>
         <h6 class="text-h6 mb-0">{{ authStore.user?.name || 'Guest' }}</h6>
-      </div>
-      <div class="ml-auto">
-        <v-btn variant="text" color="primary" rounded="sm" icon size="large" @click="authStore.logout()">
-          <LogoutOutlined :style="{ fontSize: '20px' }" />
-        </v-btn>
       </div>
     </div>
     <v-tabs v-model="tab" color="primary" grow>
@@ -77,7 +79,7 @@ const authStore = useAuthStore();
               <v-list-item-title class="text-h6"> Billing</v-list-item-title>
             </v-list-item>
 
-            <v-list-item @click="authStore.logout()" color="secondary" rounded="0">
+            <v-list-item @click="handleLogout" color="secondary" rounded="0">
               <template v-slot:prepend>
                 <LogoutOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
