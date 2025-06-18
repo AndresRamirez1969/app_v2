@@ -1,33 +1,31 @@
 import { defineStore } from 'pinia';
-import { router } from '@/router';
-import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
+import axiosInstance from '@/utils/axios';
 
-const baseUrl = `${import.meta.env.VITE_API_URL}/users`;
-
-export const useAuthStore = defineStore({
-  id: 'auth',
+export const useAuthStore = defineStore('auth', {
   state: () => ({
-    // initialize state from local storage to enable user to stay logged in
-    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-    // @ts-ignore
-    user: JSON.parse(localStorage.getItem('user')),
-    returnUrl: null
-  }),
+    token: localStorage.getItem('authToken') || '',
+    user: (() => {
+      try {
+        return JSON.parse(localStorage.getItem('authUser') || 'null');
+      } catch {
+        return null;
+      } 
+    })(),
+  }),  
   actions: {
-    async login(username: string, password: string) {
-      const user = await fetchWrapper.post(`${baseUrl}/authenticate`, { username, password });
-
-      // update pinia state
-      this.user = user;
-      // store user details and jwt in local storage to keep user logged in between page refreshes
-      localStorage.setItem('user', JSON.stringify(user));
-      // redirect to previous url or default to home page
-      router.push(this.returnUrl || '/dashboard');
+    async login(email: string, password: string) {
+      const response = await axiosInstance.post('/login', { email, password});
+      this.token = response.data.token;
+      this.user = response.data.user;
+      console.log(this.token, this.user);
+      localStorage.setItem('authToken', JSON.stringify(this.token));
+      localStorage.setItem('authUser', JSON.stringify(this.user));
     },
     logout() {
+      this.token = '';
       this.user = null;
-      localStorage.removeItem('user');
-      router.push('/login');
-    }
-  }
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('authUser');
+    },
+  },
 });
