@@ -39,7 +39,7 @@ const MainRoutes = {
     {
       name: 'other',
       path: '/sample-page',
-      component: () => import('@/views/StarterPage.vue')
+      component: () => import('@/views/organizations/OrganizationTab.vue')
     }
   ]
 };
