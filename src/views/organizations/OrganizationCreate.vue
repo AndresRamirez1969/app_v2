@@ -28,7 +28,7 @@ const validate = async () => {
     if (logo.value) {
       formData.append('logo', logo.value);
     }
-    const res = await axiosInstance.post('/orgStore', formData, {
+    const res = await axiosInstance.post('/organizations', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       }
