@@ -1,28 +1,66 @@
 <script setup>
+import EditOrganization from './components/EditOrganization.vue';
+import { ref } from 'vue';
+import { mdiPencil, mdiEye } from '@mdi/js';
+
+const showEditDialog = ref(false);
+const selectedOrgId = ref(null);
+
+const openEditDialog = (id) => {
+  selectedOrgId.value = id
+  showEditDialog.value = true
+}
 defineProps({
     organizations: Array
 });
+
+const headers = [
+  { title: 'Nombre Legal', key: 'legal_name'},
+  { title: 'Alias', key: 'alias'},
+  { title: 'Folio', key: 'folio'},
+  { title: 'Estado', key: 'status'},
+  { title: 'Acciones', key: 'actions', sortable: false}
+]
+
 </script>
 
 <template>
   <BaseBreadcrumb></BaseBreadcrumb>
-  <v-row>
-    <v-col cols="12" md="12">
-        <v-card v-for="org in organizations" :key="org.id" class="mb-3">
-           <v-card-title>{{ org.legal_name }} </v-card-title>
-           <v-card-subtitle>{{ org.alias }}</v-card-subtitle>
-           <v-card-text>{{ org.folio }}</v-card-text>
-
-           <v-card-actions>
-              <v-spacer></v-spacer>
-              <v-btn color="info" size="small" variant="outlined">
-                Ver
+      <v-card>
+        <v-data-table
+          :headers="headers"
+          :items="organizations"
+          class="elevation-1"
+          item-value="id"
+          density="comfortable"
+        >
+          <template #item.status="{item}">
+            <v-chip
+              :color="item.status === 'active' ? 'green' : 'red'"
+              variant="flat" 
+              text-color="white"
+              class="mb-2"
+              small="small"
+            >
+              {{  item.status === 'active' ? 'Activa' : 'Inactiva' }}
+            </v-chip>
+          </template>
+          <template #item.actions="{ item }">
+              <v-btn icon @click="openEditDialog(item.id)">
+                <v-icon :icon="mdiPencil" />
               </v-btn>
-              <v-btn color="primary" size="small" variant="flat">
-                Editar
+              <v-btn icon>
+                <v-icon :icon="mdiEye" />
               </v-btn>
-           </v-card-actions>
+            </template>
+          </v-data-table>
         </v-card>
-    </v-col>
-  </v-row>
+
+  <EditOrganization
+    v-if="showEditDialog"
+    v-model:dialog="showEditDialog"
+    :organization-id="selectedOrgId"
+    @update:dialog="editDialog = $event"
+    @organization-updated="fetchOrganizations"
+  />
 </template>

@@ -24,7 +24,7 @@
         <v-card>
             <v-card-title>Crear Organizacion
                 <v-btn icon @click="showDialog = false">
-                 <v-icon>mdi-close</v-icon>
+                 <v-icon :icon="mdiCancel" />
                 </v-btn>
             </v-card-title>
             <v-card-text>
@@ -44,10 +44,11 @@
   import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
   import UiParentCard from '@/components/shared/UiParentCard.vue';
   import axiosInstance from '@/utils/axios';
+  import { mdiCancel } from '@mdi/js';
 
   const search = ref('');
-const currentPage = ref(1);
-const organizations = ref({ data: [], last_page: 1 });
+  const currentPage = ref(1);
+  const organizations = ref({ data: [], last_page: 1 });
 
 const fetchOrganizations = async () => {
   try {
@@ -81,6 +82,7 @@ const fetchOrganizations = async () => {
         fetchOrganizations();
         showSuccess();
     }
+    
     const snackbar = ref(false);
     const showSuccess = () => {
         snackbar.value = true;

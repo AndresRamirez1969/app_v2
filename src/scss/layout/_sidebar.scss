@@ -57,12 +57,6 @@
     }
     .v-list-item__append {
       font-size: 0.875rem;
-      .v-icon {
-        margin-inline-start: 13px;
-      }
-      > .v-icon {
-        --v-medium-emphasis-opacity: 0.8;
-      }
     }
     .v-list-item-title {
       font-size: 0.875rem;
@@ -80,9 +74,6 @@
       .v-list-item-title {
         font-weight: 500;
       }
-    }
-    .sidebarchip .v-icon {
-      margin-inline-start: -3px;
     }
     .v-list-group {
       .v-list-item:focus-visible > .v-list-item__overlay {
