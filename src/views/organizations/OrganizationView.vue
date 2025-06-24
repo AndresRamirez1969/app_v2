@@ -1,17 +1,25 @@
 <script setup>
 import EditOrganization from './components/EditOrganization.vue';
+import ViewOrganization from './components/ViewOrganization.vue';
 import { ref } from 'vue';
 import { mdiPencil, mdiEye } from '@mdi/js';
 
 const showEditDialog = ref(false);
+const showViewDrawer = ref(false);
 const selectedOrgId = ref(null);
 
 const openEditDialog = (id) => {
   selectedOrgId.value = id
   showEditDialog.value = true
 }
+
+const openViewDrawer = (id) => {
+  selectedOrgId.value = id
+  showViewDrawer.value = true
+}
 defineProps({
-    organizations: Array
+    organizations: Array,
+    isLoading: Boolean
 });
 
 const headers = [
@@ -33,6 +41,8 @@ const headers = [
           class="elevation-1"
           item-value="id"
           density="comfortable"
+          :loading="isLoading"
+          loading-text="Cargando..."
         >
           <template #item.status="{item}">
             <v-chip
@@ -49,7 +59,7 @@ const headers = [
               <v-btn icon @click="openEditDialog(item.id)">
                 <v-icon :icon="mdiPencil" />
               </v-btn>
-              <v-btn icon>
+              <v-btn icon @click="openViewDrawer(item.id)">
                 <v-icon :icon="mdiEye" />
               </v-btn>
             </template>
@@ -62,5 +72,10 @@ const headers = [
     :organization-id="selectedOrgId"
     @update:dialog="editDialog = $event"
     @organization-updated="fetchOrganizations"
+  />
+  <ViewOrganization
+    v-if="showViewDrawer"
+    v-model:modal="showViewDrawer"
+    :organization-id="selectedOrgId"
   />
 </template>

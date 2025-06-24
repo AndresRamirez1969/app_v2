@@ -22,9 +22,9 @@ const MainRoutes = {
       component: () => import('@/views/typography/TypographyPage.vue')
     },
     {
-      name: 'Colors',
+      name: 'Business',
       path: '/colors',
-      component: () => import('@/views/colors/ColorPage.vue')
+      component: () => import('@/views/businesses/BusinessTab.vue')
     },
     {
       name: 'Shadow',

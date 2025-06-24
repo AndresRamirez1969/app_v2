@@ -8,7 +8,7 @@
                         Agregar Organizacion
                     </v-btn>
                 </template>
-                <OrganizationView :organizations="organizations.data" />
+                <OrganizationView :organizations="organizations.data" :isLoading="isLoading" />
                <v-pagination 
                   v-model="currentPage"
                   :length="organizations.last_page"
@@ -49,8 +49,10 @@
   const search = ref('');
   const currentPage = ref(1);
   const organizations = ref({ data: [], last_page: 1 });
+  const isLoading = ref(false);
 
 const fetchOrganizations = async () => {
+  isLoading.value = true;
   try {
     const res = await axiosInstance.get('/organizations', {
       params: {
@@ -61,6 +63,8 @@ const fetchOrganizations = async () => {
     organizations.value = res.data;
   } catch (err) {
     console.error("Failed to fetch organizations", err);
+  } finally {
+    isLoading.value = false;
   }
 };
 
