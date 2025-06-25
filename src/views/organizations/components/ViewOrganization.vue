@@ -127,6 +127,5 @@
   },
   { immediate: true }
 )
-
-  </script>
+</script>
   

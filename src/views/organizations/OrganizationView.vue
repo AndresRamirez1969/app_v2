@@ -27,6 +27,7 @@ const headers = [
   { title: 'Alias', key: 'alias'},
   { title: 'Folio', key: 'folio'},
   { title: 'Estado', key: 'status'},
+  { title: 'Logo', key: 'logo'},
   { title: 'Acciones', key: 'actions', sortable: false}
 ]
 
@@ -54,6 +55,12 @@ const headers = [
             >
               {{  item.status === 'active' ? 'Activa' : 'Inactiva' }}
             </v-chip>
+          </template>
+          <template #item.logo="{ item }">
+            <v-avatar v-if="item.logo_url" size="40">
+              <v-img :src="item.logo_url" alt="Logo" />
+            </v-avatar>
+            <span v-else class="text-rey">Sin Logo</span>
           </template>
           <template #item.actions="{ item }">
               <v-btn icon @click="openEditDialog(item.id)">

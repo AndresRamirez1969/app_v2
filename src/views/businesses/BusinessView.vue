@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { mdiPencil, mdiEye } from '@mdi/js';
+import ViewBusiness from './components/ViewBusiness.vue';
 
 const showEditDialog = ref(false);
 const showViewDrawer = ref(false);
@@ -24,6 +25,7 @@ const headers = [
   { title: 'Nombre Legal', key: 'legal_name'},
   { title: 'Alias', key: 'alias'},
   { title: 'Estado', key: 'status'},
+  { title: 'Organizacion', key: 'organization.legal_name'},
   { title: 'Acciones', key: 'actions', sortable: false}
 ]
 
@@ -62,4 +64,10 @@ const headers = [
             </template>
           </v-data-table>
         </v-card>
+
+<ViewBusiness 
+  v-if="showViewDrawer"
+  v-model:modal="showViewDrawer"
+  :business-id="selectedBusId"
+/>
 </template>

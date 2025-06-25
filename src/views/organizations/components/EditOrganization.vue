@@ -20,7 +20,8 @@ const form = ref({
     legal_name: '',
     alias: '',
     description: '',
-    status: 'active',
+    status: '',
+    logo: '',
     people: [
       {
         first_name: '',
@@ -113,8 +114,37 @@ const closeDialog = () => {
       <v-card-title>
         <span v-if="activeForm === 'edit'">Editar Organizacion</span>
         <span v-else-if="activeForm === 'contact'">Agregar Contacto</span>
-        <span v-else-if="activeForm === 'business'">Negocios</span>
+        <span v-else-if="activeForm === 'business'">Agregar Negocio</span>
       </v-card-title>
+      <v-card-actions>
+        <v-btn 
+        rounded="xl" 
+        density="compact"
+        :color="activeForm === 'edit' ? 'primary' : 'grey'"
+        :variant="activeForm === 'edit' ? 'flat' : 'outlined'"
+        @click="activeForm = 'edit'"
+        >
+          Editar Organizacion
+        </v-btn>
+        <v-btn 
+        rounded="xl" 
+        density="compact"
+        :color="activeForm === 'contact' ? 'primary' : 'grey'"
+        :variant="activeForm === 'contact' ? 'flat' : 'outlined'"
+        @click="activeForm = 'contact'"
+        >
+          Agregar Contacto
+        </v-btn>
+        <v-btn 
+        rounded="xl" 
+        density="compact"
+        :color="activeForm === 'business' ? 'primary' : 'grey'"
+        :variant="activeForm === 'business' ? 'flat' : 'outlined'"
+        @click="activeForm = 'business'"
+        >
+          Agregar Negocio
+        </v-btn>
+    </v-card-actions>
       <v-card-text>
         <div v-if="activeForm === 'edit'">
         <v-text-field
@@ -132,6 +162,12 @@ const closeDialog = () => {
             v-model="form.description"
             variant="outlined"
           />
+          <v-file-input
+            label="Logo"
+            v-model="form.logo"
+            :multiple="false"
+            accept="image/*"
+          ></v-file-input>
           <v-switch 
             :label="switchStatus === 'active' ? 'Desactivar' : 'Activar'"
             v-model="form.status"
@@ -183,32 +219,6 @@ const closeDialog = () => {
           />
         </div>
       </v-card-text>
-      <v-card-actions>
-        <v-btn 
-        rounded="xl" 
-        :color="activeForm === 'edit' ? 'primary' : 'grey'"
-        :variant="activeForm === 'edit' ? 'flat' : 'outlined'"
-        @click="activeForm = 'edit'"
-        >
-          Editar Organizacion
-        </v-btn>
-        <v-btn 
-        rounded="xl" 
-        :color="activeForm === 'contact' ? 'primary' : 'grey'"
-        :variant="activeForm === 'contact' ? 'flat' : 'outlined'"
-        @click="activeForm = 'contact'"
-        >
-          Agregar Contacto
-        </v-btn>
-        <v-btn 
-        rounded="xl" 
-        :color="activeForm === 'business' ? 'primary' : 'grey'"
-        :variant="activeForm === 'business' ? 'flat' : 'outlined'"
-        @click="activeForm = 'business'"
-        >
-          Agregar Negocio
-        </v-btn>
-    </v-card-actions>
       <v-card-actions>
         <v-spacer />
         <v-btn text @click="closeDialog">Cancelar</v-btn>

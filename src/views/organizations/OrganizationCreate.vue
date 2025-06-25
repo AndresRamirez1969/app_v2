@@ -26,7 +26,9 @@ const validate = async () => {
       formData.append(`address[${key}]`, parsedAddress.value[key] || '');
     }
     if (logo.value) {
-      formData.append('logo', logo.value);
+      const file = Array.isArray(logo.value) ? logo.value[0] : logo.value;
+      formData.append('logo', file);
+      console.log('Logo value:', logo.value);
     }
     const res = await axiosInstance.post('/organizations', formData, {
       headers: {
@@ -88,6 +90,7 @@ const validate = async () => {
       <v-label>Logo</v-label>
       <v-file-input
         v-model="logo"
+        :multiple="false"
         label="Logo"
         variant="outlined"
         color="primary"

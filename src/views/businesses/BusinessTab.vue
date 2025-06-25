@@ -19,6 +19,19 @@
         </UiParentCard>
         </v-col>
     </v-row>
+
+    <v-dialog v-model="showDialog" max_width="700px">
+      <v-card>
+        <v-card-title>Crear Negocio
+          <v-btn icon @click="showDialog = false">
+              <v-icon :icon="mdiCancel" />
+           </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <CreateBusiness @businessCreated="handleBusCreate" />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </template>
   
   <script setup>
@@ -27,6 +40,8 @@
   import UiParentCard from '@/components/shared/UiParentCard.vue';
   import BusinessView from './BusinessView.vue';
   import axiosInstance from '@/utils/axios';
+  import { mdiCancel } from '@mdi/js';
+  import CreateBusiness from './components/CreateBusiness.vue';
 
   const search = ref('');
   const currentPage = ref(1);
@@ -62,6 +77,11 @@ const fetchBusinesses = async () => {
     onMounted(() => {
         fetchBusinesses();
     })
+
+    const handleBusCreate = () => {
+      showDialog.value = false;
+      fetchBusinesses();
+    }
     
     watch(currentPage, fetchBusinesses);
   </script>
