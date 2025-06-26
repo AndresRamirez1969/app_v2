@@ -1,16 +1,15 @@
 <template>
     <div>
-      <v-navigation-drawer
+      <v-dialog
         :model-value="props.modal"
         @update:model-value="emit('update:modal', $event)"
-        location="right"
         temporary
-        width="800"
+        max-width="1000"
+        max-height="2000"
       >
         <v-card flat>
-          <v-card-title class="text-h6">
+          <v-card-title class="d-flex align-center justify-space-between">
             Detalles de Organización
-            <v-spacer />
             <v-btn icon @click="emit('update:modal', false)">
                 <v-icon :icon="mdiCancel" />
             </v-btn>
@@ -99,7 +98,7 @@
             </v-list>
           </v-card-text>
         </v-card>
-      </v-navigation-drawer>
+      </v-dialog>
     </div>
   </template>
   

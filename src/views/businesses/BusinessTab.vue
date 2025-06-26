@@ -7,6 +7,7 @@
                     <v-btn color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true">
                         Agregar Negocio
                     </v-btn>
+                    
                 </template>
                 <BusinessView :businesses="businesses.data" :isLoading="isLoading" />
                <v-pagination 
@@ -22,7 +23,7 @@
 
     <v-dialog v-model="showDialog" max_width="700px">
       <v-card>
-        <v-card-title>Crear Negocio
+        <v-card-title class="d-flex align-center justify-space-between">Crear Negocio
           <v-btn icon @click="showDialog = false">
               <v-icon :icon="mdiCancel" />
            </v-btn>

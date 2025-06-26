@@ -20,9 +20,9 @@
         </v-col>
     </v-row>
 
-    <v-dialog v-model="showDialog" max_width="700px">
+    <v-dialog v-model="showDialog" max_width="500px">
         <v-card>
-            <v-card-title>Crear Organizacion
+            <v-card-title class="d-flex align-center justify-space-between">Crear Organizacion
                 <v-btn icon @click="showDialog = false">
                  <v-icon :icon="mdiCancel" />
                 </v-btn>

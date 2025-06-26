@@ -1,6 +1,6 @@
 <template>
     <div>
-      <v-navigation-drawer
+      <v-dialog
         :model-value="props.modal"
         @update:model-value="emit('update:modal', $event)"
         location="right"
@@ -8,7 +8,7 @@
         width="800"
       >
         <v-card flat>
-          <v-card-title class="text-h6">
+          <v-card-title class="d-flex align-center justify-space-between">
             Detalles del Negocio
             <v-spacer />
             <v-btn icon @click="emit('update:modal', false)">
@@ -39,10 +39,40 @@
                 <v-list-item-subtitle>{{ bus.status }}</v-list-item-subtitle>
               </v-list-item>
 
+              <v-list-group value="true" no-action>
+                <template #activator="{props}">
+                  <v-list-item v-bind="props">
+                    <v-list-item-title class="font-weight-bold">Direccion</v-list-item-title>
+                  </v-list-item>
+                </template>
+                <v-list-item>
+                  <div class="text-body-2">
+                    {{ bus.address?.street }}, {{ bus.address?.outdoor_number }}<br>
+                    {{ bus.address?.neighborhood }}, {{ bus.address?.city }}<br>
+                    {{ bus.address?.state }}, {{ bus.address?.country }} - {{ bus.address?.postal_code }}
+                  </div>
+                </v-list-item>
+              </v-list-group>
+
+              <v-list-group value="true" no-action>
+                <template #activator="{props}">
+                  <v-list-item v-bind="props">
+                    <v-list-item-title class="font-weight-bold">Unidades</v-list-item-title>
+                  </v-list-item>
+                </template>
+                <v-list-item>
+                  <div class="text-body-2">
+                    {{ bus.address?.street }}, {{ bus.address?.outdoor_number }}<br>
+                    {{ bus.address?.neighborhood }}, {{ bus.address?.city }}<br>
+                    {{ bus.address?.state }}, {{ bus.address?.country }} - {{ bus.address?.postal_code }}
+                  </div>
+                </v-list-item>
+              </v-list-group>
+
             </v-list>
           </v-card-text>
         </v-card>
-      </v-navigation-drawer>
+      </v-dialog>
     </div>
   </template>
   
