@@ -22,14 +22,19 @@ const MainRoutes = {
       component: () => import('@/views/typography/TypographyPage.vue')
     },
     {
-      name: 'Colors',
-      path: '/colors',
-      component: () => import('@/views/colors/ColorPage.vue')
+      name: 'Business',
+      path: '/negocios',
+      component: () => import('@/views/businesses/BusinessTab.vue')
     },
     {
-      name: 'Shadow',
-      path: '/shadow',
-      component: () => import('@/views/shadows/ShadowPage.vue')
+      name: 'Units',
+      path: '/unidades',
+      component: () => import('@/views/business_units/UnitsTabs.vue')
+    },
+    {
+      name: 'Grupos',
+      path: '/grupos',
+      component: () => import('@/views/units_groups/UnitsGroupsTab.vue')
     },
     {
       name: 'Color',
@@ -38,7 +43,7 @@ const MainRoutes = {
     },
     {
       name: 'other',
-      path: '/sample-page',
+      path: '/organizaciones',
       component: () => import('@/views/organizations/OrganizationTab.vue')
     }
   ]

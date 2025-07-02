@@ -3,7 +3,7 @@ import { ref } from 'vue';
 // icons
 import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons-vue';
 import { Form } from 'vee-validate';
-import {useRouter} from 'vue-router';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const valid = ref(false);
@@ -13,9 +13,7 @@ const email = ref('');
 const authStore = useAuthStore();
 const router = useRouter();
 // Password validation rules
-const passwordRules = ref([
-  (v: string) => !!v || 'Ingresa tu contrasena',
-]);
+const passwordRules = ref([(v: string) => !!v || 'Ingresa tu contrasena']);
 // Email validation rules
 const emailRules = ref([
   (v: string) => !!v.trim() || 'Ingresa tu correo',
@@ -23,25 +21,24 @@ const emailRules = ref([
     const trimmedEmail = v.trim();
     return !/\s/.test(trimmedEmail) || 'El correo no puede contener espacios';
   },
-  (v: string) => /.+@.+\..+/.test(v.trim()) || 'E-mail must be valid'
+  (v: string) => /.+@.+\..+/.test(v.trim()) || 'Ingresa un correo valido'
 ]);
 
- 
 const validate = async () => {
   try {
     await authStore.login(email.value, password.value);
-    router.push('/sample-page');
+    router.push('/dashboard');
   } catch (err) {
-    console.log("Failure", err);
+    console.log('Failure', err);
   }
-}
+};
 </script>
 
 <template>
   <div class="d-flex justify-space-between align-center">
     <h3 class="text-h3 text-center mb-0">Login</h3>
   </div>
-  <Form @submit="validate" class="mt-7 loginForm" v-slot="{isSubmitting }">
+  <Form @submit="validate" class="mt-7 loginForm" v-slot="{ isSubmitting }">
     <div class="mb-6">
       <v-label>Correo/Usuario</v-label>
       <v-text-field

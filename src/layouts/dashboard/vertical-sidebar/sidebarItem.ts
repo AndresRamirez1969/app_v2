@@ -1,11 +1,5 @@
 // icons
-import {
-  CrownTwoTone,
-  DatabaseTwoTone,
-  DashboardTwoTone,
-  ShopTwoTone,
-  IdcardTwoTone,
-} from '@ant-design/icons-vue';
+import { CrownTwoTone, DatabaseTwoTone, DashboardTwoTone, ShopTwoTone, IdcardTwoTone } from '@ant-design/icons-vue';
 
 export interface menu {
   header?: string;
@@ -33,23 +27,32 @@ const sidebarItem: menu[] = [
   {
     title: 'Organizaciones',
     icon: DatabaseTwoTone,
-    to: '/sample-page'
+    to: '/organizaciones'
   },
   {
-    title: 'Negocio',
+    title: 'Negocios',
     icon: CrownTwoTone,
-    to: '/colors'
+    to: '/negocios'
   },
   {
     title: 'Unidades de Negocio',
     icon: ShopTwoTone,
-    to: '/shadow'
+    children: [
+      {
+        title: 'Unidades',
+        to: '/unidades'
+      },
+      {
+        title: 'Grupos',
+        to: '/grupos'
+      }
+    ]
   },
   {
     title: 'Usuarios',
     icon: IdcardTwoTone,
     to: '/icon/ant'
-  },
+  }
 ];
 
 export default sidebarItem;

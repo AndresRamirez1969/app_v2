@@ -1,32 +1,34 @@
 <script setup>
-import EditOrganization from './components/EditOrganization.vue';
-import ViewOrganization from './components/ViewOrganization.vue';
 import { ref } from 'vue';
 import { mdiPencil, mdiEye } from '@mdi/js';
+import CreateUnit from '../business_units/components/CreateUnit.vue';
 
 const showEditDialog = ref(false);
 const showViewDrawer = ref(false);
-const selectedOrgId = ref(null);
+const selectedBusId = ref(null);
+const selectedBus = ref(null);
+const showCreateDialog = ref(false);
 
 const openEditDialog = (id) => {
-  selectedOrgId.value = id;
+  selectedBusId.value = id;
   showEditDialog.value = true;
 };
 
 const openViewDrawer = (id) => {
-  selectedOrgId.value = id;
+  selectedBusId.value = id;
   showViewDrawer.value = true;
 };
+
 defineProps({
-  organizations: Array,
+  units: Array,
   isLoading: Boolean
 });
 
 const headers = [
   { title: 'Nombre Legal', key: 'legal_name' },
-  { title: 'Alias', key: 'alias' },
-  { title: 'Folio', key: 'folio' },
+  { title: 'Dirección', key: 'direccion' },
   { title: 'Estado', key: 'status' },
+  { title: 'Negocio', key: 'business.legal_name' },
   { title: 'Acciones', key: 'actions', sortable: false }
 ];
 </script>
@@ -36,26 +38,20 @@ const headers = [
   <v-card>
     <v-data-table
       :headers="headers"
-      :items="organizations"
+      :items="units"
       class="elevation-1"
       item-value="id"
       density="comfortable"
       :loading="isLoading"
       loading-text="Cargando..."
     >
-      <template #item.legal_name="{ item }">
-        <div class="d-flex align-center gap-2">
-          <v-avatar v-if="item.logo" size="30" class="me-2">
-            <v-img :src="item.logo" alt="Logo" />
-          </v-avatar>
-          <span>{{ item.legal_name }}</span>
-        </div>
-      </template>
-
       <template #item.status="{ item }">
         <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
           {{ item.status === 'active' ? 'Activa' : 'Inactiva' }}
         </v-chip>
+      </template>
+      <template #item.direccion="{ item }">
+        {{ item.address.street }}, {{ item.address.neighborhood }}, {{ item.address.city }}, {{ item.address.state }}
       </template>
       <template #item.actions="{ item }">
         <v-btn icon @click="openEditDialog(item.id)">
@@ -67,13 +63,5 @@ const headers = [
       </template>
     </v-data-table>
   </v-card>
-
-  <EditOrganization
-    v-if="showEditDialog"
-    v-model:dialog="showEditDialog"
-    :organization-id="selectedOrgId"
-    @update:dialog="editDialog = $event"
-    @organization-updated="fetchOrganizations"
-  />
-  <ViewOrganization v-if="showViewDrawer" v-model:modal="showViewDrawer" :organization-id="selectedOrgId" />
+  <CreateUnit v-if="showCreateDialog" v-model:dialog="showCreateDialog" :business="selectedBus" />
 </template>
