@@ -6,16 +6,10 @@
         <template #action>
           <v-btn color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true"> Agregar Unidad </v-btn>
         </template>
-        <UnitsView :units="units.data" :isLoading="isLoading" />
         <v-pagination v-model="currentPage" :length="units.last_page" :total-visible="5" @input="fetchUnits" class="mt-6" />
       </UiParentCard>
     </v-col>
   </v-row>
-  <v-card>
-    <v-card-text>
-      <CreateUnit v-model:dialog="showDialog" @unitCreated="fetchUnits" />
-    </v-card-text>
-  </v-card>
 </template>
 
 <script setup>
@@ -23,8 +17,6 @@ import { onMounted, ref, shallowRef, watch } from 'vue';
 import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import axiosInstance from '@/utils/axios';
-import UnitsView from './UnitsView.vue';
-import CreateUnit from './components/CreateUnit.vue';
 
 const search = ref('');
 const currentPage = ref(1);
@@ -49,10 +41,10 @@ const fetchUnits = async () => {
 };
 
 const showDialog = ref(false);
-const page = ref({ title: 'Unidades' });
+const page = ref({ title: 'Grupos' });
 const breadcrumbs = shallowRef([
   {
-    title: 'Unidades',
+    title: 'Unidades de Negocio',
     disabled: true,
     href: '#'
   }
