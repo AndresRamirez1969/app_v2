@@ -1,5 +1,20 @@
 <template>
-  <BaseBreadcrumb :title="page.title" :breadcrumbs="breadcrumbs"></BaseBreadcrumb>
+  <v-container fluid class="pa-0">
+    <!-- Header -->
+    <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
+      <v-col cols="auto" class="pa-0 d-flex align-center">
+        <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Organizaciones</h1>
+      </v-col>
+
+      <!-- Botón -->
+      <v-col cols="auto" class="pa-0 d-flex align-center">
+        <v-btn color="primary" class="font-weight-bold" @click="goToNewOrganization">
+          <v-icon start>mdi-plus</v-icon>
+          Agregar<span class="d-none d-sm-inline">&nbsp;Organización</span>
+        </v-btn>
+      </v-col>
+    </v-row>
+  </v-container>
   <!-- Superadmin view -->
   <v-row v-if="isSuperAdmin">
     <v-col cols="12" md="12">
@@ -39,7 +54,6 @@
 import { onMounted, ref, shallowRef, watch, computed } from 'vue';
 import OrganizationCreate from './OrganizationCreate.vue';
 import OrganizationView from './OrganizationView.vue';
-import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import axiosInstance from '@/utils/axios';
 import { mdiCancel } from '@mdi/js';

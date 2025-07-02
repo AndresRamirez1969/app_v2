@@ -2,8 +2,19 @@
   <v-progress-circular v-if="loadingOrg" indeterminate color="primary" />
 
   <v-card v-else-if="organization" class="pa-6 rounded-lg elevation-3">
-    <v-card-title class="text-h5 font-weight-bold mb-6 text-primary"> Detalles de tu Organización </v-card-title>
-
+    <v-toolbar class="mb-4" density="compact" title="Detalles de la Organizacion">
+      <template v-slot:append>
+        <v-btn icon @click="showDialog = false">
+          <v-icon :icon="mdiPencil" />
+        </v-btn>
+        <v-btn icon @click="showDialog = false">
+          <v-icon :icon="mdiDeleteAlert" />
+        </v-btn>
+        <v-btn icon @click="showDialog = false">
+          <v-icon :icon="mdiDotsVertical" />
+        </v-btn>
+      </template>
+    </v-toolbar>
     <v-row dense>
       <!-- Left Column: Logo & Legal Name -->
       <v-col cols="12" md="6">
@@ -59,19 +70,6 @@
           </v-list-item>
         </v-list>
       </v-col>
-      <v-toolbar density="compact">
-        <template v-slot:append>
-          <v-btn icon @click="showDialog = false">
-            <v-icon :icon="mdiPencil" />
-          </v-btn>
-          <v-btn icon @click="showDialog = false">
-            <v-icon :icon="mdiDeleteAlert" />
-          </v-btn>
-          <v-btn icon @click="showDialog = false">
-            <v-icon :icon="mdiDotsVertical" />
-          </v-btn>
-        </template>
-      </v-toolbar>
     </v-row>
   </v-card>
 
