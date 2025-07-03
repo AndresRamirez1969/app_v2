@@ -1,13 +1,16 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { mdiPencil, mdiEye } from '@mdi/js';
 import CreateUnit from '../business_units/components/CreateUnit.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const showEditDialog = ref(false);
 const showViewDrawer = ref(false);
 const selectedBusId = ref(null);
 const selectedBus = ref(null);
 const showCreateDialog = ref(false);
+
+const auth = useAuthStore();
 
 const openEditDialog = (id) => {
   selectedBusId.value = id;
@@ -19,26 +22,33 @@ const openViewDrawer = (id) => {
   showViewDrawer.value = true;
 };
 
-defineProps({
+const props = defineProps({
   units: Array,
   isLoading: Boolean
+});
+
+//Filtra unidades para solo mostrar las que pertenecen a la organizacion ligada al usuario
+const filter = computed(() => {
+  if (auth.user?.role === 'superadmin') {
+    return props.units;
+  }
+  return props.units.filter((b) => b.organization_id === auth.user?.organization_id);
 });
 
 const headers = [
   { title: 'Nombre Legal', key: 'legal_name' },
   { title: 'Dirección', key: 'direccion' },
   { title: 'Estado', key: 'status' },
-  { title: 'Negocio', key: 'business.legal_name' },
+  { title: 'Formularios', key: 'Forms' },
   { title: 'Acciones', key: 'actions', sortable: false }
 ];
 </script>
 
 <template>
-  <BaseBreadcrumb></BaseBreadcrumb>
   <v-card>
     <v-data-table
       :headers="headers"
-      :items="units"
+      :items="filter"
       class="elevation-1"
       item-value="id"
       density="comfortable"

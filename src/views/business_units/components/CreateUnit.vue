@@ -25,6 +25,11 @@ const emit = defineEmits(['update:dialog', 'unitCreated']);
 
 const validate = async () => {
   try {
+    if (!props.business) {
+      console.error('Business is undefined');
+      return;
+    }
+    console.log(props.business);
     const formData = new FormData();
     formData.append('legal_name', legal_name.value);
     formData.append('alias', alias.value || '');

@@ -4,3 +4,8 @@ export const TIMEZONES = [
   { label: 'Zona Pacífico (UTC-7)', value: 'UTC-7' },
   { label: 'Zona Noroeste (UTC-8)', value: 'UTC-8' }
 ];
+
+export const ROLES = [
+  { label: 'Admin', value: 'admin' },
+  { label: 'Colaborador', value: 'sponsor' }
+];

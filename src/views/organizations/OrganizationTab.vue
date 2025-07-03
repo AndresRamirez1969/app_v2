@@ -1,38 +1,44 @@
 <template>
-  <v-container fluid class="pa-0">
-    <!-- Header -->
-    <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
-      <v-col cols="auto" class="pa-0 d-flex align-center">
-        <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Organizaciones</h1>
-      </v-col>
-
-      <!-- Botón -->
-      <v-col cols="auto" class="pa-0 d-flex align-center">
-        <v-btn color="primary" class="font-weight-bold" @click="goToNewOrganization">
-          <v-icon start>mdi-plus</v-icon>
-          Agregar<span class="d-none d-sm-inline">&nbsp;Organización</span>
-        </v-btn>
-      </v-col>
-    </v-row>
-  </v-container>
-  <!-- Superadmin view -->
   <v-row v-if="isSuperAdmin">
-    <v-col cols="12" md="12">
-      <UiParentCard title="Gestionar Organizaciones">
-        <template #action>
-          <v-btn color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true"> Agregar Organizacion </v-btn>
-        </template>
-        <OrganizationView :organizations="organizations.data" :isLoading="isLoading" />
-        <v-pagination v-model="currentPage" :length="organizations.last_page" :total-visible="5" @input="fetchOrganizations" class="mt-6" />
-      </UiParentCard>
-    </v-col>
+    <v-container fluid class="pa-0">
+      <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
+        <v-col cols="auto" class="pa-0 d-flex align-center">
+          <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Organizaciones</h1>
+        </v-col>
+        <v-col cols="12" md="12">
+          <UiParentCard title="Gestionar Organizaciones">
+            <template #action>
+              <v-btn color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true">
+                <v-icon start :icon="mdiPlus" /> Agregar<span class="d-none d-sm-inline">&nbsp;Organización</span>
+              </v-btn>
+            </template>
+            <OrganizationView :organizations="organizations.data" :isLoading="isLoading" />
+            <v-pagination
+              v-model="currentPage"
+              :length="organizations.last_page"
+              :total-visible="5"
+              @input="fetchOrganizations"
+              class="mt-6"
+            />
+          </UiParentCard>
+        </v-col>
+      </v-row>
+    </v-container>
   </v-row>
 
   <!-- Non-superadmin view -->
   <div v-else>
-    <v-progress-circular v-if="loadingOrg" indeterminate color="primary" />
-    <ShowOrganization v-else-if="auth.user?.organization_id" />
-    <OrganizationCreate v-else @organizationCreated="handleOrganizationCreated" />
+    <v-container fluid class="pa-0">
+      <!-- Header -->
+      <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
+        <v-col cols="auto" class="pa-0 d-flex align-center">
+          <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Tu Organización</h1>
+        </v-col>
+      </v-row>
+      <v-progress-circular v-if="loadingOrg" indeterminate color="primary" />
+      <ShowOrganization v-else-if="auth.user?.organization_id" />
+      <OrganizationCreate v-else @organizationCreated="handleOrganizationCreated" />
+    </v-container>
   </div>
   <v-dialog v-model="showDialog" max_width="500px">
     <v-card>
@@ -51,12 +57,12 @@
 </template>
 
 <script setup>
-import { onMounted, ref, shallowRef, watch, computed } from 'vue';
+import { onMounted, ref, watch, computed } from 'vue';
 import OrganizationCreate from './OrganizationCreate.vue';
 import OrganizationView from './OrganizationView.vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import axiosInstance from '@/utils/axios';
-import { mdiCancel } from '@mdi/js';
+import { mdiCancel, mdiPlus } from '@mdi/js';
 import { useAuthStore } from '@/stores/auth';
 import ShowOrganization from './adminOrganizations/ShowOrganization.vue';
 import { useOrganization } from '@/apiCalls/useOrganization';
@@ -91,14 +97,6 @@ const fetchOrganizations = async () => {
 };
 
 const showDialog = ref(false);
-const page = ref({ title: 'Organizacion' });
-const breadcrumbs = shallowRef([
-  {
-    title: 'Organizaciones',
-    disabled: true,
-    href: '#'
-  }
-]);
 onMounted(() => {
   fetchOrganizations();
 });
