@@ -7,7 +7,7 @@ const props = defineProps({
   dialog: Boolean,
   organizationId: Number
 });
-const emit = defineEmits(['update:dialog']);
+const emit = defineEmits(['update:dialog', 'organization-updated']);
 
 const activeForm = ref('edit');
 

@@ -27,6 +27,11 @@ const MainRoutes = {
       component: () => import('@/views/businesses/BusinessTab.vue')
     },
     {
+      name: 'BusinessDetail',
+      path: '/negocio/:id',
+      component: () => import('@/views/businesses/components/ViewBusiness.vue')
+    },
+    {
       name: 'Units',
       path: '/unidades',
       component: () => import('@/views/business_units/UnitsTabs.vue')

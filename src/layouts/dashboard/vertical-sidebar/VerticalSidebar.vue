@@ -6,10 +6,11 @@ import sidebarItems from './sidebarItem';
 import NavGroup from './NavGroup/NavGroup.vue';
 import NavItem from './NavItem/NavItem.vue';
 import NavCollapse from './NavCollapse/NavCollapse.vue';
-import Logo from '../logo/LogoDark.vue';
 
 const customizer = useCustomizerStore();
 const sidebarMenu = shallowRef(sidebarItems);
+
+const logoUrl = 'https://tasker-v2-bucket.s3.us-east-2.amazonaws.com/public/Logotipo+1.svg';
 </script>
 
 <template>
@@ -24,8 +25,8 @@ const sidebarMenu = shallowRef(sidebarItems);
     :rail="customizer.mini_sidebar"
     expand-on-hover
   >
-    <div class="pa-5">
-      <h1>Tasker</h1>
+    <div class="pa-5 text-center">
+      <v-img :src="logoUrl" alt="Tasker Logo" max-height="40" contain class="mx-auto" />
     </div>
     <!-- ---------------------------------------------- -->
     <!---Navigation -->

@@ -6,6 +6,8 @@ import { Form } from 'vee-validate';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
+const logoUrl = 'https://tasker-v2-bucket.s3.us-east-2.amazonaws.com/public/Logotipo+1.svg';
+
 const valid = ref(false);
 const show1 = ref(false);
 const password = ref('');
@@ -36,6 +38,7 @@ const validate = async () => {
 
 <template>
   <div class="d-flex justify-space-between align-center">
+    <v-img :src="logoUrl" alt="Company Logo" max-height="30" contain class="mx-auto" />
     <h3 class="text-h3 text-center mb-0">Login</h3>
   </div>
   <Form @submit="validate" class="mt-7 loginForm" v-slot="{ isSubmitting }">

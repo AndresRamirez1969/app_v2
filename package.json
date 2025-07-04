@@ -19,6 +19,7 @@
     "@fontsource/poppins": "5.1.0",
     "@fontsource/public-sans": "5.1.1",
     "@fontsource/roboto": "5.1.0",
+    "@mdi/font": "^7.4.47",
     "@mdi/js": "^7.4.47",
     "@tsconfig/node20": "20.1.4",
     "@typescript-eslint/parser": "^8.18.2",
