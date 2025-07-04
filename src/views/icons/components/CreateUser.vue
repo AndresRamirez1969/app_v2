@@ -1,27 +1,26 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import AddressAutocomplete from '@/utils/helpers/AddressAutocomplete.vue';
 import axiosInstance from '@/utils/axios';
+import { ROLES } from '@/constants/constants';
 
 const Regform = ref('');
-const legal_name = ref('');
-const alias = ref('');
-const description = ref('');
-const parsedAddress = ref({});
-const logo = ref('');
+const name = ref('');
+const email = ref('');
+const organization_id = ref('');
+const business_id = ref('');
+const role = ref('');
 const orgs = ref([]);
-const belongsTo = ref(null);
+const biz = ref([]);
 
-const handleParsedAddress = (val) => {
-  parsedAddress.value = val;
-};
-
-const emit = defineEmits(['businessCreated']);
+const emit = defineEmits(['userCreated']);
 
 onMounted(async () => {
   try {
-    const res = await axiosInstance.get('/organizations');
-    orgs.value = res.data.data;
+    const orgsRes = await axiosInstance.get('/organizations');
+    orgs.value = orgsRes.data.data;
+
+    const bizRes = await axiosInstance.get('/businesses');
+    biz.value = bizRes.data.data;
   } catch (err) {
     console.log(err);
   }
@@ -30,25 +29,18 @@ onMounted(async () => {
 const validate = async () => {
   try {
     const formData = new FormData();
-    formData.append('legal_name', legal_name.value);
-    formData.append('alias', alias.value || '');
-    formData.append('description', description.value || '');
-    formData.append('organization_id', belongsTo.value);
-    for (const key in parsedAddress.value) {
-      formData.append(`address[${key}]`, parsedAddress.value[key] || '');
+    formData.append('name', name.value);
+    formData.append('email', email.value || '');
+    formData.append('organization_id', organization_id.value || '');
+    formData.append('role', role.value);
+    if (role.value === 'sponsor') {
+      formData.append('business_id', business_id.value || '');
+    } else {
+      formData.append('business_id', '');
     }
-    if (logo.value) {
-      const file = Array.isArray(logo.value) ? logo.value[0] : logo.value;
-      formData.append('logo', file);
-      console.log('Logo value:', logo.value);
-    }
-    const res = await axiosInstance.post('/businesses', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    console.log('Business added', res);
-    emit('businessCreated');
+    const res = await axiosInstance.post('/users', formData);
+    console.log('User added', res);
+    emit('userCreated');
   } catch (err) {
     console.log('Failed to save org', err);
   }
@@ -62,39 +54,38 @@ const validate = async () => {
         <v-row class="my-0">
           <v-col cols="12" sm="6" class="py-0">
             <div class="mb-6">
-              <v-label>Nombre Legal</v-label>
-              <v-text-field v-model="legal_name" required variant="outlined" class="mt-2" color="primary"></v-text-field>
+              <v-label>Nombre Completo</v-label>
+              <v-text-field v-model="name" required variant="outlined" class="mt-2" color="primary"></v-text-field>
             </div>
           </v-col>
           <v-col cols="12" sm="6" class="py-0">
             <div class="mb-6">
-              <v-label>Alias</v-label>
-              <v-text-field v-model="alias" class="mt-2" variant="outlined" color="primary"></v-text-field>
+              <v-label>Correo</v-label>
+              <v-text-field v-model="email" class="mt-2" variant="outlined" color="primary"></v-text-field>
             </div>
           </v-col>
         </v-row>
         <v-row class="my-0">
           <v-col cols="12" sm="6" class="py-0">
             <div class="mb-6">
-              <v-label>Descripcion</v-label>
-              <v-text-field v-model="description" variant="outlined" color="primary" class="mt-2"> </v-text-field>
-            </div>
-          </v-col>
-          <v-col cols="12" sm="6" class="py-0">
-            <div class="mb-6">
-              <v-label>Logo</v-label>
-              <v-file-input v-model="logo" :multiple="false" label="Logo" variant="outlined" color="primary" class="mt-2" accept="image/*">
-              </v-file-input>
+              <v-label>Rol</v-label>
+              <v-select
+                v-model="role"
+                :items="ROLES"
+                item-title="label"
+                item-value="value"
+                variant="outlined"
+                color="primary"
+                class="mt-2"
+                label="Selecciona el Rol"
+              />
             </div>
           </v-col>
         </v-row>
         <div class="mb-6">
-          <AddressAutocomplete @update:parsedAddress="handleParsedAddress" />
-        </div>
-        <div class="mb-6">
           <v-label>Organizacion Perteneciente</v-label>
           <v-select
-            v-model="belongsTo"
+            v-model="organization_id"
             :items="orgs"
             item-title="legal_name"
             item-value="id"
@@ -104,8 +95,21 @@ const validate = async () => {
             label="Selecciona una organizacion"
           />
         </div>
+        <div class="mb-6" v-if="role === 'sponsor'">
+          <v-label>Negocio Perteneciente</v-label>
+          <v-select
+            v-model="business_id"
+            :items="biz"
+            item-title="legal_name"
+            item-value="id"
+            variant="outlined"
+            color="primary"
+            class="mt-2"
+            label="Selecciona un Negocio"
+          />
+        </div>
         <div class="d-sm-inline-flex align-center mt-2 mb-7 mb-sm-0 font-weight-bold"></div>
-        <v-btn color="primary" block class="mt-4" variant="flat" size="large" @click="validate()">Guardar Negocio</v-btn>
+        <v-btn color="primary" block class="mt-4" variant="flat" size="large" @click="validate()">Crear Usuario</v-btn>
       </v-form>
     </v-col>
   </v-row>

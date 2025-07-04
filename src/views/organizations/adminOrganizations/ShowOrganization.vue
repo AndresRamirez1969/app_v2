@@ -3,7 +3,7 @@
 
   <v-card v-else-if="organization" class="pa-6 rounded-lg elevation-3">
     <v-toolbar class="mb-4" density="compact" title="Detalles de la Organizacion">
-      <template v-slot:append>
+      <template v-slot:append v-if="!isSponsor">
         <v-btn icon @click="editMode ? saveChanges() : (editMode = true)">
           <v-icon :icon="editMode ? mdiCheck : mdiPencil" />
         </v-btn>
@@ -110,13 +110,18 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref, watch, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useOrganization } from '@/apiCalls/useOrganization';
 import { mdiPencil, mdiCancel, mdiCheck, mdiPlus } from '@mdi/js';
 import { updateOrganization } from '@/apiCalls/updateOrganization';
 
 const auth = useAuthStore();
+
+const isSponsor = computed(() => {
+  return auth.user?.roles?.some((role) => role.name === 'sponsor');
+});
+
 const { organization, loadingOrg, fetchOrganization } = useOrganization();
 
 const editMode = ref(false);

@@ -13,7 +13,7 @@ const openEditDialog = (id) => {
 };
 
 const handleUserCreate = () => {
-  showDialog.value = false;
+  showDialog.value = true;
 };
 
 defineProps({
@@ -30,12 +30,11 @@ const headers = [
 </script>
 
 <template>
-  <BaseBreadcrumb></BaseBreadcrumb>
   <v-card>
+    <div class="d-flex justify-end mb-4">
+      <v-btn color="primary" class="px-2 py-1 text-sm" variant="flat" @click="showDialog = true"> Agregar Usuario </v-btn>
+    </div>
     <v-data-table :headers="headers" :items="users" class="elevation-1" item-value="id" density="comfortable">
-      <template #action>
-        <v-btn color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true"> Agregar Usuario </v-btn>
-      </template>
       <template #item.status="{ item }">
         <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
           {{ item.status === 'active' ? 'Activo' : 'Inactivo' }}

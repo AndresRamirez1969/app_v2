@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import AddressAutocomplete from '@/utils/helpers/AddressAutocomplete.vue';
 import axiosInstance from '@/utils/axios';
 import { TIMEZONES } from '@/constants/constants.ts';
@@ -12,6 +12,8 @@ const description = ref('');
 const parsedAddress = ref({});
 const logo = ref('');
 const timezone = ref('');
+const businesses = ref([]);
+const belongsTo = ref(null);
 
 const props = defineProps({
   dialog: Boolean,
@@ -21,21 +23,26 @@ const handleParsedAddress = (val) => {
   parsedAddress.value = val;
 };
 
+onMounted(async () => {
+  try {
+    const res = await axiosInstance.get('/businesses');
+    businesses.value = res.data.data;
+  } catch (err) {
+    console.log(err);
+  }
+});
+
 const emit = defineEmits(['update:dialog', 'unitCreated']);
 
 const validate = async () => {
   try {
-    if (!props.business) {
-      console.error('Business is undefined');
-      return;
-    }
     console.log(props.business);
     const formData = new FormData();
     formData.append('legal_name', legal_name.value);
     formData.append('alias', alias.value || '');
     formData.append('description', description.value || '');
-    formData.append('organization_id', props.business.organization_id);
-    formData.append('business_id', props.business.id);
+    formData.append('business_id', belongsTo.value.id);
+    formData.append('organization_id', belongsTo.value.organization_id);
     formData.append('timezone', timezone.value);
     for (const key in parsedAddress.value) {
       formData.append(`address[${key}]`, parsedAddress.value[key] || '');
@@ -51,7 +58,8 @@ const validate = async () => {
       }
     });
     console.log('Unit added', res);
-    emit('businessCreated');
+    emit('unitCreated');
+    emit('update:dialog', false);
   } catch (err) {
     console.log('Failed to save org', err);
   }
@@ -121,6 +129,20 @@ const validate = async () => {
           </v-row>
           <div class="mb-6">
             <AddressAutocomplete @update:parsedAddress="handleParsedAddress" />
+          </div>
+          <div class="mb-6">
+            <v-label>Negocio Perteneciente</v-label>
+            <v-select
+              v-model="belongsTo"
+              :items="businesses"
+              item-title="legal_name"
+              item-value="id"
+              return-object
+              variant="outlined"
+              color="primary"
+              class="mt-2"
+              label="Selecciona un Negocio"
+            />
           </div>
           <div class="d-sm-inline-flex align-center mt-2 mb-7 mb-sm-0 font-weight-bold"></div>
           <v-btn color="primary" block class="mt-4" variant="flat" size="large" @click="validate()">Agregar Unidad</v-btn>

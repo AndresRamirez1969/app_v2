@@ -13,7 +13,7 @@
   </v-row>
   <v-card>
     <v-card-text>
-      <CreateUnit v-model:dialog="showDialog" @unitCreated="fetchUnits" />
+      <CreateUnit v-model:dialog="showDialog" @unitCreated="handleUnitCreated" />
     </v-card-text>
   </v-card>
 </template>
@@ -46,6 +46,11 @@ const fetchUnits = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+const handleUnitCreated = () => {
+  fetchUnits();
+  showDialog.value = false;
 };
 
 const showDialog = ref(false);

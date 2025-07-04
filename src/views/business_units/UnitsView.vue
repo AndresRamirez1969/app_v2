@@ -38,6 +38,7 @@ const filter = computed(() => {
 const headers = [
   { title: 'Nombre Legal', key: 'legal_name' },
   { title: 'Dirección', key: 'direccion' },
+  { title: 'Negocio', key: 'business.legal_name' },
   { title: 'Estado', key: 'status' },
   { title: 'Formularios', key: 'Forms' },
   { title: 'Acciones', key: 'actions', sortable: false }
