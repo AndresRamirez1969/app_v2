@@ -26,7 +26,7 @@
     </v-container>
   </v-row>
 
-  <!-- Non-superadmin view -->
+  <!-- Vista Non-superadmin -->
   <div v-else>
     <v-container fluid class="pa-0">
       <!-- Header -->

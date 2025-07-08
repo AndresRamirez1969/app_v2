@@ -4,13 +4,10 @@ import { ref } from 'vue';
 import {
   LogoutOutlined,
   UserOutlined,
-  SettingOutlined,
   QuestionCircleOutlined,
   LockOutlined,
   CommentOutlined,
   UnorderedListOutlined,
-  EditOutlined,
-  ProfileOutlined,
   WalletOutlined
 } from '@ant-design/icons-vue';
 import { useAuthStore } from '@/stores/auth';
@@ -23,7 +20,7 @@ const router = useRouter();
 const handleLogout = () => {
   authStore.logout();
   router.push('/login');
-}
+};
 </script>
 
 <template>
@@ -41,34 +38,17 @@ const handleLogout = () => {
     </div>
     <v-tabs v-model="tab" color="primary" grow>
       <v-tab value="111"> <UserOutlined class="v-icon--start" /> Profile </v-tab>
-      <v-tab value="222"> <SettingOutlined class="v-icon--start" /> Setting </v-tab>
     </v-tabs>
     <perfect-scrollbar style="height: calc(100vh - 300px); max-height: 240px">
       <v-window v-model="tab">
         <v-window-item value="111">
           <v-list class="py-0" aria-label="profile list" aria-busy="true">
-            <v-list-item color="primary" rounded="0" value="Edit profile">
-              <template v-slot:prepend>
-                <EditOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-
-              <v-list-item-title class="text-h6"> Edit Profile</v-list-item-title>
-            </v-list-item>
-
-            <v-list-item color="primary" rounded="0" value="View Profile">
+            <v-list-item @click="$router.push({ name: 'Profile' })" color="primary" rounded="0" value="Ver Perfil">
               <template v-slot:prepend>
                 <UserOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
 
-              <v-list-item-title class="text-h6"> View Profile</v-list-item-title>
-            </v-list-item>
-
-            <v-list-item color="primary" rounded="0" value="Social Profile">
-              <template v-slot:prepend>
-                <ProfileOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-
-              <v-list-item-title class="text-h6"> Social Profile</v-list-item-title>
+              <v-list-item-title class="text-h6"> Ver Perfil</v-list-item-title>
             </v-list-item>
 
             <v-list-item color="primary" rounded="0" value="Billing">
