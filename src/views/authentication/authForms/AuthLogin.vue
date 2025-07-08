@@ -10,6 +10,7 @@ const logoUrl = 'https://tasker-v2-bucket.s3.us-east-2.amazonaws.com/public/Logo
 
 const valid = ref(false);
 const show1 = ref(false);
+const remeberMe = ref(false);
 const password = ref('');
 const email = ref('');
 const authStore = useAuthStore();
@@ -28,7 +29,7 @@ const emailRules = ref([
 
 const validate = async () => {
   try {
-    await authStore.login(email.value, password.value);
+    await authStore.login(email.value, password.value, remeberMe.value);
     router.push('/dashboard');
   } catch (err) {
     console.log('Failure', err);
@@ -84,6 +85,12 @@ const validate = async () => {
     <div class="d-flex align-center mt-4 mb-7 mb-sm-0">
       <div class="ml-auto">
         <router-link to="/login1" class="text-darkText link-hover">Forgot Password?</router-link>
+      </div>
+      <div class="ml-auto">
+        <label>
+          <input type="checkbox" v-model="remeberMe" />
+          Recuérdame
+        </label>
       </div>
     </div>
     <v-btn color="primary" :loading="isSubmitting" block class="mt-5" variant="flat" size="large" :disabled="valid" @click="validate()">

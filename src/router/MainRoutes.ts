@@ -47,6 +47,12 @@ const MainRoutes = {
       component: () => import('@/views/icons/AntDesignIcons.vue')
     },
     {
+      name: 'Profile',
+      path: 'perfil',
+      component: () => import('@/views/user/ViewUser.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       name: 'other',
       path: '/organizaciones',
       component: () => import('@/views/organizations/OrganizationTab.vue')
