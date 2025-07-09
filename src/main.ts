@@ -9,6 +9,8 @@ import VueTablerIcons from 'vue-tabler-icons';
 import VueApexCharts from 'vue3-apexcharts';
 import Antd from 'ant-design-vue';
 import 'ant-design-vue/dist/reset.css';
+import Toast from 'vue-toastification';
+import 'vue-toastification/dist/index.css';
 
 // google-fonts
 import '@fontsource/public-sans/400.css';
@@ -27,4 +29,8 @@ app.use(createPinia());
 app.use(VueTablerIcons);
 app.use(Antd);
 app.use(VueApexCharts);
+app.use(Toast, {
+  position: 'top-right',
+  timeout: 3000
+});
 app.use(vuetify).mount('#app');
