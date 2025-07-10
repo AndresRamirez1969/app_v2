@@ -1,5 +1,6 @@
 <template>
-  <v-row>
+  <!-- Vista no Sponsor (admin/superadmin)-->
+  <v-row v-if="!isSponsor">
     <v-container fluid class="pa-0">
       <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
         <v-col cols="auto" class="pa-0 d-flex align-center">
@@ -18,6 +19,19 @@
     </v-container>
   </v-row>
 
+  <!-- Vista Sponsor -->
+  <div v-else>
+    <v-container fluid class="pa-0">
+      <!-- Header -->
+      <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
+        <v-col cols="auto" class="pa-0 d-flex align-center">
+          <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Tu Negocio</h1>
+        </v-col>
+      </v-row>
+      <ShowBusiness />
+    </v-container>
+  </div>
+
   <v-dialog v-model="showDialog" max_width="700px">
     <v-card>
       <v-card-title class="d-flex align-center justify-space-between"
@@ -34,12 +48,20 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref, watch, computed } from 'vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import BusinessView from './BusinessView.vue';
 import axiosInstance from '@/utils/axios';
 import { mdiCancel } from '@mdi/js';
 import CreateBusiness from './components/CreateBusiness.vue';
+import { useAuthStore } from '@/stores/auth';
+import ShowBusiness from './ShowBusiness.vue';
+
+const auth = useAuthStore();
+
+const isSponsor = computed(() => {
+  return auth.user?.roles?.some((role) => role.name === 'sponsor');
+});
 
 const search = ref('');
 const currentPage = ref(1);
