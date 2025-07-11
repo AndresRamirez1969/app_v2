@@ -1,4 +1,5 @@
 <template>
+  <!-- Vista Superadmin -->
   <v-row v-if="isSuperAdmin">
     <v-container fluid class="pa-0">
       <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">

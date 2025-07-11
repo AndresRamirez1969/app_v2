@@ -2,23 +2,21 @@
 import { ref, onMounted } from 'vue';
 import axiosInstance from '@/utils/axios';
 import { ROLES } from '@/constants/constants';
+import { useAuthStore } from '@/stores/auth';
+
+const auth = useAuthStore();
 
 const Regform = ref('');
 const name = ref('');
 const email = ref('');
-const organization_id = ref('');
 const business_id = ref('');
 const role = ref('');
-const orgs = ref([]);
 const biz = ref([]);
 
 const emit = defineEmits(['userCreated']);
 
 onMounted(async () => {
   try {
-    const orgsRes = await axiosInstance.get('/organizations');
-    orgs.value = orgsRes.data.data;
-
     const bizRes = await axiosInstance.get('/businesses');
     biz.value = bizRes.data.data;
   } catch (err) {
@@ -26,12 +24,14 @@ onMounted(async () => {
   }
 });
 
+console.log(auth?.user?.organization_id);
+
 const validate = async () => {
   try {
     const formData = new FormData();
     formData.append('name', name.value);
     formData.append('email', email.value || '');
-    formData.append('organization_id', organization_id.value || '');
+    formData.append('organization_id', auth?.user?.organization_id || '');
     formData.append('role', role.value);
     if (role.value === 'sponsor') {
       formData.append('business_id', business_id.value || '');
@@ -82,19 +82,6 @@ const validate = async () => {
             </div>
           </v-col>
         </v-row>
-        <div class="mb-6">
-          <v-label>Organizacion Perteneciente</v-label>
-          <v-select
-            v-model="organization_id"
-            :items="orgs"
-            item-title="legal_name"
-            item-value="id"
-            variant="outlined"
-            color="primary"
-            class="mt-2"
-            label="Selecciona una organizacion"
-          />
-        </div>
         <div class="mb-6" v-if="role === 'sponsor'">
           <v-label>Negocio Perteneciente</v-label>
           <v-select
