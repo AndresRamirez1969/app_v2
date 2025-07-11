@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axiosInstance from '@/utils/axios';
-import { ROLES } from '@/constants/constants';
+import { FIXED_ROLES } from '@/constants/constants';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
@@ -71,7 +71,7 @@ const validate = async () => {
               <v-label>Rol</v-label>
               <v-select
                 v-model="role"
-                :items="ROLES"
+                :items="FIXED_ROLES"
                 item-title="label"
                 item-value="value"
                 variant="outlined"

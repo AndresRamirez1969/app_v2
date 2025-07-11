@@ -66,10 +66,7 @@
           {{ organization.address.postal_code }}
         </div>
         <div v-else>
-          <v-text-field v-model="form.address.street" label="Calle" density="compact" class="mb-2" />
-          <v-text-field v-model="form.address.city" label="Ciudad" density="compact" class="mb-2" />
-          <v-text-field v-model="form.address.state" label="Estado" density="compact" class="mb-2" />
-          <v-text-field v-model="form.address.postal_code" label="Código Postal" density="compact" class="mb-2" />
+          <AddressAutocomplete @update:parsedAddress="handleParsedAddress" :initial-value="form.address" />
         </div>
       </v-col>
 
@@ -115,8 +112,14 @@ import { useAuthStore } from '@/stores/auth';
 import { useOrganization } from '@/apiCalls/useOrganization';
 import { mdiPencil, mdiCancel, mdiCheck, mdiPlus } from '@mdi/js';
 import { updateOrganization } from '@/apiCalls/updateOrganization';
+import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 
 const auth = useAuthStore();
+const parsedAddress = ref({});
+
+const handleParsedAddress = (val) => {
+  parsedAddress.value = val;
+};
 
 const isSponsor = computed(() => {
   return auth.user?.roles?.some((role) => role.name === 'sponsor');
@@ -145,6 +148,9 @@ const cancelEdit = () => {
 };
 
 const saveChanges = async () => {
+  if (Object.keys(parsedAddress.value).length) {
+    form.value.address = parsedAddress.value;
+  }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { people, ...orgData } = form.value;
   const updated = await updateOrganization(orgData);

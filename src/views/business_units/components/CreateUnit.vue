@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import AddressAutocomplete from '@/utils/helpers/AddressAutocomplete.vue';
+import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 import axiosInstance from '@/utils/axios';
 import { TIMEZONES } from '@/constants/constants.ts';
 import { mdiCancel } from '@mdi/js';

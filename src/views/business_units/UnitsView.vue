@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { mdiPencil, mdiEye } from '@mdi/js';
 import CreateUnit from '../business_units/components/CreateUnit.vue';
 import { useAuthStore } from '@/stores/auth';
+import { router } from '@/router';
 
 const showEditDialog = ref(false);
 const showViewDrawer = ref(false);
@@ -36,6 +37,7 @@ const filter = computed(() => {
 });
 
 const headers = [
+  { title: 'Folio', key: 'folio' },
   { title: 'Nombre Legal', key: 'legal_name' },
   { title: 'Dirección', key: 'direccion' },
   { title: 'Negocio', key: 'business.legal_name' },
@@ -56,6 +58,11 @@ const headers = [
       :loading="isLoading"
       loading-text="Cargando..."
     >
+      <template #item.folio="{ item }">
+        <span class="folio-link" @click="router.push({ name: 'UnitDetail', params: { id: item.id } })">
+          {{ item.folio }}
+        </span>
+      </template>
       <template #item.status="{ item }">
         <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
           {{ item.status === 'active' ? 'Activa' : 'Inactiva' }}
@@ -76,3 +83,15 @@ const headers = [
   </v-card>
   <CreateUnit v-if="showCreateDialog" v-model:dialog="showCreateDialog" :business="selectedBus" />
 </template>
+
+<style scoped>
+.folio-link {
+  color: #1976d2;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+.folio-link:hover {
+  text-decoration: underline;
+  color: #125ea8;
+}
+</style>

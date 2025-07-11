@@ -1,6 +1,6 @@
 <script setup>
 import { reactive, ref, watch } from 'vue';
-import AddressAutocomplete from '@/utils/helpers/AddressAutocomplete.vue';
+import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 import axiosInstance from '@/utils/axios';
 
 const Regform = ref('');

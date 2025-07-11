@@ -3,6 +3,11 @@
 
   <v-card v-else-if="business" class="pa-6 rounded-lg elevation-3">
     <v-toolbar class="mb-4" density="compact" title="Detalles del Negocio">
+      <template #prepend v-if="!isSponsor">
+        <v-btn icon @click="goBack">
+          <v-icon :icon="mdiArrowLeft" />
+        </v-btn>
+      </template>
       <template v-slot:append v-if="!isSponsor">
         <v-btn icon @click="editMode ? saveChanges() : (editMode = true)">
           <v-icon :icon="editMode ? mdiCheck : mdiPencil" />
@@ -64,12 +69,15 @@
         <div v-if="!editMode" class="mt-1">
           {{ business.address.street }}, {{ business.address.city }}, {{ business.address.state }},
           {{ business.address.postal_code }}
+          <Divider>
+            <strong class="text-grey-darken-1">Ubicacion en el Mapa</strong>
+            <div style="height: 300px; margin-top: 1rem; width: 1000px">
+              <GoogleMap :address="business.address" />
+            </div>
+          </Divider>
         </div>
         <div v-else>
-          <v-text-field v-model="form.address.street" label="Calle" density="compact" class="mb-2" />
-          <v-text-field v-model="form.address.city" label="Ciudad" density="compact" class="mb-2" />
-          <v-text-field v-model="form.address.state" label="Estado" density="compact" class="mb-2" />
-          <v-text-field v-model="form.address.postal_code" label="Código Postal" density="compact" class="mb-2" />
+          <AddressAutocomplete @update:parsedAddress="handleParsedAddress" :initial-value="form.address" />
         </div>
       </v-col>
 
@@ -85,27 +93,46 @@ import { onMounted, ref, watch, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { showBusiness } from '@/apiCalls/showBusiness';
 import { updateBusiness } from '@/apiCalls/updateBusiness';
-import { mdiPencil, mdiCancel, mdiCheck } from '@mdi/js';
-import { useRoute } from 'vue-router';
+import { mdiPencil, mdiCancel, mdiCheck, mdiArrowLeft } from '@mdi/js';
+import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
+import GoogleMap from '@/utils/helpers/google/GoogleMap.vue';
+import { useRoute, useRouter } from 'vue-router';
+import { Divider } from 'ant-design-vue';
 
 const route = useRoute();
-const businessId = route.params.id;
+const router = useRouter();
+const businessId = ref('');
 const auth = useAuthStore();
+const parsedAddress = ref({});
+
+const goBack = () => {
+  router.push('/negocios');
+};
+
+const handleParsedAddress = (val) => {
+  parsedAddress.value = val;
+};
 
 const isSponsor = computed(() => {
   return auth.user?.roles?.some((role) => role.name === 'sponsor');
+});
+
+onMounted(() => {
+  if (!isSponsor.value) {
+    businessId.value = route.params.id;
+  } else {
+    businessId.value = auth?.user?.business_id;
+  }
+
+  if (businessId.value) {
+    fetchBusiness(businessId.value);
+  }
 });
 
 const { business, loadingBusiness, fetchBusiness } = showBusiness();
 
 const editMode = ref(false);
 const form = ref({});
-
-fetchBusiness(businessId);
-
-onMounted(() => {
-  fetchBusiness(businessId);
-});
 
 watch(business, (bus) => {
   if (bus) form.value = JSON.parse(JSON.stringify(bus));
@@ -117,6 +144,9 @@ const cancelEdit = () => {
 };
 
 const saveChanges = async () => {
+  if (Object.keys(parsedAddress.value).length) {
+    form.value.address = parsedAddress.value;
+  }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { people, ...busData } = form.value;
   const updated = await updateBusiness(busData);

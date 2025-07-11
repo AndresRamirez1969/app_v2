@@ -1,16 +1,22 @@
 <template>
-  <BaseBreadcrumb :title="page.title" :breadcrumbs="breadcrumbs"></BaseBreadcrumb>
-  <v-row>
-    <v-col cols="12" md="12">
-      <UiParentCard title="Gestionar Unidades">
-        <template #action>
-          <v-btn color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true"> Agregar Unidad </v-btn>
-        </template>
-        <UnitsView :units="units.data" :isLoading="isLoading" />
-        <v-pagination v-model="currentPage" :length="units.last_page" :total-visible="5" @input="fetchUnits" class="mt-6" />
-      </UiParentCard>
-    </v-col>
-  </v-row>
+  <v-container fluid class="pa-0">
+    <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
+      <v-col cols="auto" class="pa-0 d-flex align-center">
+        <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Unidades</h1>
+      </v-col>
+      <v-col cols="12" md="12">
+        <UiParentCard title="Gestionar Unidades">
+          <template #action>
+            <v-btn color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true">
+              <v-icon start :icon="mdiPlus" /> Agregar<span class="d-none d-sm-inline">&nbsp;Organización</span>
+            </v-btn>
+          </template>
+          <UnitsView :units="units.data" :isLoading="isLoading" />
+          <v-pagination v-model="currentPage" :length="units.last_page" :total-visible="5" @input="fetchUnits" class="mt-6" />
+        </UiParentCard>
+      </v-col>
+    </v-row>
+  </v-container>
   <v-card>
     <v-card-text>
       <CreateUnit v-model:dialog="showDialog" @unitCreated="handleUnitCreated" />
@@ -19,8 +25,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, shallowRef, watch } from 'vue';
-import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
+import { onMounted, ref, watch } from 'vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import axiosInstance from '@/utils/axios';
 import UnitsView from './UnitsView.vue';
@@ -54,14 +59,7 @@ const handleUnitCreated = () => {
 };
 
 const showDialog = ref(false);
-const page = ref({ title: 'Unidades' });
-const breadcrumbs = shallowRef([
-  {
-    title: 'Unidades',
-    disabled: true,
-    href: '#'
-  }
-]);
+
 onMounted(() => {
   fetchUnits();
 });

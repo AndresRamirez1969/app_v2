@@ -37,14 +37,24 @@ const MainRoutes = {
       component: () => import('@/views/business_units/UnitsTabs.vue')
     },
     {
+      name: 'UnitDetail',
+      path: '/unidad/:id',
+      component: () => import('@/views/business_units/components/ShowUnit.vue')
+    },
+    {
       name: 'Grupos',
       path: '/grupos',
       component: () => import('@/views/units_groups/UnitsGroupsTab.vue')
     },
     {
-      name: 'Color',
-      path: '/icon/ant',
-      component: () => import('@/views/icons/AntDesignIcons.vue')
+      name: 'Users',
+      path: '/usuarios',
+      component: () => import('@/views/users/UsersTab.vue')
+    },
+    {
+      name: 'Roles',
+      path: '/roles',
+      component: () => import('@/views/users/components/CreateRole.vue')
     },
     {
       name: 'Profile',
