@@ -2,14 +2,8 @@
 import { ref } from 'vue';
 import { mdiPencil } from '@mdi/js';
 import CreateUser from './components/CreateUser.vue';
-import { useRouter } from 'vue-router';
-
-const router = useRouter();
-const tab = ref(null);
-
-const navigateTo = (routeName) => {
-  router.push({ name: routeName });
-};
+import CreateRole from './components/CreateRole.vue';
+const tab = ref('users');
 
 const showEditDialog = ref(false);
 const selectedUserId = ref(null);
@@ -40,24 +34,29 @@ const headers = [
 <template>
   <v-card>
     <v-tabs v-model="tab" background-color="primary" dark grow class="mb-4">
-      <v-tab @click="navigateTo('Users')">Usuarios</v-tab>
-      <v-tab @click="navigateTo('Roles')">Roles</v-tab>
+      <v-tab value="users">Usuarios</v-tab>
+      <v-tab value="roles">Roles</v-tab>
     </v-tabs>
-    <div class="d-flex justify-end mb-4">
-      <v-btn color="primary" class="px-2 py-1 text-sm" variant="flat" @click="showDialog = true"> Agregar Usuario </v-btn>
-    </div>
-    <v-data-table :headers="headers" :items="users" class="elevation-1" item-value="id" density="comfortable">
-      <template #item.status="{ item }">
-        <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
-          {{ item.status === 'active' ? 'Activo' : 'Inactivo' }}
-        </v-chip>
-      </template>
-      <template #item.actions="{ item }">
-        <v-btn icon @click="openEditDialog(item.id)">
-          <v-icon :icon="mdiPencil" />
-        </v-btn>
-      </template>
-    </v-data-table>
+    <template v-if="tab === 'users'">
+      <div class="d-flex justify-end mb-4">
+        <v-btn color="primary" class="px-2 py-1 text-sm" variant="flat" @click="showDialog = true"> Agregar Usuario </v-btn>
+      </div>
+      <v-data-table :headers="headers" :items="users" class="elevation-1" item-value="id" density="comfortable">
+        <template #item.status="{ item }">
+          <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
+            {{ item.status === 'active' ? 'Activo' : 'Inactivo' }}
+          </v-chip>
+        </template>
+        <template #item.actions="{ item }">
+          <v-btn icon @click="openEditDialog(item.id)">
+            <v-icon :icon="mdiPencil" />
+          </v-btn>
+        </template>
+      </v-data-table>
+    </template>
+    <template v-else-if="tab === 'roles'">
+      <CreateRole />
+    </template>
   </v-card>
 
   <v-dialog v-model="showDialog" max_width="700px">

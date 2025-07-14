@@ -1,6 +1,6 @@
 <template>
   <!-- Vista no Sponsor (admin/superadmin)-->
-  <v-row v-if="!isSponsor">
+  <v-row v-if="canViewAll">
     <v-container fluid class="pa-0">
       <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
         <v-col cols="auto" class="pa-0 d-flex align-center">
@@ -9,7 +9,9 @@
         <v-col cols="12" md="12">
           <UiParentCard title="Gestionar Negocios">
             <template #action>
-              <v-btn color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true"> Agregar Negocio </v-btn>
+              <v-btn v-if="canCreate" color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true">
+                Agregar Negocio
+              </v-btn>
             </template>
             <BusinessView :businesses="businesses.data" :isLoading="isLoading" />
             <v-pagination v-model="currentPage" :length="businesses.last_page" :total-visible="5" @input="fetchBusinesses" class="mt-6" />
@@ -58,9 +60,13 @@ import { useAuthStore } from '@/stores/auth';
 import ShowBusiness from './ShowBusiness.vue';
 
 const auth = useAuthStore();
+console.log('Permisos:', auth.permissions.slice());
 
-const isSponsor = computed(() => {
-  return auth.user?.roles?.some((role) => role.name === 'sponsor');
+const canViewAll = computed(() => {
+  return auth.hasPermissions('business.view');
+});
+const canCreate = computed(() => {
+  return auth.hasPermissions('business.create');
 });
 
 const search = ref('');

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axiosInstance from '@/utils/axios';
 import { FIXED_ROLES } from '@/constants/constants';
 import { useAuthStore } from '@/stores/auth';
@@ -10,8 +10,16 @@ const Regform = ref('');
 const name = ref('');
 const email = ref('');
 const business_id = ref('');
-const role = ref('');
+const selectedFixedRole = ref('');
+const selectedDynamicRole = ref('');
 const biz = ref([]);
+const roles = ref([]);
+
+const fetchRoles = async () => {
+  const res = await axiosInstance.get('/roles');
+  roles.value = res.data.data;
+  console.log('Fetched roles:', res.data);
+};
 
 const emit = defineEmits(['userCreated']);
 
@@ -19,12 +27,11 @@ onMounted(async () => {
   try {
     const bizRes = await axiosInstance.get('/businesses');
     biz.value = bizRes.data.data;
+    await fetchRoles();
   } catch (err) {
     console.log(err);
   }
 });
-
-console.log(auth?.user?.organization_id);
 
 const validate = async () => {
   try {
@@ -32,8 +39,9 @@ const validate = async () => {
     formData.append('name', name.value);
     formData.append('email', email.value || '');
     formData.append('organization_id', auth?.user?.organization_id || '');
-    formData.append('role', role.value);
-    if (role.value === 'sponsor') {
+    const selectedRole = selectedFixedRole.value || selectedDynamicRole.value;
+    formData.append('role', selectedRole || '');
+    if (selectedRole === 'sponsor') {
       formData.append('business_id', business_id.value || '');
     } else {
       formData.append('business_id', '');
@@ -45,6 +53,13 @@ const validate = async () => {
     console.log('Failed to save org', err);
   }
 };
+
+watch(selectedFixedRole, (val) => {
+  if (val) selectedDynamicRole.value = '';
+});
+watch(selectedDynamicRole, (val) => {
+  if (val) selectedFixedRole.value = '';
+});
 </script>
 
 <template>
@@ -68,16 +83,31 @@ const validate = async () => {
         <v-row class="my-0">
           <v-col cols="12" sm="6" class="py-0">
             <div class="mb-6">
-              <v-label>Rol</v-label>
+              <v-label>Rol Fijo</v-label>
               <v-select
-                v-model="role"
+                v-model="selectedFixedRole"
                 :items="FIXED_ROLES"
                 item-title="label"
                 item-value="value"
                 variant="outlined"
                 color="primary"
                 class="mt-2"
-                label="Selecciona el Rol"
+                label="Selecciona Rol Fijo"
+              />
+            </div>
+          </v-col>
+          <v-col cols="12" sm="6" class="py-0">
+            <div class="mb-6">
+              <v-label>Roles Creado</v-label>
+              <v-select
+                v-model="selectedDynamicRole"
+                :items="roles"
+                item-title="name"
+                item-value="name"
+                variant="outlined"
+                color="primary"
+                class="mt-2"
+                label="Selecciona Rol Personalizado"
               />
             </div>
           </v-col>

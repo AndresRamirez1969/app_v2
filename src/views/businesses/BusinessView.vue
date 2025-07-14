@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { mdiPencil, mdiEye } from '@mdi/js';
+import { mdiEye } from '@mdi/js';
 import EditBusiness from './components/EditBusiness.vue';
 import { useAuthStore } from '@/stores/auth';
 import { router } from '@/router';
@@ -9,11 +9,6 @@ const showEditDialog = ref(false);
 const selectedBusId = ref(null);
 
 const auth = useAuthStore();
-
-const openEditDialog = (id) => {
-  selectedBusId.value = id;
-  showEditDialog.value = true;
-};
 
 const props = defineProps({
   businesses: Array,
@@ -68,9 +63,6 @@ const headers = [
         </v-chip>
       </template>
       <template #item.actions="{ item }">
-        <v-btn icon @click="openEditDialog(item.id)">
-          <v-icon :icon="mdiPencil" />
-        </v-btn>
         <v-btn icon @click="router.push({ name: 'BusinessDetail', params: { id: item.id } })">
           <v-icon :icon="mdiEye" />
         </v-btn>

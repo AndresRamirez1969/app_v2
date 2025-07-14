@@ -3,7 +3,7 @@
 
   <v-card v-else-if="organization" class="pa-6 rounded-lg elevation-3">
     <v-toolbar class="mb-4" density="compact" title="Detalles de la Organizacion">
-      <template v-slot:append v-if="!isSponsor">
+      <template v-slot:append v-if="canUpdate">
         <v-btn icon @click="editMode ? saveChanges() : (editMode = true)">
           <v-icon :icon="editMode ? mdiCheck : mdiPencil" />
         </v-btn>
@@ -121,8 +121,8 @@ const handleParsedAddress = (val) => {
   parsedAddress.value = val;
 };
 
-const isSponsor = computed(() => {
-  return auth.user?.roles?.some((role) => role.name === 'sponsor');
+const canUpdate = computed(() => {
+  return auth.hasPermissions('organization.update');
 });
 
 const { organization, loadingOrg, fetchOrganization } = useOrganization();

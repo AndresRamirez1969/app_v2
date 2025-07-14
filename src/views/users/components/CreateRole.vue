@@ -5,10 +5,10 @@ import { ADMIN_ORG_ROLES, ADMIN_BUSINESS_ROLES, ADMIN_UNIT_ROLES, ADMIN_USER_ROL
 
 const Regform = ref('');
 const name = ref('');
-const orgPermissions = ref('');
-const businessPermissions = ref('');
-const userPermissions = ref('');
-const unitPermissions = ref('');
+const orgPermissions = ref([]);
+const businessPermissions = ref([]);
+const userPermissions = ref([]);
+const unitPermissions = ref([]);
 
 const emit = defineEmits(['userCreated']);
 
