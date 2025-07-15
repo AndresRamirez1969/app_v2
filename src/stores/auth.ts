@@ -4,7 +4,6 @@ import axiosInstance from '@/utils/axios';
 export const useAuthStore = defineStore('auth', {
   state: () => {
     const storage = localStorage.getItem('authToken') ? localStorage : sessionStorage;
-
     return {
       token: storage.getItem('authToken') || '',
       user: (() => {
@@ -16,7 +15,7 @@ export const useAuthStore = defineStore('auth', {
       })(),
       permissions: (() => {
         try {
-          return JSON.parse(storage.getItem('authPermissions') || '[]');
+          return JSON.parse(storage.getItem('authUser') || 'null')?.permissions || [];
         } catch {
           return [];
         }
@@ -45,7 +44,10 @@ export const useAuthStore = defineStore('auth', {
     async login(email: string, password: string, rememberMe: boolean) {
       const response = await axiosInstance.post('/login', { email, password, remember_me: rememberMe });
       this.token = response.data.token;
-      this.user = response.data.user;
+      this.user = {
+        ...response.data.user,
+        permissions: response.data.permissions
+      };
       this.permissions = response.data.permissions;
 
       const storage = rememberMe ? localStorage : sessionStorage;

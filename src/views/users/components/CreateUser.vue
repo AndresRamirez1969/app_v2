@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import axiosInstance from '@/utils/axios';
 import { FIXED_ROLES } from '@/constants/constants';
 import { useAuthStore } from '@/stores/auth';
@@ -15,6 +15,10 @@ const selectedDynamicRole = ref('');
 const biz = ref([]);
 const roles = ref([]);
 
+const isSponsor = computed(() => {
+  return auth.user?.roles?.some((role) => role.name === 'sponsor');
+});
+
 const fetchRoles = async () => {
   const res = await axiosInstance.get('/roles');
   roles.value = res.data.data;
@@ -24,10 +28,10 @@ const fetchRoles = async () => {
 const emit = defineEmits(['userCreated']);
 
 onMounted(async () => {
+  await fetchRoles();
   try {
     const bizRes = await axiosInstance.get('/businesses');
     biz.value = bizRes.data.data;
-    await fetchRoles();
   } catch (err) {
     console.log(err);
   }
@@ -44,7 +48,7 @@ const validate = async () => {
     if (selectedRole === 'sponsor') {
       formData.append('business_id', business_id.value || '');
     } else {
-      formData.append('business_id', '');
+      formData.append('business_id', auth?.user?.business_id);
     }
     const res = await axiosInstance.post('/users', formData);
     console.log('User added', res);
@@ -112,8 +116,8 @@ watch(selectedDynamicRole, (val) => {
             </div>
           </v-col>
         </v-row>
-        <div class="mb-6" v-if="role === 'sponsor'">
-          <v-label>Negocio Perteneciente</v-label>
+        <div class="mb-6" v-if="!isSponsor">
+          <v-label>Negocio Perteneciente (opcional)</v-label>
           <v-select
             v-model="business_id"
             :items="biz"

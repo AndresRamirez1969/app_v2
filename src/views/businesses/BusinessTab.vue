@@ -9,6 +9,18 @@
         <v-col cols="12" md="12">
           <UiParentCard title="Gestionar Negocios">
             <template #action>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="filters.search"
+                  label="Buscar por Nombre o Alias"
+                  clearable
+                  density="comfortable"
+                  variant="outlined"
+                  hide-details
+                  @keyup.enter="fetchBusinesses"
+                  prepend-inner-icon="mdi-magnify"
+                />
+              </v-col>
               <v-btn v-if="canCreate" color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true">
                 Agregar Negocio
               </v-btn>
@@ -58,18 +70,32 @@ import { mdiCancel } from '@mdi/js';
 import CreateBusiness from './components/CreateBusiness.vue';
 import { useAuthStore } from '@/stores/auth';
 import ShowBusiness from './ShowBusiness.vue';
+import debounce from 'lodash/debounce';
+
+const filters = ref({
+  search: '',
+  folio: ''
+});
 
 const auth = useAuthStore();
-console.log('Permisos:', auth.permissions.slice());
+
+watch(
+  () => auth.permissions,
+  (perms) => {
+    if (perms.length > 0) {
+      console.log('Permisos cargados', perms);
+    }
+  },
+  { immediate: true }
+);
 
 const canViewAll = computed(() => {
-  return auth.hasPermissions('business.view');
+  return auth.hasPermissions('business.viewAny');
 });
 const canCreate = computed(() => {
   return auth.hasPermissions('business.create');
 });
 
-const search = ref('');
 const currentPage = ref(1);
 const businesses = ref({ data: [], last_page: 1 });
 const isLoading = ref(false);
@@ -79,7 +105,7 @@ const fetchBusinesses = async () => {
   try {
     const res = await axiosInstance.get('/businesses', {
       params: {
-        search: search.value,
+        search: filters.value.search,
         page: currentPage.value
       }
     });
@@ -91,6 +117,8 @@ const fetchBusinesses = async () => {
   }
 };
 
+const debouncedFetch = debounce(fetchBusinesses, 400);
+
 const showDialog = ref(false);
 onMounted(() => {
   fetchBusinesses();
@@ -101,5 +129,11 @@ const handleBusCreate = () => {
   fetchBusinesses();
 };
 
-watch(currentPage, fetchBusinesses);
+watch(
+  () => filters.value.search,
+  () => {
+    currentPage.value = 1;
+    debouncedFetch();
+  }
+);
 </script>

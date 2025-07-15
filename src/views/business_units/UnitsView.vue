@@ -1,22 +1,16 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { mdiPencil, mdiEye } from '@mdi/js';
+import { mdiEye } from '@mdi/js';
 import CreateUnit from '../business_units/components/CreateUnit.vue';
 import { useAuthStore } from '@/stores/auth';
 import { router } from '@/router';
 
-const showEditDialog = ref(false);
 const showViewDrawer = ref(false);
 const selectedBusId = ref(null);
 const selectedBus = ref(null);
 const showCreateDialog = ref(false);
 
 const auth = useAuthStore();
-
-const openEditDialog = (id) => {
-  selectedBusId.value = id;
-  showEditDialog.value = true;
-};
 
 const openViewDrawer = (id) => {
   selectedBusId.value = id;
@@ -33,7 +27,7 @@ const filter = computed(() => {
   if (auth.user?.role === 'superadmin') {
     return props.units;
   }
-  return props.units.filter((b) => b.organization_id === auth.user?.organization_id);
+  return props.units.filter((b) => b.business_id === auth.user?.business_id);
 });
 
 const headers = [
@@ -72,9 +66,6 @@ const headers = [
         {{ item.address.street }}, {{ item.address.neighborhood }}, {{ item.address.city }}, {{ item.address.state }}
       </template>
       <template #item.actions="{ item }">
-        <v-btn icon @click="openEditDialog(item.id)">
-          <v-icon :icon="mdiPencil" />
-        </v-btn>
         <v-btn icon @click="openViewDrawer(item.id)">
           <v-icon :icon="mdiEye" />
         </v-btn>

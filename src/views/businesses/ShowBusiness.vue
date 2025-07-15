@@ -118,14 +118,12 @@ const isSponsor = computed(() => {
 });
 
 onMounted(() => {
-  if (!isSponsor.value) {
-    businessId.value = route.params.id;
-  } else {
-    businessId.value = auth?.user?.business_id;
-  }
+  businessId.value = auth.user?.business_id ?? route.params.id;
 
   if (businessId.value) {
     fetchBusiness(businessId.value);
+  } else {
+    console.warn('No business ID found to load');
   }
 });
 

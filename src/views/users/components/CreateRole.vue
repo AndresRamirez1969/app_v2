@@ -1,7 +1,10 @@
 <script setup>
 import { ref } from 'vue';
 import axiosInstance from '@/utils/axios';
+import { useAuthStore } from '@/stores/auth';
 import { ADMIN_ORG_ROLES, ADMIN_BUSINESS_ROLES, ADMIN_UNIT_ROLES, ADMIN_USER_ROLES } from '@/constants/constants';
+
+const auth = useAuthStore();
 
 const Regform = ref('');
 const name = ref('');
@@ -9,6 +12,9 @@ const orgPermissions = ref([]);
 const businessPermissions = ref([]);
 const userPermissions = ref([]);
 const unitPermissions = ref([]);
+
+const organizationId = auth?.user?.organization_id;
+console.log(organizationId);
 
 const emit = defineEmits(['userCreated']);
 
@@ -23,7 +29,8 @@ const validate = async () => {
 
     const res = await axiosInstance.post('/roles', {
       name: name.value,
-      permissions: allPermissions
+      permissions: allPermissions,
+      organization_id: organizationId
     });
 
     console.log('User added', res);
