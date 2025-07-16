@@ -6,7 +6,15 @@
     <v-toolbar class="mb-4" density="compact" title="Perfil de Usuario"> </v-toolbar>
 
     <v-row dense>
-      <v-img v-if="user.profile_picture" :src="user.profile_picture" max-height="120" max-width="250" class="mb-4 rounded" cover />
+      <v-img
+        v-if="user.profile_picture"
+        :src="user.profile_picture"
+        max-height="200"
+        max-width="250"
+        class="mb-4 rounded"
+        cover
+        :alt="form.name"
+      />
       <v-col cols="12" md="6">
         <v-file-input
           v-model="form.profile_picture"
@@ -15,14 +23,13 @@
           prepend-icon="mdi-camera"
           chips
           variant="outlined"
+          density="compact"
+          class="my-2"
+          style="max-width: 300px"
         />
-      </v-col>
-      <v-col cols="12">
         <div class="mb-4">
           <v-text-field v-model="form.name" label="Nombre" density="compact" variant="outlined" />
         </div>
-      </v-col>
-      <v-col cols="12">
         <div class="mb-4">
           <v-text-field v-model="form.email" label="Correo Electrónico" variant="outlined" density="compact" />
         </div>
@@ -125,8 +132,14 @@ const saveChanges = async () => {
         'Content-Type': 'multipart/form-data'
       }
     });
-    auth.user = response.data.user;
-    localStorage.setItem('authUser', JSON.stringify(response.data.user));
+    const userRes = await axiosInstance.get('/user');
+    user.value = userRes.data;
+
+    if (user.value.profile_picture) {
+      user.value.profile_picture += `?t=${Date.now()}`;
+    }
+    auth.user = user.value;
+    localStorage.setItem('authUser', JSON.stringify(user.value));
     toast.success('Perfil Actualizado');
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {

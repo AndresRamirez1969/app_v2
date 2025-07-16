@@ -22,6 +22,10 @@ const props = defineProps({
   isLoading: Boolean
 });
 
+const canView = computed(() => {
+  return auth.hasPermissions('businessUnit.view');
+});
+
 //Filtra unidades para solo mostrar las que pertenecen a la organizacion ligada al usuario
 const filter = computed(() => {
   if (auth.user?.role === 'superadmin') {
@@ -53,7 +57,15 @@ const headers = [
       loading-text="Cargando..."
     >
       <template #item.folio="{ item }">
-        <span class="folio-link" @click="router.push({ name: 'UnitDetail', params: { id: item.id } })">
+        <span
+          v-if="canView"
+          class="folio-link"
+          @click="router.push({ name: 'UnitDetail', params: { id: item.id } })"
+          style="cursor: pointer; color: #1976d2; text-decoration: underline"
+        >
+          {{ item.folio }}
+        </span>
+        <span v-else>
           {{ item.folio }}
         </span>
       </template>

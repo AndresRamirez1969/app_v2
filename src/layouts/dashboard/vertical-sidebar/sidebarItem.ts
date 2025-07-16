@@ -49,18 +49,9 @@ const sidebarItem: menu[] = [
     ]
   },
   {
-    title: 'Usuarios',
+    title: 'Usuarios y Roles',
     icon: IdcardTwoTone,
-    children: [
-      {
-        title: 'Usuarios',
-        to: '/usuarios'
-      },
-      {
-        title: 'Roles',
-        to: '/icon/ant'
-      }
-    ]
+    to: '/usuarios'
   }
 ];
 

@@ -22,7 +22,7 @@
                 />
               </v-col>
               <v-btn v-if="canCreate" color="primary" class="mt-4 px-2 py-1 text-sm" variant="flat" @click="showDialog = true">
-                Agregar Negocio
+                <v-icon start :icon="mdiPlus" /> Agregar<span class="d-none d-sm-inline">&nbsp;Negocio</span>
               </v-btn>
             </template>
             <BusinessView :businesses="businesses.data" :isLoading="isLoading" />
@@ -66,7 +66,7 @@ import { onMounted, ref, watch, computed } from 'vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import BusinessView from './BusinessView.vue';
 import axiosInstance from '@/utils/axios';
-import { mdiCancel } from '@mdi/js';
+import { mdiCancel, mdiPlus } from '@mdi/js';
 import CreateBusiness from './components/CreateBusiness.vue';
 import { useAuthStore } from '@/stores/auth';
 import ShowBusiness from './ShowBusiness.vue';

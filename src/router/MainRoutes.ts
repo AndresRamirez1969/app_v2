@@ -54,7 +54,7 @@ const MainRoutes = {
     {
       name: 'Roles',
       path: '/roles',
-      component: () => import('@/views/users/components/CreateRole.vue')
+      component: () => import('@/views/users/roles/ViewRole.vue')
     },
     {
       name: 'Profile',
