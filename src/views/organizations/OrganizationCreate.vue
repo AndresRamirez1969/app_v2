@@ -2,7 +2,9 @@
 import { reactive, ref, watch } from 'vue';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 import axiosInstance from '@/utils/axios';
+import { useAuthStore } from '@/stores/auth';
 
+const auth = useAuthStore();
 const Regform = ref('');
 const parsedAddress = ref({});
 const logo = ref(null);
@@ -55,6 +57,7 @@ const validate = async () => {
     const res = await axiosInstance.post('/organizations', formData);
     console.log('Organization added', res);
     emit('organizationCreated');
+    await auth.fetchUser();
   } catch (err) {
     console.log('Failed to save org', err);
   }

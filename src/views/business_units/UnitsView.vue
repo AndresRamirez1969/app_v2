@@ -26,13 +26,7 @@ const canView = computed(() => {
   return auth.hasPermissions('businessUnit.view');
 });
 
-//Filtra unidades para solo mostrar las que pertenecen a la organizacion ligada al usuario
-const filter = computed(() => {
-  if (auth.user?.role === 'superadmin') {
-    return props.units;
-  }
-  return props.units.filter((b) => b.business_id === auth.user?.business_id);
-});
+console.log(auth.user?.role);
 
 const headers = [
   { title: 'Folio', key: 'folio' },
@@ -41,7 +35,7 @@ const headers = [
   { title: 'Negocio', key: 'business.legal_name' },
   { title: 'Estado', key: 'status' },
   { title: 'Formularios', key: 'Forms' },
-  { title: 'Acciones', key: 'actions', sortable: false }
+  { title: 'Grupo', key: 'business_unit_groups', sortable: false }
 ];
 </script>
 
@@ -49,7 +43,7 @@ const headers = [
   <v-card>
     <v-data-table
       :headers="headers"
-      :items="filter"
+      :items="props.units"
       class="elevation-1"
       item-value="id"
       density="comfortable"
@@ -81,6 +75,11 @@ const headers = [
         <v-btn icon @click="openViewDrawer(item.id)">
           <v-icon :icon="mdiEye" />
         </v-btn>
+      </template>
+      <template #item.business_unit_groups="{ item }">
+        <v-chip v-for="group in item.business_unit_groups" :key="group.id" class="ma-1" color="primary" label size="small">{{
+          group.name
+        }}</v-chip>
       </template>
     </v-data-table>
   </v-card>

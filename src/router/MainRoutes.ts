@@ -44,7 +44,7 @@ const MainRoutes = {
     {
       name: 'Grupos',
       path: '/grupos',
-      component: () => import('@/views/units_groups/UnitsGroupsTab.vue')
+      component: () => import('@/views/business_units/unit_groups/UnitsGroupsTab.vue')
     },
     {
       name: 'Users',
@@ -61,6 +61,11 @@ const MainRoutes = {
       path: 'perfil',
       component: () => import('@/views/user/ViewUser.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      name: 'Forms',
+      path: '/formularios',
+      component: () => import('@/views/formularios/FormTab.vue')
     },
     {
       name: 'other',

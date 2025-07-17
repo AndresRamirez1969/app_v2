@@ -66,7 +66,7 @@
             </v-list-group>
 
             <!-- Businesses -->
-            <v-list-group v-if="org.businesses?.length" value="true" no-action>
+            <v-list-group value="true" no-action>
               <template #activator="{ props }">
                 <v-list-item v-bind="props">
                   <v-list-item-title class="font-weight-bold">Negocios</v-list-item-title>
@@ -78,6 +78,9 @@
                   Alias: {{ biz.alias }}<br />
                   {{ biz.description }}
                 </div>
+              </v-list-item>
+              <v-list-item>
+                <v-btn>Agregar Negocio</v-btn>
               </v-list-item>
             </v-list-group>
           </v-list>
@@ -91,6 +94,7 @@
 import { ref, watch } from 'vue';
 import axiosInstance from '@/utils/axios';
 import { mdiCancel } from '@mdi/js';
+import CreateBusiness from '@/views/businesses/components/CreateBusiness.vue';
 
 const org = ref({});
 

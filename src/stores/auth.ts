@@ -76,6 +76,7 @@ export const useAuthStore = defineStore('auth', {
       const response = await axiosInstance.get('/user');
       this.user = response.data;
       this.permissions = response.data.permissions || [];
+      console.log(this.permissions);
       localStorage.setItem('authUser', JSON.stringify(this.user));
     }
   }

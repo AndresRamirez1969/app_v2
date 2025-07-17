@@ -32,20 +32,11 @@
       <v-col cols="12" md="6">
         <div class="mb-4">
           <strong class="text-grey-darken-1">Estado:</strong>
-          <div v-if="!editMode">
+          <div>
             <v-chip :color="organization.status === 'active' ? 'green' : 'red'" size="small" class="mt-1" dark>
               {{ organization.status === 'active' ? 'Activo' : 'Inactivo' }}
             </v-chip>
           </div>
-          <v-select
-            v-else
-            v-model="form.status"
-            :items="['active', 'inactive']"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="mt-1"
-          />
         </div>
         <div class="mb-4" v-if="organization.folio">
           <strong class="text-grey-darken-1">Folio:</strong>

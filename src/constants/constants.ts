@@ -58,3 +58,9 @@ export const SPONSOR_UNIT_ROLES = [
   { label: 'Crear', value: 'businessUnit.create' },
   { label: 'Editar', value: 'businessUnit.update' }
 ];
+
+// --------Frecuencia de formularios ---------
+export const FREQUENCY = [
+  { label: 'Una vez al dia', value: 'once_per_day' },
+  { label: 'Multiples veces al dia', valu: 'multiple_per_day' }
+];

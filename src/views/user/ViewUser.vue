@@ -169,7 +169,7 @@ const changePassword = async () => {
     new_password: new_password.value,
     new_password_confirmation: confirm_new_password.value
   });
-  toast.success('Contrasena cambiada con exito');
+  toast.success('Contrasena actualizada con exito');
   passwordVerify.value = false;
 };
 
