@@ -3,7 +3,6 @@
     <v-text-field v-model="form.name" label="Nombre Completo" variant="outlined" density="compact" class="mb-4" />
     <v-text-field v-model="form.email" label="Correo Electrónico" variant="outlined" density="compact" class="mb-2" />
 
-    <!-- Botones alineados con los inputs -->
     <v-row class="mt-0" justify="end">
       <v-col cols="auto">
         <v-btn color="secondary" class="text-none" @click="$emit('open-change-password')"> Cambiar Contraseña </v-btn>

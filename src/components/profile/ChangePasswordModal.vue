@@ -2,13 +2,11 @@
 <template>
   <v-dialog v-model="isOpen" persistent max-width="800" transition="dialog-transition">
     <v-card class="pa-16" style="position: relative">
-      <!-- Botón cerrar -->
       <v-btn icon variant="text" class="position-absolute" style="top: 8px; right: 8px; color: black" @click="closeModal">
         <v-icon :icon="mdiClose" />
       </v-btn>
 
       <v-row>
-        <!-- Lado izquierdo: reglas -->
         <v-col cols="12" md="6">
           <h2 class="h3 font-weight-bold mb-4">Cambiar Contraseña</h2>
           <div class="text-subtitle-3 mb-2">La contraseña debe contener:</div>
@@ -28,7 +26,6 @@
           </v-list>
         </v-col>
 
-        <!-- Lado derecho: campos y botones alineados -->
         <v-col cols="12" md="6">
           <v-text-field
             v-model="form.current_password"
@@ -60,7 +57,6 @@
             </template>
           </v-text-field>
 
-          <!-- Botones en columna, mismo ancho -->
           <div class="d-flex flex-column mt-2">
             <v-btn
               class="mb-2"

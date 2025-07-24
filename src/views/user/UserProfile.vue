@@ -41,7 +41,7 @@ const fetchUser = async () => {
   const response = await axiosInstance.get('/user');
   user.value = response.data;
   localStorage.setItem('authUser', JSON.stringify(response.data));
-  await auth.fetchUser(); // Refresca datos globales
+  await auth.fetchUser();
 };
 
 const triggerFileInput = () => {
