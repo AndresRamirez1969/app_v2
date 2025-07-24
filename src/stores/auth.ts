@@ -78,6 +78,12 @@ export const useAuthStore = defineStore('auth', {
       this.permissions = response.data.permissions || [];
       console.log(this.permissions);
       localStorage.setItem('authUser', JSON.stringify(this.user));
+    },
+
+    setUser(user: any) {
+      this.user = user;
+      this.permissions = user.permissions || [];
+      localStorage.setItem('authUser', JSON.stringify(user));
     }
   }
 });

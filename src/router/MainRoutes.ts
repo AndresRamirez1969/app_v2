@@ -59,7 +59,7 @@ const MainRoutes = {
     {
       name: 'Profile',
       path: 'perfil',
-      component: () => import('@/views/user/ViewUser.vue'),
+      component: () => import('@/views/user/UserProfile.vue'),
       meta: { requiresAuth: true }
     },
     {
