@@ -38,10 +38,14 @@ const passwordModal = ref(false);
 const showImageModal = ref(false);
 
 const fetchUser = async () => {
-  const response = await axiosInstance.get('/user');
-  user.value = response.data;
-  localStorage.setItem('authUser', JSON.stringify(response.data));
-  await auth.fetchUser();
+  try {
+    const response = await axiosInstance.get('/user');
+    user.value = response.data;
+    localStorage.setItem('authUser', JSON.stringify(response.data));
+    await auth.fetchUser();
+  } catch (error) {
+    toast.error('Error al obtener los datos del usuario.');
+  }
 };
 
 const triggerFileInput = () => {

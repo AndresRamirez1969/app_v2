@@ -6,13 +6,8 @@ const PublicRoutes = {
   },
   children: [
     {
-      name: 'Authentication',
+      name: 'Iniciar Sesión',
       path: '/login',
-      component: () => import('@/views/authentication/LoginPage.vue')
-    },
-    {
-      name: 'Login',
-      path: '/login1',
       component: () => import('@/views/authentication/auth/LoginPage.vue')
     },
     {

@@ -5,12 +5,16 @@ const axiosInstance = axios.create({
   withCredentials: false
 });
 
-axiosInstance.interceptors.request.use((config) => {
-  const token = JSON.parse(localStorage.getItem('authToken') || 'null');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+axiosInstance.interceptors.request.use(
+  (config) => {
+    // Busca el token en localStorage o sessionStorage
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export default axiosInstance;

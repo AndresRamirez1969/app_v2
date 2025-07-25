@@ -1,38 +1,11 @@
-<template>
-  <v-container class="d-flex justify-center align-center" style="min-height: 100vh">
-    <v-card class="pa-6" max-width="500">
-      <v-card-title class="text-h6 mb-4">Restablecer Contraseña</v-card-title>
-
-      <v-form @submit.prevent="handleSubmit" ref="formRef">
-        <v-text-field
-          v-model="form.password"
-          label="Nueva Contraseña"
-          type="password"
-          :rules="[rules.required, rules.min]"
-          variant="outlined"
-        />
-
-        <v-text-field
-          v-model="form.password_confirmation"
-          label="Confirmar Contraseña"
-          type="password"
-          :rules="[rules.required, confirmRule]"
-          variant="outlined"
-        />
-
-        <v-btn type="submit" color="primary" class="mt-4" block :loading="loading"> Restablecer Contraseña </v-btn>
-      </v-form>
-
-      <v-btn class="mt-4" variant="text" color="secondary" to="/login" block> Volver al inicio de sesión </v-btn>
-    </v-card>
-  </v-container>
-</template>
-
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
 import { useToast } from 'vue-toastification';
+import { mdiArrowLeft, mdiEye, mdiEyeOff } from '@mdi/js';
+
+import TaskerLogo from '@/assets/images/logos/tasker-logo.svg';
 
 const route = useRoute();
 const router = useRouter();
@@ -40,6 +13,9 @@ const toast = useToast();
 
 const loading = ref(false);
 const formRef = ref(null);
+
+const showPassword = ref(false);
+const showConfPassword = ref(false);
 
 const form = ref({
   token: '',
@@ -76,3 +52,68 @@ const handleSubmit = async () => {
   }
 };
 </script>
+
+<template>
+  <div class="forgot-password-page">
+    <div class="card-wrapper">
+      <v-card class="pa-10 login-card" elevation="6" max-width="420">
+        <div class="text-center mb-6">
+          <img :src="TaskerLogo" alt="Tasker Logo" class="logo-large mb-4" />
+        </div>
+        <h2 class="text-center text-h5 font-weight-bold mb-4">Restablecer Contraseña</h2>
+        <p class="text-center text-body-2 mb-8">Ingresa tu nueva contraseña y confírmala para restablecer el acceso a tu cuenta.</p>
+        <v-form @submit.prevent="handleSubmit" ref="formRef" class="mb-6">
+          <v-text-field
+            v-model="form.password"
+            label="Nueva Contraseña"
+            :type="showPassword ? 'text' : 'password'"
+            :append-inner-icon="showPassword ? mdiEye : mdiEyeOff"
+            @click:append-inner="showPassword = !showPassword"
+            :rules="[rules.required, rules.min]"
+            variant="outlined"
+            class="mb-4"
+            required
+          />
+          <v-text-field
+            v-model="form.password_confirmation"
+            label="Confirmar Contraseña"
+            :type="showConfPassword ? 'text' : 'password'"
+            :append-inner-icon="showConfPassword ? mdiEye : mdiEyeOff"
+            @click:append-inner="showConfPassword = !showConfPassword"
+            :rules="[rules.required, confirmRule]"
+            variant="outlined"
+            class="mb-4"
+            required
+          />
+          <v-btn type="submit" color="primary" class="mt-4" block :loading="loading"> Restablecer Contraseña </v-btn>
+        </v-form>
+        <v-btn class="mt-6" variant="text" color="secondary" block @click="router.push('/login')">
+          <v-icon :icon="mdiArrowLeft" start /> Volver a Iniciar Sesión
+        </v-btn>
+      </v-card>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.forgot-password-page {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-wrapper {
+  position: static;
+  transform: none;
+}
+
+.logo-large {
+  max-width: 160px;
+}
+
+.login-card {
+  background-color: #fafbfc;
+}
+</style>

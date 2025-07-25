@@ -7,9 +7,8 @@
       <v-col cols="auto">
         <v-btn color="secondary" class="text-none" @click="$emit('open-change-password')"> Cambiar Contraseña </v-btn>
       </v-col>
-
       <v-col cols="auto">
-        <v-btn color="primary" type="submit" class="text-none"> Guardar Cambios </v-btn>
+        <v-btn color="primary" type="submit" class="text-none">Guardar Cambios</v-btn>
       </v-col>
     </v-row>
   </v-form>
@@ -26,10 +25,12 @@ const form = reactive({ name: '', email: '' });
 watch(
   () => props.user,
   (val) => {
-    form.name = val.name || '';
-    form.email = val.email || '';
+    if (val) {
+      form.name = val.name || '';
+      form.email = val.email || '';
+    }
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 
 const emitUpdate = () => {

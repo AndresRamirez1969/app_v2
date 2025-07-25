@@ -1,36 +1,32 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import axiosInstance from '@/utils/axios';
-// icons
-import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons-vue';
-const show1 = ref(false);
-const password = ref('');
-const email = ref('');
-const Regform = ref();
-const name = ref('');
-const confPassword = ref('');
-// Password validation rules
-const passwordRules = ref([
-  (v: string) => !!v || 'Password is required',
-  (v: string) => v === v.trim() || 'Password cannot start or end with spaces',
-  (v: string) => v.length <= 12 || 'Password must be less than 10 characters'
-]);
-const confPasswordRules = ref([
-  (v: string) => !!v || 'Confirma la contrasena',
-  (v: string) => v === password.value || 'Las contrasenas son diferentes'
-]);
-const nameRules = ref([(v: string) => !!v || 'Name is required']);
-// Email validation rules
-const emailRules = ref([
-  (v: string) => !!v.trim() || 'E-mail is required',
-  (v: string) => {
-    const trimmedEmail = v.trim();
-    return !/\s/.test(trimmedEmail) || 'E-mail must not contain spaces';
-  },
-  (v: string) => /.+@.+\..+/.test(v.trim()) || 'E-mail must be valid'
-]);
+import { useRouter } from 'vue-router';
+import { mdiEye, mdiEyeOff } from '@mdi/js';
+import { useAuthStore } from '@/stores/auth';
 
-const validate = async () => {
+const router = useRouter();
+const auth = useAuthStore();
+
+const showPassword = ref(false);
+const showConfPassword = ref(false);
+const name = ref('');
+const email = ref('');
+const password = ref('');
+const confPassword = ref('');
+
+const eyeIcon = mdiEye;
+const eyeOffIcon = mdiEyeOff;
+
+const nameRules = [(v: string) => !!v || 'El nombre es obligatorio'];
+const emailRules = [(v: string) => !!v || 'El correo es obligatorio', (v: string) => /.+@.+\..+/.test(v) || 'Correo no válido'];
+const passwordRules = [(v: string) => !!v || 'La contraseña es obligatoria'];
+const confPasswordRules = [
+  (v: string) => !!v || 'Confirma la contraseña',
+  (v: string) => v === password.value || 'Las contraseñas no coinciden'
+];
+
+const register = async () => {
   try {
     const res = await axiosInstance.post('/register', {
       name: name.value,
@@ -38,102 +34,50 @@ const validate = async () => {
       password: password.value,
       password_confirmation: confPassword.value
     });
-    console.log("success!", res);
+    auth.loginWithTokenAndUser(res.data.access_token || res.data.token, res.data.user, res.data.permissions || []);
+    router.push('/dashboard');
   } catch (err) {
-    console.log("Epic fail!", err);
+    console.error('Error en registro:', err);
   }
-}
+};
 </script>
 
 <template>
-  <div class="d-flex justify-space-between align-center">
-    <h3 class="text-h3 text-center mb-0">Sign up</h3>
-    <router-link to="/login1" class="text-primary text-decoration-none">Already have an account?</router-link>
-  </div>
-  <v-form ref="Regform" lazy-validation action="/dashboards/analytical" class="mt-7 loginForm">
-    <v-row class="my-0">
-      <v-col cols="12" sm="6" class="py-0">
-        <div class="mb-6">
-          <v-label>Nombre*</v-label>
-          <v-text-field
-            v-model="name"
-            :rules="nameRules"
-            hide-details="auto"
-            required
-            variant="outlined"
-            class="mt-2"
-            color="primary"
-            placeholder="Juan"
-          ></v-text-field>
-        </div>
-      </v-col>
-    </v-row>
-    <div class="mb-6">
-      <v-label>Correo*</v-label>
-      <v-text-field
-        v-model="email"
-        :rules="emailRules"
-        placeholder="demo@company.com"
-        class="mt-2"
-        required
-        hide-details="auto"
-        variant="outlined"
-        color="primary"
-        @input="email"
-      ></v-text-field>
-    </div>
-    <div class="mb-6">
-      <v-label>Contrasena</v-label>
-      <v-text-field
-        v-model="password"
-        :rules="passwordRules"
-        placeholder="*****"
-        required
-        variant="outlined"
-        color="primary"
-        hide-details="auto"
-        :type="show1 ? 'text' : 'password'"
-        class="mt-2"
-        @input="password"
-      >
-        <template v-slot:append-inner>
-          <v-btn color="secondary" icon rounded variant="text">
-            <EyeInvisibleOutlined :style="{ color: 'rgb(var(--v-theme-secondary))' }" v-if="show1 == false" @click="show1 = !show1" />
-            <EyeOutlined :style="{ color: 'rgb(var(--v-theme-secondary))' }" v-if="show1 == true" @click="show1 = !show1" />
-          </v-btn>
-        </template>
-      </v-text-field>
-    </div>
-    <div class="mb-6">
-      <v-label>Confirma Contrasena</v-label>
-      <v-text-field
-        v-model="confPassword"
-        :rules="confPasswordRules"
-        placeholder="*****"
-        required
-        variant="outlined"
-        color="primary"
-        hide-details="auto"
-        :type="show1 ? 'text' : 'password'"
-        class="mt-2"
-      >
-        <template v-slot:append-inner>
-          <v-btn color="secondary" icon rounded variant="text">
-            <EyeInvisibleOutlined :style="{ color: 'rgb(var(--v-theme-secondary))' }" v-if="show1 == false" @click="show1 = !show1" />
-            <EyeOutlined :style="{ color: 'rgb(var(--v-theme-secondary))' }" v-if="show1 == true" @click="show1 = !show1" />
-          </v-btn>
-        </template>
-      </v-text-field>
-    </div>
-
-    <div class="d-sm-inline-flex align-center mt-2 mb-7 mb-sm-0 font-weight-bold">
-      <h6 class="text-caption">
-        By Signing up, you agree to our
-        <router-link to="/register" class="text-primary link-hover font-weight-medium">Terms of Service </router-link>
-        and
-        <router-link to="/register" class="text-primary link-hover font-weight-medium">Privacy Policy</router-link>
-      </h6>
-    </div>
-    <v-btn color="primary" block class="mt-4" variant="flat" size="large" @click="validate()">Create Account</v-btn>
+  <v-form class="mt-7 loginForm">
+    <v-text-field v-model="name" :rules="nameRules" label="Nombre" required variant="outlined" color="primary" class="mb-4" />
+    <v-text-field v-model="email" :rules="emailRules" label="Correo" required variant="outlined" color="primary" class="mb-4" />
+    <v-text-field
+      v-model="password"
+      :rules="passwordRules"
+      label="Contraseña"
+      :type="showPassword ? 'text' : 'password'"
+      required
+      variant="outlined"
+      color="primary"
+      class="mb-4"
+      :append-inner-icon="showPassword ? eyeIcon : eyeOffIcon"
+      @click:append-inner="showPassword = !showPassword"
+    />
+    <v-text-field
+      v-model="confPassword"
+      :rules="confPasswordRules"
+      label="Confirmar Contraseña"
+      :type="showConfPassword ? 'text' : 'password'"
+      required
+      variant="outlined"
+      color="primary"
+      class="mb-4"
+      :append-inner-icon="showConfPassword ? eyeIcon : eyeOffIcon"
+      @click:append-inner="showConfPassword = !showConfPassword"
+    />
+    <v-btn color="primary" block class="mt-4" variant="flat" size="large" @click="register"> Crear Cuenta </v-btn>
   </v-form>
 </template>
+
+<style scoped>
+.loginForm {
+  .v-text-field .v-field--active input {
+    font-weight: 500;
+  }
+}
+</style>

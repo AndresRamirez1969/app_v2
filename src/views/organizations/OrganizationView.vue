@@ -32,7 +32,6 @@ const headers = [
 </script>
 
 <template>
-  <BaseBreadcrumb></BaseBreadcrumb>
   <v-card>
     <v-data-table
       :headers="headers"

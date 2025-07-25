@@ -3,7 +3,8 @@ import axiosInstance from '@/utils/axios';
 
 export const useAuthStore = defineStore('auth', {
   state: () => {
-    const storage = localStorage.getItem('authToken') ? localStorage : sessionStorage;
+    // Detecta el storage correcto según dónde esté el token
+    const storage = localStorage.getItem('authToken') ? localStorage : sessionStorage.getItem('authToken') ? sessionStorage : localStorage;
     return {
       token: storage.getItem('authToken') || '',
       user: (() => {
@@ -42,48 +43,87 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async login(email: string, password: string, rememberMe: boolean) {
-      const response = await axiosInstance.post('/login', { email, password, remember_me: rememberMe });
-      this.token = response.data.token;
-      this.user = {
+      // Envía el parámetro como 'remember' al backend
+      const response = await axiosInstance.post('/login', {
+        email,
+        password,
+        remember: rememberMe
+      });
+
+      // El usuario debe tener el campo permissions
+      const user = {
         ...response.data.user,
         permissions: response.data.permissions
       };
+
+      this.token = response.data.token;
+      this.user = user;
       this.permissions = response.data.permissions;
 
+      // Guarda todo en el storage correcto
       const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem('authToken', this.token); // <-- CORREGIDO: guarda como string simple
+      storage.setItem('authUser', JSON.stringify(user));
+      console.log('Usuario', user);
+    },
 
-      localStorage.setItem('authToken', JSON.stringify(this.token));
+    loginWithTokenAndUser(token: string, user: any, permissions: any[] = []) {
+      this.token = token;
+      this.user = {
+        ...user,
+        permissions: permissions
+      };
+      this.permissions = permissions;
+
+      // Siempre guarda en localStorage (puedes adaptar si quieres usar sessionStorage)
+      localStorage.setItem('authToken', token); // <-- CORREGIDO: guarda como string simple
       localStorage.setItem('authUser', JSON.stringify(this.user));
-      storage.setItem('authPermissions', JSON.stringify(this.permissions));
-      console.log('Usuario', response.data);
     },
 
     async logout() {
-      axiosInstance.post('/logout').catch(() => {});
+      // Limpia ambos storages y el estado
       this.token = '';
       this.user = null;
       this.permissions = [];
       this.returnUrl = null;
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('authUser');
-      localStorage.removeItem('authPermissions');
+
+      // Borra siempre sessionStorage
       sessionStorage.removeItem('authToken');
       sessionStorage.removeItem('authUser');
       sessionStorage.removeItem('authPermissions');
+
+      // Borra solo el token de localStorage, deja el usuario para "Recuérdame"
+      localStorage.removeItem('authToken');
+      // localStorage.removeItem('authUser'); // <-- NO borres esto si quieres recordar el usuario/email
+
+      localStorage.removeItem('authPermissions');
+
+      // Notifica al backend, pero NO esperes la respuesta (no bloquea la UI)
+      axiosInstance.post('/logout').catch(() => {});
     },
 
     async fetchUser() {
       const response = await axiosInstance.get('/user');
-      this.user = response.data;
+      this.user = {
+        ...response.data,
+        permissions: response.data.permissions || []
+      };
       this.permissions = response.data.permissions || [];
       console.log(this.permissions);
+      // Actualiza el usuario en ambos storages
       localStorage.setItem('authUser', JSON.stringify(this.user));
+      sessionStorage.setItem('authUser', JSON.stringify(this.user));
     },
 
     setUser(user: any) {
-      this.user = user;
+      this.user = {
+        ...user,
+        permissions: user.permissions || []
+      };
       this.permissions = user.permissions || [];
-      localStorage.setItem('authUser', JSON.stringify(user));
+      // Actualiza el usuario en ambos storages
+      localStorage.setItem('authUser', JSON.stringify(this.user));
+      sessionStorage.setItem('authUser', JSON.stringify(this.user));
     }
   }
 });

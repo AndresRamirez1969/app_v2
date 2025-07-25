@@ -17,8 +17,8 @@ const tab = ref(null);
 const authStore = useAuthStore();
 const router = useRouter();
 
-const handleLogout = () => {
-  authStore.logout();
+const handleLogout = async () => {
+  await authStore.logout();
   router.push('/login');
 };
 </script>
@@ -30,7 +30,7 @@ const handleLogout = () => {
   <div>
     <div class="d-flex align-center pa-5">
       <v-avatar size="32" class="mr-2">
-        <v-img :src="authStore.user.profile_picture || `/img/default-avatar.png`" width="32" alt="Foto de Perfil" />
+        <v-img :src="authStore.user?.profile_picture || `/img/default-avatar.png`" width="32" alt="Foto de Perfil" />
       </v-avatar>
       <div>
         <h6 class="text-h6 mb-0">{{ authStore.user?.name || 'Guest' }}</h6>
@@ -47,7 +47,6 @@ const handleLogout = () => {
               <template v-slot:prepend>
                 <UserOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
-
               <v-list-item-title class="text-h6"> Ver Perfil</v-list-item-title>
             </v-list-item>
 
@@ -55,7 +54,6 @@ const handleLogout = () => {
               <template v-slot:prepend>
                 <WalletOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
-
               <v-list-item-title class="text-h6"> Billing</v-list-item-title>
             </v-list-item>
 
@@ -63,7 +61,6 @@ const handleLogout = () => {
               <template v-slot:prepend>
                 <LogoutOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
-
               <v-list-item-title class="text-subtitle-2"> Logout</v-list-item-title>
             </v-list-item>
           </v-list>
@@ -74,7 +71,6 @@ const handleLogout = () => {
               <template v-slot:prepend>
                 <QuestionCircleOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
-
               <v-list-item-title class="text-h6"> Support</v-list-item-title>
             </v-list-item>
 
@@ -82,7 +78,6 @@ const handleLogout = () => {
               <template v-slot:prepend>
                 <UserOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
-
               <v-list-item-title class="text-h6"> Account settings</v-list-item-title>
             </v-list-item>
 
@@ -90,7 +85,6 @@ const handleLogout = () => {
               <template v-slot:prepend>
                 <LockOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
-
               <v-list-item-title class="text-h6"> Privacy center</v-list-item-title>
             </v-list-item>
 
@@ -98,7 +92,6 @@ const handleLogout = () => {
               <template v-slot:prepend>
                 <CommentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
-
               <v-list-item-title class="text-h6"> Feedback</v-list-item-title>
             </v-list-item>
 
@@ -106,7 +99,6 @@ const handleLogout = () => {
               <template v-slot:prepend>
                 <UnorderedListOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
-
               <v-list-item-title class="text-h6"> History</v-list-item-title>
             </v-list-item>
           </v-list>

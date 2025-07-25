@@ -1,106 +1,75 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-// icons
-import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons-vue';
-import { Form } from 'vee-validate';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
+import { mdiEye, mdiEyeOff } from '@mdi/js';
 
-const logoUrl = 'https://tasker-v2-bucket.s3.us-east-2.amazonaws.com/public/Logotipo+1.svg';
-const toast = useToast();
-const valid = ref(false);
-const show1 = ref(false);
-const remeberMe = ref(false);
-const password = ref('');
-const email = ref('');
-const authStore = useAuthStore();
+const eyeIcon = mdiEye;
+const eyeOffIcon = mdiEyeOff;
+
 const router = useRouter();
-// Password validation rules
-const passwordRules = ref([(v: string) => !!v || 'Ingresa tu contrasena']);
-// Email validation rules
-const emailRules = ref([
-  (v: string) => !!v.trim() || 'Ingresa tu correo',
-  (v: string) => {
-    const trimmedEmail = v.trim();
-    return !/\s/.test(trimmedEmail) || 'El correo no puede contener espacios';
-  },
-  (v: string) => /.+@.+\..+/.test(v.trim()) || 'Ingresa un correo valido'
-]);
+const auth = useAuthStore();
+const toast = useToast();
 
-const validate = async () => {
+const email = ref('');
+const password = ref('');
+const showPassword = ref(false);
+const rememberMe = ref(false);
+
+const emailRules = [(v: string) => !!v || 'El correo es obligatorio', (v: string) => /.+@.+\..+/.test(v) || 'Correo no válido'];
+const passwordRules = [(v: string) => !!v || 'La contraseña es obligatoria'];
+
+const login = async () => {
   try {
-    await authStore.login(email.value, password.value, remeberMe.value);
+    await auth.login(email.value, password.value, rememberMe.value);
     router.push('/dashboard');
   } catch (err) {
-    toast.error('Credenciales Invalidas');
-    console.log('Failure', err);
+    toast.error('Credenciales inválidas');
+    console.error('Login error:', err);
   }
 };
 </script>
 
 <template>
-  <div class="d-flex justify-space-between align-center">
-    <v-img :src="logoUrl" alt="Company Logo" max-height="30" contain class="mx-auto" />
-    <h3 class="text-h3 text-center mb-0">Login</h3>
-  </div>
-  <Form @submit="validate" class="mt-7 loginForm" v-slot="{ isSubmitting }">
-    <div class="mb-6">
-      <v-label>Correo/Usuario</v-label>
-      <v-text-field
-        aria-label="email address"
-        v-model="email"
-        :rules="emailRules"
-        class="mt-2"
-        required
-        hide-details="auto"
-        variant="outlined"
-        color="primary"
-        placeholder="example@domain.com"
-        @input="email"
-      ></v-text-field>
-    </div>
-    <div>
-      <v-label>Contrasena</v-label>
-      <v-text-field
-        aria-label="password"
-        v-model="password"
-        :rules="passwordRules"
-        required
-        variant="outlined"
-        color="primary"
-        hide-details="auto"
-        :type="show1 ? 'text' : 'password'"
-        class="mt-2"
-        placeholder="*******"
-        @input="password"
-      >
-        <template v-slot:append-inner>
-          <v-btn color="secondary" icon rounded variant="text">
-            <EyeInvisibleOutlined :style="{ color: 'rgb(var(--v-theme-secondary))' }" v-if="show1 == false" @click="show1 = !show1" />
-            <EyeOutlined :style="{ color: 'rgb(var(--v-theme-secondary))' }" v-if="show1 == true" @click="show1 = !show1" />
-          </v-btn>
-        </template>
-      </v-text-field>
+  <v-form class="loginForm mt-3" @submit.prevent="login">
+    <v-text-field
+      v-model="email"
+      :rules="emailRules"
+      label="Correo"
+      placeholder="example@domain.com"
+      required
+      variant="outlined"
+      color="primary"
+      class="mb-4"
+      autocomplete="username"
+    />
+
+    <v-text-field
+      v-model="password"
+      :rules="passwordRules"
+      label="Contraseña"
+      placeholder="*******"
+      :type="showPassword ? 'text' : 'password'"
+      required
+      variant="outlined"
+      color="primary"
+      class="mb-4"
+      autocomplete="current-password"
+      :append-inner-icon="showPassword ? eyeIcon : eyeOffIcon"
+      @click:append-inner="showPassword = !showPassword"
+    />
+
+    <div class="d-flex justify-space-between align-center mt-4 mb-7">
+      <router-link to="/forgot_password" class="text-darkText link-hover"> ¿Olvidaste tu contraseña? </router-link>
+      <v-checkbox v-model="rememberMe" label="Recuérdame" density="compact" hide-details class="ma-0 pa-0" />
     </div>
 
-    <div class="d-flex align-center mt-4 mb-7 mb-sm-0">
-      <div class="ml-auto">
-        <router-link to="/forgot_password" class="text-darkText link-hover">Forgot Password?</router-link>
-      </div>
-      <div class="ml-auto">
-        <label>
-          <input type="checkbox" v-model="remeberMe" />
-          Recuérdame
-        </label>
-      </div>
-    </div>
-    <v-btn color="primary" :loading="isSubmitting" block class="mt-5" variant="flat" size="large" :disabled="valid" @click="validate()">
-      Login</v-btn
-    >
-  </Form>
+    <v-btn color="primary" block variant="flat" size="large" type="submit"> Iniciar Sesión </v-btn>
+  </v-form>
 </template>
-<style lang="scss">
+
+<style scoped>
 .loginForm {
   .v-text-field .v-field--active input {
     font-weight: 500;
