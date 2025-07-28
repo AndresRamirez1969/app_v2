@@ -64,3 +64,13 @@ export const FREQUENCY = [
   { label: 'Una vez al dia', value: 'once_per_day' },
   { label: 'Multiples veces al dia', valu: 'multiple_per_day' }
 ];
+
+export const SCOPES = {
+  organization: 'Organizacional',
+  business: 'Por Negocio',
+  business_unit: 'Por Unidad'
+};
+
+export const getScopes = (scope) => {
+  return SCOPES[scope] || scope;
+};

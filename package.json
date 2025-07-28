@@ -19,6 +19,8 @@
     "@fontsource/poppins": "5.1.0",
     "@fontsource/public-sans": "5.1.1",
     "@fontsource/roboto": "5.1.0",
+    "@formkit/pro": "^0.127.23",
+    "@formkit/vue": "^1.6.9",
     "@mdi/font": "^7.4.47",
     "@mdi/js": "^7.4.47",
     "@tsconfig/node20": "20.1.4",

@@ -51,14 +51,11 @@ export const useAuthStore = defineStore('auth', {
       });
 
       // El usuario debe tener el campo permissions
-      const user = {
-        ...response.data.user,
-        permissions: response.data.permissions
-      };
+      const user = response.data.user;
 
       this.token = response.data.token;
       this.user = user;
-      this.permissions = response.data.permissions;
+      this.permissions = user.permissions;
 
       // Guarda todo en el storage correcto
       const storage = rememberMe ? localStorage : sessionStorage;

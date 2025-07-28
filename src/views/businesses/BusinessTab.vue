@@ -42,7 +42,8 @@
           <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Tu Negocio</h1>
         </v-col>
       </v-row>
-      <ShowBusiness />
+      <ShowBusiness v-if="auth.user?.business_id" />
+      <CreateBusiness v-else @businessCreated="handleBusCreate" />
     </v-container>
   </div>
 
@@ -92,6 +93,9 @@ watch(
 const canViewAll = computed(() => {
   return auth.hasPermissions('business.viewAny');
 });
+
+console.log(auth.hasPermissions('business.viewAny'));
+
 const canCreate = computed(() => {
   return auth.hasPermissions('business.create');
 });

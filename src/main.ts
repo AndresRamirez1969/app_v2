@@ -1,4 +1,6 @@
 import { createApp } from 'vue';
+import { plugin, defaultConfig } from '@formkit/vue';
+import { createProPlugin, inputs } from '@formkit/pro';
 import { createPinia } from 'pinia';
 import App from './App.vue';
 import { router } from './router';
@@ -22,7 +24,15 @@ import '@fontsource/public-sans/700.css';
 import { fakeBackend } from '@/utils/helpers/fake-backend';
 
 const app = createApp(App);
+const pro = createProPlugin('fk-748c917a9d', inputs);
 fakeBackend();
+app.use(
+  plugin,
+  defaultConfig({
+    plugins: [pro],
+    config: { root: 'formkit' }
+  })
+);
 app.use(router);
 app.use(PerfectScrollbarPlugin);
 app.use(createPinia());

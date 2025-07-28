@@ -41,8 +41,6 @@ const fetchUser = async () => {
   try {
     const response = await axiosInstance.get('/user');
     user.value = response.data;
-    localStorage.setItem('authUser', JSON.stringify(response.data));
-    await auth.fetchUser();
   } catch (error) {
     toast.error('Error al obtener los datos del usuario.');
   }
@@ -67,7 +65,7 @@ const handleImageChange = async (event) => {
     await axiosInstance.post(`/users/${auth.user.id}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    await fetchUser();
+    await auth.fetchUser();
     toast.success('Foto de perfil actualizada.');
   } catch {
     toast.error('Error al actualizar la foto de perfil.');
@@ -83,7 +81,7 @@ const updateUser = async (data) => {
 
   try {
     await axiosInstance.post(`/users/${auth.user.id}`, payload);
-    await fetchUser();
+    await auth.fetchUser();
     toast.success('Perfil actualizado correctamente.');
   } catch {
     toast.error('Error al actualizar el perfil.');

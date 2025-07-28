@@ -68,6 +68,21 @@ const MainRoutes = {
       component: () => import('@/views/formularios/FormTab.vue')
     },
     {
+      name: 'CreateForm',
+      path: '/crearFormulario/:id',
+      component: () => import('@/views/formularios/componentes/CreateForm.vue')
+    },
+    {
+      name: 'FormDetail',
+      path: '/formulario/:id',
+      component: () => import('@/views/formularios/componentes/ShowForm.vue')
+    },
+    {
+      name: 'AddFieldsForm',
+      path: '/formularios/:id/add-fields',
+      component: () => import('@/views/formularios/componentes/AddFieldsForm.vue')
+    },
+    {
       name: 'other',
       path: '/organizaciones',
       component: () => import('@/views/organizations/OrganizationTab.vue')
