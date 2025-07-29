@@ -25,23 +25,21 @@ const headers = [
 </script>
 
 <template>
-  <v-card>
-    <v-data-table :headers="headers" :items="users" class="elevation-1" item-value="id" density="comfortable">
-      <template #item.role="{ item }">
-        <span>
-          {{ item.roles?.[0]?.name || '—' }}
-        </span>
-      </template>
-      <template #item.status="{ item }">
-        <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
-          {{ item.status === 'active' ? 'Activo' : 'Inactivo' }}
-        </v-chip>
-      </template>
-      <template #item.actions="{ item }">
-        <v-btn icon @click="openEditDialog(item.id)">
-          <v-icon :icon="mdiPencil" />
-        </v-btn>
-      </template>
-    </v-data-table>
-  </v-card>
+  <v-data-table :headers="headers" :items="users" class="elevation-1" item-value="id" density="comfortable" hide-default-footer>
+    <template #item.role="{ item }">
+      <span>
+        {{ item.roles?.[0]?.name || '—' }}
+      </span>
+    </template>
+    <template #item.status="{ item }">
+      <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
+        {{ item.status === 'active' ? 'Activo' : 'Inactivo' }}
+      </v-chip>
+    </template>
+    <template #item.actions="{ item }">
+      <v-btn icon @click="openEditDialog(item.id)">
+        <v-icon :icon="mdiPencil" />
+      </v-btn>
+    </template>
+  </v-data-table>
 </template>

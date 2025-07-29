@@ -28,7 +28,6 @@
               </v-btn>
             </template>
             <UsersView :users="users.data" :isLoading="isLoading" />
-            <v-pagination v-model="currentPage" :length="users.last_page" :total-visible="5" @input="fetchUsers" class="mt-6" />
           </UiParentCard>
         </v-col>
       </template>
@@ -37,11 +36,7 @@
       </template>
     </v-row>
   </v-container>
-  <v-card>
-    <v-card-text>
-      <CreateUser v-model:dialog="showDialog" @userCreated="handleUserCreated" />
-    </v-card-text>
-  </v-card>
+  <CreateUser v-model:dialog="showDialog" @userCreated="handleUserCreated" />
 </template>
 
 <script setup>

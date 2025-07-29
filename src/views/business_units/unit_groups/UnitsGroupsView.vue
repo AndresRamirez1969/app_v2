@@ -40,6 +40,7 @@ const headers = [
     density="comfortable"
     :loading="isLoading"
     loading-text="Cargando..."
+    hide-default-footer
   >
     <template #item.name="{ item }">
       {{ item.name }}

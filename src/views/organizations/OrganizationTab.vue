@@ -14,13 +14,6 @@
               </v-btn>
             </template>
             <OrganizationView :organizations="organizations.data" :isLoading="isLoading" />
-            <v-pagination
-              v-model="currentPage"
-              :length="organizations.last_page"
-              :total-visible="5"
-              @input="fetchOrganizations"
-              class="mt-6"
-            />
           </UiParentCard>
         </v-col>
       </v-row>

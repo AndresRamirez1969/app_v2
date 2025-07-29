@@ -20,34 +20,36 @@
       <!-- Form Fields List -->
       <div v-if="fields.length > 0" class="mb-6">
         <h4 class="text-h6 mb-4">Campos del Formulario</h4>
-        <v-list>
-          <v-list-item v-for="(field, index) in fields" :key="index" class="mb-2 border rounded">
-            <template #prepend>
-              <v-icon class="mr-2">mdi-drag</v-icon>
-            </template>
+        <draggable v-model="fields" item-key="order" handle=".drag-handle" @end="onDragEnd" class="v-list">
+          <template #item="{ element: field, index }">
+            <v-list-item class="mb-2 border rounded">
+              <template #prepend>
+                <v-icon class="mr-2 drag-handle" :icon="mdiDrag"></v-icon>
+              </template>
 
-            <v-list-item-title class="font-weight-medium">
-              {{ field.label }}
-              <v-chip :color="getFieldTypeColor(field.type)" size="x-small" class="ml-2">
-                {{ getFieldTypeLabel(field.type) }}
-              </v-chip>
-              <v-chip v-if="field.is_required" color="red" size="x-small" class="ml-1"> Requerido </v-chip>
-            </v-list-item-title>
+              <v-list-item-title class="font-weight-medium">
+                {{ field.label }}
+                <v-chip :color="getFieldTypeColor(field.type)" size="x-small" class="ml-2">
+                  {{ getFieldTypeLabel(field.type) }}
+                </v-chip>
+                <v-chip v-if="field.is_required" color="red" size="x-small" class="ml-1"> Requerido </v-chip>
+              </v-list-item-title>
 
-            <v-list-item-subtitle> Orden: {{ field.order }} </v-list-item-subtitle>
+              <v-list-item-subtitle> Orden: {{ field.order }} </v-list-item-subtitle>
 
-            <template #append>
-              <v-btn icon size="small" color="error" @click="removeField(index)">
-                <v-icon>mdi-delete</v-icon>
-              </v-btn>
-            </template>
-          </v-list-item>
-        </v-list>
+              <template #append>
+                <v-btn icon size="small" color="error" @click="removeField(index)">
+                  <v-icon :icon="mdiDelete"></v-icon>
+                </v-btn>
+              </template>
+            </v-list-item>
+          </template>
+        </draggable>
       </div>
 
       <!-- Add Field Button -->
       <v-btn color="primary" variant="outlined" @click="showAddFieldDialog = true" class="mb-4">
-        <v-icon class="mr-2">mdi-plus</v-icon>
+        <v-icon class="mr-2" :icon="mdiPlus"></v-icon>
         Agregar Campo
       </v-btn>
 
@@ -112,11 +114,12 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { mdiArrowLeft } from '@mdi/js';
+import { mdiArrowLeft, mdiDrag, mdiDelete, mdiPlus } from '@mdi/js';
 import { useRoute, useRouter } from 'vue-router';
 import { SCOPES, FREQUENCY } from '@/constants/constants';
 import axiosInstance from '@/utils/axios';
 import { useToast } from 'vue-toastification';
+import draggable from 'vuedraggable';
 
 const route = useRoute();
 const router = useRouter();
@@ -282,6 +285,13 @@ const saveFields = async () => {
   } finally {
     saving.value = false;
   }
+};
+
+const onDragEnd = () => {
+  // Actualizar el orden de los campos
+  fields.value.forEach((field, index) => {
+    field.order = index;
+  });
 };
 
 onMounted(() => {

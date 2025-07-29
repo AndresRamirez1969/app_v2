@@ -32,41 +32,39 @@ const headers = [
 </script>
 
 <template>
-  <v-card>
-    <v-data-table
-      :headers="headers"
-      :items="organizations"
-      class="elevation-1"
-      item-value="id"
-      density="comfortable"
-      :loading="isLoading"
-      loading-text="Cargando..."
-    >
-      <template #item.legal_name="{ item }">
-        <div class="d-flex align-center gap-2">
-          <v-avatar v-if="item.logo" size="30" class="me-2">
-            <v-img :src="item.logo" alt="Logo" />
-          </v-avatar>
-          <span>{{ item.legal_name }}</span>
-        </div>
-      </template>
+  <v-data-table
+    :headers="headers"
+    :items="organizations"
+    class="elevation-1"
+    item-value="id"
+    density="comfortable"
+    :loading="isLoading"
+    loading-text="Cargando..."
+    hide-default-footer
+  >
+    <template #item.legal_name="{ item }">
+      <div class="d-flex align-center gap-2">
+        <v-avatar v-if="item.logo" size="30" class="me-2">
+          <v-img :src="item.logo" alt="Logo" />
+        </v-avatar>
+        <span>{{ item.legal_name }}</span>
+      </div>
+    </template>
 
-      <template #item.status="{ item }">
-        <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
-          {{ item.status === 'active' ? 'Activa' : 'Inactiva' }}
-        </v-chip>
-      </template>
-      <template #item.actions="{ item }">
-        <v-btn icon @click="openEditDialog(item.id)">
-          <v-icon :icon="mdiPencil" />
-        </v-btn>
-        <v-btn icon @click="openViewDrawer(item.id)">
-          <v-icon :icon="mdiEye" />
-        </v-btn>
-      </template>
-    </v-data-table>
-  </v-card>
-
+    <template #item.status="{ item }">
+      <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
+        {{ item.status === 'active' ? 'Activa' : 'Inactiva' }}
+      </v-chip>
+    </template>
+    <template #item.actions="{ item }">
+      <v-btn icon @click="openEditDialog(item.id)">
+        <v-icon :icon="mdiPencil" />
+      </v-btn>
+      <v-btn icon @click="openViewDrawer(item.id)">
+        <v-icon :icon="mdiEye" />
+      </v-btn>
+    </template>
+  </v-data-table>
   <EditOrganization
     v-if="showEditDialog"
     v-model:dialog="showEditDialog"

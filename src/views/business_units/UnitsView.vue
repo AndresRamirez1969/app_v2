@@ -40,49 +40,48 @@ const headers = [
 </script>
 
 <template>
-  <v-card>
-    <v-data-table
-      :headers="headers"
-      :items="props.units"
-      class="elevation-1"
-      item-value="id"
-      density="comfortable"
-      :loading="isLoading"
-      loading-text="Cargando..."
-    >
-      <template #item.folio="{ item }">
-        <span
-          v-if="canView"
-          class="folio-link"
-          @click="router.push({ name: 'UnitDetail', params: { id: item.id } })"
-          style="cursor: pointer; color: #1976d2; text-decoration: underline"
-        >
-          {{ item.folio }}
-        </span>
-        <span v-else>
-          {{ item.folio }}
-        </span>
-      </template>
-      <template #item.status="{ item }">
-        <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
-          {{ item.status === 'active' ? 'Activa' : 'Inactiva' }}
-        </v-chip>
-      </template>
-      <template #item.direccion="{ item }">
-        {{ item.address.street }}, {{ item.address.neighborhood }}, {{ item.address.city }}, {{ item.address.state }}
-      </template>
-      <template #item.actions="{ item }">
-        <v-btn icon @click="openViewDrawer(item.id)">
-          <v-icon :icon="mdiEye" />
-        </v-btn>
-      </template>
-      <template #item.business_unit_groups="{ item }">
-        <v-chip v-for="group in item.business_unit_groups" :key="group.id" class="ma-1" color="primary" label size="small">{{
-          group.name
-        }}</v-chip>
-      </template>
-    </v-data-table>
-  </v-card>
+  <v-data-table
+    :headers="headers"
+    :items="props.units"
+    class="elevation-1"
+    item-value="id"
+    density="comfortable"
+    :loading="isLoading"
+    loading-text="Cargando..."
+    hide-default-footer
+  >
+    <template #item.folio="{ item }">
+      <span
+        v-if="canView"
+        class="folio-link"
+        @click="router.push({ name: 'UnitDetail', params: { id: item.id } })"
+        style="cursor: pointer; color: #1976d2; text-decoration: underline"
+      >
+        {{ item.folio }}
+      </span>
+      <span v-else>
+        {{ item.folio }}
+      </span>
+    </template>
+    <template #item.status="{ item }">
+      <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
+        {{ item.status === 'active' ? 'Activa' : 'Inactiva' }}
+      </v-chip>
+    </template>
+    <template #item.direccion="{ item }">
+      {{ item.address.street }}, {{ item.address.neighborhood }}, {{ item.address.city }}, {{ item.address.state }}
+    </template>
+    <template #item.actions="{ item }">
+      <v-btn icon @click="openViewDrawer(item.id)">
+        <v-icon :icon="mdiEye" />
+      </v-btn>
+    </template>
+    <template #item.business_unit_groups="{ item }">
+      <v-chip v-for="group in item.business_unit_groups" :key="group.id" class="ma-1" color="primary" label size="small">{{
+        group.name
+      }}</v-chip>
+    </template>
+  </v-data-table>
   <CreateUnit v-if="showCreateDialog" v-model:dialog="showCreateDialog" :business="selectedBus" />
 </template>
 

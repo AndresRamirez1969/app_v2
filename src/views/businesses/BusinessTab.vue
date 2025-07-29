@@ -26,7 +26,6 @@
               </v-btn>
             </template>
             <BusinessView :businesses="businesses.data" :isLoading="isLoading" />
-            <v-pagination v-model="currentPage" :length="businesses.last_page" :total-visible="5" @input="fetchBusinesses" class="mt-6" />
           </UiParentCard>
         </v-col>
       </v-row>

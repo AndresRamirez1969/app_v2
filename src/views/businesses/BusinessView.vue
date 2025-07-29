@@ -34,41 +34,40 @@ const headers = [
 </script>
 
 <template>
-  <v-card>
-    <v-data-table
-      :headers="headers"
-      :items="filter"
-      class="elevation-1"
-      item-value="id"
-      density="comfortable"
-      :loading="isLoading"
-      loading-text="Cargando..."
-    >
-      <template #item.folio="{ item }">
-        <span class="folio-link" @click="router.push({ name: 'BusinessDetail', params: { id: item.id } })">
-          {{ item.folio }}
-        </span>
-      </template>
-      <template #item.legal_name="{ item }">
-        <div class="d-flex align-center gap-2">
-          <v-avatar v-if="item.logo" size="30" class="me-2">
-            <v-img :src="item.logo" alt="Logo" />
-          </v-avatar>
-          <span>{{ item.legal_name }}</span>
-        </div>
-      </template>
-      <template #item.status="{ item }">
-        <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
-          {{ item.status === 'active' ? 'Activa' : 'Inactiva' }}
-        </v-chip>
-      </template>
-      <template #item.actions="{ item }">
-        <v-btn icon @click="router.push({ name: 'BusinessDetail', params: { id: item.id } })">
-          <v-icon :icon="mdiEye" />
-        </v-btn>
-      </template>
-    </v-data-table>
-  </v-card>
+  <v-data-table
+    :headers="headers"
+    :items="filter"
+    class="elevation-1"
+    item-value="id"
+    density="comfortable"
+    :loading="isLoading"
+    loading-text="Cargando..."
+    hide-default-footer
+  >
+    <template #item.folio="{ item }">
+      <span class="folio-link" @click="router.push({ name: 'BusinessDetail', params: { id: item.id } })">
+        {{ item.folio }}
+      </span>
+    </template>
+    <template #item.legal_name="{ item }">
+      <div class="d-flex align-center gap-2">
+        <v-avatar v-if="item.logo" size="30" class="me-2">
+          <v-img :src="item.logo" alt="Logo" />
+        </v-avatar>
+        <span>{{ item.legal_name }}</span>
+      </div>
+    </template>
+    <template #item.status="{ item }">
+      <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
+        {{ item.status === 'active' ? 'Activa' : 'Inactiva' }}
+      </v-chip>
+    </template>
+    <template #item.actions="{ item }">
+      <v-btn icon @click="router.push({ name: 'BusinessDetail', params: { id: item.id } })">
+        <v-icon :icon="mdiEye" />
+      </v-btn>
+    </template>
+  </v-data-table>
 
   <EditBusiness
     v-if="showEditDialog"

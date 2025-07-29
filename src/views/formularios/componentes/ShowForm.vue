@@ -192,8 +192,39 @@
         </div>
       </v-col>
     </v-row>
-  </v-card>
 
+    <v-divider class="my-6"></v-divider>
+
+    <div class="mb-4">
+      <h3 class="text-h6 mb-4">Campos del Formulario</h3>
+
+      <div v-if="form.fields && form.fields.length > 0">
+        <v-list>
+          <v-list-item v-for="field in form.fields" :key="field.id" class="mb-2 border rounded">
+            <template #prepend>
+              <v-icon class="mr-2">mdi-form-textbox</v-icon>
+            </template>
+
+            <v-list-item-title class="font-weight-medium">
+              {{ field.label }}
+              <v-chip v-if="field.is_required" color="red" size="x-small" class="ml-1"> Requerido </v-chip>
+            </v-list-item-title>
+
+            <v-list-item-subtitle> Tipo: {{ field.type }} </v-list-item-subtitle>
+          </v-list-item>
+        </v-list>
+      </div>
+
+      <div v-else class="text-center pa-4 text-grey">
+        <v-icon size="large" class="mb-2">mdi-form-textbox</v-icon>
+        <p>No hay campos agregados a este formulario</p>
+        <v-btn color="primary" variant="outlined" @click="addField" class="mt-2">
+          <v-icon class="mr-2">mdi-plus</v-icon>
+          Agregar Campos
+        </v-btn>
+      </div>
+    </div>
+  </v-card>
   <div v-else class="text-center pa-4 text-grey">
     <v-progress-circular indeterminate color="primary" />
   </div>

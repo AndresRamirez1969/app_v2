@@ -31,7 +31,6 @@
               </v-btn>
             </template>
             <UnitsView :units="units.data" :isLoading="isLoading" />
-            <v-pagination v-model="currentPage" :length="units.last_page" :total-visible="5" @input="fetchUnits" class="mt-6" />
           </UiParentCard>
         </v-col>
       </template>

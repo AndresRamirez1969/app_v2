@@ -31,8 +31,7 @@
                 <v-icon start :icon="mdiPlus" /> Crear<span class="d-none d-sm-inline">&nbsp;Formulario</span>
               </v-btn>
             </template>
-            <FormView :forms="forms.data" :isLoading="isLoading" />
-            <v-pagination v-model="currentPage" :length="forms.last_page" :total-visible="5" @input="fetchForms" class="mt-6" />
+            <FormView :forms="forms.data" :isLoading="isLoading" @formUpdated="fetchForms" />
           </UiParentCard>
         </v-col>
       </v-row>
