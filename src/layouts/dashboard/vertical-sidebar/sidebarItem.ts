@@ -48,6 +48,11 @@ const sidebarItem: menu[] = [
     title: 'Formularios',
     icon: FileTextTwoTone,
     to: '/formularios'
+  },
+  {
+    title: 'Organizaciones DW',
+    icon: DatabaseTwoTone,
+    to: '/organizaciones-dw'
   }
 ];
 

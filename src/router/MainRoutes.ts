@@ -86,6 +86,26 @@ const MainRoutes = {
       name: 'other',
       path: '/organizaciones',
       component: () => import('@/views/organizations/OrganizationTab.vue')
+    },
+    {
+      name: 'Organizaciones DW',
+      path: '/organizaciones-dw',
+      component: () => import('@/views/organizations-dw/index.vue')
+    },
+    {
+      name: 'Organization Create DW',
+      path: '/organizaciones-dw/create',
+      component: () => import('@/views/organizations-dw/create.vue')
+    },
+    {
+      name: 'Organization Edit DW',
+      path: '/organizaciones-dw/:id/edit',
+      component: () => import('@/views/organizations-dw/edit.vue')
+    },
+    {
+      name: 'Organization Show DW',
+      path: '/organizaciones-dw/:id',
+      component: () => import('@/views/organizations-dw/show.vue')
     }
   ]
 };
