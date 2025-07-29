@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { mdiPencil } from '@mdi/js';
+import { CHIPCOLOR } from '@/constants/constants';
 
 const showEditDialog = ref(false);
 const selectedUserId = ref(null);
@@ -32,7 +33,7 @@ const headers = [
       </span>
     </template>
     <template #item.status="{ item }">
-      <v-chip :color="item.status === 'active' ? 'green' : 'red'" variant="flat" text-color="white" class="mb-2" small="small">
+      <v-chip :color="CHIPCOLOR(item.status)" text-color="white" class="status-chip" small="small">
         {{ item.status === 'active' ? 'Activo' : 'Inactivo' }}
       </v-chip>
     </template>
