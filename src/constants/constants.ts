@@ -71,6 +71,9 @@ export const SCOPES = {
   business_unit: 'Por Unidad'
 };
 
-export const getScopes = (scope) => {
-  return SCOPES[scope] || scope;
+export const CHIPCOLOR = (status: string) => {
+  if (status === 'activa' || status === 'active') return 'success';
+  if (status === 'inactiva' || status === 'inactive') return 'grey darken-1';
+  if (status === 'borrador' || status === 'draft') return 'secondary';
+  return 'grey lighten-2';
 };
