@@ -305,6 +305,11 @@
   resolved "https://registry.yarnpkg.com/@formkit/drag-and-drop/-/drag-and-drop-0.0.38.tgz#2f90a6488005ec723e9ae2730ddc3f6b2bf75fec"
   integrity sha512-3uJFcqz1xL7x/5pClDnyqEDfyFRDFH+75MFpJYXnVF17oekxLrwbUaOBN7ttKGn1jW2MdojRw4WMnSN1iLryvw==
 
+"@formkit/drag-and-drop@^0.5.3":
+  version "0.5.3"
+  resolved "https://registry.yarnpkg.com/@formkit/drag-and-drop/-/drag-and-drop-0.5.3.tgz#24408c0cf8749b26d3fba3b043503efba44b4c90"
+  integrity sha512-VGQsKYc350OOMbz7wYt69YqDbn49x7RJ32eqiJieNke54nGZYmx18XEqTw0lBiJmH3RaiH6V45gB1u+tvI/TNw==
+
 "@formkit/i18n@1.6.9":
   version "1.6.9"
   resolved "https://registry.yarnpkg.com/@formkit/i18n/-/i18n-1.6.9.tgz#ce9e6e5f132f1ba0007ec100b686bfff76b34d98"
@@ -352,7 +357,7 @@
   resolved "https://registry.yarnpkg.com/@formkit/tempo/-/tempo-0.1.2.tgz#85ff615dddc6cc55ab9f9ca83cf9a41cfdf778fc"
   integrity sha512-jNPPbjL8oj7hK3eHX++CwbR6X4GKQt+x00/q4yeXkwynXHGKL27dylYhpEgwrmediPP4y7s0XtN1if/M/JYujg==
 
-"@formkit/themes@1.6.9":
+"@formkit/themes@1.6.9", "@formkit/themes@^1.6.9":
   version "1.6.9"
   resolved "https://registry.yarnpkg.com/@formkit/themes/-/themes-1.6.9.tgz#71e1febe260e657c4a9aa94c179a22272d191c45"
   integrity sha512-/UD+MehQEdcCEadt73eIBGGAMEK8ODN0yq9r9299WvQxIELCOP2MbcxuWCV/g2Vd15Xhl8YFdn4KCzQi4X7QXA==

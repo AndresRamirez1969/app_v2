@@ -9,12 +9,23 @@
         </v-btn>
       </template>
       <template v-slot:append v-if="!isSponsor">
-        <v-btn icon @click="editMode ? saveChanges() : (editMode = true)">
-          <v-icon :icon="editMode ? mdiCheck : mdiPencil" />
-        </v-btn>
+        <v-tooltip text="Editar" location="top">
+          <template #activator="{ props }">
+            <v-btn icon v-bind="props" @click="editMode ? saveChanges() : (editMode = true)">
+              <v-icon :icon="editMode ? mdiCheck : mdiPencil" />
+            </v-btn>
+          </template>
+        </v-tooltip>
         <v-btn icon v-if="editMode" @click="cancelEdit">
           <v-icon :icon="mdiCancel" />
         </v-btn>
+        <v-tooltip text="Agregar nuevo campo" location="top">
+          <template #activator="{ props }">
+            <v-btn icon v-bind="props" @click="addField">
+              <v-icon :icon="mdiPlus" />
+            </v-btn>
+          </template>
+        </v-tooltip>
       </template>
     </v-toolbar>
 
@@ -193,7 +204,7 @@ import { onMounted, ref, watch, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { showForm } from '@/apiCalls/showForm';
 import { FREQUENCY, SCOPES } from '@/constants/constants';
-import { mdiPencil, mdiCancel, mdiCheck, mdiArrowLeft } from '@mdi/js';
+import { mdiPencil, mdiCancel, mdiCheck, mdiArrowLeft, mdiPlus } from '@mdi/js';
 import { useRoute, useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
 
@@ -205,6 +216,14 @@ const users = ref([]);
 
 const goBack = () => {
   router.push('/formularios');
+};
+
+const addField = () => {
+  router.push({
+    name: 'AddFieldsForm',
+    params: { id: formId.value },
+    state: { form: form.value }
+  });
 };
 
 const isSponsor = computed(() => {

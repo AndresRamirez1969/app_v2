@@ -60,6 +60,7 @@
               <FormKit
                 name="label"
                 type="text"
+                id="label"
                 label="Etiqueta del Campo"
                 placeholder="Ej: Nombre completo"
                 validation="required|length:1,255"
@@ -96,12 +97,12 @@
                   <FormKit name="value" type="text" placeholder="Valor" validation="required" />
                 </div>
               </FormKit>
+              <FormKit type="submit" label="Agregar Campo" :disabled="!isNewFieldValid" />
             </FormKit>
           </v-card-text>
           <v-card-actions>
             <v-spacer />
             <v-btn @click="showAddFieldDialog = false">Cancelar</v-btn>
-            <v-btn color="primary" @click="submitNewField" :disabled="!isNewFieldValid"> Agregar Campo </v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -206,6 +207,7 @@ const getFieldTypeColor = (type) => {
 };
 
 const addField = () => {
+  console.log('addField ejecutado');
   // Validate required options for select/radio/checkbox
   if (showOptionsField.value && (!newField.value.options || newField.value.options.length === 0)) {
     toast.error('Los campos de tipo selector, radio y checkbox requieren al menos una opción');
@@ -246,14 +248,6 @@ const addField = () => {
 
   showAddFieldDialog.value = false;
   toast.success('Campo agregado correctamente');
-};
-
-const submitNewField = () => {
-  // Trigger FormKit submit
-  const formKitForm = document.querySelector('[data-type="form"]');
-  if (formKitForm) {
-    formKitForm.dispatchEvent(new Event('submit'));
-  }
 };
 
 const removeField = (index) => {

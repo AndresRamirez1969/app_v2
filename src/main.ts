@@ -13,6 +13,7 @@ import Antd from 'ant-design-vue';
 import 'ant-design-vue/dist/reset.css';
 import Toast from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
+import '@formkit/themes/genesis';
 
 // google-fonts
 import '@fontsource/public-sans/400.css';
@@ -30,7 +31,7 @@ app.use(
   plugin,
   defaultConfig({
     plugins: [pro],
-    config: { root: 'formkit' }
+    config: { root: 'formkit', theme: 'genesis' }
   })
 );
 app.use(router);
