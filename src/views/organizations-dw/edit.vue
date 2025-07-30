@@ -4,10 +4,12 @@ import { useRouter, useRoute } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import axiosInstance from '@/utils/axios';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const route = useRoute();
 const organizationId = route.params.id;
+const auth = useAuthStore();
 
 const form = reactive({
   legal_name: '',
@@ -26,16 +28,22 @@ const parsedAddress = ref({});
 const logoPreview = ref(null);
 const errorMsg = ref('');
 
-// Computed para mostrar dirección fallback en el autocomplete si no hay 'street'
+// Permisos: solo admin, superadmin o quien tenga el permiso organization.update puede editar
+const canEdit = computed(() => {
+  const user = auth.user;
+  if (!user) return false;
+  if (user.roles?.some((r) => r.name === 'admin' || r.name === 'superadmin')) return true;
+  if (user.permissions?.includes('organization.update')) return true;
+  return false;
+});
+
 const fullAddress = computed(() => {
   if (parsedAddress.value?.street) {
     return `${parsedAddress.value.street} ${parsedAddress.value.outdoor_number || ''}`.trim();
   }
-
   if (parsedAddress.value) {
     return [parsedAddress.value.neighborhood, parsedAddress.value.city, parsedAddress.value.state].filter(Boolean).join(', ');
   }
-
   return '';
 });
 
@@ -48,7 +56,6 @@ onMounted(async () => {
     form.alias = data.alias || '';
     form.description = data.description || '';
 
-    // Validar si es URL absoluta o relativa
     if (data.logo) {
       logoPreview.value = data.logo.startsWith('http') ? data.logo : `/storage/${data.logo}`;
     }
@@ -113,10 +120,14 @@ const validate = async () => {
       }
     }
 
-    console.log('📤 Datos enviados:', [...formData.entries()]);
-
     await axiosInstance.post(`/organizations/${organizationId}?_method=PUT`, formData);
-    router.push('/organizaciones');
+
+    // Refresca datos del usuario si edita su propia organización
+    if (auth.user?.organization_id && String(auth.user.organization_id) === String(organizationId)) {
+      await auth.fetchUser();
+    }
+
+    router.push(`/organizaciones-dw/${organizationId}`);
   } catch (err) {
     errorMsg.value = 'Error al actualizar organización';
     console.error('❌ Error al actualizar organización', err.response?.data || err);
@@ -125,7 +136,7 @@ const validate = async () => {
 </script>
 
 <template>
-  <v-container fluid>
+  <v-container fluid v-if="canEdit">
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
         <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
@@ -237,4 +248,7 @@ const validate = async () => {
       </v-row>
     </v-form>
   </v-container>
+  <div v-else>
+    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso para editar esta organización. </v-alert>
+  </div>
 </template>

@@ -15,6 +15,7 @@ export interface menu {
   disabled?: boolean;
   type?: string;
   subCaption?: string;
+  role?: string;
 }
 
 const sidebarItem: menu[] = [
@@ -51,8 +52,7 @@ const sidebarItem: menu[] = [
   },
   {
     title: 'Organizaciones DW',
-    icon: DatabaseTwoTone,
-    to: '/organizaciones-dw'
+    icon: DatabaseTwoTone
   }
 ];
 
