@@ -12,10 +12,13 @@ const customizer = useCustomizerStore();
 const auth = useAuthStore();
 
 const userRoles = computed(() => auth.user?.roles?.map((r) => r.name) || []);
-const hasOrgCreate = computed(() => auth.user?.permissions?.includes('organization.create'));
-const hasOrgView = computed(() => auth.user?.permissions?.includes('organization.view'));
+const permissions = computed(() => auth.user?.permissions || []);
+const hasOrgCreate = computed(() => permissions.value.includes('organization.create'));
+const hasOrgView = computed(() => permissions.value.includes('organization.view'));
 const hasOrgId = computed(() => !!auth.user?.organization_id);
+const hasBusinessId = computed(() => !!auth.user?.business_id);
 
+// ORGANIZACIONES DW
 function getOrgDwRoute() {
   if (userRoles.value.includes('superadmin')) return '/organizaciones-dw';
   if (userRoles.value.includes('admin') || hasOrgCreate.value) {
@@ -36,12 +39,38 @@ const canSeeOrgDw = computed(
     hasOrgView.value
 );
 
+// EMPRESAS DW
+function getBusinessDwRoute() {
+  if (userRoles.value.includes('superadmin') || userRoles.value.includes('admin') || permissions.value.includes('business.viewAny')) {
+    return '/negocios-dw';
+  }
+  if ((userRoles.value.includes('sponsor') || permissions.value.includes('business.view')) && hasBusinessId.value) {
+    return `/negocios-dw/${auth.user.business_id}`;
+  }
+  return null;
+}
+
+const canSeeBusinessDw = computed(
+  () =>
+    userRoles.value.includes('superadmin') ||
+    userRoles.value.includes('admin') ||
+    permissions.value.includes('business.viewAny') ||
+    userRoles.value.includes('sponsor') ||
+    permissions.value.includes('business.view')
+);
+
 const sidebarMenu = computed(() => {
   return sidebarItems
     .map((item) => {
       if (item.title === 'Organizaciones DW') {
         if (!canSeeOrgDw.value) return null;
         const route = getOrgDwRoute();
+        if (route) return { ...item, to: route };
+        return { ...item, disabled: true };
+      }
+      if (item.title === 'Empresas DW') {
+        if (!canSeeBusinessDw.value) return null;
+        const route = getBusinessDwRoute();
         if (route) return { ...item, to: route };
         return { ...item, disabled: true };
       }

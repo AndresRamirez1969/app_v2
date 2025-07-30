@@ -82,11 +82,11 @@ const MainRoutes = {
       path: '/formularios/:id/add-fields',
       component: () => import('@/views/formularios/componentes/AddFieldsForm.vue')
     },
-    {
-      name: 'other',
-      path: '/organizaciones',
-      component: () => import('@/views/organizations/OrganizationTab.vue')
-    },
+    // {
+    //   name: 'other',
+    //   path: '/organizaciones',
+    //   component: () => import('@/views/organizations/OrganizationTab.vue')
+    // },
     {
       name: 'Organizaciones DW',
       path: '/organizaciones-dw',
@@ -106,6 +106,26 @@ const MainRoutes = {
       name: 'Organization Show DW',
       path: '/organizaciones-dw/:id',
       component: () => import('@/views/organizations-dw/show.vue')
+    },
+    {
+      name: 'Business DW',
+      path: '/negocios-dw',
+      component: () => import('@/views/businesses-dw/index.vue')
+    },
+    {
+      name: 'Business Create DW',
+      path: '/negocios-dw/create',
+      component: () => import('@/views/businesses-dw/create.vue')
+    },
+    {
+      name: 'Business Edit DW',
+      path: '/negocios-dw/:id/edit',
+      component: () => import('@/views/businesses-dw/edit.vue')
+    },
+    {
+      name: 'Business Show DW',
+      path: '/negocios-dw/:id',
+      component: () => import('@/views/businesses-dw/show.vue')
     }
   ]
 };

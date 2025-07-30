@@ -18,6 +18,7 @@ const filterOptions = ref({});
 
 const auth = useAuthStore();
 const canView = ref(false);
+const canCreate = ref(false);
 
 function hasPermission(permission) {
   return auth.user?.permissions?.includes(permission);
@@ -29,6 +30,7 @@ onMounted(async () => {
     return;
   }
   canView.value = true;
+  canCreate.value = hasPermission('organization.create');
   try {
     const { data } = await axios.get('/organizations');
     organizations.value = data.data;
@@ -93,7 +95,7 @@ function applyFilters() {
         <v-col cols="auto" class="d-flex align-center">
           <h3 class="font-weight-medium mb-0">Organizaciones</h3>
         </v-col>
-        <v-col cols="auto" class="d-flex align-center justify-end">
+        <v-col cols="auto" class="d-flex align-center justify-end" v-if="canCreate">
           <v-btn color="primary" class="text-white" elevation="1" @click="goToCreate">
             <template v-if="mdAndDown">
               <v-icon :icon="mdiPlus" start />

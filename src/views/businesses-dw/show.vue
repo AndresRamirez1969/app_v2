@@ -10,7 +10,7 @@ import { useAuthStore } from '@/stores/auth';
 const router = useRouter();
 const route = useRoute();
 const { mdAndDown } = useDisplay();
-const organization = ref(null);
+const business = ref(null);
 const auth = useAuthStore();
 
 const user = computed(() => auth.user || { roles: [], permissions: [] });
@@ -19,36 +19,37 @@ const permissions = computed(() => user.value.permissions || []);
 
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
-const canView = computed(() => permissions.value.includes('organization.view'));
-const canEditPermission = computed(() => permissions.value.includes('organization.update'));
-
+const canView = computed(() => permissions.value.includes('business.view'));
+const canViewAny = computed(() => permissions.value.includes('business.viewAny'));
+// Permitir sponsor, superadmin, admin o quien tenga business.view
 const canShow = computed(() => isSuperadmin.value || isAdmin.value || roles.value.includes('sponsor') || canView.value);
-
+// Permitir editar a superadmin, admin o quien tenga business.update
+const canEditPermission = computed(() => permissions.value.includes('business.update'));
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || canEditPermission.value);
 
 // Solo superadmin y admin pueden activar/desactivar
 const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
 
-const isActive = computed(() => organization.value?.status === 'activa' || organization.value?.status === 'active');
+const isActive = computed(() => business.value?.status === 'activa' || business.value?.status === 'active');
 
 const goToEdit = () => {
-  if (organization.value?.id) {
-    router.push({ path: `/organizaciones-dw/${organization.value.id}/edit` });
+  if (business.value?.id) {
+    router.push({ path: `/negocios-dw/${business.value.id}/edit` });
   }
 };
 
 const goToIndex = () => {
-  router.push('/organizaciones-dw');
+  router.push('/negocios-dw');
 };
 
 const toggleStatus = async () => {
-  if (!organization.value) return;
+  if (!business.value) return;
   const newStatus = isActive.value ? 'inactive' : 'active';
   try {
-    const res = await axiosInstance.put(`/organizations/${organization.value.id}`, {
+    const res = await axiosInstance.put(`/businesses/${business.value.id}`, {
       status: newStatus
     });
-    organization.value.status = res.data.status || newStatus;
+    business.value.status = res.data.status || newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
     console.error('Detalle del error:', err?.response?.data || err);
@@ -72,16 +73,16 @@ const formatAddress = (address) => {
 onMounted(async () => {
   try {
     const id = route.params.id;
-    const res = await axiosInstance.get(`/organizations/${id}`);
+    const res = await axiosInstance.get(`/businesses/${id}`);
     if (res.data.data && res.data.data.folio) {
-      organization.value = res.data.data;
+      business.value = res.data.data;
     } else if (res.data.folio) {
-      organization.value = res.data;
+      business.value = res.data;
     } else {
-      organization.value = res.data;
+      business.value = res.data;
     }
   } catch (err) {
-    console.error('Error al obtener la organización:', err);
+    console.error('Error al obtener la empresa:', err);
   }
 });
 </script>
@@ -90,8 +91,8 @@ onMounted(async () => {
   <v-container fluid v-if="canShow">
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
-        <!-- Flecha y header solo para superadmin -->
-        <template v-if="isSuperadmin">
+        <!-- Flecha y header solo para quienes tienen business.viewAny -->
+        <template v-if="canViewAny">
           <v-btn
             icon
             variant="text"
@@ -102,18 +103,19 @@ onMounted(async () => {
             <v-icon :icon="mdiArrowLeft" />
           </v-btn>
           <!-- Desktop/iPad header -->
-          <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="organization">
-            {{ organization.folio ? `${organization.folio}` : '' }}
-            {{ organization.legal_name ? `- ${organization.legal_name}` : '- Organización' }}
+          <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="business">
+            {{ business.folio ? `${business.folio}` : '' }}
+            {{ business.legal_name ? `- ${business.legal_name}` : '- Organización' }}
           </h3>
           <!-- Mobile header -->
-          <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="organization">
-            {{ organization.folio ? `${organization.folio}` : '' }}
+          <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="business">
+            {{ business.folio ? `${business.folio}` : '' }}
           </h3>
         </template>
       </v-col>
       <v-col class="d-flex justify-end align-center">
-        <template v-if="canEdit">
+        <!-- Dropdown solo para quienes tienen permiso business.update -->
+        <template v-if="canEditPermission">
           <v-menu location="bottom end" v-if="!mdAndDown">
             <template #activator="{ props }">
               <v-btn
@@ -189,8 +191,8 @@ onMounted(async () => {
     <v-row>
       <!-- Logo -->
       <v-col cols="12" md="4" class="d-flex justify-center align-center">
-        <template v-if="organization?.logo">
-          <v-img :src="organization.logo" max-width="320" max-height="320" class="rounded-lg" alt="Logo" style="background: none" />
+        <template v-if="business?.logo">
+          <v-img :src="business.logo" max-width="320" max-height="320" class="rounded-lg" alt="Logo" style="background: none" />
         </template>
         <template v-else>
           <div
@@ -210,29 +212,29 @@ onMounted(async () => {
             <tr>
               <td class="font-weight-bold text-subtitle-1">Estado</td>
               <td>
-                <template v-if="organization?.status">
-                  <StatusChip :status="organization.status" />
+                <template v-if="business?.status">
+                  <StatusChip :status="business.status" />
                 </template>
                 <template v-else> No disponible </template>
               </td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Nombre legal</td>
-              <td>{{ organization?.legal_name || 'No disponible' }}</td>
+              <td>{{ business?.legal_name || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Alias</td>
-              <td>{{ organization?.alias || 'No disponible' }}</td>
+              <td>{{ business?.alias || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Descripción</td>
-              <td>{{ organization?.description || 'No disponible' }}</td>
+              <td>{{ business?.description || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Dirección</td>
               <td>
-                <span v-if="organization?.address">
-                  {{ formatAddress(organization.address) }}
+                <span v-if="business?.address">
+                  {{ formatAddress(business.address) }}
                 </span>
                 <span v-else>No disponible</span>
               </td>
@@ -257,17 +259,17 @@ onMounted(async () => {
           <tbody>
             <tr>
               <td>
-                <span v-if="organization?.person && (organization.person.first_name || organization.person.last_name)">
-                  {{ [organization.person.first_name, organization.person.last_name].filter(Boolean).join(' ') }}
+                <span v-if="business?.person && (business.person.first_name || business.person.last_name)">
+                  {{ [business.person.first_name, business.person.last_name].filter(Boolean).join(' ') }}
                 </span>
                 <span v-else>No disponible</span>
               </td>
               <td>
-                <span v-if="organization?.person?.email">{{ organization.person.email }}</span>
+                <span v-if="business?.person?.email">{{ business.person.email }}</span>
                 <span v-else>No disponible</span>
               </td>
               <td>
-                <span v-if="organization?.person?.phone_number">{{ organization.person.phone_number }}</span>
+                <span v-if="business?.person?.phone_number">{{ business.person.phone_number }}</span>
                 <span v-else>No disponible</span>
               </td>
             </tr>
@@ -277,7 +279,7 @@ onMounted(async () => {
     </v-row>
   </v-container>
   <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso a esta organización. </v-alert>
+    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso a esta empresa. </v-alert>
   </div>
 </template>
 

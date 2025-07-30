@@ -81,6 +81,28 @@
             class="mb-3 filter-padding"
             style="padding-top: 0px; padding-bottom: 0px"
           />
+
+          <!-- Advanced business select filter (solo superadmin, admin o ambos permisos) -->
+          <div v-if="canUseAdvancedFilter" class="mb-3">
+            <v-autocomplete
+              v-model="selectedBusiness"
+              :items="businessOptions"
+              :loading="loadingBusinesses"
+              v-model:search-input="businessSearch"
+              item-title="display"
+              item-value="id"
+              label="Buscar empresa (folio o nombre legal)"
+              clearable
+              hide-details
+              variant="outlined"
+              color="primary"
+              density="compact"
+              :filter="customFilter"
+              @update:search-input="fetchBusinesses"
+              :menu-props="{ maxHeight: '300px' }"
+            />
+          </div>
+
           <!-- Rango de fechas de creación -->
           <div class="mb-3">
             <v-menu
@@ -156,9 +178,11 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
 import { useDisplay } from 'vuetify';
+import axios from '@/utils/axios';
+import { useAuthStore } from '@/stores/auth';
 import '@/styles/filters.css';
 
-const emit = defineEmits(['search', 'filter']);
+const emit = defineEmits(['search', 'filter', 'business-select']);
 
 const search = ref('');
 const dialog = ref(false);
@@ -177,13 +201,88 @@ const menuCreatedEnd = ref(false);
 
 const { mdAndDown } = useDisplay();
 
+// --- Advanced business select filter ---
+const auth = useAuthStore();
+const user = computed(() => auth.user || { roles: [], permissions: [] });
+const roles = computed(() => user.value.roles?.map((r) => r.name) || []);
+const permissions = computed(() => user.value.permissions || []);
+const canUseAdvancedFilter = computed(
+  () =>
+    roles.value.includes('superadmin') ||
+    roles.value.includes('admin') ||
+    (permissions.value.includes('business.create') && permissions.value.includes('business.update'))
+);
+
+const selectedBusiness = ref(null);
+const businessOptions = ref([]);
+const businessSearch = ref('');
+const loadingBusinesses = ref(false);
+
+const fetchBusinesses = async (searchText) => {
+  if (!canUseAdvancedFilter.value) return;
+  loadingBusinesses.value = true;
+  try {
+    const { data } = await axios.get('/businesses', {
+      params: {
+        q: searchText || '', // Ensure empty string if undefined
+        limit: 10
+      }
+    });
+    businessOptions.value = (data.data || []).map((b) => ({
+      ...b,
+      display: `${b.folio}${b.legal_name ? ' - ' + b.legal_name : ''}`
+    }));
+  } catch (e) {
+    businessOptions.value = [];
+  } finally {
+    loadingBusinesses.value = false;
+  }
+};
+
+// Fetch initial options when dialog opens
+watch(dialog, (val) => {
+  if (val && canUseAdvancedFilter.value && businessOptions.value.length === 0) {
+    fetchBusinesses('');
+  }
+});
+
+watch(businessSearch, (val) => {
+  if (canUseAdvancedFilter.value) fetchBusinesses(val);
+});
+
+function customFilter(item, queryText, itemText) {
+  if (!queryText) return true;
+  const text = (item.folio + ' ' + (item.legal_name || '')).toLowerCase();
+  return text.includes(queryText.toLowerCase());
+}
+
+function onBusinessSelect(val) {
+  emit('filter', {
+    businessId: val,
+    status: status.value,
+    createdAtStart: formatDateOnly(createdAtStart.value),
+    createdAtEnd: formatDateOnly(createdAtEnd.value)
+  });
+}
+
+watch(selectedBusiness, (val) => {
+  if (!val) {
+    emit('filter', {
+      businessId: null,
+      status: status.value,
+      createdAtStart: formatDateOnly(createdAtStart.value),
+      createdAtEnd: formatDateOnly(createdAtEnd.value)
+    });
+  }
+});
+
 // Emit search on input change (debounced for better UX)
 watch(search, (val) => {
   emit('search', val);
 });
 
 // Detect if any filter is active
-const hasActiveFilters = computed(() => !!status.value || !!createdAtStart.value || !!createdAtEnd.value);
+const hasActiveFilters = computed(() => !!status.value || !!createdAtStart.value || !!createdAtEnd.value || !!selectedBusiness.value);
 
 function emitSearch() {
   emit('search', search.value);
@@ -199,6 +298,7 @@ function formatDateOnly(val) {
 
 function applyFilters() {
   emit('filter', {
+    businessId: selectedBusiness.value,
     status: status.value,
     createdAtStart: formatDateOnly(createdAtStart.value),
     createdAtEnd: formatDateOnly(createdAtEnd.value)
@@ -210,7 +310,10 @@ function clearFilters() {
   status.value = null;
   createdAtStart.value = null;
   createdAtEnd.value = null;
+  selectedBusiness.value = null;
+  businessSearch.value = '';
   emit('filter', {
+    businessId: null,
     status: null,
     createdAtStart: null,
     createdAtEnd: null
