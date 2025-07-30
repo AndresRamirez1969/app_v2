@@ -277,7 +277,9 @@ const getScopeColor = (scope) => {
 };
 
 const getScopeLabel = (scope) => {
-  return SCOPES[scope] || scope;
+  if (!scope) return 'No definido';
+  const scopeLabel = SCOPES.find((s) => s.value === scope);
+  return scopeLabel ? scopeLabel.label : scope;
 };
 
 const getFrequencyLabel = (frequency) => {

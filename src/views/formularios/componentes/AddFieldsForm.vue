@@ -83,22 +83,6 @@
               <FormKit v-if="showOptionsField" name="options" type="repeater" label="Opciones" :value="[]">
                 <FormKit name="option" type="text" placeholder="Opción" validation="required|length:1,255" />
               </FormKit>
-
-              <FormKit
-                name="order"
-                type="number"
-                label="Orden"
-                :value="fields.length"
-                validation="required|number|min:0"
-                validation-label="Orden"
-              />
-
-              <FormKit name="attributes" label="Atributos Adicionales" :value="[]">
-                <div class="d-flex gap-2">
-                  <FormKit name="key" type="text" placeholder="Clave" validation="required" />
-                  <FormKit name="value" type="text" placeholder="Valor" validation="required" />
-                </div>
-              </FormKit>
               <FormKit type="submit" label="Agregar Campo" :disabled="!isNewFieldValid" />
             </FormKit>
           </v-card-text>
@@ -116,7 +100,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { mdiArrowLeft, mdiDrag, mdiDelete, mdiPlus } from '@mdi/js';
 import { useRoute, useRouter } from 'vue-router';
-import { SCOPES, FREQUENCY } from '@/constants/constants';
+import { SCOPES } from '@/constants/constants';
 import axiosInstance from '@/utils/axios';
 import { useToast } from 'vue-toastification';
 import draggable from 'vuedraggable';
@@ -129,8 +113,20 @@ const fields = ref([]);
 const showAddFieldDialog = ref(false);
 const saving = ref(false);
 
-// Get form object from route state
-const form = computed(() => route.state?.form || null);
+// Fetch objeto de form desde el backend
+const form = ref(null);
+
+const fetchForm = async () => {
+  if (!formId.value) return;
+
+  try {
+    const response = await axiosInstance.get(`/forms/${formId.value}`);
+    form.value = response.data;
+  } catch (error) {
+    console.error('Error fetching form:', error);
+    toast.error('Error al obtener el formulario');
+  }
+};
 
 // New field form data
 const newField = ref({
@@ -178,7 +174,9 @@ const goBack = () => {
 };
 
 const getScopeLabel = (scope) => {
-  return SCOPES[scope] || scope;
+  if (!scope) return 'No definido';
+  const scopeLabel = SCOPES.find((s) => s.value === scope);
+  return scopeLabel ? scopeLabel.label : scope;
 };
 
 const getFieldTypeLabel = (type) => {
@@ -250,7 +248,6 @@ const addField = () => {
   };
 
   showAddFieldDialog.value = false;
-  toast.success('Campo agregado correctamente');
 };
 
 const removeField = (index) => {
@@ -277,8 +274,7 @@ const saveFields = async () => {
     toast.success('Campos guardados correctamente');
     console.log('Fields saved:', response.data);
 
-    // Optionally redirect to form detail or stay on page
-    // router.push(`/formulario/${formId.value}`);
+    router.push(`/formulario/${formId.value}`);
   } catch (error) {
     console.error('Error saving fields:', error);
     toast.error('Error al guardar los campos: ' + (error.response?.data?.message || error.message));
@@ -294,10 +290,9 @@ const onDragEnd = () => {
   });
 };
 
-onMounted(() => {
+onMounted(async () => {
   formId.value = route.params.id;
-  console.log('AddFieldsForm mounted with form ID:', formId.value);
-  console.log('Form object from state:', form.value);
+  await fetchForm();
 });
 </script>
 

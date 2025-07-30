@@ -28,8 +28,6 @@ const users = ref([]);
 const businesses = ref([]);
 const businessUnits = ref([]);
 
-const emit = defineEmits(['businessCreated']);
-
 onMounted(async () => {
   try {
     const res = await axiosInstance.get('/users');
@@ -70,9 +68,11 @@ const validate = async () => {
       formData.append('organization_id', user?.organization_id);
     } else if (scope.value === 'business') {
       formData.append('business_id', businessId.value);
+      formData.append('organization_id', user?.organization_id);
     } else if (scope.value === 'business_unit') {
       formData.append('business_id', businessId.value);
       formData.append('business_unit_id', businessUnitId.value);
+      formData.append('organization_id', user?.organization_id);
     }
 
     const res = await axiosInstance.post('/forms', formData, {

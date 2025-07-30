@@ -50,6 +50,11 @@ const sidebarItem: menu[] = [
     to: '/formularios'
   },
   {
+    title: 'Mis Formularios',
+    icon: FileTextTwoTone,
+    to: '/mis-formularios'
+  },
+  {
     title: 'Organizaciones DW',
     icon: DatabaseTwoTone,
     to: '/organizaciones-dw'
