@@ -42,7 +42,33 @@ const fetchForms = async () => {
         page: currentPage.value
       }
     });
-    forms.value = res.data;
+
+    const formResponseStatus = await Promise.all(
+      res.data.data.map(async (form) => {
+        try {
+          const responseRes = await axiosInstance.get(`/forms/${form.id}/check-response`);
+          return {
+            ...form,
+            has_responded: responseRes.data.has_responded,
+            frequency: responseRes.data.frequency,
+            can_respond: responseRes.data.can_respond
+          };
+        } catch (err) {
+          console.error('Failed to fetch form response status', err);
+          return {
+            ...form,
+            has_responded: false,
+            frequency: 'once_per_day',
+            can_respond: true
+          };
+        }
+      })
+    );
+
+    forms.value = {
+      ...res.data,
+      data: formResponseStatus
+    };
   } catch (err) {
     console.error('Failed to fetch forms', err);
   } finally {

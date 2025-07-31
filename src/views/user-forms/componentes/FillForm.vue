@@ -5,7 +5,9 @@ import { useRoute } from 'vue-router';
 import { mdiArrowLeft, mdiCheck } from '@mdi/js';
 import { useRouter } from 'vue-router';
 import { FIELD_TYPES, getFieldProps } from '@/constants/constants';
+import { useToast } from 'vue-toastification';
 
+const toast = useToast();
 const router = useRouter();
 const route = useRoute();
 const formId = ref(route.params.id);
@@ -48,8 +50,27 @@ const goBack = () => {
 const submitForm = async () => {
   submitting.value = true;
   try {
-    const res = await axiosInstance.post(`/forms/${formId.value}/responses`, formData.value);
+    // Transformar formData a formato de respuestas
+    const answers = Object.keys(formData.value).map((fieldId) => {
+      let value = formData.value[fieldId];
+
+      if (typeof value === 'number') {
+        value = value.toString();
+      }
+
+      return {
+        form_field_id: fieldId,
+        value: value
+      };
+    });
+
+    const payload = {
+      answers: answers
+    };
+
+    const res = await axiosInstance.post(`/forms/${formId.value}/responses`, payload);
     console.log(res.data);
+    toast.success('Formulario enviado correctamente');
   } catch (err) {
     console.error('Failed to submit form', err);
   } finally {

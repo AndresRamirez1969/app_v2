@@ -30,7 +30,7 @@ const emit = defineEmits(['update:page', 'sort']);
             Fecha de Creación
             <slot name="sort-icon" :column="'created_at'" />
           </th>
-          <th class="actions-header">Acciones</th>
+          <th class="response-header">Estado de Respuesta</th>
         </tr>
       </thead>
       <tbody>
@@ -39,7 +39,7 @@ const emit = defineEmits(['update:page', 'sort']);
     </v-table>
     <div class="d-flex justify-center mt-4">
       <v-pagination
-        v-model="props.page"
+        :model-value="props.page"
         :length="Math.ceil((props.items?.length || 1) / props.itemsPerPage)"
         total-visible="7"
         color="primary"

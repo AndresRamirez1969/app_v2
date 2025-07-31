@@ -36,8 +36,36 @@ const formatDate = (dateString) => {
   });
 };
 
+// Función para obtener el estado de respuesta basado en la respuesta del endpoint
+const getResponseStatus = (form) => {
+  // Si el formulario no puede ser respondido (ya respondido para once_per_day)
+  if (!form.can_respond && form.frequency === 'once_per_day') {
+    return { text: 'Completado', color: 'success' };
+  }
+
+  // Si no ha respondido
+  if (!form.has_responded) {
+    return { text: 'Sin Responder', color: 'warning' };
+  }
+
+  // Si ya respondió pero puede seguir respondiendo (multiple_per_day)
+  if (form.has_responded && form.frequency === 'multiple_per_day') {
+    return { text: 'Faltan Respuestas', color: 'info' };
+  }
+
+  return { text: 'Sin Responder', color: 'warning' };
+};
+
+// Filtrar formularios según la lógica del backend
+const filteredItems = computed(() => {
+  return props.items.filter((form) => {
+    // Solo mostrar formularios que pueden ser respondidos
+    return form.can_respond !== false;
+  });
+});
+
 const sortedItems = computed(() => {
-  return [...props.items].sort((a, b) => {
+  return [...filteredItems.value].sort((a, b) => {
     const aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
     const bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
     return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
@@ -80,13 +108,19 @@ const fillForm = (form) => {
               </div>
               <div class="font-weight-medium mb-1">{{ form.name }}</div>
               <div class="text-caption"><strong>Creado:</strong> {{ formatDate(form.created_at) }}</div>
+              <!-- Estado de respuesta -->
+              <div class="mt-2">
+                <v-chip :color="getResponseStatus(form).color" text-color="white" size="small">
+                  {{ getResponseStatus(form).text }}
+                </v-chip>
+              </div>
             </v-col>
           </v-row>
         </v-card>
       </template>
       <template v-else>
         <v-card class="mb-4 pa-4 elevation-1 rounded-lg text-center">
-          <div class="font-weight-bold mb-2" style="font-size: 1.5rem">Cargando formularios...</div>
+          <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No existen formularios...</div>
         </v-card>
       </template>
     </template>
@@ -117,6 +151,11 @@ const fillForm = (form) => {
               </td>
               <td class="name-cell">{{ form.name }}</td>
               <td class="date-cell">{{ formatDate(form.created_at) }}</td>
+              <td class="response-cell">
+                <v-chip :color="getResponseStatus(form).color" text-color="white" size="small">
+                  {{ getResponseStatus(form).text }}
+                </v-chip>
+              </td>
               <td class="actions-cell" @click.stop>
                 <v-menu location="bottom end">
                   <template #activator="{ props }">
@@ -153,7 +192,7 @@ const fillForm = (form) => {
           <template v-else>
             <tr>
               <td :colspan="5" class="text-center py-8">
-                <div class="font-weight-bold mb-2" style="font-size: 1.5rem">Cargando formularios...</div>
+                <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No existen formularios aun...</div>
               </td>
             </tr>
           </template>
@@ -173,6 +212,7 @@ const fillForm = (form) => {
 .name-cell,
 .status-cell,
 .date-cell,
+.response-cell,
 .actions-cell {
   padding: 12px 16px;
   border-bottom: 1px solid #e0e0e0;
@@ -180,6 +220,11 @@ const fillForm = (form) => {
 
 .actions-cell {
   width: 80px;
+  text-align: center;
+}
+
+.response-cell {
+  width: 150px;
   text-align: center;
 }
 
