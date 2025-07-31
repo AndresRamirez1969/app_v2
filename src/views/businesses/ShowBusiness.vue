@@ -3,12 +3,12 @@
 
   <v-card v-else-if="business" class="pa-6 rounded-lg elevation-3">
     <v-toolbar class="mb-4" density="compact" title="Detalles del Negocio">
-      <template #prepend v-if="!isSponsor">
+      <template #prepend v-if="canViewAll">
         <v-btn icon @click="goBack">
           <v-icon :icon="mdiArrowLeft" />
         </v-btn>
       </template>
-      <template v-slot:append v-if="!isSponsor">
+      <template v-slot:append v-if="canUpdate">
         <v-btn icon @click="editMode ? saveChanges() : (editMode = true)">
           <v-icon :icon="editMode ? mdiCheck : mdiPencil" />
         </v-btn>
@@ -113,8 +113,11 @@ const handleParsedAddress = (val) => {
   parsedAddress.value = val;
 };
 
-const isSponsor = computed(() => {
-  return auth.user?.roles?.some((role) => role.name === 'sponsor');
+const canUpdate = computed(() => {
+  return auth.hasPermissions('business.update');
+});
+const canViewAll = computed(() => {
+  return auth.hasPermissions('business.viewAny');
 });
 
 onMounted(() => {

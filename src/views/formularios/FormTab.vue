@@ -1,5 +1,4 @@
 <template>
-  <!-- Vista no Sponsor (admin/superadmin)-->
   <v-row>
     <v-container fluid class="pa-0">
       <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
@@ -12,7 +11,7 @@
               <v-col cols="12" md="4">
                 <v-text-field
                   v-model="filters.search"
-                  label="Buscar por Nombre o Alias"
+                  label="Buscar por Nombre o Folio"
                   clearable
                   density="comfortable"
                   variant="outlined"
@@ -31,7 +30,7 @@
                 <v-icon start :icon="mdiPlus" /> Crear<span class="d-none d-sm-inline">&nbsp;Formulario</span>
               </v-btn>
             </template>
-            <FormView :forms="forms.data" :isLoading="isLoading" @formUpdated="fetchForms" />
+            <FormView :items="forms.data" :isMobile="isMobile" :isLoading="isLoading" @formUpdated="fetchForms" />
           </UiParentCard>
         </v-col>
       </v-row>
@@ -55,6 +54,13 @@ const filters = ref({
 });
 
 const auth = useAuthStore();
+
+// Detectar si es móvil
+const isMobile = ref(false);
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768;
+};
 
 watch(
   () => auth.permissions,
@@ -85,7 +91,7 @@ const fetchForms = async () => {
     });
     forms.value = res.data;
   } catch (err) {
-    console.error('Failed to fetch organizations', err);
+    console.error('Failed to fetch forms', err);
   } finally {
     isLoading.value = false;
   }
@@ -93,6 +99,8 @@ const fetchForms = async () => {
 
 onMounted(() => {
   fetchForms();
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
 });
 
 const debouncedFetch = debounce(fetchForms, 400);

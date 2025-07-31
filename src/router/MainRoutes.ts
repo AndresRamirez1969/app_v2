@@ -82,6 +82,17 @@ const MainRoutes = {
       path: '/formularios/:id/add-fields',
       component: () => import('@/views/formularios/componentes/AddFieldsForm.vue')
     },
+
+    {
+      name: 'MyForms',
+      path: '/mis-formularios',
+      component: () => import('@/views/user-forms/UserFormTab.vue')
+    },
+    {
+      name: 'FillForm',
+      path: '/formulario/:id/llenar',
+      component: () => import('../views/user-forms/componentes/FillForm.vue')
+    },
     // {
     //   name: 'other',
     //   path: '/organizaciones',

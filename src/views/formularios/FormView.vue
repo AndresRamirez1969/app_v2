@@ -1,29 +1,36 @@
 <script setup>
-import { mdiEye, mdiDotsVertical, mdiPublish, mdiArchive } from '@mdi/js';
-import { useAuthStore } from '@/stores/auth';
-import { router } from '@/router';
-import { useToast } from 'vue-toastification';
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
-
-const toast = useToast();
-const auth = useAuthStore();
+import FormTableMeta from './FormTableMeta.vue';
+import { CHIPCOLOR } from '@/constants/constants';
+import { useToast } from 'vue-toastification';
+import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiPencil, mdiEye, mdiPublish, mdiArchive } from '@mdi/js';
 
 const props = defineProps({
-  forms: Array,
-  isLoading: Boolean
+  items: Array,
+  isMobile: Boolean
 });
+
+const router = useRouter();
+const toast = useToast();
+
+const sortBy = ref('folio');
+const sortDesc = ref(false);
+const page = ref(1);
+const itemsPerPage = ref(10);
 
 const emit = defineEmits(['formUpdated']);
 
-const headers = [
-  { title: 'Folio', key: 'folio' },
-  { title: 'Nombre', key: 'name' },
-  { title: 'Estado', key: 'status' },
-  { title: 'Fecha de creación', key: 'created_at' },
-  { title: 'Acciones', key: 'actions', sortable: false }
-];
+const toggleSort = (column) => {
+  if (sortBy.value === column) {
+    sortDesc.value = !sortDesc.value;
+  } else {
+    sortBy.value = column;
+    sortDesc.value = false;
+  }
+};
 
-// Formatea la fecha para que muestre DD/MM/YYYY
 const formatDate = (dateString) => {
   if (!dateString) return '—';
   const date = new Date(dateString);
@@ -34,20 +41,6 @@ const formatDate = (dateString) => {
   });
 };
 
-// Cambia el color del estado dependiendo de el
-const getStatusColor = (status) => {
-  console.log('status: ', status);
-  const colors = {
-    draft: 'grey',
-    active: 'green',
-    archived: 'red'
-  };
-  const color = colors[status];
-  console.log(color);
-  return color;
-};
-
-// Cambia el label del estado dependiendo de el
 const getStatusLabel = (status) => {
   const labels = {
     draft: 'Borrador',
@@ -56,6 +49,19 @@ const getStatusLabel = (status) => {
   };
   return labels[status] || status;
 };
+
+const sortedItems = computed(() => {
+  return [...props.items].sort((a, b) => {
+    const aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
+    const bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
+    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
+  });
+});
+
+const paginatedItems = computed(() => {
+  const start = (page.value - 1) * itemsPerPage.value;
+  return sortedItems.value.slice(start, start + itemsPerPage.value);
+});
 
 const viewForm = (form) => {
   router.push({ name: 'FormDetail', params: { id: form.id } });
@@ -66,10 +72,15 @@ const publishForm = async (form) => {
     await axiosInstance.put(`/forms/${form.id}/status`, {
       status: 'active'
     });
+
+    // Actualizar localmente el estado del formulario
+    form.status = 'active';
+
     toast.success('Se ha publicado el formulario');
     emit('formUpdated');
   } catch (error) {
-    toast.error('Error al publicar formulario: ' + error.response.data);
+    console.error('Error al publicar formulario:', error);
+    toast.error('Error al publicar formulario: ' + (error.response?.data?.message || error.message));
   }
 };
 
@@ -78,87 +89,154 @@ const archiveForm = async (form) => {
     await axiosInstance.put(`/forms/${form.id}/status`, {
       status: 'archived'
     });
+
+    // Actualizar localmente el estado del formulario
+    form.status = 'archived';
+
     toast.success('Se ha archivado el formulario');
     emit('formUpdated');
   } catch (error) {
-    toast.error('Error al archivar formulario: ' + error.response.data);
+    console.error('Error al archivar formulario:', error);
+    toast.error('Error al archivar formulario: ' + (error.response?.data?.message || error.message));
   }
 };
 </script>
 
 <template>
-  <v-data-table
-    :headers="headers"
-    :items="props.forms"
-    class="elevation-1"
-    item-value="id"
-    density="comfortable"
-    :loading="isLoading"
-    loading-text="Cargando..."
-    hide-default-footer
-  >
-    <template #item.folio="{ item }">
-      <span class="folio-link" @click="router.push({ name: 'FormDetail', params: { id: item.id } })">
-        {{ item.folio }}
-      </span>
+  <div>
+    <!-- Modo móvil (solo cards) -->
+    <template v-if="isMobile">
+      <template v-if="paginatedItems.length">
+        <v-card
+          v-for="form in paginatedItems"
+          :key="form.id"
+          class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
+          @click="viewForm(form)"
+          style="cursor: pointer"
+        >
+          <v-row no-gutters align="center" class="mb-1">
+            <v-col cols="12">
+              <div class="d-flex align-center mb-1" style="justify-content: space-between">
+                <div class="text-caption" style="margin-right: 8px">
+                  <router-link :to="`/formulario/${form.id}`" @click.stop style="text-decoration: underline">
+                    {{ form.folio }}
+                  </router-link>
+                </div>
+                <v-chip :color="CHIPCOLOR(form.status)" text-color="white" size="small">
+                  {{ getStatusLabel(form.status) }}
+                </v-chip>
+              </div>
+              <div class="font-weight-medium mb-1">{{ form.name }}</div>
+              <div class="text-caption"><strong>Creado:</strong> {{ formatDate(form.created_at) }}</div>
+            </v-col>
+          </v-row>
+        </v-card>
+      </template>
+      <template v-else>
+        <v-card class="mb-4 pa-4 elevation-1 rounded-lg text-center">
+          <div class="font-weight-bold mb-2" style="font-size: 1.5rem">Cargando formularios...</div>
+        </v-card>
+      </template>
     </template>
 
-    <template #item.name="{ item }">
-      <span>{{ item.name }}</span>
-    </template>
-
-    <template #item.status="{ item }">
-      <v-chip :color="getStatusColor(item.status)" variant="flat" size="small">
-        {{ getStatusLabel(item.status) }}
-      </v-chip>
-    </template>
-
-    <template #item.created_at="{ item }">
-      <span class="date-text">{{ formatDate(item.created_at) }}</span>
-    </template>
-
-    <template #item.actions="{ item }">
-      <v-menu>
-        <template #activator="{ props }">
-          <v-btn :icon="mdiDotsVertical" variant="text" size="small" v-bind="props" />
+    <!-- Modo escritorio (solo tabla) -->
+    <template v-if="!isMobile">
+      <FormTableMeta
+        :items="sortedItems"
+        :page="page"
+        :itemsPerPage="itemsPerPage"
+        :sortBy="sortBy"
+        :sortDesc="sortDesc"
+        @update:page="page = $event"
+        @sort="toggleSort"
+      >
+        <template #sort-icon="{ column }">
+          <v-icon v-if="sortBy === column" size="16" class="ml-1">
+            {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
+          </v-icon>
         </template>
-        <v-list>
-          <v-list-item @click="viewForm(item)">
-            <template #prepend>
-              <v-icon :icon="mdiEye" size="small" />
-            </template>
-            <v-list-item-title>Ver</v-list-item-title>
-          </v-list-item>
-          <v-list-item v-if="item.status === 'draft'" @click="publishForm(item)">
-            <template #prepend>
-              <v-icon :icon="mdiPublish" size="small" color="green" />
-            </template>
-            <v-list-item-title>Publicar</v-list-item-title>
-          </v-list-item>
-          <v-list-item v-if="item.status !== 'archived'" @click="archiveForm(item)">
-            <template #prepend>
-              <v-icon :icon="mdiArchive" size="small" color="red" />
-            </template>
-            <v-list-item-title>Archivar</v-list-item-title>
-          </v-list-item>
-        </v-list>
-      </v-menu>
+        <template #rows>
+          <template v-if="paginatedItems.length">
+            <tr v-for="form in paginatedItems" :key="form.id" @click="viewForm(form)" class="row-clickable" style="cursor: pointer">
+              <td class="folio-cell">
+                <router-link :to="`/formulario/${form.id}`" @click.stop style="text-decoration: underline">
+                  {{ form.folio }}
+                </router-link>
+              </td>
+              <td class="name-cell">{{ form.name }}</td>
+              <td class="status-cell">
+                <v-chip :color="CHIPCOLOR(form.status)" text-color="white" size="small">
+                  {{ getStatusLabel(form.status) }}
+                </v-chip>
+              </td>
+              <td class="date-cell">{{ formatDate(form.created_at) }}</td>
+              <td class="actions-cell" @click.stop>
+                <v-menu location="bottom end">
+                  <template #activator="{ props }">
+                    <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
+                      <v-icon :icon="mdiDotsHorizontal" size="20" />
+                    </v-btn>
+                  </template>
+                  <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
+                    <v-list-item @click="viewForm(form)">
+                      <template #prepend>
+                        <v-icon :icon="mdiEye" size="18" />
+                      </template>
+                      <v-list-item-title>Ver</v-list-item-title>
+                    </v-list-item>
+                    <v-divider class="my-1" />
+                    <v-list-item v-if="form.status === 'draft'" @click="publishForm(form)">
+                      <template #prepend>
+                        <v-icon :icon="mdiPublish" size="18" color="green" />
+                      </template>
+                      <v-list-item-title>Publicar</v-list-item-title>
+                    </v-list-item>
+                    <v-divider v-if="form.status === 'draft'" class="my-1" />
+                    <v-list-item v-if="form.status !== 'archived'" @click="archiveForm(form)">
+                      <template #prepend>
+                        <v-icon :icon="mdiArchive" size="18" color="red" />
+                      </template>
+                      <v-list-item-title>Archivar</v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </v-menu>
+              </td>
+            </tr>
+          </template>
+          <template v-else>
+            <tr>
+              <td :colspan="5" class="text-center py-8">
+                <div class="font-weight-bold mb-2" style="font-size: 1.5rem">Cargando formularios...</div>
+              </td>
+            </tr>
+          </template>
+        </template>
+      </FormTableMeta>
     </template>
-  </v-data-table>
+  </div>
 </template>
 
 <style scoped>
-.folio-link {
-  color: #1976d2;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
+.row-clickable:hover {
+  background: #f5f5f5;
+  transition: background 0.2s;
 }
-.folio-link:hover {
-  text-decoration: underline;
-  color: #125ea8;
+
+.folio-cell,
+.name-cell,
+.status-cell,
+.date-cell,
+.actions-cell {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
 }
-.date-text {
-  font-size: 15px;
-  color: #054403;
+
+.actions-cell {
+  width: 80px;
+  text-align: center;
+}
+
+.custom-dropdown {
+  background: white;
 }
 </style>

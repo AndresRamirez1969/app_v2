@@ -10,7 +10,7 @@
 
         <input type="file" ref="fileInput" accept="image/*" class="d-none" @change="handleImageChange" />
 
-        <ImageViewer v-model="showImageModal" :image-url="user?.profile_picture" />
+        <!-- <ImageViewer v-model="showImageModal" :image-url="user?.profile_picture" /> -->
         <ChangePasswordModal v-model="passwordModal" />
       </v-col>
     </v-row>
@@ -26,7 +26,7 @@ import { useToast } from 'vue-toastification';
 import UserProfileHeader from '@/components/profile/UserProfileHeader.vue';
 import UserProfileForm from '@/components/profile/UserProfileForm.vue';
 import ChangePasswordModal from '@/components/profile/ChangePasswordModal.vue';
-import ImageViewer from '@/components/profile/ImageViewer.vue';
+//import ImageViewer from '@/components/profile/ImageViewer.vue';
 
 const auth = useAuthStore();
 const toast = useToast();

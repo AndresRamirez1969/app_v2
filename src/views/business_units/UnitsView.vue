@@ -34,7 +34,6 @@ const headers = [
   { title: 'Dirección', key: 'direccion' },
   { title: 'Negocio', key: 'business.legal_name' },
   { title: 'Estado', key: 'status' },
-  { title: 'Formularios', key: 'Forms' },
   { title: 'Grupo', key: 'business_unit_groups', sortable: false }
 ];
 </script>

@@ -22,10 +22,11 @@ const auditors = ref([]);
 const audited = ref([]);
 const frequency = ref('');
 const businessUnitId = ref('');
+const businessId = ref('');
 const scope = ref('');
 const users = ref([]);
-
-const emit = defineEmits(['businessCreated']);
+const businesses = ref([]);
+const businessUnits = ref([]);
 
 onMounted(async () => {
   try {
@@ -33,6 +34,16 @@ onMounted(async () => {
     users.value = res.data.data.map((user) => ({
       ...user,
       customLabel: ` ${user.roles?.[0]?.name || 'Sin rol'}`
+    }));
+    const resBusiness = await axiosInstance.get('/businesses');
+    businesses.value = resBusiness.data.data.map((business) => ({
+      ...business,
+      customLabel: `${business.legal_name}`
+    }));
+    const resBusinessUnit = await axiosInstance.get('/business-units');
+    businessUnits.value = resBusinessUnit.data.data.map((businessUnit) => ({
+      ...businessUnit,
+      customLabel: `${businessUnit.name}`
     }));
   } catch (err) {
     console.log(err);
@@ -51,11 +62,17 @@ const validate = async () => {
       formData.append(`auditado_role_ids[${index}]`, auditedId);
     });
     formData.append('frequency', frequency.value);
+    formData.append('assignment_scope', scope.value);
+
     if (scope.value === 'organization') {
-      formData.append('assignment_scope', scope.value);
       formData.append('organization_id', user?.organization_id);
-    } else {
-      formData.append('business_unit_id', '');
+    } else if (scope.value === 'business') {
+      formData.append('business_id', businessId.value);
+      formData.append('organization_id', user?.organization_id);
+    } else if (scope.value === 'business_unit') {
+      formData.append('business_id', businessId.value);
+      formData.append('business_unit_id', businessUnitId.value);
+      formData.append('organization_id', user?.organization_id);
     }
 
     const res = await axiosInstance.post('/forms', formData, {
@@ -69,7 +86,6 @@ const validate = async () => {
 
     const newForm = res.data.form;
     if (newForm && newForm.id) {
-      // Pass the entire form object via route state
       router.push({
         name: 'AddFieldsForm',
         params: { id: newForm.id },
@@ -110,6 +126,47 @@ const validate = async () => {
               </v-radio-group>
             </v-col>
           </v-row>
+
+          <!-- Select de Negocio (solo cuando scope es 'business' o 'business_unit') -->
+          <v-row v-if="scope === 'business' || scope === 'business_unit'" class="my-0">
+            <v-col cols="12" sm="6" class="py-0">
+              <div class="mb-6">
+                <v-label>Negocio</v-label>
+                <v-select
+                  v-model="businessId"
+                  :items="businesses"
+                  item-title="customLabel"
+                  item-value="id"
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2"
+                  label="Selecciona el Negocio"
+                  required
+                />
+              </div>
+            </v-col>
+          </v-row>
+
+          <!-- Select de Unidad de Negocio (solo cuando scope es 'business_unit') -->
+          <v-row v-if="scope === 'business_unit'" class="my-0">
+            <v-col cols="12" sm="6" class="py-0">
+              <div class="mb-6">
+                <v-label>Unidad de Negocio</v-label>
+                <v-select
+                  v-model="businessUnitId"
+                  :items="businessUnits"
+                  item-title="customLabel"
+                  item-value="id"
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2"
+                  label="Selecciona la Unidad de Negocio"
+                  required
+                />
+              </div>
+            </v-col>
+          </v-row>
+
           <div class="mb-6">
             <v-label>Supervisor</v-label>
             <v-select
