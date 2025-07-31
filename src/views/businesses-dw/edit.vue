@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import axiosInstance from '@/utils/axios';
@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const route = useRoute();
-const organizationId = route.params.id;
+const businessId = route.params.id;
 const auth = useAuthStore();
 
 const form = reactive({
@@ -28,12 +28,12 @@ const parsedAddress = ref({});
 const logoPreview = ref(null);
 const errorMsg = ref('');
 
-// Permisos: solo admin, superadmin o quien tenga el permiso organization.update puede editar
+// Permisos: solo admin, superadmin o quien tenga el permiso business.update puede editar
 const canEdit = computed(() => {
   const user = auth.user;
   if (!user) return false;
   if (user.roles?.some((r) => r.name === 'admin' || r.name === 'superadmin')) return true;
-  if (user.permissions?.includes('organization.update')) return true;
+  if (user.permissions?.includes('business.update')) return true;
   return false;
 });
 
@@ -49,7 +49,7 @@ const fullAddress = computed(() => {
 
 onMounted(async () => {
   try {
-    const res = await axiosInstance.get(`/organizations/${organizationId}`);
+    const res = await axiosInstance.get(`/businesses/${businessId}`);
     const data = res.data;
 
     form.legal_name = data.legal_name || '';
@@ -79,9 +79,23 @@ onMounted(async () => {
       form.people.phone_number = data.person.phone_number || '';
     }
   } catch (err) {
-    console.error('❌ Error al cargar datos de organización', err);
+    console.error('❌ Error al cargar datos de empresa', err);
   }
 });
+
+// Actualiza la previsualización del logo si el usuario selecciona uno nuevo
+watch(
+  () => form.logo,
+  (file) => {
+    let imageFile = null;
+    if (Array.isArray(file)) {
+      imageFile = file.length > 0 ? file[0] : null;
+    } else if (file instanceof File || file instanceof Blob) {
+      imageFile = file;
+    }
+    logoPreview.value = imageFile ? URL.createObjectURL(imageFile) : logoPreview.value;
+  }
+);
 
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
@@ -120,17 +134,17 @@ const validate = async () => {
       }
     }
 
-    await axiosInstance.post(`/organizations/${organizationId}?_method=PUT`, formData);
+    await axiosInstance.post(`/businesses/${businessId}?_method=PUT`, formData);
 
-    // Refresca datos del usuario si edita su propia organización
-    if (auth.user?.organization_id && String(auth.user.organization_id) === String(organizationId)) {
+    // Refresca datos del usuario si edita su propia empresa
+    if (auth.user?.business_id && String(auth.user.business_id) === String(businessId)) {
       await auth.fetchUser();
     }
 
-    router.push(`/organizaciones-dw/${organizationId}`);
+    router.push(`/negocios-dw/${businessId}`);
   } catch (err) {
-    errorMsg.value = 'Error al actualizar organización';
-    console.error('❌ Error al actualizar organización', err.response?.data || err);
+    errorMsg.value = 'Error al actualizar empresa';
+    console.error('❌ Error al actualizar empresa', err.response?.data || err);
   }
 };
 </script>
@@ -142,7 +156,7 @@ const validate = async () => {
         <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
           <v-icon :icon="mdiArrowLeft" />
         </v-btn>
-        <h3 class="font-weight-medium ml-3 mb-0">Editar Organización</h3>
+        <h3 class="font-weight-medium ml-3 mb-0">Editar Empresa</h3>
       </v-col>
     </v-row>
 
@@ -249,6 +263,6 @@ const validate = async () => {
     </v-form>
   </v-container>
   <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso para editar esta organización. </v-alert>
+    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso para editar esta empresa. </v-alert>
   </div>
 </template>

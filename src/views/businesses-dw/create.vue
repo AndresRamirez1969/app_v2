@@ -17,11 +17,16 @@ const canCreate = ref(false);
 
 onMounted(() => {
   const user = auth.user;
+  // Solo puede crear si es superadmin, admin o tiene permiso business.create
   canCreate.value =
-    user?.roles?.some((r) => r.name === 'admin' || r.name === 'superadmin') || user?.permissions?.includes('organization.create');
-  // Si ya tiene organización y no es superadmin, redirige al show
-  if (user?.organization_id && user?.roles?.[0]?.name !== 'superadmin') {
-    router.replace(`/organizaciones-dw/${user.organization_id}`);
+    user?.roles?.some((r) => r.name === 'admin' || r.name === 'superadmin') || user?.permissions?.includes('business.create');
+  // Si ya tiene empresa y no es superadmin ni admin ni tiene business.viewAny, redirige al show
+  if (
+    user?.business_id &&
+    !user?.roles?.some((r) => r.name === 'superadmin' || r.name === 'admin') &&
+    !user?.permissions?.includes('business.viewAny')
+  ) {
+    router.replace(`/negocios-dw/${user.business_id}`);
   }
 });
 
@@ -85,22 +90,22 @@ const validate = async () => {
       formData.append('logo', logoFile);
     }
 
-    // Crear organización
-    const res = await axiosInstance.post('/organizations', formData);
+    // Crear empresa
+    const res = await axiosInstance.post('/businesses', formData);
 
-    // Asignar organization_id al usuario (simulación, depende de tu backend)
+    // Asignar business_id al usuario (simulación, depende de tu backend)
     if (res?.data?.id) {
-      auth.user.organization_id = res.data.id;
+      auth.user.business_id = res.data.id;
     }
 
     // Refresca datos del usuario (por si el backend lo actualiza)
     await auth.fetchUser();
 
-    // Redirige al show de la organización recién creada
-    router.replace(`/organizaciones-dw/${res.data.id}`);
+    // Redirige al show de la empresa recién creada
+    router.replace(`/negocios-dw/${res.data.id}`);
   } catch (err) {
-    errorMsg.value = 'Error al crear organización';
-    console.error('❌ Error al crear organización:', err);
+    errorMsg.value = 'Error al crear empresa';
+    console.error('❌ Error al crear empresa:', err);
   }
 };
 </script>
@@ -114,7 +119,7 @@ const validate = async () => {
           <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
             <v-icon :icon="mdiArrowLeft" />
           </v-btn>
-          <h3 class="font-weight-medium ml-3 mb-0">Agregar Organización</h3>
+          <h3 class="font-weight-medium ml-3 mb-0">Agregar Empresa</h3>
         </v-col>
       </v-row>
 
@@ -208,7 +213,7 @@ const validate = async () => {
         <!-- Botón -->
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
-            <v-btn color="primary" class="mt-6" @click="validate">Crear Organización</v-btn>
+            <v-btn color="primary" class="mt-6" @click="validate">Crear Empresa</v-btn>
           </v-col>
         </v-row>
 

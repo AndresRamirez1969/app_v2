@@ -15,6 +15,7 @@ export interface menu {
   disabled?: boolean;
   type?: string;
   subCaption?: string;
+  role?: string;
 }
 
 const sidebarItem: menu[] = [
@@ -24,15 +25,24 @@ const sidebarItem: menu[] = [
     icon: DashboardTwoTone,
     to: '/dashboard'
   },
+  // {
+  //   title: 'Organizaciones',
+  //   icon: DatabaseTwoTone,
+  //   to: '/organizaciones'
+  // },
+  // {
+  //   title: 'Negocios',
+  //   icon: CrownTwoTone,
+  //   to: '/negocios'
+  // },
+
   {
-    title: 'Organizaciones',
-    icon: DatabaseTwoTone,
-    to: '/organizaciones'
+    title: 'Organizaciones DW',
+    icon: DatabaseTwoTone
   },
   {
-    title: 'Negocios',
-    icon: CrownTwoTone,
-    to: '/negocios'
+    title: 'Empresas DW',
+    icon: CrownTwoTone
   },
   {
     title: 'Unidades',
@@ -58,6 +68,7 @@ const sidebarItem: menu[] = [
     title: 'Organizaciones DW',
     icon: DatabaseTwoTone,
     to: '/organizaciones-dw'
+
   }
 ];
 
