@@ -1,5 +1,13 @@
 // icons
-import { CrownTwoTone, DatabaseTwoTone, DashboardTwoTone, ShopTwoTone, IdcardTwoTone, FileTextTwoTone } from '@ant-design/icons-vue';
+import {
+  CrownTwoTone,
+  DatabaseTwoTone,
+  DashboardTwoTone,
+  ShopTwoTone,
+  IdcardTwoTone,
+  FileTextTwoTone,
+  SnippetsTwoTone
+} from '@ant-design/icons-vue';
 
 export interface menu {
   header?: string;
@@ -68,7 +76,11 @@ const sidebarItem: menu[] = [
     title: 'Organizaciones DW',
     icon: DatabaseTwoTone,
     to: '/organizaciones-dw'
-
+  },
+  {
+    title: 'Reportes',
+    icon: SnippetsTwoTone,
+    to: '/reportes'
   }
 ];
 

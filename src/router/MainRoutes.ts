@@ -137,6 +137,16 @@ const MainRoutes = {
       name: 'Business Show DW',
       path: '/negocios-dw/:id',
       component: () => import('@/views/businesses-dw/show.vue')
+    },
+    {
+      name: 'Reports',
+      path: '/reportes',
+      component: () => import('@/views/reports/ReportsTab.vue')
+    },
+    {
+      name: 'Show Response',
+      path: '/reportes/:id',
+      component: () => import('@/views/reports/components/ShowResponse.vue')
     }
   ]
 };
