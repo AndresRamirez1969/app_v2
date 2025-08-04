@@ -6,6 +6,7 @@ import { mdiArrowLeft, mdiCheck } from '@mdi/js';
 import { useRouter } from 'vue-router';
 import { FIELD_TYPES, getFieldProps } from '@/constants/constants';
 import { useToast } from 'vue-toastification';
+import { convertoToString } from '@/utils/helpers/formHelper';
 
 const toast = useToast();
 const router = useRouter();
@@ -27,6 +28,8 @@ const showForm = async () => {
       form.value.fields.forEach((field) => {
         if (field.type === 'checkbox') {
           formData.value[field.id] = [];
+        } else if (field.type === 'file') {
+          formData.value[field.id] = null;
         } else {
           formData.value[field.id] = '';
         }
@@ -44,33 +47,23 @@ onMounted(() => {
 });
 
 const goBack = () => {
-  router.back();
+  router.push('/mis-formularios');
 };
 
 const submitForm = async () => {
   submitting.value = true;
   try {
     // Transformar formData a formato de respuestas
-    const answers = Object.keys(formData.value).map((fieldId) => {
-      let value = formData.value[fieldId];
-
-      if (typeof value === 'number') {
-        value = value.toString();
-      }
-
-      return {
-        form_field_id: fieldId,
-        value: value
-      };
-    });
-
-    const payload = {
-      answers: answers
-    };
+    const answers = Object.keys(formData.value).map((fieldId) => ({
+      form_field_id: fieldId,
+      value: convertoToString(formData.value[fieldId])
+    }));
+    const payload = { answers };
 
     const res = await axiosInstance.post(`/forms/${formId.value}/responses`, payload);
     console.log(res.data);
     toast.success('Formulario enviado correctamente');
+    router.push('/mis-formularios');
   } catch (err) {
     console.error('Failed to submit form', err);
   } finally {

@@ -44,7 +44,8 @@ export const ADMIN_FORM_ROLES = [
   { label: 'Ver', value: 'form.view' },
   { label: 'Crear', value: 'form.create' },
   { label: 'Editar', value: 'form.update' },
-  { label: 'Asignar', value: 'form.assign' }
+  { label: 'Asignar', value: 'form.assign' },
+  { label: 'Contestar', value: 'form_response.store' }
 ];
 
 // --------Sponsor Assignable Roles ---------
@@ -162,7 +163,14 @@ export const getFieldProps = (field: { type: string; label: string; is_required:
         multiple: false
       };
     case 'range':
-      return { ...baseProps, min: 0, max: 100 };
+      return {
+        ...baseProps,
+        min: 0,
+        max: 100,
+        'thumb-label': 'always',
+        'show-ticks': 'always',
+        step: 10
+      };
     default:
       return baseProps;
   }

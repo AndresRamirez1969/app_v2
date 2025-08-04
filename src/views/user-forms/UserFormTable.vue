@@ -30,7 +30,7 @@ const emit = defineEmits(['update:page', 'sort']);
             Fecha de Creación
             <slot name="sort-icon" :column="'created_at'" />
           </th>
-          <th class="response-header">Estado de Respuesta</th>
+          <th class="response-header">Estado</th>
         </tr>
       </thead>
       <tbody>
