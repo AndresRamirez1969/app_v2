@@ -1,3 +1,6 @@
+// Constantes que se usan en el proyecto para evitar repetir código
+// NO MODIFICAR, SOLO AGREGAR!!!!
+
 export const TIMEZONES = [
   { label: 'Zona Sureste (UTC-5)', value: 'UTC-5' },
   { label: 'Zona Centro (UTC-6)', value: 'UTC-6' },
