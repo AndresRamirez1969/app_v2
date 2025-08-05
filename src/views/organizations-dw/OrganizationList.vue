@@ -113,7 +113,12 @@ const toggleStatus = async (org) => {
             <v-col cols="8">
               <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <router-link v-if="canView" :to="`/organizaciones-dw/${org.id}`" @click.stop style="text-decoration: underline">
+                  <router-link
+                    v-if="canView"
+                    :to="`/organizaciones-dw/${org.id}`"
+                    @click.stop
+                    style="text-decoration: underline; color: #1976d2 !important"
+                  >
                     {{ org.folio }}
                   </router-link>
                   <span v-else>{{ org.folio }}</span>

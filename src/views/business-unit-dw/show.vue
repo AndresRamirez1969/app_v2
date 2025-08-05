@@ -3,37 +3,41 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDisplay } from 'vuetify';
 import axiosInstance from '@/utils/axios';
-import { mdiArrowLeft, mdiPencil, mdiCancel, mdiCheckCircle, mdiChevronDown, mdiDotsHorizontal } from '@mdi/js';
+import { mdiArrowLeft, mdiPencil, mdiCancel, mdiCheckCircle, mdiChevronDown, mdiDotsHorizontal, mdiEye } from '@mdi/js';
 import StatusChip from '@/components/status/StatusChip.vue';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const route = useRoute();
 const { mdAndDown } = useDisplay();
-const business_unit = ref(null);
+const businessUnit = ref(null);
+const business = ref(null);
+const users = ref([]);
 const auth = useAuthStore();
 
 const user = computed(() => auth.user || { roles: [], permissions: [] });
-const roles = computed(() => (Array.isArray(user.value.roles) ? user.value.roles : user.value.roles?.map?.((r) => r.name) || []));
-const permissions = computed(() =>
-  Array.isArray(user.value.permissions) ? user.value.permissions : user.value.permissions?.map?.((p) => p.name) || []
-);
+const roles = computed(() => user.value.roles || []);
+const permissions = computed(() => user.value.permissions || []);
 
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
-const isSponsor = computed(() => roles.value.includes('sponsor'));
 const canView = computed(() => permissions.value.includes('businessUnit.view'));
-const canViewAny = computed(() => permissions.value.includes('businessUnit.viewAny'));
-const canShow = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value || canView.value);
 const canEditPermission = computed(() => permissions.value.includes('businessUnit.update'));
+const canShow = computed(() => isSuperadmin.value || isAdmin.value || roles.value.includes('sponsor') || canView.value);
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || canEditPermission.value);
 const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
 
-const isActive = computed(() => business_unit.value?.status === 'activa' || business_unit.value?.status === 'active');
+const canUserEdit = computed(() => permissions.value.includes('user.update'));
+const canUserView = computed(() => permissions.value.includes('user.view'));
+const canUserActions = computed(() => canUserView.value || canUserEdit.value || canToggleStatus.value);
+
+const showUserTable = computed(() => (isSuperadmin.value || isAdmin.value) && !mdAndDown.value);
+
+const isActive = computed(() => businessUnit.value?.status === 'activa' || businessUnit.value?.status === 'active');
 
 const goToEdit = () => {
-  if (business_unit.value?.id) {
-    router.push({ path: `/ubicaciones-dw/${business_unit.value.id}/edit` });
+  if (businessUnit.value?.id) {
+    router.push({ path: `/ubicaciones-dw/${businessUnit.value.id}/edit` });
   }
 };
 
@@ -41,18 +45,34 @@ const goToIndex = () => {
   router.push('/ubicaciones-dw');
 };
 
+const goToUserEdit = (user) => router.push({ path: `/usuarios-dw/${user.id}/edit` });
+const goToUserShow = (user) => router.push({ path: `/usuarios-dw/${user.id}` });
+
 const toggleStatus = async () => {
-  if (!business_unit.value) return;
+  if (!businessUnit.value) return;
   const newStatus = isActive.value ? 'inactive' : 'active';
   try {
-    const res = await axiosInstance.put(`/business-units/${business_unit.value.id}`, {
+    const res = await axiosInstance.put(`/business-units/${businessUnit.value.id}`, {
       status: newStatus
     });
-    business_unit.value.status = res.data.status || newStatus;
-    console.log('Respuesta al cambiar status:', res.data);
+    businessUnit.value.status = res.data.status || newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
     console.error('Detalle del error:', err?.response?.data || err);
+  }
+};
+
+const toggleUserStatus = async (user) => {
+  if (!canToggleStatus.value) return;
+  const isActive = user.status === 'activo' || user.status === 'active';
+  const newStatus = isActive ? 'inactive' : 'active';
+  try {
+    const res = await axiosInstance.put(`/users/${user.id}`, {
+      status: newStatus
+    });
+    user.status = res.data.status || newStatus;
+  } catch (err) {
+    alert('No se pudo cambiar el estatus del usuario');
   }
 };
 
@@ -70,14 +90,30 @@ const formatAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
+const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
+
 onMounted(async () => {
   try {
     const id = route.params.id;
-    // SOLUCIÓN: Usa el endpoint correcto y el id recibido
     const res = await axiosInstance.get(`/business-units/${id}`);
-    business_unit.value = res.data;
+    businessUnit.value = res.data.business_unit || res.data.data || res.data;
+
+    // Obtener la empresa relacionada (solo para superadmin)
+    if (isSuperadmin.value && businessUnit.value?.business_id) {
+      try {
+        const busRes = await axiosInstance.get(`/businesses/${businessUnit.value.business_id}`);
+        business.value = busRes.data.business || busRes.data.data || busRes.data;
+      } catch (err) {
+        business.value = null;
+      }
+    }
+
+    // Obtener todos los usuarios y filtrar por business_unit_id
+    const userRes = await axiosInstance.get(`/users`);
+    const allUsers = Array.isArray(userRes.data) ? userRes.data : userRes.data.users || userRes.data.data || [];
+    users.value = allUsers.filter((u) => String(u.business_unit_id) === String(businessUnit.value.id));
   } catch (err) {
-    console.error('Error al obtener la ubicación:', err);
+    console.error('Error al obtener la ubicación, empresa o usuarios:', err);
   }
 });
 </script>
@@ -86,7 +122,7 @@ onMounted(async () => {
   <v-container fluid v-if="canShow">
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
-        <template v-if="canViewAny">
+        <template v-if="isSuperadmin">
           <v-btn
             icon
             variant="text"
@@ -96,17 +132,17 @@ onMounted(async () => {
           >
             <v-icon :icon="mdiArrowLeft" />
           </v-btn>
-          <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="business_unit">
-            {{ business_unit.folio ? `${business_unit.folio}` : '' }}
-            {{ business_unit.legal_name ? `- ${business_unit.legal_name}` : '- Organización' }}
+          <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="businessUnit">
+            {{ businessUnit.folio ? `${businessUnit.folio}` : '' }}
+            {{ businessUnit.legal_name ? `- ${businessUnit.legal_name}` : '- Ubicación' }}
           </h3>
-          <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="business_unit">
-            {{ business_unit.folio ? `${business_unit.folio}` : '' }}
+          <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="businessUnit">
+            {{ businessUnit.folio ? `${businessUnit.folio}` : '' }}
           </h3>
         </template>
       </v-col>
       <v-col class="d-flex justify-end align-center">
-        <template v-if="canEditPermission">
+        <template v-if="canEdit">
           <v-menu location="bottom end" v-if="!mdAndDown">
             <template #activator="{ props }">
               <v-btn
@@ -179,8 +215,8 @@ onMounted(async () => {
 
     <v-row>
       <v-col cols="12" md="4" class="d-flex justify-center align-center">
-        <template v-if="business_unit?.logo">
-          <v-img :src="business_unit.logo" max-width="320" max-height="320" class="rounded-lg" alt="Logo" style="background: none" />
+        <template v-if="businessUnit?.logo">
+          <v-img :src="businessUnit.logo" max-width="320" max-height="320" class="rounded-lg" alt="Logo" style="background: none" />
         </template>
         <template v-else>
           <div
@@ -199,29 +235,44 @@ onMounted(async () => {
             <tr>
               <td class="font-weight-bold text-subtitle-1">Estado</td>
               <td>
-                <template v-if="business_unit?.status">
-                  <StatusChip :status="business_unit.status" />
+                <template v-if="businessUnit?.status">
+                  <StatusChip :status="businessUnit.status" />
                 </template>
                 <template v-else> No disponible </template>
               </td>
             </tr>
             <tr>
+              <td class="font-weight-bold text-subtitle-1">Folio</td>
+              <td>{{ businessUnit?.folio || 'No disponible' }}</td>
+            </tr>
+            <tr v-if="isSuperadmin && business">
+              <td class="font-weight-bold text-subtitle-1">Empresa</td>
+              <td>
+                <span v-if="business?.legal_name">{{ business.legal_name }}</span>
+                <span v-else>No disponible</span>
+              </td>
+            </tr>
+            <tr>
               <td class="font-weight-bold text-subtitle-1">Nombre legal</td>
-              <td>{{ business_unit?.legal_name || 'No disponible' }}</td>
+              <td>{{ businessUnit?.legal_name || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Alias</td>
-              <td>{{ business_unit?.alias || 'No disponible' }}</td>
+              <td>{{ businessUnit?.alias || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Descripción</td>
-              <td>{{ business_unit?.description || 'No disponible' }}</td>
+              <td>{{ businessUnit?.description || 'No disponible' }}</td>
+            </tr>
+            <tr>
+              <td class="font-weight-bold text-subtitle-1">Zona horaria</td>
+              <td>{{ businessUnit?.timezone || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Dirección</td>
               <td>
-                <span v-if="business_unit?.address">
-                  {{ formatAddress(business_unit.address) }}
+                <span v-if="businessUnit?.address">
+                  {{ formatAddress(businessUnit.address) }}
                 </span>
                 <span v-else>No disponible</span>
               </td>
@@ -231,33 +282,208 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
+    <!-- Espacio entre cards en mobile -->
+    <v-row v-if="mdAndDown">
+      <v-col cols="12">
+        <div style="height: 24px"></div>
+      </v-col>
+    </v-row>
+
+    <!-- Contacto -->
     <v-row>
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Contacto</div>
-        <v-table class="rounded-lg elevation-1">
+        <template v-if="mdAndDown">
+          <v-card class="rounded-lg elevation-1 pa-0">
+            <v-table class="rounded-lg elevation-0" style="border: none">
+              <tbody>
+                <tr>
+                  <td class="font-weight-bold text-subtitle-1" style="width: 40%">Nombre</td>
+                  <td>
+                    <span v-if="businessUnit?.person && (businessUnit.person.first_name || businessUnit.person.last_name)">
+                      {{ [businessUnit.person.first_name, businessUnit.person.last_name].filter(Boolean).join(' ') }}
+                    </span>
+                    <span v-else>No disponible</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold text-subtitle-1">Email</td>
+                  <td>
+                    <span v-if="businessUnit?.person?.email">{{ businessUnit.person.email }}</span>
+                    <span v-else>No disponible</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold text-subtitle-1">Teléfono</td>
+                  <td>
+                    <span v-if="businessUnit?.person?.phone_number">{{ businessUnit.person.phone_number }}</span>
+                    <span v-else>No disponible</span>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card>
+        </template>
+        <template v-else>
+          <v-table class="rounded-lg elevation-1">
+            <thead>
+              <tr>
+                <th class="font-weight-bold text-subtitle-1" style="width: 10%">Nombre</th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 20%">Email</th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 25%">Teléfono</th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 15%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span v-if="businessUnit?.person && (businessUnit.person.first_name || businessUnit.person.last_name)">
+                    {{ [businessUnit.person.first_name, businessUnit.person.last_name].filter(Boolean).join(' ') }}
+                  </span>
+                  <span v-else>No disponible</span>
+                </td>
+                <td></td>
+                <td>
+                  <span v-if="businessUnit?.person?.email">{{ businessUnit.person.email }}</span>
+                  <span v-else>No disponible</span>
+                </td>
+                <td>
+                  <span v-if="businessUnit?.person?.phone_number">{{ businessUnit.person.phone_number }}</span>
+                  <span v-else>No disponible</span>
+                </td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </v-table>
+        </template>
+      </v-col>
+    </v-row>
+
+    <!-- Espacio entre contacto y usuarios en mobile y desktop -->
+    <v-row>
+      <v-col cols="12">
+        <div style="height: 32px"></div>
+      </v-col>
+    </v-row>
+
+    <!-- Tabla de Usuarios relacionados SOLO para superadmin o admin y SOLO en desktop -->
+    <v-row v-if="showUserTable">
+      <v-col cols="12">
+        <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Usuarios</div>
+        <v-table class="rounded-lg elevation-1 fixed-table">
           <thead>
             <tr>
-              <th class="font-weight-bold text-subtitle-1" style="width: 33%">Nombre</th>
-              <th class="font-weight-bold text-subtitle-1" style="width: 33%">Email</th>
-              <th class="font-weight-bold text-subtitle-1" style="width: 33%">Teléfono</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 10%">ID</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 10%">Foto</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 20%">Nombre</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 25%">Email</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 15%">Rol</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 10%">Estatus</th>
+              <th class="font-weight-bold text-subtitle-1 actions-header" style="width: 10%"></th>
             </tr>
           </thead>
           <tbody>
-            <tr>
+            <tr
+              v-for="user in users"
+              :key="user.id"
+              :class="['row-clickable', { 'cursor-pointer': canUserView }]"
+              @click="canUserView ? goToUserShow(user) : undefined"
+              :style="{ cursor: canUserView ? 'pointer' : 'default' }"
+            >
               <td>
-                <span v-if="business_unit?.person && (business_unit.person.first_name || business_unit.person.last_name)">
-                  {{ [business_unit.person.first_name, business_unit.person.last_name].filter(Boolean).join(' ') }}
+                <router-link
+                  v-if="canUserView"
+                  :to="`/usuarios-dw/${user.id}`"
+                  style="text-decoration: underline; color: #1976d2 !important"
+                  @click.stop
+                >
+                  {{ user.id }}
+                </router-link>
+                <span v-else>{{ user.id }}</span>
+              </td>
+              <td style="text-align: center; vertical-align: middle">
+                <div style="display: flex; align-items: center; justify-content: left">
+                  <img
+                    v-if="user.profile_picture"
+                    :src="user.profile_picture"
+                    alt="Foto de perfil"
+                    style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #f5f5f5"
+                  />
+                  <span v-else style="font-size: 12px; color: #888">Sin foto</span>
+                </div>
+              </td>
+              <td>
+                <span>
+                  {{ user.name || [user.first_name, user.last_name].filter(Boolean).join(' ') || 'No disponible' }}
                 </span>
-                <span v-else>No disponible</span>
+              </td>
+              <td>{{ user.email || 'No disponible' }}</td>
+              <td>
+                {{
+                  Array.isArray(user.roles) && user.roles.length
+                    ? typeof user.roles[0] === 'object'
+                      ? user.roles[0].name === 'superadmin'
+                        ? 'Super Administrador'
+                        : user.roles[0].name === 'admin'
+                          ? 'Administrador'
+                          : user.roles[0].name === 'sponsor'
+                            ? 'Sponsor'
+                            : user.roles[0].name || 'No disponible'
+                      : user.roles[0] === 'superadmin'
+                        ? 'Super Administrador'
+                        : user.roles[0] === 'admin'
+                          ? 'Administrador'
+                          : user.roles[0] === 'sponsor'
+                            ? 'Sponsor'
+                            : user.roles[0] || 'No disponible'
+                    : 'No disponible'
+                }}
               </td>
               <td>
-                <span v-if="business_unit?.person?.email">{{ business_unit.person.email }}</span>
+                <StatusChip :status="user.status" v-if="user.status" />
                 <span v-else>No disponible</span>
               </td>
-              <td>
-                <span v-if="business_unit?.person?.phone_number">{{ business_unit.person.phone_number }}</span>
-                <span v-else>No disponible</span>
+              <td class="actions-cell">
+                <v-menu v-if="canUserActions" location="bottom end">
+                  <template #activator="{ props }">
+                    <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
+                      <v-icon :icon="mdiDotsHorizontal" size="20" />
+                    </v-btn>
+                  </template>
+                  <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
+                    <v-list-item v-if="canUserView" @click="goToUserShow(user)">
+                      <template #prepend>
+                        <v-icon :icon="mdiEye" size="18" />
+                      </template>
+                      <v-list-item-title>Ver</v-list-item-title>
+                    </v-list-item>
+                    <v-divider class="my-1" v-if="canUserEdit && canUserView" />
+                    <v-list-item v-if="canUserEdit" @click="goToUserEdit(user)">
+                      <template #prepend>
+                        <v-icon :icon="mdiPencil" size="18" />
+                      </template>
+                      <v-list-item-title>Editar</v-list-item-title>
+                    </v-list-item>
+                    <v-divider class="my-1" v-if="canToggleStatus" />
+                    <v-list-item v-if="canToggleStatus" @click="toggleUserStatus(user)">
+                      <template #prepend>
+                        <v-icon :icon="user.status === 'activo' || user.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
+                      </template>
+                      <v-list-item-title>
+                        {{ user.status === 'activo' || user.status === 'active' ? 'Desactivar' : 'Activar' }}
+                      </v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </v-menu>
               </td>
+            </tr>
+            <tr v-if="users.length === 0">
+              <td colspan="7" class="text-center text-medium-emphasis">No hay usuarios relacionados.</td>
             </tr>
           </tbody>
         </v-table>
@@ -269,8 +495,4 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped>
-.elevation-1 {
-  box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08) !important;
-}
-</style>
+<style scoped src="@/styles/business_unit.css"></style>
