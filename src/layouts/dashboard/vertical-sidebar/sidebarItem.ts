@@ -56,11 +56,11 @@ const sidebarItem: menu[] = [
     title: 'Ubicaciones DW',
     icon: DatabaseTwoTone
   },
-  {
-    title: 'Unidades',
-    icon: ShopTwoTone,
-    to: '/unidades'
-  },
+  // {
+  //   title: 'Unidades',
+  //   icon: ShopTwoTone,
+  //   to: '/unidades'
+  // },
   {
     title: 'Usuarios',
     icon: IdcardTwoTone,
@@ -76,11 +76,11 @@ const sidebarItem: menu[] = [
     icon: FileTextTwoTone,
     to: '/mis-formularios'
   },
-  {
-    title: 'Organizaciones DW',
-    icon: DatabaseTwoTone,
-    to: '/organizaciones-dw'
-  },
+  // {
+  //   title: 'Organizaciones DW',
+  //   icon: DatabaseTwoTone,
+  //   to: '/organizaciones-dw'
+  // },
   {
     title: 'Reportes',
     icon: SnippetsTwoTone,

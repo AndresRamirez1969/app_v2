@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 // icons
 import {
   LogoutOutlined,
@@ -8,7 +8,10 @@ import {
   LockOutlined,
   CommentOutlined,
   UnorderedListOutlined,
-  WalletOutlined
+  WalletOutlined,
+  ApartmentOutlined,
+  ShopOutlined,
+  EnvironmentOutlined
 } from '@ant-design/icons-vue';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
@@ -17,6 +20,74 @@ const tab = ref(null);
 const authStore = useAuthStore();
 const router = useRouter();
 
+const userRoles = computed(() => authStore.user?.roles || []);
+const permissions = computed(() => authStore.user?.permissions || []);
+const hasOrgCreate = computed(() => permissions.value.includes('organization.create'));
+const hasOrgView = computed(() => permissions.value.includes('organization.view'));
+const hasOrgId = computed(() => !!authStore.user?.organization_id);
+const hasBusinessId = computed(() => !!authStore.user?.business_id);
+
+const hasOrgViewAny = computed(() => permissions.value.includes('organization.viewAny'));
+const hasBusinessViewAny = computed(() => permissions.value.includes('business.viewAny'));
+const hasBusinessUnitViewAny = computed(() => permissions.value.includes('businessUnit.viewAny'));
+
+const hasBusinessUnitId = computed(() => !!authStore.user?.business_unit_id);
+const hasBusinessUnitView = computed(() => permissions.value.includes('businessUnit.view'));
+
+// Mostrar DW en ProfileDD solo si NO es superadmin y NO tiene el permiso viewAny
+const showOrgDwProfile = computed(() => {
+  return !userRoles.value.includes('superadmin') && !hasOrgViewAny.value;
+});
+const showBusinessDwProfile = computed(() => {
+  return !userRoles.value.includes('superadmin') && !hasBusinessViewAny.value;
+});
+const showBusinessUnitDwProfile = computed(() => {
+  return !userRoles.value.includes('superadmin') && !hasBusinessUnitViewAny.value;
+});
+
+// Lógica de rutas y disabled
+function getOrgDwRoute() {
+  if (hasOrgId.value) {
+    if (userRoles.value.includes('admin') || hasOrgCreate.value) {
+      return `/organizaciones-dw/${authStore.user.organization_id}`;
+    }
+    if (userRoles.value.includes('sponsor') || hasOrgView.value) {
+      return `/organizaciones-dw/${authStore.user.organization_id}`;
+    }
+  }
+  if (userRoles.value.includes('admin') || hasOrgCreate.value) {
+    return '/organizaciones-dw/create';
+  }
+  return null;
+}
+function isOrgDwDisabled() {
+  return !hasOrgId.value && !(userRoles.value.includes('admin') || hasOrgCreate.value);
+}
+
+function getBusinessDwRoute() {
+  if (hasBusinessId.value) {
+    if (userRoles.value.includes('admin') || userRoles.value.includes('sponsor') || permissions.value.includes('business.view')) {
+      return `/negocios-dw/${authStore.user.business_id}`;
+    }
+  }
+  return null;
+}
+function isBusinessDwDisabled() {
+  return !hasBusinessId.value;
+}
+
+function getBusinessUnitDwRoute() {
+  if (hasBusinessUnitId.value) {
+    if (userRoles.value.includes('admin') || userRoles.value.includes('sponsor') || hasBusinessUnitView.value) {
+      return `/ubicaciones-dw/${authStore.user.business_unit_id}`;
+    }
+  }
+  return null;
+}
+function isBusinessUnitDwDisabled() {
+  return !hasBusinessUnitId.value;
+}
+
 const handleLogout = async () => {
   await authStore.logout();
   router.push('/login');
@@ -24,9 +95,6 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <!-- ---------------------------------------------- -->
-  <!-- profile DD -->
-  <!-- ---------------------------------------------- -->
   <div>
     <div class="d-flex align-center pa-5">
       <v-avatar size="32" class="mr-2">
@@ -55,6 +123,51 @@ const handleLogout = async () => {
                 <WalletOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
               <v-list-item-title class="text-h6"> Billing</v-list-item-title>
+            </v-list-item>
+
+            <!-- Organizaciones DW -->
+            <v-list-item
+              v-if="showOrgDwProfile"
+              :disabled="isOrgDwDisabled()"
+              @click="!isOrgDwDisabled() && $router.push(getOrgDwRoute())"
+              color="primary"
+              rounded="0"
+              value="OrganizacionesDW"
+            >
+              <template v-slot:prepend>
+                <ApartmentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+              </template>
+              <v-list-item-title class="text-h6"> Organizaciones DW</v-list-item-title>
+            </v-list-item>
+
+            <!-- Empresas DW -->
+            <v-list-item
+              v-if="showBusinessDwProfile"
+              :disabled="isBusinessDwDisabled()"
+              @click="!isBusinessDwDisabled() && $router.push(getBusinessDwRoute())"
+              color="primary"
+              rounded="0"
+              value="EmpresasDW"
+            >
+              <template v-slot:prepend>
+                <ShopOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+              </template>
+              <v-list-item-title class="text-h6"> Empresas DW</v-list-item-title>
+            </v-list-item>
+
+            <!-- Ubicaciones DW -->
+            <v-list-item
+              v-if="showBusinessUnitDwProfile"
+              :disabled="isBusinessUnitDwDisabled()"
+              @click="!isBusinessUnitDwDisabled() && $router.push(getBusinessUnitDwRoute())"
+              color="primary"
+              rounded="0"
+              value="UbicacionesDW"
+            >
+              <template v-slot:prepend>
+                <EnvironmentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+              </template>
+              <v-list-item-title class="text-h6"> Ubicaciones DW</v-list-item-title>
             </v-list-item>
 
             <v-list-item @click="handleLogout" color="secondary" rounded="0">

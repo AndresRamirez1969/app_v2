@@ -3,7 +3,7 @@ import { plugin, defaultConfig } from '@formkit/vue';
 import { createProPlugin, inputs } from '@formkit/pro';
 import { createPinia } from 'pinia';
 import App from './App.vue';
-import { router } from './router';
+import router from './router'; // <-- Cambiado a default import
 import vuetify from './plugins/vuetify';
 import '@/scss/style.scss';
 import { PerfectScrollbarPlugin } from 'vue3-perfect-scrollbar';
