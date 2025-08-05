@@ -20,11 +20,13 @@ const auth = useAuthStore();
 const canView = ref(false);
 const canCreate = ref(false);
 
+// Adaptación: roles y permisos vienen en el objeto user, como arrays
 function hasPermission(permission) {
-  return auth.user?.permissions?.includes(permission);
+  return Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission);
 }
 
 onMounted(async () => {
+  // Verifica permiso para ver organizaciones
   if (!hasPermission('organization.viewAny')) {
     canView.value = false;
     return;

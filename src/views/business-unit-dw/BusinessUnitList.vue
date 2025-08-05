@@ -1,29 +1,30 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
-import BusinessTableMeta from './BusinessTableMeta.vue';
+import BusinessUnitTableMeta from './BusinessUnitTableMeta.vue';
 import StatusChip from '@/components/status/StatusChip.vue';
 import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiPencil, mdiEye, mdiCancel, mdiCheckCircle } from '@mdi/js';
 import { useAuthStore } from '@/stores/auth';
 
 const props = defineProps({
   items: Array,
-  isMobile: Boolean
+  isMobile: Boolean,
+  canEditPermission: Boolean
 });
 
 const router = useRouter();
 const auth = useAuthStore();
 
 const user = computed(() => auth.user || { roles: [], permissions: [] });
-// Ahora los roles son array de strings, no objetos
+// INTEGRACIÓN: roles ahora son array de strings
 const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
 const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
-const canEdit = computed(() => permissions.value.includes('business.update'));
-const canView = computed(() => permissions.value.includes('business.view'));
+const canEdit = computed(() => permissions.value.includes('businessUnit.update') || props.canEditPermission);
+const canView = computed(() => permissions.value.includes('businessUnit.view'));
 
 // Mostrar menú solo si tiene al menos un permiso relevante
 const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatus.value);
@@ -71,18 +72,27 @@ const paginatedItems = computed(() => {
   return sortedItems.value.slice(start, start + itemsPerPage.value);
 });
 
-const goToEdit = (bus) => router.push({ path: `/negocios-dw/${bus.id}/edit` });
-const goToShow = (bus) => router.push({ path: `/negocios-dw/${bus.id}` });
+// --- INTEGRACIÓN DEL LOG PARA DEPURAR ---
+watch(
+  () => props.items,
+  (newItems) => {
+    console.log('BusinessUnitList.vue - items cargados:', newItems);
+  },
+  { immediate: true }
+);
 
-const toggleStatus = async (bus) => {
+const goToEdit = (uni) => router.push({ path: `/ubicaciones-dw/${uni.id}/edit` });
+const goToShow = (uni) => router.push({ path: `/ubicaciones-dw/${uni.id}` });
+
+const toggleStatus = async (uni) => {
   if (!canToggleStatus.value) return;
-  const isActive = bus.status === 'activa' || bus.status === 'active';
+  const isActive = uni.status === 'activa' || uni.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
-    const res = await axiosInstance.put(`/businesses/${bus.id}`, {
+    const res = await axiosInstance.put(`/business-units/${uni.id}`, {
       status: newStatus
     });
-    bus.status = res.data.status || newStatus;
+    uni.status = res.data.status || newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
   }
@@ -95,17 +105,17 @@ const toggleStatus = async (bus) => {
     <template v-if="isMobile">
       <template v-if="paginatedItems.length">
         <v-card
-          v-for="bus in paginatedItems"
-          :key="bus.id"
+          v-for="uni in paginatedItems"
+          :key="uni.id"
           class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
-          @click="canView ? goToShow(bus) : undefined"
+          @click="canView ? goToShow(uni) : undefined"
           :style="{ cursor: canView ? 'pointer' : 'default' }"
         >
           <v-row no-gutters align="center" class="mb-1">
             <v-col cols="3" class="d-flex justify-start align-center">
               <div class="logo-container-mobile">
-                <v-avatar v-if="bus.logo" class="logo-avatar-mobile" color="grey lighten-2">
-                  <img :src="bus.logo" alt="Logo" class="logo-img-cover" />
+                <v-avatar v-if="uni.logo" class="logo-avatar-mobile" color="grey lighten-2">
+                  <img :src="uni.logo" alt="Logo" class="logo-img-cover" />
                 </v-avatar>
                 <v-avatar v-else class="logo-avatar-mobile" color="grey lighten-2">
                   <span style="font-size: 12px; color: #888">Sin logo</span>
@@ -116,17 +126,17 @@ const toggleStatus = async (bus) => {
             <v-col cols="8">
               <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <router-link v-if="canView" :to="`/negocios-dw/${bus.id}`" @click.stop style="text-decoration: underline">
-                    {{ bus.folio }}
+                  <router-link v-if="canView" :to="`/ubicaciones-dw/${uni.id}`" @click.stop style="text-decoration: underline">
+                    {{ uni.folio }}
                   </router-link>
-                  <span v-else>{{ bus.folio }}</span>
+                  <span v-else>{{ uni.folio }}</span>
                 </div>
-                <StatusChip :status="bus.status" />
+                <StatusChip :status="uni.status" />
               </div>
-              <div class="font-weight-medium mb-1">{{ bus.legal_name }}</div>
+              <div class="font-weight-medium mb-1">{{ uni.legal_name }}</div>
               <div class="text-caption">
                 <strong>Dirección:</strong>
-                {{ truncate(fullAddress(bus.address), 80) }}
+                {{ truncate(fullAddress(uni.address), 80) }}
               </div>
             </v-col>
           </v-row>
@@ -141,7 +151,7 @@ const toggleStatus = async (bus) => {
 
     <!-- Modo escritorio (solo tabla) -->
     <template v-if="!isMobile">
-      <BusinessTableMeta
+      <BusinessUnitTableMeta
         :items="sortedItems.value"
         :page="page"
         :itemsPerPage="itemsPerPage"
@@ -158,30 +168,30 @@ const toggleStatus = async (bus) => {
         <template #rows>
           <template v-if="paginatedItems.length">
             <tr
-              v-for="bus in paginatedItems"
-              :key="bus.id"
-              @click="canView ? goToShow(bus) : undefined"
+              v-for="uni in paginatedItems"
+              :key="uni.id"
+              @click="canView ? goToShow(uni) : undefined"
               :class="['row-clickable', { 'row-disabled': !canView }]"
               :style="{ cursor: canView ? 'pointer' : 'default' }"
             >
               <td class="folio-cell">
-                <router-link v-if="canView" :to="`/negocios-dw/${bus.id}`" @click.stop style="text-decoration: underline">
-                  {{ bus.folio }}
+                <router-link v-if="canView" :to="`/ubicaciones-dw/${uni.id}`" @click.stop style="text-decoration: underline">
+                  {{ uni.folio }}
                 </router-link>
-                <span v-else>{{ bus.folio }}</span>
+                <span v-else>{{ uni.folio }}</span>
               </td>
               <td class="logo-cell">
-                <v-avatar v-if="bus.logo" size="48" class="logo-avatar">
-                  <img :src="bus.logo" alt="Logo" class="logo-img-cover" />
+                <v-avatar v-if="uni.logo" size="48" class="logo-avatar">
+                  <img :src="uni.logo" alt="Logo" class="logo-img-cover" />
                 </v-avatar>
                 <v-avatar v-else size="48" color="grey lighten-2" class="d-flex align-center justify-center">
                   <span style="font-size: 12px; color: #888">Sin logo</span>
                 </v-avatar>
               </td>
-              <td class="legal-cell">{{ bus.legal_name }}</td>
-              <td class="address-cell">{{ truncate(fullAddress(bus.address), 80) }}</td>
+              <td class="legal-cell">{{ uni.legal_name }}</td>
+              <td class="address-cell">{{ truncate(fullAddress(uni.address), 80) }}</td>
               <td class="status-cell">
-                <StatusChip :status="bus.status" />
+                <StatusChip :status="uni.status" />
               </td>
               <td class="actions-cell" @click.stop>
                 <v-menu v-if="canShowDropdown" location="bottom end">
@@ -191,26 +201,26 @@ const toggleStatus = async (bus) => {
                     </v-btn>
                   </template>
                   <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
-                    <v-list-item v-if="canView" @click="goToShow(bus)">
+                    <v-list-item v-if="canView" @click="goToShow(uni)">
                       <template #prepend>
                         <v-icon :icon="mdiEye" size="18" />
                       </template>
                       <v-list-item-title>Ver</v-list-item-title>
                     </v-list-item>
                     <v-divider class="my-1" v-if="canEdit && canView" />
-                    <v-list-item v-if="canEdit" @click="goToEdit(bus)">
+                    <v-list-item v-if="canEdit" @click="goToEdit(uni)">
                       <template #prepend>
                         <v-icon :icon="mdiPencil" size="18" />
                       </template>
                       <v-list-item-title>Editar</v-list-item-title>
                     </v-list-item>
                     <v-divider class="my-1" v-if="canToggleStatus" />
-                    <v-list-item v-if="canToggleStatus" @click="toggleStatus(bus)">
+                    <v-list-item v-if="canToggleStatus" @click="toggleStatus(uni)">
                       <template #prepend>
-                        <v-icon :icon="bus.status === 'activa' || bus.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
+                        <v-icon :icon="uni.status === 'activa' || uni.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
                       </template>
                       <v-list-item-title>
-                        {{ bus.status === 'activa' || bus.status === 'active' ? 'Desactivar' : 'Activar' }}
+                        {{ uni.status === 'activa' || uni.status === 'active' ? 'Desactivar' : 'Activar' }}
                       </v-list-item-title>
                     </v-list-item>
                   </v-list>
@@ -226,12 +236,12 @@ const toggleStatus = async (bus) => {
             </tr>
           </template>
         </template>
-      </BusinessTableMeta>
+      </BusinessUnitTableMeta>
     </template>
   </div>
 </template>
 
-<style scoped src="@/styles/business.css"></style>
+<style scoped src="@/styles/business_unit.css"></style>
 <style scoped>
 .row-clickable:hover {
   background: #f5f5f5;

@@ -11,23 +11,20 @@ const router = useRouter();
 const route = useRoute();
 const { mdAndDown } = useDisplay();
 const business = ref(null);
+const organization = ref(null); // <-- Para mostrar la organización
 const auth = useAuthStore();
 
 const user = computed(() => auth.user || { roles: [], permissions: [] });
-const roles = computed(() => user.value.roles?.map((r) => r.name) || []);
+const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
 
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
 const canView = computed(() => permissions.value.includes('business.view'));
 const canViewAny = computed(() => permissions.value.includes('business.viewAny'));
-// Permitir sponsor, superadmin, admin o quien tenga business.view
 const canShow = computed(() => isSuperadmin.value || isAdmin.value || roles.value.includes('sponsor') || canView.value);
-// Permitir editar a superadmin, admin o quien tenga business.update
 const canEditPermission = computed(() => permissions.value.includes('business.update'));
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || canEditPermission.value);
-
-// Solo superadmin y admin pueden activar/desactivar
 const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
 
 const isActive = computed(() => business.value?.status === 'activa' || business.value?.status === 'active');
@@ -81,6 +78,16 @@ onMounted(async () => {
     } else {
       business.value = res.data;
     }
+
+    // Solo superadmin: obtener la organización
+    if (isSuperadmin.value && business.value?.organization_id) {
+      try {
+        const orgRes = await axiosInstance.get(`/organizations/${business.value.organization_id}`);
+        organization.value = orgRes.data.data || orgRes.data;
+      } catch (err) {
+        organization.value = null;
+      }
+    }
   } catch (err) {
     console.error('Error al obtener la empresa:', err);
   }
@@ -91,7 +98,6 @@ onMounted(async () => {
   <v-container fluid v-if="canShow">
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
-        <!-- Flecha y header solo para quienes tienen business.viewAny -->
         <template v-if="canViewAny">
           <v-btn
             icon
@@ -102,19 +108,16 @@ onMounted(async () => {
           >
             <v-icon :icon="mdiArrowLeft" />
           </v-btn>
-          <!-- Desktop/iPad header -->
           <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="business">
             {{ business.folio ? `${business.folio}` : '' }}
             {{ business.legal_name ? `- ${business.legal_name}` : '- Organización' }}
           </h3>
-          <!-- Mobile header -->
           <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="business">
             {{ business.folio ? `${business.folio}` : '' }}
           </h3>
         </template>
       </v-col>
       <v-col class="d-flex justify-end align-center">
-        <!-- Dropdown solo para quienes tienen permiso business.update -->
         <template v-if="canEditPermission">
           <v-menu location="bottom end" v-if="!mdAndDown">
             <template #activator="{ props }">
@@ -135,7 +138,6 @@ onMounted(async () => {
                 </template>
                 <v-list-item-title>Editar</v-list-item-title>
               </v-list-item>
-              <!-- Solo superadmin y admin pueden activar/desactivar -->
               <template v-if="canToggleStatus">
                 <v-divider class="my-1" />
                 <v-list-item @click="toggleStatus">
@@ -170,7 +172,6 @@ onMounted(async () => {
                 </template>
                 <v-list-item-title>Editar</v-list-item-title>
               </v-list-item>
-              <!-- Solo superadmin y admin pueden activar/desactivar -->
               <template v-if="canToggleStatus">
                 <v-divider class="my-1" />
                 <v-list-item @click="toggleStatus">
@@ -189,7 +190,6 @@ onMounted(async () => {
     </v-row>
 
     <v-row>
-      <!-- Logo -->
       <v-col cols="12" md="4" class="d-flex justify-center align-center">
         <template v-if="business?.logo">
           <v-img :src="business.logo" max-width="320" max-height="320" class="rounded-lg" alt="Logo" style="background: none" />
@@ -204,7 +204,6 @@ onMounted(async () => {
         </template>
       </v-col>
 
-      <!-- Tabla de detalles -->
       <v-col cols="12" md="8">
         <v-card-title class="font-weight-bold text-h6" style="padding-left: 0.5rem">Información general</v-card-title>
         <v-table class="rounded-lg elevation-1">
@@ -216,6 +215,17 @@ onMounted(async () => {
                   <StatusChip :status="business.status" />
                 </template>
                 <template v-else> No disponible </template>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-weight-bold text-subtitle-1">Folio</td>
+              <td>{{ business?.folio || 'No disponible' }}</td>
+            </tr>
+            <tr v-if="isSuperadmin && organization">
+              <td class="font-weight-bold text-subtitle-1">Organización</td>
+              <td>
+                <span v-if="organization?.legal_name">{{ organization.legal_name }}</span>
+                <span v-else>No disponible</span>
               </td>
             </tr>
             <tr>
@@ -244,7 +254,6 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <!-- Tabla de contacto full length -->
     <v-row>
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Contacto</div>

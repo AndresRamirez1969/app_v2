@@ -97,8 +97,29 @@
               variant="outlined"
               color="primary"
               density="compact"
-              :filter="customFilter"
+              :filter="customOrgFilter"
               @update:search-input="fetchOrganizations"
+              :menu-props="{ maxHeight: '300px' }"
+            />
+          </div>
+
+          <!-- Business select filter SOLO para superadmin, admin, sponsor o con businessUnit.viewAny -->
+          <div v-if="canShowBusinessFilter" class="mb-3">
+            <v-autocomplete
+              v-model="selectedBusiness"
+              :items="businessOptions"
+              :loading="loadingBusinesses"
+              v-model:search-input="businessSearch"
+              item-title="display"
+              item-value="id"
+              label="Buscar empresa (folio o nombre legal)"
+              clearable
+              hide-details
+              variant="outlined"
+              color="primary"
+              density="compact"
+              :filter="customBizFilter"
+              @update:search-input="fetchBusinesses"
               :menu-props="{ maxHeight: '300px' }"
             />
           </div>
@@ -165,7 +186,7 @@
           <v-btn
             variant="text"
             style="width: 100%; color: #555; font-weight: 500; font-size: 13px; text-transform: none"
-            @click="clearFiltersAndClose"
+            @click="clearFilters"
           >
             Limpiar
           </v-btn>
@@ -182,7 +203,7 @@ import axios from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
 import '@/styles/filters.css';
 
-const emit = defineEmits(['search', 'filter', 'business-select']);
+const emit = defineEmits(['search', 'filter']);
 
 const search = ref('');
 const dialog = ref(false);
@@ -205,7 +226,13 @@ const { mdAndDown } = useDisplay();
 const auth = useAuthStore();
 const user = computed(() => auth.user || { roles: [], permissions: [] });
 const roles = computed(() => user.value.roles || []);
+const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
+const isAdmin = computed(() => roles.value.includes('admin'));
+const isSponsor = computed(() => roles.value.includes('sponsor'));
+const canViewAnyBusinessUnit = computed(() => permissions.value.includes('businessUnit.viewAny'));
+
+const canShowBusinessFilter = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value || canViewAnyBusinessUnit.value);
 
 const selectedOrganization = ref(null);
 const organizationOptions = ref([]);
@@ -233,10 +260,52 @@ const fetchOrganizations = async (searchText) => {
   }
 };
 
+function customOrgFilter(item, queryText, itemText) {
+  if (!queryText) return true;
+  const text = (item.folio + ' ' + (item.legal_name || '')).toLowerCase();
+  return text.includes(queryText.toLowerCase());
+}
+
+// --- Business select filter ---
+const selectedBusiness = ref(null);
+const businessOptions = ref([]);
+const businessSearch = ref('');
+const loadingBusinesses = ref(false);
+
+const fetchBusinesses = async (searchText) => {
+  if (!canShowBusinessFilter.value) return;
+  loadingBusinesses.value = true;
+  try {
+    const { data } = await axios.get('/businesses', {
+      params: {
+        q: searchText || '',
+        limit: 10
+      }
+    });
+    businessOptions.value = (data.data || []).map((b) => ({
+      ...b,
+      display: `${b.folio}${b.legal_name ? ' - ' + b.legal_name : ''}`
+    }));
+  } catch (e) {
+    businessOptions.value = [];
+  } finally {
+    loadingBusinesses.value = false;
+  }
+};
+
+function customBizFilter(item, queryText, itemText) {
+  if (!queryText) return true;
+  const text = (item.folio + ' ' + (item.legal_name || '')).toLowerCase();
+  return text.includes(queryText.toLowerCase());
+}
+
 // Fetch initial options when dialog opens
 watch(dialog, (val) => {
   if (val && isSuperadmin.value && organizationOptions.value.length === 0) {
     fetchOrganizations('');
+  }
+  if (val && canShowBusinessFilter.value && businessOptions.value.length === 0) {
+    fetchBusinesses('');
   }
 });
 
@@ -244,22 +313,25 @@ watch(organizationSearch, (val) => {
   if (isSuperadmin.value) fetchOrganizations(val);
 });
 
-function customFilter(item, queryText, itemText) {
-  if (!queryText) return true;
-  const text = (item.folio + ' ' + (item.legal_name || '')).toLowerCase();
-  return text.includes(queryText.toLowerCase());
-}
+watch(businessSearch, (val) => {
+  if (canShowBusinessFilter.value) fetchBusinesses(val);
+});
 
+// Emit search on input change (debounced for better UX)
 watch(search, (val) => {
   emit('search', val);
 });
 
-const hasActiveFilters = computed(() => !!status.value || !!createdAtStart.value || !!createdAtEnd.value || !!selectedOrganization.value);
+// Detect if any filter is active
+const hasActiveFilters = computed(
+  () => !!status.value || !!createdAtStart.value || !!createdAtEnd.value || !!selectedOrganization.value || !!selectedBusiness.value
+);
 
 function emitSearch() {
   emit('search', search.value);
 }
 
+// Formatea la fecha a YYYY-MM-DD si es necesario
 function formatDateOnly(val) {
   if (!val) return null;
   if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
@@ -270,6 +342,7 @@ function formatDateOnly(val) {
 function applyFilters() {
   emit('filter', {
     organizationId: selectedOrganization.value,
+    businessId: selectedBusiness.value,
     status: status.value,
     createdAtStart: formatDateOnly(createdAtStart.value),
     createdAtEnd: formatDateOnly(createdAtEnd.value)
@@ -283,17 +356,14 @@ function clearFilters() {
   createdAtEnd.value = null;
   selectedOrganization.value = null;
   organizationSearch.value = '';
+  selectedBusiness.value = null;
+  businessSearch.value = '';
   emit('filter', {
     organizationId: null,
+    businessId: null,
     status: null,
     createdAtStart: null,
     createdAtEnd: null
   });
-}
-
-// Nueva función para limpiar y cerrar el modal
-function clearFiltersAndClose() {
-  clearFilters();
-  dialog.value = false;
 }
 </script>

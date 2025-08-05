@@ -29,7 +29,7 @@ function hasPermission(permission) {
 
 onMounted(async () => {
   // Permitir acceso al index solo a superadmin, admin o con business.viewAny
-  if (auth.user?.roles?.some((r) => r.name === 'superadmin' || r.name === 'admin') || hasPermission('business.viewAny')) {
+  if (auth.user?.roles?.includes('superadmin') || auth.user?.roles?.includes('admin') || hasPermission('business.viewAny')) {
     canView.value = true;
     canCreate.value = hasPermission('business.create');
     canEditPermission.value = hasPermission('business.update');
@@ -61,7 +61,13 @@ function handleSearch(text) {
 async function handleFilter(filters) {
   filterOptions.value = filters;
   try {
-    const { data } = await axios.get('/businesses', { params: filters });
+    // Integración para filtrar por organizationId
+    const params = { ...filters };
+    if (filters.organizationId) {
+      params.organization_id = filters.organizationId; // el backend espera organization_id
+      delete params.organizationId;
+    }
+    const { data } = await axios.get('/businesses', { params });
     filteredBusinesses.value = data.data;
   } catch (error) {
     console.error('Error fetching filtered businesses:', error);
@@ -91,6 +97,10 @@ function applyFilters() {
   }
   if (filterOptions.value.updatedAt) {
     result = result.filter((bus) => bus.updated_at && bus.updated_at >= filterOptions.value.updatedAt);
+  }
+  // Filtro por organization_id (si existe en filterOptions)
+  if (filterOptions.value.organizationId) {
+    result = result.filter((bus) => String(bus.organization_id) === String(filterOptions.value.organizationId));
   }
 
   filteredBusinesses.value = result;

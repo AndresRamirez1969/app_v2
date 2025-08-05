@@ -10,45 +10,46 @@ import { useAuthStore } from '@/stores/auth';
 const router = useRouter();
 const route = useRoute();
 const { mdAndDown } = useDisplay();
-const organization = ref(null);
+const business_unit = ref(null);
 const auth = useAuthStore();
 
 const user = computed(() => auth.user || { roles: [], permissions: [] });
-const roles = computed(() => user.value.roles || []);
-const permissions = computed(() => user.value.permissions || []);
+const roles = computed(() => (Array.isArray(user.value.roles) ? user.value.roles : user.value.roles?.map?.((r) => r.name) || []));
+const permissions = computed(() =>
+  Array.isArray(user.value.permissions) ? user.value.permissions : user.value.permissions?.map?.((p) => p.name) || []
+);
 
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
-const canView = computed(() => permissions.value.includes('organization.view'));
-const canEditPermission = computed(() => permissions.value.includes('organization.update'));
-
-const canShow = computed(() => isSuperadmin.value || isAdmin.value || roles.value.includes('sponsor') || canView.value);
-
+const isSponsor = computed(() => roles.value.includes('sponsor'));
+const canView = computed(() => permissions.value.includes('businessUnit.view'));
+const canViewAny = computed(() => permissions.value.includes('businessUnit.viewAny'));
+const canShow = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value || canView.value);
+const canEditPermission = computed(() => permissions.value.includes('businessUnit.update'));
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || canEditPermission.value);
+const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
 
-// Solo el superadmin puede usar toggleStatus
-const canToggleStatus = computed(() => isSuperadmin.value);
-
-const isActive = computed(() => organization.value?.status === 'activa' || organization.value?.status === 'active');
+const isActive = computed(() => business_unit.value?.status === 'activa' || business_unit.value?.status === 'active');
 
 const goToEdit = () => {
-  if (organization.value?.id) {
-    router.push({ path: `/organizaciones-dw/${organization.value.id}/edit` });
+  if (business_unit.value?.id) {
+    router.push({ path: `/ubicaciones-dw/${business_unit.value.id}/edit` });
   }
 };
 
 const goToIndex = () => {
-  router.push('/organizaciones-dw');
+  router.push('/ubicaciones-dw');
 };
 
 const toggleStatus = async () => {
-  if (!organization.value) return;
+  if (!business_unit.value) return;
   const newStatus = isActive.value ? 'inactive' : 'active';
   try {
-    const res = await axiosInstance.put(`/organizations/${organization.value.id}`, {
+    const res = await axiosInstance.put(`/business-units/${business_unit.value.id}`, {
       status: newStatus
     });
-    organization.value.status = res.data.status || newStatus;
+    business_unit.value.status = res.data.status || newStatus;
+    console.log('Respuesta al cambiar status:', res.data);
   } catch (err) {
     alert('No se pudo cambiar el estatus');
     console.error('Detalle del error:', err?.response?.data || err);
@@ -72,10 +73,11 @@ const formatAddress = (address) => {
 onMounted(async () => {
   try {
     const id = route.params.id;
-    const res = await axiosInstance.get(`/organizations/${id}`);
-    organization.value = res.data.organization || res.data.data || res.data;
+    // SOLUCIÓN: Usa el endpoint correcto y el id recibido
+    const res = await axiosInstance.get(`/business-units/${id}`);
+    business_unit.value = res.data;
   } catch (err) {
-    console.error('Error al obtener la organización:', err);
+    console.error('Error al obtener la ubicación:', err);
   }
 });
 </script>
@@ -84,7 +86,7 @@ onMounted(async () => {
   <v-container fluid v-if="canShow">
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
-        <template v-if="isSuperadmin">
+        <template v-if="canViewAny">
           <v-btn
             icon
             variant="text"
@@ -94,17 +96,17 @@ onMounted(async () => {
           >
             <v-icon :icon="mdiArrowLeft" />
           </v-btn>
-          <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="organization">
-            {{ organization.folio ? `${organization.folio}` : '' }}
-            {{ organization.legal_name ? `- ${organization.legal_name}` : '- Organización' }}
+          <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="business_unit">
+            {{ business_unit.folio ? `${business_unit.folio}` : '' }}
+            {{ business_unit.legal_name ? `- ${business_unit.legal_name}` : '- Organización' }}
           </h3>
-          <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="organization">
-            {{ organization.folio ? `${organization.folio}` : '' }}
+          <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="business_unit">
+            {{ business_unit.folio ? `${business_unit.folio}` : '' }}
           </h3>
         </template>
       </v-col>
       <v-col class="d-flex justify-end align-center">
-        <template v-if="canEdit">
+        <template v-if="canEditPermission">
           <v-menu location="bottom end" v-if="!mdAndDown">
             <template #activator="{ props }">
               <v-btn
@@ -177,8 +179,8 @@ onMounted(async () => {
 
     <v-row>
       <v-col cols="12" md="4" class="d-flex justify-center align-center">
-        <template v-if="organization?.logo">
-          <v-img :src="organization.logo" max-width="320" max-height="320" class="rounded-lg" alt="Logo" style="background: none" />
+        <template v-if="business_unit?.logo">
+          <v-img :src="business_unit.logo" max-width="320" max-height="320" class="rounded-lg" alt="Logo" style="background: none" />
         </template>
         <template v-else>
           <div
@@ -194,48 +196,32 @@ onMounted(async () => {
         <v-card-title class="font-weight-bold text-h6" style="padding-left: 0.5rem">Información general</v-card-title>
         <v-table class="rounded-lg elevation-1">
           <tbody>
-            <template v-if="isSuperadmin">
-              <tr>
-                <td class="font-weight-bold text-subtitle-1">Estado</td>
-                <td>
-                  <template v-if="organization?.status">
-                    <StatusChip :status="organization.status" />
-                  </template>
-                  <template v-else> No disponible </template>
-                </td>
-              </tr>
-              <tr>
-                <td class="font-weight-bold text-subtitle-1">Folio</td>
-                <td>
-                  <span v-if="organization?.folio">{{ organization.folio }}</span>
-                  <span v-else>No disponible</span>
-                </td>
-              </tr>
-            </template>
+            <tr>
+              <td class="font-weight-bold text-subtitle-1">Estado</td>
+              <td>
+                <template v-if="business_unit?.status">
+                  <StatusChip :status="business_unit.status" />
+                </template>
+                <template v-else> No disponible </template>
+              </td>
+            </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Nombre legal</td>
-              <td>{{ organization?.legal_name || 'No disponible' }}</td>
+              <td>{{ business_unit?.legal_name || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Alias</td>
-              <td>{{ organization?.alias || 'No disponible' }}</td>
+              <td>{{ business_unit?.alias || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Descripción</td>
-              <td>{{ organization?.description || 'No disponible' }}</td>
-            </tr>
-            <tr>
-              <td class="font-weight-bold text-subtitle-1">Zona horaria</td>
-              <td>
-                <span v-if="organization?.timezone">{{ organization.timezone }}</span>
-                <span v-else>No disponible</span>
-              </td>
+              <td>{{ business_unit?.description || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Dirección</td>
               <td>
-                <span v-if="organization?.address">
-                  {{ formatAddress(organization.address) }}
+                <span v-if="business_unit?.address">
+                  {{ formatAddress(business_unit.address) }}
                 </span>
                 <span v-else>No disponible</span>
               </td>
@@ -259,17 +245,17 @@ onMounted(async () => {
           <tbody>
             <tr>
               <td>
-                <span v-if="organization?.person && (organization.person.first_name || organization.person.last_name)">
-                  {{ [organization.person.first_name, organization.person.last_name].filter(Boolean).join(' ') }}
+                <span v-if="business_unit?.person && (business_unit.person.first_name || business_unit.person.last_name)">
+                  {{ [business_unit.person.first_name, business_unit.person.last_name].filter(Boolean).join(' ') }}
                 </span>
                 <span v-else>No disponible</span>
               </td>
               <td>
-                <span v-if="organization?.person?.email">{{ organization.person.email }}</span>
+                <span v-if="business_unit?.person?.email">{{ business_unit.person.email }}</span>
                 <span v-else>No disponible</span>
               </td>
               <td>
-                <span v-if="organization?.person?.phone_number">{{ organization.person.phone_number }}</span>
+                <span v-if="business_unit?.person?.phone_number">{{ business_unit.person.phone_number }}</span>
                 <span v-else>No disponible</span>
               </td>
             </tr>
@@ -279,7 +265,7 @@ onMounted(async () => {
     </v-row>
   </v-container>
   <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso a esta organización. </v-alert>
+    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso a esta ubicación. </v-alert>
   </div>
 </template>
 
