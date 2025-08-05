@@ -11,10 +11,12 @@ const name = ref('');
 const email = ref('');
 const business_id = ref('');
 const organization_id = ref('');
+const unit_id = ref('');
 const selectedFixedRole = ref('');
 const selectedDynamicRole = ref('');
 const biz = ref([]);
 const org = ref([]);
+const units = ref([]);
 const roles = ref([]);
 
 const props = defineProps({
@@ -39,6 +41,8 @@ onMounted(async () => {
     biz.value = bizRes.data.data;
     const orgRes = await axiosInstance.get('/organizations');
     org.value = orgRes.data.data;
+    const unitsRes = await axiosInstance.get('/units');
+    units.value = unitsRes.data.data;
   } catch (err) {
     console.log(err);
   }
@@ -59,6 +63,7 @@ const validate = async () => {
     } else {
       formData.append('business_id', auth?.user?.business_id || '');
     }
+    formData.append('unit_id', unit_id.value || '');
     const res = await axiosInstance.post('/users', formData);
     console.log('User added', res);
     emit('userCreated');
@@ -137,20 +142,7 @@ watch(selectedDynamicRole, (val) => {
             </v-col>
           </v-row>
           <div class="mb-6" v-if="!isSponsor">
-            <v-label>Negocio Perteneciente (opcional)</v-label>
-            <v-select
-              v-model="business_id"
-              :items="biz"
-              item-title="legal_name"
-              item-value="id"
-              variant="outlined"
-              color="primary"
-              class="mt-2"
-              label="Selecciona un Negocio"
-            />
-          </div>
-          <div class="mb-6" v-if="!isSponsor">
-            <v-label>Organizacion Perteneciente (opcional)</v-label>
+            <v-label>Asignar a Organización</v-label>
             <v-select
               v-model="organization_id"
               :items="org"
@@ -160,9 +152,40 @@ watch(selectedDynamicRole, (val) => {
               color="primary"
               class="mt-2"
               label="Selecciona un Negocio"
+              clearable
+              :disabled="!!business_id || !!unit_id"
             />
           </div>
-          <div class="d-sm-inline-flex align-center mt-2 mb-7 mb-sm-0 font-weight-bold"></div>
+          <div class="mb-6" v-if="!isSponsor">
+            <v-label>Asignar a Negocio</v-label>
+            <v-select
+              v-model="business_id"
+              :items="biz"
+              item-title="legal_name"
+              item-value="id"
+              variant="outlined"
+              color="primary"
+              class="mt-2"
+              label="Selecciona un Negocio"
+              clearable
+              :disabled="!!organization_id || !!unit_id"
+            />
+          </div>
+          <div class="mb-6" v-if="!isSponsor">
+            <v-label>Asignar a Unidad</v-label>
+            <v-select
+              v-model="unit_id"
+              :items="units"
+              item-title="name"
+              item-value="id"
+              variant="outlined"
+              color="primary"
+              class="mt-2"
+              label="Selecciona una Unidad"
+              clearable
+              :disabled="!!organization_id || !!business_id"
+            />
+          </div>
           <v-btn color="primary" block class="mt-4" variant="flat" size="large" @click="validate()">Crear Usuario</v-btn>
         </v-form>
       </v-card-text>
