@@ -40,22 +40,11 @@
 
         <div class="mb-4">
           <strong class="text-grey-darken-1">Alcance:</strong>
-          <div v-if="!editMode">
+          <div>
             <v-chip :color="getScopeColor(form.assignment_scope)" size="small" class="mt-1" dark>
               {{ getScopeLabel(form.assignment_scope) }}
             </v-chip>
           </div>
-          <v-select
-            v-else
-            v-model="formData.assignment_scope"
-            :items="scopeOptions"
-            item-title="label"
-            item-value="value"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="mt-1"
-          />
         </div>
 
         <div class="mb-4">
@@ -152,7 +141,7 @@
           <v-select
             v-else
             v-model="formData.auditor_role_ids"
-            :items="users"
+            :items="filteredUsers"
             multiple
             item-title="customLabel"
             item-value="id"
@@ -179,7 +168,7 @@
           <v-select
             v-else
             v-model="formData.auditado_role_ids"
-            :items="users"
+            :items="filteredUsers"
             multiple
             item-title="customLabel"
             item-value="id"
@@ -244,6 +233,7 @@ const router = useRouter();
 const formId = ref('');
 const auth = useAuthStore();
 const users = ref([]);
+const filteredUsers = ref([]);
 
 const goBack = () => {
   router.push('/formularios');
@@ -260,12 +250,6 @@ const addField = () => {
 const isSponsor = computed(() => {
   return auth.user?.roles?.some((role) => role.name === 'sponsor');
 });
-
-const scopeOptions = computed(() => [
-  { label: 'Organizacional', value: 'organization' },
-  { label: 'Por Negocio', value: 'business' },
-  { label: 'Por Unidad', value: 'business_unit' }
-]);
 
 const getScopeColor = (scope) => {
   const colors = {
@@ -314,9 +298,19 @@ const { form, loading, fetchForm } = showForm();
 const editMode = ref(false);
 const formData = ref({});
 
-watch(form, (formData) => {
-  if (formData) {
-    formData.value = JSON.parse(JSON.stringify(formData));
+watch(form, async (newForm) => {
+  if (newForm) {
+    formData.value = {
+      name: newForm.name || '',
+      frequency: newForm.frequency || '',
+      supervisor_role_id: newForm.supervisor_role?.name || '',
+      auditor_role_ids: newForm.auditor_roles?.map((role) => role.name) || [],
+      auditado_role_ids: newForm.auditado_roles?.map((role) => role.name) || [],
+      assignment_scope: newForm.assignment_scope || '',
+      status: newForm.status || 'draft'
+    };
+
+    await fetchUsersByScope();
   }
 });
 
@@ -325,15 +319,46 @@ const loadUsers = async () => {
     const res = await axiosInstance.get('/users');
     users.value = res.data.data.map((user) => ({
       ...user,
-      customLabel: `${user.name} - ${user.roles?.[0]?.name || 'Sin rol'}`
+      customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
     }));
   } catch (err) {
     console.error('Error loading users:', err);
   }
 };
 
+const fetchUsersByScope = async () => {
+  try {
+    const params = { scope: form.value.assignment_scope };
+    if (form.value.assignment_scope === 'business' && form.value.business_id) {
+      params.business_id = form.value.business_id;
+    } else if (form.value.assignment_scope === 'business_unit' && form.value.business_unit_id) {
+      params.business_unit_id = form.value.business_unit_id;
+    } else if (form.value.assignment_scope === 'organization') {
+      params.organization_id = auth.user?.organization_id;
+    }
+    const res = await axiosInstance.get('/users-by-scope', { params });
+    filteredUsers.value = res.data.data.map((user) => ({
+      ...user,
+      customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
+    }));
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    filteredUsers.value = [];
+  }
+};
+
 const cancelEdit = () => {
-  formData.value = JSON.parse(JSON.stringify(form.value));
+  if (form.value) {
+    formData.value = {
+      name: form.value.name || '',
+      frequency: form.value.frequency || '',
+      supervisor_role_id: form.value.supervisor_role?.id || '',
+      auditor_role_ids: form.value.auditor_roles?.map((role) => role.id) || [],
+      auditado_role_ids: form.value.auditado_roles?.map((role) => role.id) || [],
+      assignment_scope: form.value.assignment_scope || '',
+      status: form.value.status || 'draft'
+    };
+  }
   editMode.value = false;
 };
 
@@ -359,12 +384,16 @@ const saveChanges = async () => {
     formDataToSend.append('assignment_scope', formData.value.assignment_scope);
     formDataToSend.append('status', formData.value.status);
 
+    // Agregar los IDs correspondientes según el scope
     if (formData.value.assignment_scope === 'organization') {
       formDataToSend.append('organization_id', auth.user?.organization_id);
     } else if (formData.value.assignment_scope === 'business') {
       formDataToSend.append('business_id', form.value.business_id);
+      formDataToSend.append('organization_id', auth.user?.organization_id);
     } else if (formData.value.assignment_scope === 'business_unit') {
+      formDataToSend.append('business_id', form.value.business_id);
       formDataToSend.append('business_unit_id', form.value.business_unit_id);
+      formDataToSend.append('organization_id', auth.user?.organization_id);
     }
 
     const response = await axiosInstance.put(`/forms/${formId.value}`, formDataToSend, {

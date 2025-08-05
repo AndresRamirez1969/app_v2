@@ -148,6 +148,7 @@ const MainRoutes = {
       path: '/reportes/:id',
       component: () => import('@/views/reports/components/ShowResponse.vue')
     },
+    {
       name: 'Business Unit DW',
       path: '/ubicaciones-dw',
       component: () => import('@/views/business-unit-dw/index.vue')
