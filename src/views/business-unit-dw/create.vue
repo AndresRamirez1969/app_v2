@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, watch, onMounted } from 'vue';
+import { reactive, ref, watch, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
@@ -16,33 +16,41 @@ const logoPreview = ref(null);
 const errorMsg = ref('');
 const canCreate = ref(false);
 
-// Organización para superadmin
-const organizations = ref([]);
-const selectedOrganization = ref(null);
-
-// Zona horaria (igual que business unit)
 const timezoneSearch = ref('');
 
+const user = computed(() => auth.user);
+
+const isSuperadmin = computed(() => user.value?.roles?.includes('superadmin'));
+const isAdmin = computed(() => user.value?.roles?.includes('admin'));
+const isSponsor = computed(() => user.value?.roles?.includes('sponsor'));
+const canSelectBusiness = computed(() => isAdmin.value || isSponsor.value || user.value?.permissions?.includes('businessUnit.create'));
+
+// ORGANIZATION SELECT (solo superadmin)
+const organizations = ref([]);
+const selectedOrganization = ref(null);
+const organizationSearch = ref('');
+const loadingOrganizations = ref(false);
+
+// BUSINESS SELECT (admin, sponsor, businessUnit.create)
+const businesses = ref([]);
+const selectedBusiness = ref(null);
+const businessSearch = ref('');
+const loadingBusinesses = ref(false);
+
 onMounted(async () => {
-  const user = auth.user;
-  canCreate.value = user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.permissions?.includes('business.create');
-  if (
-    user?.business_id &&
-    !user?.roles?.includes('superadmin') &&
-    !user?.roles?.includes('admin') &&
-    !user?.permissions?.includes('business.viewAny')
-  ) {
-    router.replace(`/negocios-dw/${user.business_id}`);
+  canCreate.value = isAdmin.value || isSuperadmin.value || user.value?.permissions?.includes('businessUnit.create');
+  if (user.value?.business_id && !isSuperadmin.value && !isAdmin.value && !user.value?.permissions?.includes('businessUnit.viewAny')) {
+    router.replace(`/ubicaciones-dw/${user.value.business_unit_id}`);
   }
 
   // Si es superadmin, carga organizaciones
-  if (user?.roles?.includes('superadmin')) {
-    try {
-      const res = await axiosInstance.get('/organizations');
-      organizations.value = Array.isArray(res.data) ? res.data : res.data.data;
-    } catch (e) {
-      organizations.value = [];
-    }
+  if (isSuperadmin.value) {
+    await fetchOrganizations('');
+  }
+  // Si puede seleccionar business, carga businesses de su organización
+  if (canSelectBusiness.value && user.value?.organization_id) {
+    selectedOrganization.value = user.value.organization_id;
+    await fetchBusinesses('', user.value.organization_id);
   }
 });
 
@@ -73,6 +81,66 @@ watch(
   }
 );
 
+const fetchOrganizations = async (searchText) => {
+  loadingOrganizations.value = true;
+  try {
+    const { data } = await axiosInstance.get('/organizations', {
+      params: {
+        q: searchText || '',
+        limit: 10
+      }
+    });
+    organizations.value = (data.data || []).map((o) => ({
+      ...o,
+      display: `${o.folio}${o.legal_name ? ' - ' + o.legal_name : ''}`,
+      id: o.id
+    }));
+  } catch (e) {
+    organizations.value = [];
+  } finally {
+    loadingOrganizations.value = false;
+  }
+};
+
+watch(organizationSearch, (val) => {
+  if (isSuperadmin.value) fetchOrganizations(val);
+});
+
+watch(selectedOrganization, async (orgId) => {
+  selectedBusiness.value = null;
+  if (orgId) await fetchBusinesses('', orgId);
+});
+
+const fetchBusinesses = async (searchText, orgId) => {
+  if (!orgId) {
+    businesses.value = [];
+    return;
+  }
+  loadingBusinesses.value = true;
+  try {
+    const { data } = await axiosInstance.get('/businesses', {
+      params: {
+        q: searchText || '',
+        organization_id: orgId,
+        limit: 10
+      }
+    });
+    businesses.value = (data.data || []).map((b) => ({
+      ...b,
+      display: `${b.folio}${b.legal_name ? ' - ' + b.legal_name : ''}`,
+      id: b.id
+    }));
+  } catch (e) {
+    businesses.value = [];
+  } finally {
+    loadingBusinesses.value = false;
+  }
+};
+
+watch(businessSearch, (val) => {
+  if (selectedOrganization.value) fetchBusinesses(val, selectedOrganization.value);
+});
+
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
 };
@@ -86,16 +154,21 @@ const validate = async () => {
   }
 
   // Validación de organización para superadmin
-  const user = auth.user;
   let organization_id = null;
-  if (user?.roles?.includes('superadmin')) {
+  if (isSuperadmin.value) {
     if (!selectedOrganization.value) {
       errorMsg.value = 'Selecciona una organización.';
       return;
     }
     organization_id = selectedOrganization.value;
-  } else if (user?.permissions?.includes('business.create')) {
-    organization_id = user.organization_id;
+  } else if (canSelectBusiness.value) {
+    organization_id = user.value.organization_id;
+  }
+
+  // Validación de business para superadmin, admin, sponsor, businessUnit.create
+  let business_id = null;
+  if ((isSuperadmin.value || canSelectBusiness.value) && selectedBusiness.value) {
+    business_id = selectedBusiness.value;
   }
 
   try {
@@ -104,16 +177,15 @@ const validate = async () => {
     formData.append('alias', form.alias || '');
     formData.append('description', form.description || '');
     formData.append('timezone', form.timezone || '');
-    formData.append('organization_id', organization_id);
+    if (organization_id) formData.append('organization_id', organization_id);
+    if (business_id) formData.append('business_id', business_id);
 
-    // Solo agrega los campos de dirección si tienen valor
     for (const key in parsedAddress.value) {
       if (parsedAddress.value[key]) {
         formData.append(`address[${key}]`, parsedAddress.value[key]);
       }
     }
 
-    // Solo agrega los campos de persona si tienen valor
     const hasPersonData = Object.values(form.person).some((val) => val?.trim?.() !== '');
     if (hasPersonData) {
       for (const key in form.person) {
@@ -128,32 +200,22 @@ const validate = async () => {
       formData.append('logo', logoFile);
     }
 
-    // Crear empresa
-    const res = await axiosInstance.post('/businesses', formData);
+    // Crear unidad de negocio
+    const res = await axiosInstance.post('/business-units', formData);
 
-    // SOLUCIÓN: Obtén el ID correctamente
-    let newBusinessId = null;
-    if (res?.data?.business?.id) {
-      newBusinessId = res.data.business.id;
-      auth.user.business_id = newBusinessId;
-    } else if (res?.data?.business_unit?.id) {
-      newBusinessId = res.data.business_unit.id;
-      auth.user.business_id = newBusinessId;
-    } else if (res?.data?.id) {
-      newBusinessId = res.data.id;
-      auth.user.business_id = newBusinessId;
+    // Asignar business_unit_id al usuario (simulación, depende de tu backend)
+    if (res?.data?.id) {
+      auth.user.business_unit_id = res.data.id;
     }
 
+    // Refresca datos del usuario (por si el backend lo actualiza)
     await auth.fetchUser();
 
-    if (newBusinessId) {
-      router.replace(`/negocios-dw/${newBusinessId}`);
-    } else {
-      errorMsg.value = 'No se pudo obtener el ID de la empresa creada.';
-    }
+    // Redirige al show de la empresa recién creada
+    router.replace(`/ubicaciones-dw/${res.data.id}`);
   } catch (err) {
-    errorMsg.value = err?.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(' ') : 'Error al crear empresa';
-    console.error('❌ Error al crear empresa:', err);
+    errorMsg.value = err?.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(' ') : 'Error al crear la ubicación';
+    console.error('❌ Error al crear la ubicación:', err);
   }
 };
 </script>
@@ -167,7 +229,7 @@ const validate = async () => {
           <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
             <v-icon :icon="mdiArrowLeft" />
           </v-btn>
-          <h3 class="font-weight-medium ml-3 mb-0">Agregar Empresa</h3>
+          <h3 class="font-weight-medium ml-3 mb-0">Agregar Ubicación</h3>
         </v-col>
       </v-row>
 
@@ -214,21 +276,47 @@ const validate = async () => {
             />
 
             <!-- Select de organización SOLO para superadmin -->
-            <template v-if="auth.user?.roles?.includes('superadmin')">
+            <template v-if="isSuperadmin">
               <v-label>Organización</v-label>
-              <v-select
+              <v-autocomplete
                 v-model="selectedOrganization"
                 :items="organizations"
-                item-title="legal_name"
+                :loading="loadingOrganizations"
+                v-model:search-input="organizationSearch"
+                item-title="display"
                 item-value="id"
                 variant="outlined"
                 color="primary"
                 class="mt-2 mb-4"
                 density="compact"
-                :searchable="true"
                 placeholder="Buscar organización"
-                required
+                clearable
+                hide-details
+                :menu-props="{ maxHeight: '300px' }"
               />
+              <div style="height: 16px"></div>
+            </template>
+
+            <!-- Select de empresa SOLO para superadmin, admin, sponsor, businessUnit.create -->
+            <template v-if="selectedOrganization && (isSuperadmin || canSelectBusiness)">
+              <v-label>Empresa</v-label>
+              <v-autocomplete
+                v-model="selectedBusiness"
+                :items="businesses"
+                :loading="loadingBusinesses"
+                v-model:search-input="businessSearch"
+                item-title="display"
+                item-value="id"
+                variant="outlined"
+                color="primary"
+                class="mt-2 mb-4"
+                density="compact"
+                placeholder="Buscar empresa"
+                clearable
+                hide-details
+                :menu-props="{ maxHeight: '300px' }"
+              />
+              <div style="height: 16px"></div>
             </template>
 
             <v-label>Nombre Legal</v-label>
@@ -296,7 +384,7 @@ const validate = async () => {
         <!-- Botón -->
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
-            <v-btn color="primary" class="mt-6" @click="validate">Crear Empresa</v-btn>
+            <v-btn color="primary" class="mt-6" @click="validate">Crear Ubicación</v-btn>
           </v-col>
         </v-row>
 

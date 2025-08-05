@@ -1,10 +1,11 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import axiosInstance from '@/utils/axios';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 import { useAuthStore } from '@/stores/auth';
+import { timezones as tzRaw } from '@/utils/constants/timezones';
 
 const router = useRouter();
 const route = useRoute();
@@ -16,7 +17,8 @@ const form = reactive({
   alias: '',
   description: '',
   logo: null,
-  people: {
+  timezone: '',
+  person: {
     first_name: '',
     last_name: '',
     email: '',
@@ -27,15 +29,32 @@ const form = reactive({
 const parsedAddress = ref({});
 const logoPreview = ref(null);
 const errorMsg = ref('');
+const timezoneSearch = ref('');
 
 // Permisos: solo admin, superadmin o quien tenga el permiso organization.update puede editar
 const canEdit = computed(() => {
   const user = auth.user;
   if (!user) return false;
-  if (user.roles?.some((r) => r.name === 'admin' || r.name === 'superadmin')) return true;
+  if (user.roles?.includes('admin') || user.roles?.includes('superadmin')) return true;
   if (user.permissions?.includes('organization.update')) return true;
   return false;
 });
+
+// Convierte el array de timezones en objetos { label, value }
+const timezones = tzRaw.map((tz) => ({ label: tz, value: tz }));
+
+watch(
+  () => form.logo,
+  (file) => {
+    let imageFile = null;
+    if (Array.isArray(file)) {
+      imageFile = file.length > 0 ? file[0] : null;
+    } else if (file instanceof File || file instanceof Blob) {
+      imageFile = file;
+    }
+    logoPreview.value = imageFile ? URL.createObjectURL(imageFile) : null;
+  }
+);
 
 const fullAddress = computed(() => {
   if (parsedAddress.value?.street) {
@@ -50,11 +69,12 @@ const fullAddress = computed(() => {
 onMounted(async () => {
   try {
     const res = await axiosInstance.get(`/organizations/${organizationId}`);
-    const data = res.data;
+    const data = res.data.organization || res.data.data || res.data;
 
     form.legal_name = data.legal_name || '';
     form.alias = data.alias || '';
     form.description = data.description || '';
+    form.timezone = data.timezone || '';
 
     if (data.logo) {
       logoPreview.value = data.logo.startsWith('http') ? data.logo : `/storage/${data.logo}`;
@@ -73,10 +93,10 @@ onMounted(async () => {
     }
 
     if (data.person) {
-      form.people.first_name = data.person.first_name || '';
-      form.people.last_name = data.person.last_name || '';
-      form.people.email = data.person.email || '';
-      form.people.phone_number = data.person.phone_number || '';
+      form.person.first_name = data.person.first_name || '';
+      form.person.last_name = data.person.last_name || '';
+      form.person.email = data.person.email || '';
+      form.person.phone_number = data.person.phone_number || '';
     }
   } catch (err) {
     console.error('❌ Error al cargar datos de organización', err);
@@ -89,8 +109,8 @@ const handleParsedAddress = (val) => {
 
 const validate = async () => {
   errorMsg.value = '';
-  if (!form.legal_name || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
-    errorMsg.value = 'Por favor completa el nombre legal y la dirección.';
+  if (!form.legal_name || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0 || !form.timezone) {
+    errorMsg.value = 'Por favor completa el nombre legal, la dirección y la zona horaria.';
     return;
   }
 
@@ -99,16 +119,16 @@ const validate = async () => {
     formData.append('legal_name', form.legal_name);
     formData.append('alias', form.alias || '');
     formData.append('description', form.description || '');
+    formData.append('timezone', form.timezone);
 
     for (const key in parsedAddress.value) {
       formData.append(`address[${key}]`, parsedAddress.value[key] || '');
     }
 
-    const hasPersonData = Object.values(form.people).some((val) => val && val.trim() !== '');
+    const hasPersonData = Object.values(form.person).some((val) => val && val.trim() !== '');
     if (hasPersonData) {
-      for (const key in form.people) {
-        const val = form.people[key];
-        formData.append(`person[${key}]`, typeof val === 'string' ? val : '');
+      for (const key in form.person) {
+        formData.append(`person[${key}]`, form.person[key] || '');
       }
     }
 
@@ -129,7 +149,13 @@ const validate = async () => {
 
     router.push(`/organizaciones-dw/${organizationId}`);
   } catch (err) {
-    errorMsg.value = 'Error al actualizar organización';
+    if (err?.response?.data?.errors) {
+      errorMsg.value = Object.values(err.response.data.errors).flat().join(' ');
+    } else if (err?.response?.data?.message) {
+      errorMsg.value = err.response.data.message;
+    } else {
+      errorMsg.value = 'Error al actualizar organización';
+    }
     console.error('❌ Error al actualizar organización', err.response?.data || err);
   }
 };
@@ -195,6 +221,25 @@ const validate = async () => {
 
           <v-label>Descripción</v-label>
           <v-textarea v-model="form.description" variant="outlined" color="primary" auto-grow rows="3" class="mt-2" />
+
+          <!-- Campo de zona horaria con búsqueda tipo autocomplete -->
+          <v-label>Zona Horaria</v-label>
+          <v-autocomplete
+            v-model="form.timezone"
+            :items="timezones"
+            v-model:search-input="timezoneSearch"
+            item-title="label"
+            item-value="value"
+            variant="outlined"
+            color="primary"
+            class="mt-2 mb-4"
+            density="compact"
+            placeholder="Selecciona una zona horaria"
+            clearable
+            hide-details
+            :menu-props="{ maxHeight: '400px' }"
+            required
+          />
         </v-col>
 
         <v-col cols="12" class="mt-4">
@@ -216,22 +261,22 @@ const validate = async () => {
 
         <v-col cols="12" sm="6">
           <v-label>Nombre</v-label>
-          <v-text-field v-model="form.people.first_name" variant="outlined" color="primary" class="mt-2" />
+          <v-text-field v-model="form.person.first_name" variant="outlined" color="primary" class="mt-2" />
         </v-col>
 
         <v-col cols="12" sm="6">
           <v-label>Apellido</v-label>
-          <v-text-field v-model="form.people.last_name" variant="outlined" color="primary" class="mt-2" />
+          <v-text-field v-model="form.person.last_name" variant="outlined" color="primary" class="mt-2" />
         </v-col>
 
         <v-col cols="12" sm="6">
           <v-label>Email</v-label>
-          <v-text-field v-model="form.people.email" variant="outlined" color="primary" class="mt-2" />
+          <v-text-field v-model="form.person.email" variant="outlined" color="primary" class="mt-2" />
         </v-col>
 
         <v-col cols="12" sm="6">
           <v-label>Teléfono</v-label>
-          <v-text-field v-model="form.people.phone_number" variant="outlined" color="primary" class="mt-2" />
+          <v-text-field v-model="form.person.phone_number" variant="outlined" color="primary" class="mt-2" />
         </v-col>
       </v-row>
 

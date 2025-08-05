@@ -15,8 +15,9 @@ const props = defineProps({
 const router = useRouter();
 const auth = useAuthStore();
 
+// Integración: roles y permisos vienen como arrays directos del backend
 const user = computed(() => auth.user || { roles: [], permissions: [] });
-const roles = computed(() => user.value.roles?.map((r) => r.name) || []);
+const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const canToggleStatus = computed(() => isSuperadmin.value);

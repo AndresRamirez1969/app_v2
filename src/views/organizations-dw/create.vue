@@ -5,6 +5,7 @@ import { mdiArrowLeft } from '@mdi/js';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 import axiosInstance from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
+import { timezones as tzRaw } from '@/utils/constants/timezones';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -15,12 +16,14 @@ const logoPreview = ref(null);
 const errorMsg = ref('');
 const canCreate = ref(false);
 
+// Para el input de búsqueda de zona horaria
+const timezoneSearch = ref('');
+
 onMounted(() => {
   const user = auth.user;
   canCreate.value =
-    user?.roles?.some((r) => r.name === 'admin' || r.name === 'superadmin') || user?.permissions?.includes('organization.create');
-  // Si ya tiene organización y no es superadmin, redirige al show
-  if (user?.organization_id && user?.roles?.[0]?.name !== 'superadmin') {
+    user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.permissions?.includes('organization.create');
+  if (user?.organization_id && !user?.roles?.includes('superadmin')) {
     router.replace(`/organizaciones-dw/${user.organization_id}`);
   }
 });
@@ -30,6 +33,7 @@ const form = reactive({
   alias: '',
   description: '',
   logo: null,
+  timezone: '',
   person: {
     first_name: '',
     last_name: '',
@@ -37,6 +41,9 @@ const form = reactive({
     phone_number: ''
   }
 });
+
+// Convierte el array de timezones en objetos { label, value }
+const timezones = tzRaw.map((tz) => ({ label: tz, value: tz }));
 
 watch(
   () => form.logo,
@@ -58,8 +65,8 @@ const handleParsedAddress = (val) => {
 const validate = async () => {
   errorMsg.value = '';
 
-  if (!form.legal_name || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
-    errorMsg.value = 'Por favor completa el nombre legal y la dirección.';
+  if (!form.legal_name || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0 || !form.timezone) {
+    errorMsg.value = 'Por favor completa el nombre legal, la dirección y la zona horaria.';
     return;
   }
 
@@ -68,6 +75,7 @@ const validate = async () => {
     formData.append('legal_name', form.legal_name);
     formData.append('alias', form.alias || '');
     formData.append('description', form.description || '');
+    formData.append('timezone', form.timezone);
 
     for (const key in parsedAddress.value) {
       formData.append(`address[${key}]`, parsedAddress.value[key] || '');
@@ -85,21 +93,23 @@ const validate = async () => {
       formData.append('logo', logoFile);
     }
 
-    // Crear organización
     const res = await axiosInstance.post('/organizations', formData);
 
-    // Asignar organization_id al usuario (simulación, depende de tu backend)
-    if (res?.data?.id) {
-      auth.user.organization_id = res.data.id;
+    // INTEGRACIÓN CORRECTA: usa el id del objeto organization
+    const org = res.data.organization || res.data.data || res.data;
+    if (org?.id) {
+      auth.user.organization_id = org.id;
+      await auth.fetchUser();
+      router.replace(`/organizaciones-dw/${org.id}`);
     }
-
-    // Refresca datos del usuario (por si el backend lo actualiza)
-    await auth.fetchUser();
-
-    // Redirige al show de la organización recién creada
-    router.replace(`/organizaciones-dw/${res.data.id}`);
   } catch (err) {
-    errorMsg.value = 'Error al crear organización';
+    if (err?.response?.data?.errors) {
+      errorMsg.value = Object.values(err.response.data.errors).flat().join(' ');
+    } else if (err?.response?.data?.message) {
+      errorMsg.value = err.response.data.message;
+    } else {
+      errorMsg.value = 'Error al crear organización';
+    }
     console.error('❌ Error al crear organización:', err);
   }
 };
@@ -108,8 +118,8 @@ const validate = async () => {
 <template>
   <div v-if="canCreate">
     <v-container fluid>
-      <!-- Header -->
-      <v-row class="align-center mb-6" no-gutters>
+      <!-- Header solo para usuarios con organization.viewAny -->
+      <v-row v-if="auth.user?.permissions?.includes('organization.viewAny')" class="align-center mb-6" no-gutters>
         <v-col cols="auto" class="d-flex align-center">
           <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
             <v-icon :icon="mdiArrowLeft" />
@@ -168,6 +178,25 @@ const validate = async () => {
 
             <v-label>Descripción</v-label>
             <v-textarea v-model="form.description" variant="outlined" color="primary" auto-grow rows="3" class="mt-2" />
+
+            <!-- Campo de zona horaria con búsqueda tipo autocomplete -->
+            <v-label>Zona Horaria</v-label>
+            <v-autocomplete
+              v-model="form.timezone"
+              :items="timezones"
+              v-model:search-input="timezoneSearch"
+              item-title="label"
+              item-value="value"
+              variant="outlined"
+              color="primary"
+              class="mt-2 mb-4"
+              density="compact"
+              placeholder="Selecciona una zona horaria"
+              clearable
+              hide-details
+              :menu-props="{ maxHeight: '400px' }"
+              required
+            />
           </v-col>
 
           <!-- Dirección -->

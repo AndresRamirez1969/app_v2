@@ -45,6 +45,10 @@ const sidebarItem: menu[] = [
     icon: CrownTwoTone
   },
   {
+    title: 'Ubicaciones DW',
+    icon: DatabaseTwoTone
+  },
+  {
     title: 'Unidades',
     icon: ShopTwoTone,
     to: '/unidades'

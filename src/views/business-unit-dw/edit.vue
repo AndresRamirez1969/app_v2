@@ -9,13 +9,19 @@ import { timezones } from '@/utils/constants/timezones';
 
 const router = useRouter();
 const route = useRoute();
-const businessId = route.params.id;
+const business_unitId = route.params.id;
 const auth = useAuthStore();
 
+// Organización y Empresa
 const organizations = ref([]);
 const selectedOrganization = ref(null);
 const organizationSearch = ref('');
 const loadingOrganizations = ref(false);
+
+const businesses = ref([]);
+const selectedBusiness = ref(null);
+const businessSearch = ref('');
+const loadingBusinesses = ref(false);
 
 const timezoneSearch = ref('');
 
@@ -37,14 +43,18 @@ const parsedAddress = ref({});
 const logoPreview = ref(null);
 const errorMsg = ref('');
 
-// Permisos: solo admin, superadmin o quien tenga el permiso business.update puede editar
-const canEdit = computed(() => {
-  const user = auth.user;
-  if (!user) return false;
-  if (user.roles?.includes('admin') || user.roles?.includes('superadmin')) return true;
-  if (user.permissions?.includes('business.update')) return true;
-  return false;
-});
+// Roles y permisos
+const user = computed(() => auth.user || { roles: [], permissions: [] });
+const roles = computed(() => (Array.isArray(user.value.roles) ? user.value.roles : user.value.roles?.map?.((r) => r.name) || []));
+const permissions = computed(() =>
+  Array.isArray(user.value.permissions) ? user.value.permissions : user.value.permissions?.map?.((p) => p.name) || []
+);
+
+const isSuperadmin = computed(() => roles.value.includes('superadmin'));
+const isAdmin = computed(() => roles.value.includes('admin'));
+const isSponsor = computed(() => roles.value.includes('sponsor'));
+const canSelectBusiness = computed(() => isAdmin.value || isSponsor.value || permissions.value.includes('businessUnit.create'));
+const canEdit = computed(() => isSuperadmin.value || isAdmin.value || permissions.value.includes('businessUnit.update'));
 
 const fullAddress = computed(() => {
   if (parsedAddress.value?.street) {
@@ -56,9 +66,108 @@ const fullAddress = computed(() => {
   return '';
 });
 
+// GET de la organización y empresa a la que pertenece la unidad de negocio
+const fetchOrganizationById = async (id) => {
+  if (!id) return;
+  loadingOrganizations.value = true;
+  try {
+    const { data } = await axiosInstance.get(`/organizations/${id}`);
+    organizations.value = [
+      {
+        ...data,
+        display: `${data.folio}${data.legal_name ? ' - ' + data.legal_name : ''}`,
+        id: data.id
+      }
+    ];
+  } catch (e) {
+    organizations.value = [];
+  } finally {
+    loadingOrganizations.value = false;
+  }
+};
+
+const fetchBusinessById = async (id, orgId) => {
+  if (!id || !orgId) return;
+  loadingBusinesses.value = true;
+  try {
+    const { data } = await axiosInstance.get(`/businesses/${id}`);
+    businesses.value = [
+      {
+        ...data,
+        display: `${data.folio}${data.legal_name ? ' - ' + data.legal_name : ''}`,
+        id: data.id
+      }
+    ];
+  } catch (e) {
+    businesses.value = [];
+  } finally {
+    loadingBusinesses.value = false;
+  }
+};
+
+const fetchOrganizations = async (searchText) => {
+  loadingOrganizations.value = true;
+  try {
+    const { data } = await axiosInstance.get('/organizations', {
+      params: {
+        q: searchText || '',
+        limit: 10
+      }
+    });
+    organizations.value = (data.data || []).map((o) => ({
+      ...o,
+      display: `${o.folio}${o.legal_name ? ' - ' + o.legal_name : ''}`,
+      id: o.id
+    }));
+  } catch (e) {
+    organizations.value = [];
+  } finally {
+    loadingOrganizations.value = false;
+  }
+};
+
+watch(organizationSearch, (val) => {
+  if (isSuperadmin.value) fetchOrganizations(val);
+});
+
+watch(selectedOrganization, async (orgId) => {
+  selectedBusiness.value = null;
+  if (orgId) await fetchBusinesses('', orgId);
+});
+
+const fetchBusinesses = async (searchText, orgId) => {
+  if (!orgId) {
+    businesses.value = [];
+    return;
+  }
+  loadingBusinesses.value = true;
+  try {
+    const { data } = await axiosInstance.get('/businesses', {
+      params: {
+        q: searchText || '',
+        organization_id: orgId,
+        limit: 10
+      }
+    });
+    businesses.value = (data.data || []).map((b) => ({
+      ...b,
+      display: `${b.folio}${b.legal_name ? ' - ' + b.legal_name : ''}`,
+      id: b.id
+    }));
+  } catch (e) {
+    businesses.value = [];
+  } finally {
+    loadingBusinesses.value = false;
+  }
+};
+
+watch(businessSearch, (val) => {
+  if (selectedOrganization.value) fetchBusinesses(val, selectedOrganization.value);
+});
+
 onMounted(async () => {
   try {
-    const res = await axiosInstance.get(`/businesses/${businessId}`);
+    const res = await axiosInstance.get(`/business-units/${business_unitId}`);
     const data = res.data;
 
     form.legal_name = data.legal_name || '';
@@ -89,19 +198,25 @@ onMounted(async () => {
       form.person.phone_number = data.person.phone_number || '';
     }
 
-    // Si es superadmin, carga organizaciones y selecciona la actual
-    const user = auth.user;
-    if (user?.roles?.includes('superadmin')) {
-      try {
-        const orgRes = await axiosInstance.get('/organizations');
-        organizations.value = Array.isArray(orgRes.data) ? orgRes.data : orgRes.data.data;
-        selectedOrganization.value = data.organization_id || null;
-      } catch (e) {
-        organizations.value = [];
-      }
+    // GET de la organización y empresa a la que pertenece
+    if (data.organization_id) {
+      await fetchOrganizationById(data.organization_id);
+      selectedOrganization.value = data.organization_id;
+    }
+    if (data.business_id && data.organization_id) {
+      await fetchBusinessById(data.business_id, data.organization_id);
+      selectedBusiness.value = data.business_id;
+    }
+
+    // --- NUEVO: Organización y Empresa para selects dinámicos ---
+    if (isSuperadmin.value) {
+      await fetchOrganizations('');
+    }
+    if ((isSuperadmin.value || canSelectBusiness.value) && data.organization_id) {
+      await fetchBusinesses('', data.organization_id);
     }
   } catch (err) {
-    console.error('❌ Error al cargar datos de empresa', err);
+    console.error('❌ Error al cargar datos de ubicación', err);
   }
 });
 
@@ -130,17 +245,21 @@ const validate = async () => {
     return;
   }
 
-  // Validación de organización para superadmin y para quien tenga business.update
-  const user = auth.user;
+  // Validación de organización y empresa
   let organization_id = null;
-  if (user?.roles?.includes('superadmin')) {
+  if (isSuperadmin.value) {
     if (!selectedOrganization.value) {
       errorMsg.value = 'Selecciona una organización.';
       return;
     }
     organization_id = selectedOrganization.value;
-  } else if (user?.permissions?.includes('business.update')) {
-    organization_id = user.organization_id;
+  } else if (canSelectBusiness.value) {
+    organization_id = user.value.organization_id;
+  }
+
+  let business_id = null;
+  if ((isSuperadmin.value || canSelectBusiness.value) && selectedBusiness.value) {
+    business_id = selectedBusiness.value;
   }
 
   try {
@@ -149,9 +268,8 @@ const validate = async () => {
     formData.append('alias', form.alias || '');
     formData.append('description', form.description || '');
     formData.append('timezone', form.timezone || '');
-    if (organization_id) {
-      formData.append('organization_id', organization_id);
-    }
+    if (organization_id) formData.append('organization_id', organization_id);
+    if (business_id) formData.append('business_id', business_id);
 
     for (const key in parsedAddress.value) {
       formData.append(`address[${key}]`, parsedAddress.value[key] || '');
@@ -173,17 +291,17 @@ const validate = async () => {
       }
     }
 
-    await axiosInstance.post(`/businesses/${businessId}?_method=PUT`, formData);
+    await axiosInstance.post(`/business-units/${business_unitId}?_method=PUT`, formData);
 
-    // Refresca datos del usuario si edita su propia empresa
-    if (auth.user?.business_id && String(auth.user.business_id) === String(businessId)) {
+    // Refresca datos del usuario si edita su propia ubicación
+    if (auth.user?.business_unit_id && String(auth.user.business_unit_id) === String(business_unitId)) {
       await auth.fetchUser();
     }
 
-    router.replace(`/negocios-dw/${businessId}`);
+    router.push(`/ubicaciones-dw/${business_unitId}`);
   } catch (err) {
-    errorMsg.value = 'Error al actualizar empresa';
-    console.error('❌ Error al actualizar empresa', err.response?.data || err);
+    errorMsg.value = 'Error al actualizar ubicación';
+    console.error('❌ Error al actualizar ubicación', err.response?.data || err);
   }
 };
 </script>
@@ -195,7 +313,7 @@ const validate = async () => {
         <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
           <v-icon :icon="mdiArrowLeft" />
         </v-btn>
-        <h3 class="font-weight-medium ml-3 mb-0">Editar Empresa</h3>
+        <h3 class="font-weight-medium ml-3 mb-0">Editar Ubicación</h3>
       </v-col>
     </v-row>
 
@@ -241,21 +359,47 @@ const validate = async () => {
           />
 
           <!-- Select de organización SOLO para superadmin -->
-          <template v-if="auth.user?.roles?.includes('superadmin')">
+          <template v-if="isSuperadmin">
             <v-label>Organización</v-label>
-            <v-select
+            <v-autocomplete
               v-model="selectedOrganization"
               :items="organizations"
-              item-title="legal_name"
+              :loading="loadingOrganizations"
+              v-model:search-input="organizationSearch"
+              item-title="display"
               item-value="id"
               variant="outlined"
               color="primary"
               class="mt-2 mb-4"
               density="compact"
-              :searchable="true"
               placeholder="Buscar organización"
-              required
+              clearable
+              hide-details
+              :menu-props="{ maxHeight: '300px' }"
             />
+            <div style="height: 16px"></div>
+          </template>
+
+          <!-- Select de empresa SOLO para superadmin, admin, sponsor, businessUnit.create -->
+          <template v-if="selectedOrganization && (isSuperadmin || canSelectBusiness)">
+            <v-label>Empresa</v-label>
+            <v-autocomplete
+              v-model="selectedBusiness"
+              :items="businesses"
+              :loading="loadingBusinesses"
+              v-model:search-input="businessSearch"
+              item-title="display"
+              item-value="id"
+              variant="outlined"
+              color="primary"
+              class="mt-2 mb-4"
+              density="compact"
+              placeholder="Buscar empresa"
+              clearable
+              hide-details
+              :menu-props="{ maxHeight: '300px' }"
+            />
+            <div style="height: 16px"></div>
           </template>
 
           <v-label>Nombre Legal</v-label>
@@ -337,6 +481,6 @@ const validate = async () => {
     </v-form>
   </v-container>
   <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso para editar esta empresa. </v-alert>
+    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso para editar esta ubicación. </v-alert>
   </div>
 </template>

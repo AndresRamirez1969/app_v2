@@ -11,7 +11,8 @@ import NavCollapse from './NavCollapse/NavCollapse.vue';
 const customizer = useCustomizerStore();
 const auth = useAuthStore();
 
-const userRoles = computed(() => auth.user?.roles?.map((r) => r.name) || []);
+// INTEGRACIÓN: roles ahora son array de strings
+const userRoles = computed(() => auth.user?.roles || []);
 const permissions = computed(() => auth.user?.permissions || []);
 const hasOrgCreate = computed(() => permissions.value.includes('organization.create'));
 const hasOrgView = computed(() => permissions.value.includes('organization.view'));
@@ -59,6 +60,38 @@ const canSeeBusinessDw = computed(
     permissions.value.includes('business.view')
 );
 
+// UBICACIONES DW
+const hasBusinessUnitId = computed(() => !!auth.user?.business_unit_id);
+const hasBusinessUnitViewAny = computed(() => permissions.value.includes('businessUnit.viewAny'));
+const hasBusinessUnitView = computed(() => permissions.value.includes('businessUnit.view'));
+
+function getBusinessUnitDwRoute() {
+  // superadmin, admin, sponsor o con viewAny pueden ver el index
+  if (
+    userRoles.value.includes('superadmin') ||
+    userRoles.value.includes('admin') ||
+    userRoles.value.includes('sponsor') ||
+    hasBusinessUnitViewAny.value
+  ) {
+    return '/ubicaciones-dw';
+  }
+  // Si solo tiene businessUnit.view y tiene business_unit_id, va directo al show
+  if (hasBusinessUnitView.value && hasBusinessUnitId.value) {
+    return `/ubicaciones-dw/${auth.user.business_unit_id}`;
+  }
+  // Si no tiene acceso, deshabilita
+  return null;
+}
+
+const canSeeBusinessUnitDw = computed(
+  () =>
+    userRoles.value.includes('superadmin') ||
+    userRoles.value.includes('admin') ||
+    userRoles.value.includes('sponsor') ||
+    hasBusinessUnitViewAny.value ||
+    hasBusinessUnitView.value
+);
+
 const sidebarMenu = computed(() => {
   return sidebarItems
     .map((item) => {
@@ -71,6 +104,12 @@ const sidebarMenu = computed(() => {
       if (item.title === 'Empresas DW') {
         if (!canSeeBusinessDw.value) return null;
         const route = getBusinessDwRoute();
+        if (route) return { ...item, to: route };
+        return { ...item, disabled: true };
+      }
+      if (item.title === 'Ubicaciones DW') {
+        if (!canSeeBusinessUnitDw.value) return null;
+        const route = getBusinessUnitDwRoute();
         if (route) return { ...item, to: route };
         return { ...item, disabled: true };
       }
