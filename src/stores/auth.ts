@@ -1,3 +1,6 @@
+// Metodos de autenticacion de usuario, extracion de permisos, etc.
+// NO MODIFICAR!!! Al menos que sea necesario.
+
 import { defineStore } from 'pinia';
 import axiosInstance from '@/utils/axios';
 
@@ -49,7 +52,6 @@ export const useAuthStore = defineStore('auth', {
         remember: rememberMe
       });
       const user = response.data.user;
-      // Map organization_id to organizationDwId
       if (user && user.organization_id) user.organizationDwId = user.organization_id;
 
       this.token = response.data.token;
@@ -59,7 +61,6 @@ export const useAuthStore = defineStore('auth', {
       const storage = rememberMe ? localStorage : sessionStorage;
       storage.setItem('authToken', this.token);
       storage.setItem('authUser', JSON.stringify(user));
-      console.log('Usuario', user);
     },
 
     loginWithTokenAndUser(token: string, user: any, permissions: any[] = []) {
