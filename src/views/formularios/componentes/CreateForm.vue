@@ -1,11 +1,12 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import axiosInstance from '@/utils/axios';
 import { FREQUENCY } from '@/constants/constants';
 import { useAuthStore } from '@/stores/auth';
 import { mdiArrowLeft } from '@mdi/js';
 import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
+import { groupUsersByRole } from '@/utils/helpers/groupUsers';
 
 const auth = useAuthStore();
 const user = auth.user;
@@ -26,9 +27,18 @@ const businessId = ref('');
 const scope = ref('');
 const businesses = ref([]);
 const businessUnits = ref([]);
+const logo = ref(null);
 
 const filteredUsers = ref([]);
 const allUsers = ref([]);
+
+const allRoles = computed(() => {
+  return groupUsersByRole(allUsers.value);
+});
+
+const filteredRoles = computed(() => {
+  return groupUsersByRole(filteredUsers.value);
+});
 
 const fetchAllUsers = async () => {
   try {
@@ -99,29 +109,26 @@ const validate = async () => {
     formData.append('name', name.value);
 
     // Obtener el ID del rol del supervisor
-    const supervisorUser = allUsers.value.find((user) => user.id === supervisor.value);
-    formData.append('supervisor_role_id', supervisorUser?.roles?.[0]?.id || '');
+    const supervisorRole = allRoles.value.find((role) => role.id === supervisor.value);
+    if (supervisorRole) {
+      formData.append('supervisor_role_id', supervisorRole.id);
+    }
 
     // Obtener los IDs de roles de los auditores
-    auditors.value.forEach((auditorUserId, index) => {
-      const auditorUser = filteredUsers.value.find((user) => user.id === auditorUserId);
-      const roleId = auditorUser?.roles?.[0]?.id;
-      if (roleId) {
-        formData.append(`auditor_role_ids[${index}]`, roleId);
-      }
+    auditors.value.forEach((roleId, index) => {
+      formData.append(`auditor_role_ids[${index}]`, roleId);
     });
 
     // Obtener los IDs de roles de los auditados
-    audited.value.forEach((auditedUserId, index) => {
-      const auditedUser = filteredUsers.value.find((user) => user.id === auditedUserId);
-      const roleId = auditedUser?.roles?.[0]?.id;
-      if (roleId) {
-        formData.append(`auditado_role_ids[${index}]`, roleId);
-      }
+    audited.value.forEach((roleId, index) => {
+      formData.append(`auditado_role_ids[${index}]`, roleId);
     });
 
     formData.append('frequency', frequency.value);
     formData.append('assignment_scope', scope.value);
+    if (logo.value) {
+      formData.append('logo', logo.value);
+    }
 
     if (scope.value === 'organization') {
       formData.append('organization_id', user?.organization_id);
@@ -179,10 +186,25 @@ const validate = async () => {
             </v-col>
             <v-col cols="12" sm="6" class="py-0">
               <div class="mb-6">
+                <v-label>Logo</v-label>
+                <v-file-input
+                  v-model="logo"
+                  label="Logo"
+                  :multiple="false"
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2"
+                  accept="image/*"
+                >
+                </v-file-input>
+              </div>
+            </v-col>
+            <v-col cols="12" sm="6" class="py-0">
+              <div class="mb-6">
                 <v-label>Supervisor</v-label>
                 <v-select
                   v-model="supervisor"
-                  :items="allUsers"
+                  :items="allRoles"
                   item-title="customLabel"
                   item-value="id"
                   variant="outlined"
@@ -248,7 +270,7 @@ const validate = async () => {
             <v-label>Auditores</v-label>
             <v-select
               v-model="auditors"
-              :items="filteredUsers"
+              :items="filteredRoles"
               multiple
               item-title="customLabel"
               item-value="id"
@@ -263,7 +285,7 @@ const validate = async () => {
             <v-select
               v-model="audited"
               multiple
-              :items="filteredUsers"
+              :items="filteredRoles"
               item-title="customLabel"
               item-value="id"
               variant="outlined"

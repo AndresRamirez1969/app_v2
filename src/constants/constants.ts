@@ -145,7 +145,9 @@ export const getFieldProps = (field: { type: string; label: string; is_required:
         ...baseProps,
         items: field.options || [],
         itemTitle: 'option',
-        itemValue: 'option'
+        itemValue: 'option',
+        multiple: true,
+        closableChips: true
       };
     case 'radio':
       return {

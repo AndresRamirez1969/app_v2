@@ -112,18 +112,6 @@
             </div>
             <div v-else class="text-grey">No asignado</div>
           </div>
-          <v-select
-            v-else
-            v-model="formData.supervisor_role_id"
-            :items="users"
-            item-title="customLabel"
-            item-value="id"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="mt-1"
-            label="Selecciona al Supervisor"
-          />
         </div>
       </v-col>
 
@@ -138,19 +126,6 @@
             </div>
             <div v-else class="text-grey">No asignados</div>
           </div>
-          <v-select
-            v-else
-            v-model="formData.auditor_role_ids"
-            :items="filteredUsers"
-            multiple
-            item-title="customLabel"
-            item-value="id"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="mt-1"
-            label="Selecciona a los Auditores"
-          />
         </div>
       </v-col>
 
@@ -300,12 +275,23 @@ const formData = ref({});
 
 watch(form, async (newForm) => {
   if (newForm) {
+    // Mapear roles a usuarios para que funcione con los v-select
+    const supervisorUser = users.value.find((user) => user.roles?.some((role) => role.id === newForm.supervisor_role?.id));
+
+    const auditorUsers = users.value.filter((user) =>
+      user.roles?.some((role) => newForm.auditor_roles?.some((auditorRole) => auditorRole.id === role.id))
+    );
+
+    const auditadoUsers = users.value.filter((user) =>
+      user.roles?.some((role) => newForm.auditado_roles?.some((auditadoRole) => auditadoRole.id === role.id))
+    );
+
     formData.value = {
       name: newForm.name || '',
       frequency: newForm.frequency || '',
-      supervisor_role_id: newForm.supervisor_role?.name || '',
-      auditor_role_ids: newForm.auditor_roles?.map((role) => role.name) || [],
-      auditado_role_ids: newForm.auditado_roles?.map((role) => role.name) || [],
+      supervisor_role_id: supervisorUser?.id || '',
+      auditor_role_ids: auditorUsers.map((user) => user.id) || [],
+      auditado_role_ids: auditadoUsers.map((user) => user.id) || [],
       assignment_scope: newForm.assignment_scope || '',
       status: newForm.status || 'draft'
     };
@@ -366,17 +352,30 @@ const saveChanges = async () => {
   try {
     const formDataToSend = new FormData();
     formDataToSend.append('name', formData.value.name);
-    formDataToSend.append('supervisor_role_id', formData.value.supervisor_role_id);
 
-    if (formData.value.auditor_role_ids) {
-      formData.value.auditor_role_ids.forEach((auditorId, index) => {
-        formDataToSend.append(`auditor_role_ids[${index}]`, auditorId);
+    // Obtener el ID del rol del supervisor (como en CreateForm)
+    const supervisorUser = users.value.find((user) => user.id === formData.value.supervisor_role_id);
+    formDataToSend.append('supervisor_role_id', supervisorUser?.roles?.[0]?.id || '');
+
+    // Obtener los IDs de roles de los auditores (como en CreateForm)
+    if (formData.value.auditor_role_ids && formData.value.auditor_role_ids.length > 0) {
+      formData.value.auditor_role_ids.forEach((auditorUserId, index) => {
+        const auditorUser = filteredUsers.value.find((user) => user.id === auditorUserId);
+        const roleId = auditorUser?.roles?.[0]?.id;
+        if (roleId) {
+          formDataToSend.append(`auditor_role_ids[${index}]`, roleId);
+        }
       });
     }
 
-    if (formData.value.auditado_role_ids) {
-      formData.value.auditado_role_ids.forEach((auditadoId, index) => {
-        formDataToSend.append(`auditado_role_ids[${index}]`, auditadoId);
+    // Obtener los IDs de roles de los auditados (como en CreateForm)
+    if (formData.value.auditado_role_ids && formData.value.auditado_role_ids.length > 0) {
+      formData.value.auditado_role_ids.forEach((auditadoUserId, index) => {
+        const auditadoUser = filteredUsers.value.find((user) => user.id === auditadoUserId);
+        const roleId = auditadoUser?.roles?.[0]?.id;
+        if (roleId) {
+          formDataToSend.append(`auditado_role_ids[${index}]`, roleId);
+        }
       });
     }
 

@@ -99,7 +99,10 @@ watch(selectedDynamicRole, (val) => {
         <div class="d-flex w-100 justify-space-between align-center">
           <div class="d-flex align-center">
             <span class="text-h6">Crear Usuario</span>
-            <v-tooltip location="top" text="Dependiendo de la necesidad, puedes asignar el usuario a una unidad, negocio u organización">
+            <v-tooltip
+              location="top"
+              text="Puedes asignar el usuario a una unidad, negocio u organización. Si se asigna a una unidad, se asignará al negocio y a la organización automáticamente, si se asigna a un negocio, se asignará a la organización automáticamente."
+            >
               <template #activator="{ props }">
                 <v-icon v-bind="props" :icon="mdiInformationOutline" size="small" class="ml-2 cursor-pointer" />
               </template>
