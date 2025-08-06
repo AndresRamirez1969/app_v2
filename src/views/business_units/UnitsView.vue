@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { mdiEye } from '@mdi/js';
 import CreateUnit from '../business_units/components/CreateUnit.vue';
 import { useAuthStore } from '@/stores/auth';
-import { router } from '@/router';
+import { useRouter } from 'vue-router';
 
 const showViewDrawer = ref(false);
 const selectedBusId = ref(null);
@@ -11,6 +11,7 @@ const selectedBus = ref(null);
 const showCreateDialog = ref(false);
 
 const auth = useAuthStore();
+const router = useRouter();
 
 const openViewDrawer = (id) => {
   selectedBusId.value = id;

@@ -46,7 +46,7 @@ import axiosInstance from '@/utils/axios';
 import { mdiPlus } from '@mdi/js';
 import { useAuthStore } from '@/stores/auth';
 import debounce from 'lodash/debounce';
-import { router } from '@/router';
+import { useRouter } from 'vue-router';
 
 const filters = ref({
   search: '',
@@ -54,6 +54,7 @@ const filters = ref({
 });
 
 const auth = useAuthStore();
+const router = useRouter();
 
 // Detectar si es móvil
 const isMobile = ref(false);
