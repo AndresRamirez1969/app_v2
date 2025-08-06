@@ -9,7 +9,8 @@ export default defineConfig({
     vue({
       template: {
         compilerOptions: {
-          isCustomElement: (tag) => ['v-list-recognize-title'].includes(tag)
+          // Agrega aquí todos los custom elements que uses
+          isCustomElement: (tag) => ['v-list-recognize-title', 'gmp-place-autocomplete'].includes(tag)
         }
       }
     }),
