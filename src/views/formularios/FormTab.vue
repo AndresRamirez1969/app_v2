@@ -46,7 +46,9 @@ import axiosInstance from '@/utils/axios';
 import { mdiPlus } from '@mdi/js';
 import { useAuthStore } from '@/stores/auth';
 import debounce from 'lodash/debounce';
-import { router } from '@/router';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const filters = ref({
   search: '',
