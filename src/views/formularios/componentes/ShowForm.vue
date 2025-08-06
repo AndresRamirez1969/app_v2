@@ -40,22 +40,11 @@
 
         <div class="mb-4">
           <strong class="text-grey-darken-1">Alcance:</strong>
-          <div v-if="!editMode">
+          <div>
             <v-chip :color="getScopeColor(form.assignment_scope)" size="small" class="mt-1" dark>
               {{ getScopeLabel(form.assignment_scope) }}
             </v-chip>
           </div>
-          <v-select
-            v-else
-            v-model="formData.assignment_scope"
-            :items="scopeOptions"
-            item-title="label"
-            item-value="value"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="mt-1"
-          />
         </div>
 
         <div class="mb-4">
@@ -123,18 +112,6 @@
             </div>
             <div v-else class="text-grey">No asignado</div>
           </div>
-          <v-select
-            v-else
-            v-model="formData.supervisor_role_id"
-            :items="users"
-            item-title="customLabel"
-            item-value="id"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="mt-1"
-            label="Selecciona al Supervisor"
-          />
         </div>
       </v-col>
 
@@ -149,19 +126,6 @@
             </div>
             <div v-else class="text-grey">No asignados</div>
           </div>
-          <v-select
-            v-else
-            v-model="formData.auditor_role_ids"
-            :items="users"
-            multiple
-            item-title="customLabel"
-            item-value="id"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="mt-1"
-            label="Selecciona a los Auditores"
-          />
         </div>
       </v-col>
 
@@ -179,7 +143,7 @@
           <v-select
             v-else
             v-model="formData.auditado_role_ids"
-            :items="users"
+            :items="filteredUsers"
             multiple
             item-title="customLabel"
             item-value="id"
@@ -244,6 +208,7 @@ const router = useRouter();
 const formId = ref('');
 const auth = useAuthStore();
 const users = ref([]);
+const filteredUsers = ref([]);
 
 const goBack = () => {
   router.push('/formularios');
@@ -260,12 +225,6 @@ const addField = () => {
 const isSponsor = computed(() => {
   return auth.user?.roles?.some((role) => role.name === 'sponsor');
 });
-
-const scopeOptions = computed(() => [
-  { label: 'Organizacional', value: 'organization' },
-  { label: 'Por Negocio', value: 'business' },
-  { label: 'Por Unidad', value: 'business_unit' }
-]);
 
 const getScopeColor = (scope) => {
   const colors = {
@@ -314,9 +273,30 @@ const { form, loading, fetchForm } = showForm();
 const editMode = ref(false);
 const formData = ref({});
 
-watch(form, (formData) => {
-  if (formData) {
-    formData.value = JSON.parse(JSON.stringify(formData));
+watch(form, async (newForm) => {
+  if (newForm) {
+    // Mapear roles a usuarios para que funcione con los v-select
+    const supervisorUser = users.value.find((user) => user.roles?.some((role) => role.id === newForm.supervisor_role?.id));
+
+    const auditorUsers = users.value.filter((user) =>
+      user.roles?.some((role) => newForm.auditor_roles?.some((auditorRole) => auditorRole.id === role.id))
+    );
+
+    const auditadoUsers = users.value.filter((user) =>
+      user.roles?.some((role) => newForm.auditado_roles?.some((auditadoRole) => auditadoRole.id === role.id))
+    );
+
+    formData.value = {
+      name: newForm.name || '',
+      frequency: newForm.frequency || '',
+      supervisor_role_id: supervisorUser?.id || '',
+      auditor_role_ids: auditorUsers.map((user) => user.id) || [],
+      auditado_role_ids: auditadoUsers.map((user) => user.id) || [],
+      assignment_scope: newForm.assignment_scope || '',
+      status: newForm.status || 'draft'
+    };
+
+    await fetchUsersByScope();
   }
 });
 
@@ -325,15 +305,46 @@ const loadUsers = async () => {
     const res = await axiosInstance.get('/users');
     users.value = res.data.data.map((user) => ({
       ...user,
-      customLabel: `${user.name} - ${user.roles?.[0]?.name || 'Sin rol'}`
+      customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
     }));
   } catch (err) {
     console.error('Error loading users:', err);
   }
 };
 
+const fetchUsersByScope = async () => {
+  try {
+    const params = { scope: form.value.assignment_scope };
+    if (form.value.assignment_scope === 'business' && form.value.business_id) {
+      params.business_id = form.value.business_id;
+    } else if (form.value.assignment_scope === 'business_unit' && form.value.business_unit_id) {
+      params.business_unit_id = form.value.business_unit_id;
+    } else if (form.value.assignment_scope === 'organization') {
+      params.organization_id = auth.user?.organization_id;
+    }
+    const res = await axiosInstance.get('/users-by-scope', { params });
+    filteredUsers.value = res.data.data.map((user) => ({
+      ...user,
+      customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
+    }));
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    filteredUsers.value = [];
+  }
+};
+
 const cancelEdit = () => {
-  formData.value = JSON.parse(JSON.stringify(form.value));
+  if (form.value) {
+    formData.value = {
+      name: form.value.name || '',
+      frequency: form.value.frequency || '',
+      supervisor_role_id: form.value.supervisor_role?.id || '',
+      auditor_role_ids: form.value.auditor_roles?.map((role) => role.id) || [],
+      auditado_role_ids: form.value.auditado_roles?.map((role) => role.id) || [],
+      assignment_scope: form.value.assignment_scope || '',
+      status: form.value.status || 'draft'
+    };
+  }
   editMode.value = false;
 };
 
@@ -341,17 +352,30 @@ const saveChanges = async () => {
   try {
     const formDataToSend = new FormData();
     formDataToSend.append('name', formData.value.name);
-    formDataToSend.append('supervisor_role_id', formData.value.supervisor_role_id);
 
-    if (formData.value.auditor_role_ids) {
-      formData.value.auditor_role_ids.forEach((auditorId, index) => {
-        formDataToSend.append(`auditor_role_ids[${index}]`, auditorId);
+    // Obtener el ID del rol del supervisor (como en CreateForm)
+    const supervisorUser = users.value.find((user) => user.id === formData.value.supervisor_role_id);
+    formDataToSend.append('supervisor_role_id', supervisorUser?.roles?.[0]?.id || '');
+
+    // Obtener los IDs de roles de los auditores (como en CreateForm)
+    if (formData.value.auditor_role_ids && formData.value.auditor_role_ids.length > 0) {
+      formData.value.auditor_role_ids.forEach((auditorUserId, index) => {
+        const auditorUser = filteredUsers.value.find((user) => user.id === auditorUserId);
+        const roleId = auditorUser?.roles?.[0]?.id;
+        if (roleId) {
+          formDataToSend.append(`auditor_role_ids[${index}]`, roleId);
+        }
       });
     }
 
-    if (formData.value.auditado_role_ids) {
-      formData.value.auditado_role_ids.forEach((auditadoId, index) => {
-        formDataToSend.append(`auditado_role_ids[${index}]`, auditadoId);
+    // Obtener los IDs de roles de los auditados (como en CreateForm)
+    if (formData.value.auditado_role_ids && formData.value.auditado_role_ids.length > 0) {
+      formData.value.auditado_role_ids.forEach((auditadoUserId, index) => {
+        const auditadoUser = filteredUsers.value.find((user) => user.id === auditadoUserId);
+        const roleId = auditadoUser?.roles?.[0]?.id;
+        if (roleId) {
+          formDataToSend.append(`auditado_role_ids[${index}]`, roleId);
+        }
       });
     }
 
@@ -359,12 +383,16 @@ const saveChanges = async () => {
     formDataToSend.append('assignment_scope', formData.value.assignment_scope);
     formDataToSend.append('status', formData.value.status);
 
+    // Agregar los IDs correspondientes según el scope
     if (formData.value.assignment_scope === 'organization') {
       formDataToSend.append('organization_id', auth.user?.organization_id);
     } else if (formData.value.assignment_scope === 'business') {
       formDataToSend.append('business_id', form.value.business_id);
+      formDataToSend.append('organization_id', auth.user?.organization_id);
     } else if (formData.value.assignment_scope === 'business_unit') {
+      formDataToSend.append('business_id', form.value.business_id);
       formDataToSend.append('business_unit_id', form.value.business_unit_id);
+      formDataToSend.append('organization_id', auth.user?.organization_id);
     }
 
     const response = await axiosInstance.put(`/forms/${formId.value}`, formDataToSend, {

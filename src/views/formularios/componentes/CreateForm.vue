@@ -1,11 +1,12 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import axiosInstance from '@/utils/axios';
 import { FREQUENCY } from '@/constants/constants';
 import { useAuthStore } from '@/stores/auth';
 import { mdiArrowLeft } from '@mdi/js';
 import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
+import { groupUsersByRole } from '@/utils/helpers/groupUsers';
 
 const auth = useAuthStore();
 const user = auth.user;
@@ -24,26 +25,78 @@ const frequency = ref('');
 const businessUnitId = ref('');
 const businessId = ref('');
 const scope = ref('');
-const users = ref([]);
 const businesses = ref([]);
 const businessUnits = ref([]);
+const logo = ref(null);
+
+const filteredUsers = ref([]);
+const allUsers = ref([]);
+
+const allRoles = computed(() => {
+  return groupUsersByRole(allUsers.value);
+});
+
+const filteredRoles = computed(() => {
+  return groupUsersByRole(filteredUsers.value);
+});
+
+const fetchAllUsers = async () => {
+  try {
+    const res = await axiosInstance.get('/users');
+    allUsers.value = res.data.data.map((user) => ({
+      ...user,
+      customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
+    }));
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    allUsers.value = [];
+  }
+};
+
+const fetchUsersByScope = async () => {
+  try {
+    const params = { scope: scope.value };
+
+    if (scope.value === 'business' && businessId.value) {
+      params.business_id = businessId.value;
+    } else if (scope.value === 'business_unit' && businessUnitId.value) {
+      params.business_unit_id = businessUnitId.value;
+    } else if (scope.value === 'organization') {
+      params.organization_id = auth.user?.organization_id;
+    }
+
+    const res = await axiosInstance.get('/users-by-scope', { params });
+    filteredUsers.value = res.data.data.map((user) => ({
+      ...user,
+      customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
+    }));
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    filteredUsers.value = [];
+  }
+};
+
+watch([scope, businessId, businessUnitId], () => {
+  if (scope.value) {
+    fetchUsersByScope();
+  }
+  auditors.value = [];
+  audited.value = [];
+});
 
 onMounted(async () => {
   try {
-    const res = await axiosInstance.get('/users');
-    users.value = res.data.data.map((user) => ({
-      ...user,
-      customLabel: ` ${user.roles?.[0]?.name || 'Sin rol'}`
-    }));
+    await fetchAllUsers();
     const resBusiness = await axiosInstance.get('/businesses');
     businesses.value = resBusiness.data.data.map((business) => ({
       ...business,
       customLabel: `${business.legal_name}`
     }));
+
     const resBusinessUnit = await axiosInstance.get('/business-units');
     businessUnits.value = resBusinessUnit.data.data.map((businessUnit) => ({
       ...businessUnit,
-      customLabel: `${businessUnit.name}`
+      customLabel: `${businessUnit.legal_name}`
     }));
   } catch (err) {
     console.log(err);
@@ -54,15 +107,28 @@ const validate = async () => {
   try {
     const formData = new FormData();
     formData.append('name', name.value);
-    formData.append('supervisor_role_id', supervisor.value);
-    auditors.value.forEach((auditorId, index) => {
-      formData.append(`auditor_role_ids[${index}]`, auditorId);
+
+    // Obtener el ID del rol del supervisor
+    const supervisorRole = allRoles.value.find((role) => role.id === supervisor.value);
+    if (supervisorRole) {
+      formData.append('supervisor_role_id', supervisorRole.id);
+    }
+
+    // Obtener los IDs de roles de los auditores
+    auditors.value.forEach((roleId, index) => {
+      formData.append(`auditor_role_ids[${index}]`, roleId);
     });
-    audited.value.forEach((auditedId, index) => {
-      formData.append(`auditado_role_ids[${index}]`, auditedId);
+
+    // Obtener los IDs de roles de los auditados
+    audited.value.forEach((roleId, index) => {
+      formData.append(`auditado_role_ids[${index}]`, roleId);
     });
+
     formData.append('frequency', frequency.value);
     formData.append('assignment_scope', scope.value);
+    if (logo.value) {
+      formData.append('logo', logo.value);
+    }
 
     if (scope.value === 'organization') {
       formData.append('organization_id', user?.organization_id);
@@ -94,6 +160,7 @@ const validate = async () => {
     }
   } catch (err) {
     console.log('Failed to save form', err);
+    toast.error('Error al crear el formulario');
   }
 };
 </script>
@@ -117,6 +184,39 @@ const validate = async () => {
                 <v-text-field v-model="name" required variant="outlined" class="mt-2" color="primary"></v-text-field>
               </div>
             </v-col>
+            <v-col cols="12" sm="6" class="py-0">
+              <div class="mb-6">
+                <v-label>Logo</v-label>
+                <v-file-input
+                  v-model="logo"
+                  label="Logo"
+                  :multiple="false"
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2"
+                  accept="image/*"
+                >
+                </v-file-input>
+              </div>
+            </v-col>
+            <v-col cols="12" sm="6" class="py-0">
+              <div class="mb-6">
+                <v-label>Supervisor</v-label>
+                <v-select
+                  v-model="supervisor"
+                  :items="allRoles"
+                  item-title="customLabel"
+                  item-value="id"
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2"
+                  label="Selecciona al Supervisor"
+                />
+              </div>
+            </v-col>
+          </v-row>
+
+          <v-row class="my-0">
             <v-col cols="12" sm="6" class="py-0 d-flex flex-column justify-center">
               <v-label class="mb2">Alcance</v-label>
               <v-radio-group v-model="scope" inline>
@@ -166,25 +266,11 @@ const validate = async () => {
               </div>
             </v-col>
           </v-row>
-
-          <div class="mb-6">
-            <v-label>Supervisor</v-label>
-            <v-select
-              v-model="supervisor"
-              :items="users"
-              item-title="customLabel"
-              item-value="id"
-              variant="outlined"
-              color="primary"
-              class="mt-2"
-              label="Selecciona al Supervisor"
-            />
-          </div>
           <div class="mb-6">
             <v-label>Auditores</v-label>
             <v-select
               v-model="auditors"
-              :items="users"
+              :items="filteredRoles"
               multiple
               item-title="customLabel"
               item-value="id"
@@ -199,7 +285,7 @@ const validate = async () => {
             <v-select
               v-model="audited"
               multiple
-              :items="users"
+              :items="filteredRoles"
               item-title="customLabel"
               item-value="id"
               variant="outlined"

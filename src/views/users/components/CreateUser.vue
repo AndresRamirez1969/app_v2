@@ -3,6 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue';
 import axiosInstance from '@/utils/axios';
 import { FIXED_ROLES } from '@/constants/constants';
 import { useAuthStore } from '@/stores/auth';
+import { mdiInformationOutline, mdiCancel } from '@mdi/js';
 
 const auth = useAuthStore();
 
@@ -31,7 +32,6 @@ const isSponsor = computed(() => {
 const fetchRoles = async () => {
   const res = await axiosInstance.get('/roles');
   roles.value = res.data.data;
-  console.log('Fetched roles:', res.data);
 };
 
 onMounted(async () => {
@@ -41,7 +41,7 @@ onMounted(async () => {
     biz.value = bizRes.data.data;
     const orgRes = await axiosInstance.get('/organizations');
     org.value = orgRes.data.data;
-    const unitsRes = await axiosInstance.get('/units');
+    const unitsRes = await axiosInstance.get('/business-units');
     units.value = unitsRes.data.data;
   } catch (err) {
     console.log(err);
@@ -56,16 +56,27 @@ const validate = async () => {
     formData.append('name', name.value);
     formData.append('email', email.value || '');
     formData.append('organization_id', auth?.user?.organization_id || organization_id.value);
-    const selectedRole = selectedFixedRole.value || selectedDynamicRole.value;
-    formData.append('role', selectedRole || '');
-    if (selectedRole === 'sponsor') {
-      formData.append('business_id', business_id.value || '');
-    } else {
-      formData.append('business_id', auth?.user?.business_id || '');
+    formData.append('role', selectedFixedRole.value || selectedDynamicRole.value || '');
+    if (unit_id.value) {
+      const selectedUnit = units.value.find((unit) => unit.id === unit_id.value);
+      if (selectedUnit) {
+        formData.append('business_unit_id', unit_id.value);
+        formData.append('business_id', selectedUnit.business_id || '');
+        formData.append('organization_id', selectedUnit.organization_id || '');
+      }
+    } else if (business_id.value) {
+      const selectedBusiness = biz.value.find((business) => business.id === business_id.value);
+      if (selectedBusiness) {
+        formData.append('business_id', business_id.value);
+        formData.append('organization_id', selectedBusiness.organization_id || '');
+      }
+    } else if (organization_id.value) {
+      const selectedOrganization = org.value.find((org) => org.id === organization_id.value);
+      if (selectedOrganization) {
+        formData.append('organization_id', organization_id.value);
+      }
     }
-    formData.append('unit_id', unit_id.value || '');
     const res = await axiosInstance.post('/users', formData);
-    console.log('User added', res);
     emit('userCreated');
     emit('update:dialog', false);
   } catch (err) {
@@ -86,7 +97,17 @@ watch(selectedDynamicRole, (val) => {
     <v-card>
       <v-card-title class="d-flex flex-column align-start justify-space-between">
         <div class="d-flex w-100 justify-space-between align-center">
-          <span class="text-h6">Crear Usuario</span>
+          <div class="d-flex align-center">
+            <span class="text-h6">Crear Usuario</span>
+            <v-tooltip
+              location="top"
+              text="Puedes asignar el usuario a una unidad, negocio u organización. Si se asigna a una unidad, se asignará al negocio y a la organización automáticamente, si se asigna a un negocio, se asignará a la organización automáticamente."
+            >
+              <template #activator="{ props }">
+                <v-icon v-bind="props" :icon="mdiInformationOutline" size="small" class="ml-2 cursor-pointer" />
+              </template>
+            </v-tooltip>
+          </div>
           <v-btn icon @click="emit('update:dialog', false)">
             <v-icon :icon="mdiCancel" />
           </v-btn>
@@ -176,7 +197,7 @@ watch(selectedDynamicRole, (val) => {
             <v-select
               v-model="unit_id"
               :items="units"
-              item-title="name"
+              item-title="legal_name"
               item-value="id"
               variant="outlined"
               color="primary"
