@@ -1,46 +1,56 @@
 <template>
-  <v-row>
-    <v-container fluid class="pa-0">
-      <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
-        <v-col cols="auto" class="pa-0 d-flex align-center">
-          <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Formularios</h1>
-        </v-col>
-        <v-col cols="12" md="12">
-          <UiParentCard title="Gestionar Formularios">
-            <template #action>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="filters.search"
-                  label="Buscar por Nombre o Folio"
-                  clearable
-                  density="comfortable"
-                  variant="outlined"
-                  hide-details
-                  @keyup.enter="fetchForms"
-                  prepend-inner-icon="mdi-magnify"
-                />
-              </v-col>
-              <v-btn
-                v-if="canCreate"
-                color="primary"
-                class="mt-4 px-2 py-1 text-sm"
-                variant="flat"
-                @click="router.push({ name: 'CreateForm', params: { id: auth.user.id } })"
-              >
-                <v-icon start :icon="mdiPlus" /> Crear<span class="d-none d-sm-inline">&nbsp;Formulario</span>
-              </v-btn>
-            </template>
-            <FormView :items="forms.data" :isMobile="isMobile" :isLoading="isLoading" @formUpdated="fetchForms" />
-          </UiParentCard>
-        </v-col>
-      </v-row>
-    </v-container>
-  </v-row>
+  <v-container fluid>
+    <v-row class="align-center justify-space-between mb-4">
+      <v-col cols="auto" class="d-flex align-center">
+        <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Formularios</h1>
+      </v-col>
+      <v-col cols="auto" class="d-flex align-center justify-end" v-if="canCreate">
+        <v-btn color="primary" class="text-white" elevation="1" @click="router.push({ name: 'CreateForm', params: { id: auth.user.id } })">
+          <v-icon start :icon="mdiPlus" />
+          <span>Crear Formulario</span>
+        </v-btn>
+      </v-col>
+    </v-row>
+    <v-row class="mb-2">
+      <v-col cols="12">
+        <div class="d-flex align-center mb-2" style="gap: 16px">
+          <v-text-field
+            v-model="filters.search"
+            label="Buscar por Nombre o Folio"
+            clearable
+            density="comfortable"
+            variant="outlined"
+            hide-details
+            @keyup.enter="fetchForms"
+            prepend-inner-icon="mdi-magnify"
+            style="min-width: 220px"
+            @click:clear="fetchForms"
+          />
+          <v-select
+            v-model="filters.status"
+            :items="statusOptions"
+            label="Estado"
+            clearable
+            density="comfortable"
+            variant="outlined"
+            hide-details
+            style="width: 1px"
+            @update:model-value="fetchForms"
+          />
+        </div>
+      </v-col>
+    </v-row>
+    <v-row>
+      <v-col>
+        <FormView :items="forms.data" :isMobile="mdAndDown" :isLoading="isLoading" @formUpdated="fetchForms" />
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue';
-import UiParentCard from '@/components/shared/UiParentCard.vue';
+import { useDisplay } from 'vuetify';
 import FormView from './FormView.vue';
 import axiosInstance from '@/utils/axios';
 import { mdiPlus } from '@mdi/js';
@@ -48,10 +58,19 @@ import { useAuthStore } from '@/stores/auth';
 import debounce from 'lodash/debounce';
 import { useRouter } from 'vue-router';
 
+const { mdAndDown } = useDisplay();
+
 const filters = ref({
   search: '',
-  folio: ''
+  folio: '',
+  status: null
 });
+
+const statusOptions = ref([
+  { title: 'Borrador', value: 'draft' },
+  { title: 'Activo', value: 'active' },
+  { title: 'Archivado', value: 'archived' }
+]);
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -87,7 +106,8 @@ const fetchForms = async () => {
     const res = await axiosInstance.get('/forms', {
       params: {
         search: filters.value.search,
-        page: currentPage.value
+        page: currentPage.value,
+        status: filters.value.status
       }
     });
     forms.value = res.data;
@@ -111,6 +131,13 @@ watch(
   () => {
     currentPage.value = 1;
     debouncedFetch();
+  }
+);
+watch(
+  () => filters.value.status,
+  () => {
+    currentPage.value = 1;
+    fetchForms();
   }
 );
 </script>

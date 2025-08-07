@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
 import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiPencil, mdiEye, mdiCancel, mdiCheckCircle } from '@mdi/js';
 import { useAuthStore } from '@/stores/auth';
@@ -21,7 +20,6 @@ const props = defineProps({
   }
 });
 
-const router = useRouter();
 const auth = useAuthStore();
 
 const user = computed(() => auth.user || { roles: [], permissions: [] });
@@ -31,9 +29,6 @@ const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
 const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
 const canEdit = computed(() => permissions.value.includes('user.update'));
-const canView = computed(() => permissions.value.includes('user.view'));
-
-const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatus.value);
 
 const sortBy = ref('id');
 const sortDesc = ref(false);

@@ -16,6 +16,7 @@ const formData = ref({});
 const isLoading = ref(false);
 const submitting = ref(false);
 const form = ref(null);
+const formRef = ref(null);
 
 const showForm = async () => {
   isLoading.value = true;
@@ -51,6 +52,20 @@ const goBack = () => {
 };
 
 const submitForm = async () => {
+  // Validar campos requeridos
+  const requiredFields = form.value.fields.filter((field) => field.is_required);
+  const missingFields = requiredFields.filter((field) => {
+    if (field.type === 'checkbox') {
+      return !formData.value[field.id] || formData.value[field.id].length === 0;
+    }
+    return !formData.value[field.id];
+  });
+
+  if (missingFields.length > 0) {
+    toast.error('Por favor completa todos los campos requeridos');
+    return;
+  }
+
   submitting.value = true;
   try {
     // Transformar formData a formato de respuestas
@@ -66,6 +81,7 @@ const submitForm = async () => {
     router.push('/mis-formularios');
   } catch (err) {
     console.error('Failed to submit form', err);
+    toast.error('Error al enviar el formulario');
   } finally {
     submitting.value = false;
   }
@@ -103,33 +119,45 @@ const submitForm = async () => {
               {{ form.description }}
             </p>
             <v-divider class="mb-4" />
-            <v-time-picker></v-time-picker>
           </div>
 
           <!-- Campos del formulario -->
-          <v-form @submit.prevent="submitForm">
+          <v-form ref="formRef" @submit.prevent="submitForm">
             <div v-for="(field, index) in form.fields" :key="field.id || index" class="mb-6">
-              <!-- Campo principal -->
-              <component
-                v-if="field.type !== 'radio'"
-                :is="FIELD_TYPES(field)"
-                v-bind="getFieldProps(field)"
-                v-model="formData[field.id]"
-                :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
-              />
+              <!-- Campo de checkbox personalizado -->
+              <div v-if="field.type === 'checkbox'">
+                <v-label class="mb-2">{{ field.label }}</v-label>
+                <div class="checkbox-group">
+                  <v-checkbox
+                    v-for="option in field.options"
+                    :key="option"
+                    :label="option"
+                    :value="option"
+                    v-model="formData[field.id]"
+                    class="ml-4"
+                  />
+                </div>
+                <div v-if="field.is_required && !formData[field.id]?.length" class="text-caption text-red mt-1">
+                  Este campo es requerido
+                </div>
+              </div>
 
               <!-- Campo de radio personalizado -->
-              <div v-else>
+              <div v-else-if="field.type === 'radio'">
                 <v-label class="mb-2">{{ field.label }}</v-label>
                 <v-radio-group v-model="formData[field.id]" :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []">
                   <v-radio v-for="option in field.options" :key="option" :label="option" :value="option" class="ml-4" />
                 </v-radio-group>
               </div>
 
-              <!-- Opciones para checkbox -->
-              <template v-if="field.type === 'checkbox' && field.options">
-                <v-checkbox v-for="option in field.options" :key="option" :label="option" :value="option" class="ml-4" />
-              </template>
+              <!-- Otros campos -->
+              <component
+                v-else
+                :is="FIELD_TYPES(field)"
+                v-bind="getFieldProps(field)"
+                v-model="formData[field.id]"
+                :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
+              />
             </div>
           </v-form>
         </div>
@@ -141,3 +169,11 @@ const submitForm = async () => {
     </v-card>
   </v-container>
 </template>
+
+<style scoped>
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+</style>

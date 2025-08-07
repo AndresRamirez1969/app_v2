@@ -108,6 +108,7 @@ export const FIELD_TYPES = (field: { type: string }) => {
   if (field.type === 'date') return 'v-text-field';
   if (field.type === 'checkbox') return 'v-checkbox';
   if (field.type === 'select') return 'v-select';
+  if (field.type === 'switch') return 'v-switch';
   if (field.type === 'radio') return 'v-radio-group';
   if (field.type === 'textarea') return 'v-textarea';
   if (field.type === 'file') return 'v-file-input';
@@ -149,6 +150,11 @@ export const getFieldProps = (field: { type: string; label: string; is_required:
         multiple: true,
         closableChips: true
       };
+    case 'switch':
+      return {
+        ...baseProps,
+        color: 'primary'
+      };
     case 'radio':
       return {
         ...baseProps,
@@ -156,11 +162,7 @@ export const getFieldProps = (field: { type: string; label: string; is_required:
         items: field.options || []
       };
     case 'checkbox':
-      return {
-        ...baseProps,
-        multiple: true,
-        items: field.options || []
-      };
+      return { ...baseProps };
     case 'file':
       return {
         ...baseProps,

@@ -8,7 +8,7 @@
 }
 </style>
 
-<script setup lang="ts">
+<!-- <script setup lang="ts">
 import { RouterView } from 'vue-router';
 import { onMounted, onUnmounted } from 'vue';
 import axiosInstance from '@/utils/axios';
@@ -36,4 +36,4 @@ onMounted(() => {
 onUnmounted(() => {
   if (intervalId) clearInterval(intervalId);
 });
-</script>
+</script> -->

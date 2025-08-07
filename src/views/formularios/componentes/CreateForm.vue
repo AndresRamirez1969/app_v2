@@ -29,6 +29,8 @@ const businesses = ref([]);
 const businessUnits = ref([]);
 const logo = ref(null);
 
+const sameLogo = ref(false);
+
 const filteredUsers = ref([]);
 const allUsers = ref([]);
 
@@ -126,8 +128,11 @@ const validate = async () => {
 
     formData.append('frequency', frequency.value);
     formData.append('assignment_scope', scope.value);
-    if (logo.value) {
+    if (logo.value && !sameLogo.value) {
       formData.append('logo', logo.value);
+    }
+    if (sameLogo.value) {
+      formData.append('logo', user?.organization?.logo);
     }
 
     if (scope.value === 'organization') {
@@ -188,6 +193,7 @@ const validate = async () => {
               <div class="mb-6">
                 <v-label>Logo</v-label>
                 <v-file-input
+                  v-if="!sameLogo"
                   v-model="logo"
                   label="Logo"
                   :multiple="false"
@@ -197,6 +203,8 @@ const validate = async () => {
                   accept="image/*"
                 >
                 </v-file-input>
+                <!-- Ahorita no jala! Implementar en el futuro -->
+                <v-switch v-model="sameLogo" label="Mismo que Organizacion" color="primary" class="mt-2" />
               </div>
             </v-col>
             <v-col cols="12" sm="6" class="py-0">

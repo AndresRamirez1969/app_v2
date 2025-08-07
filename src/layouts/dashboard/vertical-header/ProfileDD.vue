@@ -8,7 +8,6 @@ import {
   LockOutlined,
   CommentOutlined,
   UnorderedListOutlined,
-  WalletOutlined,
   ApartmentOutlined,
   ShopOutlined,
   EnvironmentOutlined
@@ -107,116 +106,106 @@ const handleLogout = async () => {
     <v-tabs v-model="tab" color="primary" grow>
       <v-tab value="111"> <UserOutlined class="v-icon--start" /> Profile </v-tab>
     </v-tabs>
-    <perfect-scrollbar style="height: calc(100vh - 300px); max-height: 240px">
-      <v-window v-model="tab">
-        <v-window-item value="111">
-          <v-list class="py-0" aria-label="profile list" aria-busy="true">
-            <v-list-item @click="$router.push({ name: 'Profile' })" color="primary" rounded="0" value="Ver Perfil">
-              <template v-slot:prepend>
-                <UserOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> Ver Perfil</v-list-item-title>
-            </v-list-item>
+    <v-window v-model="tab">
+      <v-window-item value="111">
+        <v-list class="py-0" aria-label="profile list" aria-busy="true">
+          <v-list-item @click="$router.push({ name: 'Profile' })" color="primary" rounded="0" value="Ver Perfil">
+            <template v-slot:prepend>
+              <UserOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-h6"> Ver Perfil</v-list-item-title>
+          </v-list-item>
+          <!-- Organizaciones DW -->
+          <v-list-item
+            v-if="showOrgDwProfile"
+            :disabled="isOrgDwDisabled()"
+            @click="!isOrgDwDisabled() && $router.push(getOrgDwRoute())"
+            color="primary"
+            rounded="0"
+            value="OrganizacionesDW"
+          >
+            <template v-slot:prepend>
+              <ApartmentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-h6"> Organizaciones DW</v-list-item-title>
+          </v-list-item>
 
-            <v-list-item color="primary" rounded="0" value="Billing">
-              <template v-slot:prepend>
-                <WalletOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> Billing</v-list-item-title>
-            </v-list-item>
+          <!-- Empresas DW -->
+          <v-list-item
+            v-if="showBusinessDwProfile"
+            :disabled="isBusinessDwDisabled()"
+            @click="!isBusinessDwDisabled() && $router.push(getBusinessDwRoute())"
+            color="primary"
+            rounded="0"
+            value="EmpresasDW"
+          >
+            <template v-slot:prepend>
+              <ShopOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-h6"> Empresas DW</v-list-item-title>
+          </v-list-item>
 
-            <!-- Organizaciones DW -->
-            <v-list-item
-              v-if="showOrgDwProfile"
-              :disabled="isOrgDwDisabled()"
-              @click="!isOrgDwDisabled() && $router.push(getOrgDwRoute())"
-              color="primary"
-              rounded="0"
-              value="OrganizacionesDW"
-            >
-              <template v-slot:prepend>
-                <ApartmentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> Organizaciones DW</v-list-item-title>
-            </v-list-item>
+          <!-- Ubicaciones DW -->
+          <v-list-item
+            v-if="showBusinessUnitDwProfile"
+            :disabled="isBusinessUnitDwDisabled()"
+            @click="!isBusinessUnitDwDisabled() && $router.push(getBusinessUnitDwRoute())"
+            color="primary"
+            rounded="0"
+            value="UbicacionesDW"
+          >
+            <template v-slot:prepend>
+              <EnvironmentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-h6"> Ubicaciones DW</v-list-item-title>
+          </v-list-item>
 
-            <!-- Empresas DW -->
-            <v-list-item
-              v-if="showBusinessDwProfile"
-              :disabled="isBusinessDwDisabled()"
-              @click="!isBusinessDwDisabled() && $router.push(getBusinessDwRoute())"
-              color="primary"
-              rounded="0"
-              value="EmpresasDW"
-            >
-              <template v-slot:prepend>
-                <ShopOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> Empresas DW</v-list-item-title>
-            </v-list-item>
+          <v-list-item @click="handleLogout" color="secondary" rounded="0">
+            <template v-slot:prepend>
+              <LogoutOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-subtitle-2"> Logout</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-window-item>
+      <v-window-item value="222">
+        <v-list class="py-0" aria-label="profile list" aria-busy="true">
+          <v-list-item color="primary" rounded="0" value="Support">
+            <template v-slot:prepend>
+              <QuestionCircleOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-h6"> Support</v-list-item-title>
+          </v-list-item>
 
-            <!-- Ubicaciones DW -->
-            <v-list-item
-              v-if="showBusinessUnitDwProfile"
-              :disabled="isBusinessUnitDwDisabled()"
-              @click="!isBusinessUnitDwDisabled() && $router.push(getBusinessUnitDwRoute())"
-              color="primary"
-              rounded="0"
-              value="UbicacionesDW"
-            >
-              <template v-slot:prepend>
-                <EnvironmentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> Ubicaciones DW</v-list-item-title>
-            </v-list-item>
+          <v-list-item color="primary" rounded="0" value="Account">
+            <template v-slot:prepend>
+              <UserOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-h6"> Account settings</v-list-item-title>
+          </v-list-item>
 
-            <v-list-item @click="handleLogout" color="secondary" rounded="0">
-              <template v-slot:prepend>
-                <LogoutOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-subtitle-2"> Logout</v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-window-item>
-        <v-window-item value="222">
-          <v-list class="py-0" aria-label="profile list" aria-busy="true">
-            <v-list-item color="primary" rounded="0" value="Support">
-              <template v-slot:prepend>
-                <QuestionCircleOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> Support</v-list-item-title>
-            </v-list-item>
+          <v-list-item color="primary" rounded="0" value="Privacy">
+            <template v-slot:prepend>
+              <LockOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-h6"> Privacy center</v-list-item-title>
+          </v-list-item>
 
-            <v-list-item color="primary" rounded="0" value="Account">
-              <template v-slot:prepend>
-                <UserOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> Account settings</v-list-item-title>
-            </v-list-item>
+          <v-list-item color="primary" rounded="0" value="Feedback">
+            <template v-slot:prepend>
+              <CommentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-h6"> Feedback</v-list-item-title>
+          </v-list-item>
 
-            <v-list-item color="primary" rounded="0" value="Privacy">
-              <template v-slot:prepend>
-                <LockOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> Privacy center</v-list-item-title>
-            </v-list-item>
-
-            <v-list-item color="primary" rounded="0" value="Feedback">
-              <template v-slot:prepend>
-                <CommentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> Feedback</v-list-item-title>
-            </v-list-item>
-
-            <v-list-item color="primary" rounded="0" value="History">
-              <template v-slot:prepend>
-                <UnorderedListOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> History</v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-window-item>
-      </v-window>
-    </perfect-scrollbar>
+          <v-list-item color="primary" rounded="0" value="History">
+            <template v-slot:prepend>
+              <UnorderedListOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-h6"> History</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-window-item>
+    </v-window>
   </div>
 </template>

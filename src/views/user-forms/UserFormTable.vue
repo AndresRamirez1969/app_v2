@@ -37,14 +37,5 @@ const emit = defineEmits(['update:page', 'sort']);
         <slot name="rows" />
       </tbody>
     </v-table>
-    <div class="d-flex justify-center mt-4">
-      <v-pagination
-        :model-value="props.page"
-        :length="Math.ceil((props.items?.length || 1) / props.itemsPerPage)"
-        total-visible="7"
-        color="primary"
-        @update:modelValue="emit('update:page', $event)"
-      />
-    </div>
   </div>
 </template>
