@@ -10,6 +10,7 @@ import { PerfectScrollbarPlugin } from 'vue3-perfect-scrollbar';
 import VueTablerIcons from 'vue-tabler-icons';
 import VueApexCharts from 'vue3-apexcharts';
 import Antd from 'ant-design-vue';
+import VueSignaturePad from 'vue-signature-pad';
 import 'ant-design-vue/dist/reset.css';
 import Toast from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
@@ -44,4 +45,5 @@ app.use(Toast, {
   position: 'top-right',
   timeout: 3000
 });
+app.use(VueSignaturePad);
 app.use(vuetify).mount('#app');

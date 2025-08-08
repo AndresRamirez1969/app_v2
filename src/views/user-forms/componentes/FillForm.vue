@@ -13,6 +13,7 @@ const router = useRouter();
 const route = useRoute();
 const formId = ref(route.params.id);
 const formData = ref({});
+const fileData = ref({});
 const isLoading = ref(false);
 const submitting = ref(false);
 const form = ref(null);
@@ -31,6 +32,7 @@ const showForm = async () => {
           formData.value[field.id] = [];
         } else if (field.type === 'file') {
           formData.value[field.id] = null;
+          fileData.value[field.id] = null;
         } else {
           formData.value[field.id] = '';
         }
@@ -51,6 +53,14 @@ const goBack = () => {
   router.push('/mis-formularios');
 };
 
+const handleFileChange = (fieldId, event) => {
+  const file = event.target.files[0];
+  if (file) {
+    fileData.value[fieldId] = file;
+    formData.value[fieldId] = file.name;
+  }
+};
+
 const submitForm = async () => {
   // Validar campos requeridos
   const requiredFields = form.value.fields.filter((field) => field.is_required);
@@ -68,14 +78,35 @@ const submitForm = async () => {
 
   submitting.value = true;
   try {
+    const dataToSend = new FormData();
     // Transformar formData a formato de respuestas
-    const answers = Object.keys(formData.value).map((fieldId) => ({
-      form_field_id: fieldId,
-      value: convertoToString(formData.value[fieldId])
-    }));
-    const payload = { answers };
+    const answers = Object.keys(formData.value).map((fieldId) => {
+      const field = form.value.fields.find((f) => f.id == fieldId);
+      const answer = {
+        form_field_id: fieldId,
+        value: field.type === 'file' ? '' : convertoToString(formData.value[fieldId])
+      };
 
-    const res = await axiosInstance.post(`/forms/${formId.value}/responses`, payload);
+      // Si es un archivo, marcar como is_file
+      if (field.type === 'file') {
+        answer.is_file = true;
+      }
+
+      return answer;
+    });
+
+    dataToSend.append('answers', JSON.stringify(answers));
+    Object.keys(fileData.value).forEach((fieldId) => {
+      if (fileData.value[fieldId]) {
+        dataToSend.append(`file_${fieldId}`, fileData.value[fieldId]);
+      }
+    });
+
+    const res = await axiosInstance.post(`/forms/${formId.value}/responses`, dataToSend, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     console.log(res.data);
     toast.success('Formulario enviado correctamente');
     router.push('/mis-formularios');
@@ -124,8 +155,22 @@ const submitForm = async () => {
           <!-- Campos del formulario -->
           <v-form ref="formRef" @submit.prevent="submitForm">
             <div v-for="(field, index) in form.fields" :key="field.id || index" class="mb-6">
+              <!-- Campo de archivo -->
+              <div v-if="field.type === 'file'">
+                <v-label class="mb-2">{{ field.label }}</v-label>
+                <v-file-input
+                  v-model="fileData[field.id]"
+                  :accept="'image/*'"
+                  label="Seleccionar imagen"
+                  :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
+                  @change="handleFileChange(field.id, $event)"
+                  variant="outlined"
+                />
+                <div v-if="fileData[field.id]" class="text-caption text-grey">Archivo seleccionado: {{ fileData[field.id].name }}</div>
+              </div>
+
               <!-- Campo de checkbox personalizado -->
-              <div v-if="field.type === 'checkbox'">
+              <div v-else-if="field.type === 'checkbox'">
                 <v-label class="mb-2">{{ field.label }}</v-label>
                 <div class="checkbox-group">
                   <v-checkbox
@@ -150,9 +195,9 @@ const submitForm = async () => {
                 </v-radio-group>
               </div>
 
-              <!-- Otros campos -->
+              <!-- Otros campos (excluyendo file, checkbox y radio) -->
               <component
-                v-else
+                v-else-if="field.type !== 'file' && field.type !== 'checkbox' && field.type !== 'radio'"
                 :is="FIELD_TYPES(field)"
                 v-bind="getFieldProps(field)"
                 v-model="formData[field.id]"
