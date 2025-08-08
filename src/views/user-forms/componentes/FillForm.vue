@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router';
 import { FIELD_TYPES, getFieldProps } from '@/constants/constants';
 import { useToast } from 'vue-toastification';
 import { convertoToString } from '@/utils/helpers/formHelper';
+import Signature from '@/styles/Signature.vue';
 
 const toast = useToast();
 const router = useRouter();
@@ -18,6 +19,7 @@ const isLoading = ref(false);
 const submitting = ref(false);
 const form = ref(null);
 const formRef = ref(null);
+const signatureRefs = ref({});
 
 const showForm = async () => {
   isLoading.value = true;
@@ -33,6 +35,8 @@ const showForm = async () => {
         } else if (field.type === 'file') {
           formData.value[field.id] = null;
           fileData.value[field.id] = null;
+        } else if (field.type === 'signature') {
+          formData.value[field.id] = null;
         } else {
           formData.value[field.id] = '';
         }
@@ -61,12 +65,21 @@ const handleFileChange = (fieldId, event) => {
   }
 };
 
+const handleSignature = (fieldId) => {
+  const signatureData = signatureRefs.value[fieldId].getSignature();
+  if (signatureData) {
+    formData.value[fieldId] = signatureData;
+  }
+};
+
 const submitForm = async () => {
   // Validar campos requeridos
   const requiredFields = form.value.fields.filter((field) => field.is_required);
   const missingFields = requiredFields.filter((field) => {
     if (field.type === 'checkbox') {
       return !formData.value[field.id] || formData.value[field.id].length === 0;
+    } else if (field.type === 'signature') {
+      return !formData.value[field.id];
     }
     return !formData.value[field.id];
   });
@@ -187,6 +200,13 @@ const submitForm = async () => {
                 </div>
               </div>
 
+              <div v-else-if="field.type === 'signature'">
+                <v-label class="mb-2">{{ field.label }}</v-label>
+                <div class="signature-container">
+                  <Signature ref="signatureRefs[field.id]" @signature-changed="handleSignature(field.id)" />
+                </div>
+              </div>
+
               <!-- Campo de radio personalizado -->
               <div v-else-if="field.type === 'radio'">
                 <v-label class="mb-2">{{ field.label }}</v-label>
@@ -220,5 +240,12 @@ const submitForm = async () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.signature-container {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: #fafafa;
 }
 </style>

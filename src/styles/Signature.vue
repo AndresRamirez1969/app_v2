@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { VueSignaturePad } from 'vue-signature-pad';
+import { ref } from 'vue';
+import { VueSignaturePad } from '@selemondev/vue3-signature-pad';
+
+// Definir el tipo para la referencia
+interface SignaturePad {
+  undo(): void;
+  clearCanvas(): void;
+  saveSignature(): string;
+}
 
 const options = ref({
   penColor: '#000000',
@@ -9,19 +16,31 @@ const options = ref({
   minWidth: 2
 });
 
-const signature = ref<Signature>();
+const signature = ref<SignaturePad>();
 
 function handleUndo() {
-  return signature.value?.undo();
+  signature.value?.undo();
 }
 
 function handleClear() {
-  return signature.value?.clearCanvas();
+  signature.value?.clearCanvas();
 }
 
 function handleSave() {
-  return signature.value?.saveSignature();
+  const signatureData = signature.value?.saveSignature();
+  if (signatureData) {
+    console.log('Firma guardada:', signatureData);
+    // Aquí puedes hacer algo con la firma (enviar al servidor, etc.)
+  }
 }
+
+// Exponer métodos para uso externo
+defineExpose({
+  undo: handleUndo,
+  clear: handleClear,
+  save: handleSave,
+  getSignature: () => signature.value?.saveSignature()
+});
 </script>
 
 <template>

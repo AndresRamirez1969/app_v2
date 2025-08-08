@@ -114,6 +114,7 @@ export const FIELD_TYPES = (field: { type: string }) => {
   if (field.type === 'file') return 'v-file-input';
   if (field.type === 'number') return 'v-text-field';
   if (field.type === 'range') return 'v-slider';
+  if (field.type === 'signature') return 'Signature';
 
   return 'v-text-field';
 };
@@ -177,6 +178,12 @@ export const getFieldProps = (field: { type: string; label: string; is_required:
         'thumb-label': 'always',
         'show-ticks': 'always',
         step: 10
+      };
+    case 'signature':
+      return {
+        ...baseProps,
+        variant: 'outlined',
+        color: 'primary'
       };
     default:
       return baseProps;
