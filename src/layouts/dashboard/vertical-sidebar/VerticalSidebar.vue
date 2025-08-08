@@ -16,6 +16,7 @@ const permissions = computed(() => auth.user?.permissions || []);
 const hasOrgViewAny = computed(() => permissions.value.includes('organization.viewAny'));
 const hasBusinessViewAny = computed(() => permissions.value.includes('business.viewAny'));
 const hasBusinessUnitViewAny = computed(() => permissions.value.includes('businessUnit.viewAny'));
+const hasBusinessUnitGroupViewAny = computed(() => permissions.value.includes('businessUnitGroup.viewAny'));
 
 function getOrgDwRoute() {
   return '/organizaciones-dw';
@@ -25,6 +26,9 @@ function getBusinessDwRoute() {
 }
 function getBusinessUnitDwRoute() {
   return '/ubicaciones-dw';
+}
+function getBusinessUnitGroupDwRoute() {
+  return '/grupos-dw';
 }
 
 // Sidebar SOLO muestra los apartados si el usuario es superadmin o tiene el permiso viewAny
@@ -39,9 +43,23 @@ const sidebarMenu = computed(() => {
         const show = userRoles.value.includes('superadmin') || hasBusinessViewAny.value;
         return show ? { ...item, to: getBusinessDwRoute() } : null;
       }
-      if (item.title === 'Ubicaciones DW') {
-        const show = userRoles.value.includes('superadmin') || hasBusinessUnitViewAny.value;
-        return show ? { ...item, to: getBusinessUnitDwRoute() } : null;
+      if (item.title === 'Ubicaciones') {
+        // Dropdown: solo muestra hijos que el usuario puede ver
+        const children = (item.children || [])
+          .map((child) => {
+            if (child.title === 'Ubicaciones DW') {
+              const show = userRoles.value.includes('superadmin') || hasBusinessUnitViewAny.value;
+              return show ? { ...child, to: getBusinessUnitDwRoute() } : null;
+            }
+            if (child.title === 'Grupos de Ubicación DW') {
+              const show = userRoles.value.includes('superadmin') || hasBusinessUnitGroupViewAny.value;
+              return show ? { ...child, to: getBusinessUnitGroupDwRoute() } : null;
+            }
+            return child;
+          })
+          .filter(Boolean);
+        // Solo muestra el dropdown si hay al menos un hijo visible
+        return children.length > 0 ? { ...item, children } : null;
       }
       return item;
     })

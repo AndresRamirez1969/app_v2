@@ -21,11 +21,12 @@ const permissions = computed(() => user.value.permissions || []);
 
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
+const isSponsor = computed(() => roles.value.includes('sponsor'));
 const canView = computed(() => permissions.value.includes('businessUnit.view'));
 const canEditPermission = computed(() => permissions.value.includes('businessUnit.update'));
-const canShow = computed(() => isSuperadmin.value || isAdmin.value || roles.value.includes('sponsor') || canView.value);
+const canShow = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value || canView.value);
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || canEditPermission.value);
-const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
+const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value);
 
 const canUserEdit = computed(() => permissions.value.includes('user.update'));
 const canUserView = computed(() => permissions.value.includes('user.view'));

@@ -167,6 +167,26 @@ const MainRoutes = {
       name: 'Business Unit Show DW',
       path: '/ubicaciones-dw/:id',
       component: () => import('@/views/business-unit-dw/show.vue')
+    },
+    {
+      name: 'Business Unit Groups',
+      path: '/grupos-dw',
+      component: () => import('@/views/business-unit-group/index.vue')
+    },
+    {
+      name: 'Business Unit Group Create DW',
+      path: '/grupos-dw/create',
+      component: () => import('@/views/business-unit-group/create.vue')
+    },
+    {
+      name: 'Business Unit Group Edit DW',
+      path: '/grupos-dw/:id/edit',
+      component: () => import('@/views/business-unit-group/edit.vue')
+    },
+    {
+      name: 'Business Unit Group Show DW',
+      path: '/grupos-dw/:id',
+      component: () => import('@/views/business-unit-group/show.vue')
     }
   ]
 };
