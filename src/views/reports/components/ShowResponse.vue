@@ -92,25 +92,19 @@ const getReports = async () => {
   }
 };
 
-const exportResponses = async () => {
+const exportResponse = async (responseId) => {
   try {
-    const response = await axiosInstance.get(`/forms/${formId}/responses/export`, {
-      responseType: 'blob',
-      params: {
-        start_date: filters.value.startDate,
-        end_date: filters.value.endDate,
-        search: filters.value.search
-      }
-    });
+    const response = await axiosInstance.get(`/form-responses/${responseId}/pdf`);
 
-    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const pdfUrl = response.data.download_url;
     const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `respuestas_${form.value.name}_${new Date().toISOString().split('T')[0]}.xlsx`);
-    document.body.appendChild(link);
+    link.href = pdfUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+
+    const fileName = response.data.file_name || `respuestas_${form.value.name}_${new Date().toISOString().split('T')[0]}.pdf`;
+    link.setAttribute('download', fileName);
     link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
 
     toast.success('Reporte exportado correctamente');
   } catch (err) {
@@ -171,7 +165,7 @@ onMounted(() => {
               </p>
             </div>
             <div class="d-flex gap-2">
-              <v-btn color="primary" variant="outlined" @click="exportResponses" :loading="isLoading" :prepend-icon="mdiDownload">
+              <v-btn color="primary" variant="outlined" @click="exportResponse" :loading="isLoading" :prepend-icon="mdiDownload">
                 Exportar
               </v-btn>
               <v-btn color="secondary" variant="outlined" @click="getReports" :loading="isLoading" :prepend-icon="mdiRefresh">
@@ -265,17 +259,15 @@ onMounted(() => {
                   <tr>
                     <th>Usuario</th>
                     <th>Fecha de respuesta</th>
-                    <th v-for="field in form.fields" :key="field.id">
-                      {{ field.label }}
-                    </th>
+                    <th>Exportar</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="response in responses" :key="response.id">
                     <td>{{ response.user?.name || 'Usuario desconocido' }}</td>
                     <td>{{ formatDate(response.submitted_at) }}</td>
-                    <td v-for="field in form.fields" :key="field.id">
-                      {{ getFieldValue(field.id, response.field_responses) }}
+                    <td>
+                      <v-btn color="primary" variant="outlined" @click="exportResponse(response.id)"> Exportar </v-btn>
                     </td>
                   </tr>
                 </tbody>

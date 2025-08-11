@@ -15,6 +15,7 @@ const route = useRoute();
 const formId = ref(route.params.id);
 const formData = ref({});
 const fileData = ref({});
+const signatureData = ref({});
 const isLoading = ref(false);
 const submitting = ref(false);
 const form = ref(null);
@@ -37,6 +38,7 @@ const showForm = async () => {
           fileData.value[field.id] = null;
         } else if (field.type === 'signature') {
           formData.value[field.id] = null;
+          signatureData.value[field.id] = null;
         } else {
           formData.value[field.id] = '';
         }
@@ -65,11 +67,36 @@ const handleFileChange = (fieldId, event) => {
   }
 };
 
-const handleSignature = (fieldId) => {
-  const signatureData = signatureRefs.value[fieldId].getSignature();
-  if (signatureData) {
-    formData.value[fieldId] = signatureData;
+const handleSignature = (fieldId, signatureBlob) => {
+  if (signatureBlob instanceof Blob) {
+    // Crear un archivo completo igual que las imágenes
+    const field = form.value.fields.find((f) => f.id == fieldId);
+    const fileName = `firma_${field?.label || fieldId}.jpg`;
+
+    // Crear File object completo
+    const signatureFile = new File([signatureBlob], fileName, {
+      type: 'image/*',
+      lastModified: Date.now()
+    });
+
+    signatureData.value[fieldId] = signatureFile;
+
+    formData.value[fieldId] = fileName;
+
+    console.log('Firma guardada como archivo completo:', {
+      fileName,
+      fileType: signatureFile.type,
+      fileSize: signatureFile.size
+    });
+  } else {
+    signatureData.value[fieldId] = null;
+    formData.value[fieldId] = null;
   }
+};
+
+const handleClearSignature = (fieldId) => {
+  signatureData.value[fieldId] = null;
+  formData.value[fieldId] = null;
 };
 
 const submitForm = async () => {
@@ -92,16 +119,17 @@ const submitForm = async () => {
   submitting.value = true;
   try {
     const dataToSend = new FormData();
+
     // Transformar formData a formato de respuestas
     const answers = Object.keys(formData.value).map((fieldId) => {
       const field = form.value.fields.find((f) => f.id == fieldId);
       const answer = {
         form_field_id: fieldId,
-        value: field.type === 'file' ? '' : convertoToString(formData.value[fieldId])
+        value: field.type === 'file' || field.type === 'signature' ? formData.value[fieldId] : convertoToString(formData.value[fieldId])
       };
 
-      // Si es un archivo, marcar como is_file
-      if (field.type === 'file') {
+      // Marcar como archivo si es imagen o firma
+      if (field.type === 'file' || field.type === 'signature') {
         answer.is_file = true;
       }
 
@@ -109,17 +137,43 @@ const submitForm = async () => {
     });
 
     dataToSend.append('answers', JSON.stringify(answers));
+
+    // Agregar archivos de imagen
     Object.keys(fileData.value).forEach((fieldId) => {
       if (fileData.value[fieldId]) {
         dataToSend.append(`file_${fieldId}`, fileData.value[fieldId]);
       }
     });
 
+    // Agregar firmas como archivos (igual que las imágenes)
+    Object.keys(signatureData.value).forEach((fieldId) => {
+      if (signatureData.value[fieldId]) {
+        // La firma ya es un File object completo, enviarlo directamente
+        dataToSend.append(`file_${fieldId}`, signatureData.value[fieldId]);
+      }
+    });
+
+    // Debug: ver qué se está enviando
+    for (let [key, value] of dataToSend.entries()) {
+      if (value instanceof File) {
+        console.log('Archivo en FormData:', {
+          key,
+          fileName: value.name,
+          fileType: value.type,
+          fileSize: value.size,
+          isImage: value.type.startsWith('image/')
+        });
+      } else {
+        console.log('Otro dato en FormData:', key, value);
+      }
+    }
+
     const res = await axiosInstance.post(`/forms/${formId.value}/responses`, dataToSend, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     });
+
     console.log(res.data);
     toast.success('Formulario enviado correctamente');
     router.push('/mis-formularios');
@@ -203,8 +257,16 @@ const submitForm = async () => {
               <div v-else-if="field.type === 'signature'">
                 <v-label class="mb-2">{{ field.label }}</v-label>
                 <div class="signature-container">
-                  <Signature ref="signatureRefs[field.id]" @signature-changed="handleSignature(field.id)" />
+                  <Signature
+                    :ref="
+                      (el) => {
+                        if (el) signatureRefs[field.id] = el;
+                      }
+                    "
+                    @signature-changed="(signatureBlob) => handleSignature(field.id, signatureBlob)"
+                  />
                 </div>
+                <div v-if="formData[field.id]" class="text-caption text-green mt-1">✓ Firma guardada</div>
               </div>
 
               <!-- Campo de radio personalizado -->

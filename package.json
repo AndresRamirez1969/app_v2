@@ -26,6 +26,7 @@
     "@mdi/font": "^7.4.47",
     "@mdi/js": "^7.4.47",
     "@selemondev/vue3-signature-pad": "^1.4.0",
+    "@syncfusion/ej2-vue-inputs": "^30.2.4",
     "@tsconfig/node20": "20.1.4",
     "@typescript-eslint/parser": "^8.18.2",
     "ant-design-vue": "4.2.6",

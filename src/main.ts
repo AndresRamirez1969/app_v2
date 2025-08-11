@@ -14,6 +14,7 @@ import 'ant-design-vue/dist/reset.css';
 import Toast from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 import '@formkit/themes/genesis';
+import { registerLicense } from '@syncfusion/ej2-base';
 
 // google-fonts
 import '@fontsource/public-sans/400.css';
@@ -34,6 +35,7 @@ app.use(
     config: { root: 'formkit', theme: 'genesis' }
   })
 );
+registerLicense('Ngo9BigBOggjHTQxAR8/V1JEaF1cWWhBYVJ+WmFZfVtgdV9FZ1ZRQWY/P1ZhSXxWdk1iWH5dc3NVQ2BZVkJ9XEI=');
 app.use(router);
 app.use(PerfectScrollbarPlugin);
 app.use(createPinia());

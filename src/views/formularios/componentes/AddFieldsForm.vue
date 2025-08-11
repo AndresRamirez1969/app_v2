@@ -206,7 +206,8 @@ import {
   mdiCheckboxMarkedOutline,
   mdiFileImage,
   mdiTuneVariant,
-  mdiToggleSwitch
+  mdiToggleSwitch,
+  mdiSignature
 } from '@mdi/js';
 import { useRoute, useRouter } from 'vue-router';
 import { SCOPES } from '@/constants/constants';
@@ -332,6 +333,13 @@ const availableFieldTypes = ref([
     preview: 'v-file-input'
   },
   {
+    label: 'Firma',
+    value: 'signature',
+    icon: mdiSignature,
+    description: 'Firma digital',
+    preview: 'ejs-signature'
+  },
+  {
     label: 'Rango',
     value: 'range',
     icon: mdiTuneVariant,
@@ -394,6 +402,7 @@ const getFieldTypeColor = (type) => {
     radio: 'indigo',
     checkbox: 'indigo',
     file: 'brown',
+    signature: 'pink',
     color: 'pink',
     range: 'deep-purple',
     switch: 'teal',
