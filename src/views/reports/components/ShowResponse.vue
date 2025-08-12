@@ -92,6 +92,19 @@ const getReports = async () => {
   }
 };
 
+const exportExcel = async () => {
+  try {
+    const response = await axiosInstance.get(`/forms/${formId}/export-excel`);
+    if (response.data.download_url) {
+      window.open(response.data.download_url, '_blank', 'noopener noreferrer');
+    }
+    toast.success('Reporte exportado correctamente');
+  } catch (err) {
+    console.error('Error exporting responses:', err);
+    toast.error('Error al exportar el reporte');
+  }
+};
+
 const exportResponse = async (responseId) => {
   try {
     const response = await axiosInstance.get(`/form-responses/${responseId}/pdf`);
@@ -111,6 +124,17 @@ const exportResponse = async (responseId) => {
     console.error('Error exporting responses:', err);
     toast.error('Error al exportar el reporte');
   }
+};
+
+const viewUserResponse = (response) => {
+  router.push({
+    name: 'UserResponse',
+    params: {
+      formId,
+      responseId: response.id,
+      userId: response.user.id
+    }
+  });
 };
 
 const formatDate = (dateString) => {
@@ -165,8 +189,8 @@ onMounted(() => {
               </p>
             </div>
             <div class="d-flex gap-2">
-              <v-btn color="primary" variant="outlined" @click="exportResponse" :loading="isLoading" :prepend-icon="mdiDownload">
-                Exportar
+              <v-btn color="primary" variant="outlined" @click="exportExcel" :loading="isLoading" :prepend-icon="mdiDownload">
+                Exportar Todos (Excel)
               </v-btn>
               <v-btn color="secondary" variant="outlined" @click="getReports" :loading="isLoading" :prepend-icon="mdiRefresh">
                 Actualizar
@@ -259,15 +283,18 @@ onMounted(() => {
                   <tr>
                     <th>Usuario</th>
                     <th>Fecha de respuesta</th>
-                    <th>Exportar</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="response in responses" :key="response.id">
+                  <tr v-for="response in responses" :key="response.id" @click="viewUserResponse(response)" style="cursor: pointer">
                     <td>{{ response.user?.name || 'Usuario desconocido' }}</td>
                     <td>{{ formatDate(response.submitted_at) }}</td>
-                    <td>
-                      <v-btn color="primary" variant="outlined" @click="exportResponse(response.id)"> Exportar </v-btn>
+                    <td @click.stop>
+                      <div class="d-flex gap-2">
+                        <v-btn color="primary" variant="outlined" @click="exportResponse(response.id)"> Exportar PDF </v-btn>
+                        <v-btn color="secondary" variant="outlined" @click="viewUserResponse(response)"> Ver Usuario </v-btn>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -288,5 +315,23 @@ onMounted(() => {
 <style scoped>
 .gap-2 {
   gap: 8px;
+}
+
+/* Estilos para filas clickeables */
+.clickable-row {
+  transition: background-color 0.2s ease;
+}
+
+.clickable-row:hover {
+  background-color: rgba(var(--v-theme-primary), 0.05) !important;
+}
+
+.clickable-row:active {
+  background-color: rgba(var(--v-theme-primary), 0.1) !important;
+}
+
+/* Evitar que el hover afecte las celdas de acciones */
+.clickable-row td:last-child:hover {
+  background-color: transparent !important;
 }
 </style>

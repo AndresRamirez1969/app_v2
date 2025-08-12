@@ -7,7 +7,7 @@ import { useRouter } from 'vue-router';
 import { FIELD_TYPES, getFieldProps } from '@/constants/constants';
 import { useToast } from 'vue-toastification';
 import { convertoToString } from '@/utils/helpers/formHelper';
-import Signature from '@/styles/Signature.vue';
+import SignaturePad from '@/styles/SignaturePad.vue';
 
 const toast = useToast();
 const router = useRouter();
@@ -71,7 +71,7 @@ const handleSignature = (fieldId, signatureBlob) => {
   if (signatureBlob instanceof Blob) {
     // Crear un archivo completo igual que las imágenes
     const field = form.value.fields.find((f) => f.id == fieldId);
-    const fileName = `firma_${field?.label || fieldId}.jpg`;
+    const fileName = `firma_${field?.label || fieldId}.png`;
 
     // Crear File object completo
     const signatureFile = new File([signatureBlob], fileName, {
@@ -257,7 +257,7 @@ const submitForm = async () => {
               <div v-else-if="field.type === 'signature'">
                 <v-label class="mb-2">{{ field.label }}</v-label>
                 <div class="signature-container">
-                  <Signature
+                  <SignaturePad
                     :ref="
                       (el) => {
                         if (el) signatureRefs[field.id] = el;

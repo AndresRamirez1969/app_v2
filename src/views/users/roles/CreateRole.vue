@@ -2,8 +2,14 @@
 import { ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axiosInstance from '@/utils/axios';
-import { ADMIN_ORG_ROLES, ADMIN_BUSINESS_ROLES, ADMIN_UNIT_ROLES, ADMIN_USER_ROLES, ADMIN_FORM_ROLES } from '@/constants/constants';
-
+import {
+  ADMIN_ORG_ROLES,
+  ADMIN_BUSINESS_ROLES,
+  ADMIN_UNIT_ROLES,
+  ADMIN_USER_ROLES,
+  ADMIN_FORM_ROLES,
+  ADMIN_RESPONSE_ROLES
+} from '@/constants/constants';
 const auth = useAuthStore();
 
 const Regform = ref('');
@@ -13,6 +19,7 @@ const businessPermissions = ref([]);
 const userPermissions = ref([]);
 const unitPermissions = ref([]);
 const formPermissions = ref([]);
+const responsePermissions = ref([]);
 const organizationId = auth?.user?.organization_id;
 
 const emit = defineEmits(['roleCreated']);
@@ -28,7 +35,8 @@ const validate = async () => {
       ...businessPermissions.value,
       ...userPermissions.value,
       ...unitPermissions.value,
-      ...formPermissions.value
+      ...formPermissions.value,
+      ...responsePermissions.value
     ].filter((p) => p !== null && p !== undefined);
 
     const res = await axiosInstance.post('/roles', {
@@ -104,6 +112,22 @@ const validate = async () => {
                   <v-select
                     v-model="formPermissions"
                     :items="ADMIN_FORM_ROLES"
+                    item-title="label"
+                    item-value="value"
+                    variant="outlined"
+                    color="primary"
+                    class="mt-2"
+                    label="Selecciona el Rol"
+                    multiple
+                  />
+                </div>
+              </v-col>
+              <v-col cols="12" sm="6" class="py-0">
+                <div class="mb-6">
+                  <v-label>Permisos de Reportes</v-label>
+                  <v-select
+                    v-model="responsePermissions"
+                    :items="ADMIN_RESPONSE_ROLES"
                     item-title="label"
                     item-value="value"
                     variant="outlined"

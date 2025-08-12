@@ -53,10 +53,7 @@ export const ADMIN_FORM_ROLES = [
 
 export const ADMIN_RESPONSE_ROLES = [
   { label: 'Ver Todos', value: 'form_response.viewAny' },
-  { label: 'Ver', value: 'form_response.view' },
-  { label: 'Crear', value: 'form_response.create' },
-  { label: 'Editar', value: 'form_response.update' },
-  { label: 'Asignar', value: 'form_response.assign' }
+  { label: 'Ver', value: 'form_response.view' }
 ];
 
 // --------Sponsor Assignable Roles ---------
