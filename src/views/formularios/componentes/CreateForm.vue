@@ -59,6 +59,22 @@ const fetchAllUsers = async () => {
 
 const fetchUsersByScope = async () => {
   try {
+    // Validar que tengamos los parámetros necesarios antes de hacer la llamada
+    if (scope.value === 'business_unit_group' && !groupId.value) {
+      console.log('Group scope selected but no group ID available yet');
+      return;
+    }
+
+    if (scope.value === 'business' && !businessId.value) {
+      console.log('Business scope selected but no business ID available yet');
+      return;
+    }
+
+    if (scope.value === 'business_unit' && !businessUnitId.value) {
+      console.log('Business unit scope selected but no business unit ID available yet');
+      return;
+    }
+
     const params = { scope: scope.value };
 
     if (scope.value === 'business' && businessId.value) {
@@ -67,25 +83,76 @@ const fetchUsersByScope = async () => {
       params.business_unit_id = businessUnitId.value;
     } else if (scope.value === 'organization') {
       params.organization_id = auth.user?.organization_id;
+    } else if (scope.value === 'business_unit_group' && groupId.value) {
+      params.business_unit_group_id = groupId.value;
     }
 
+    console.log('Fetching users with params:', params); // Debug
+
     const res = await axiosInstance.get('/users-by-scope', { params });
+    console.log('Users response:', res.data); // Debug
+
     filteredUsers.value = res.data.data.map((user) => ({
       ...user,
       customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
     }));
+
+    console.log('Filtered users:', filteredUsers.value); // Debug
+
+    // Si es grupo, asignar automáticamente todos los roles disponibles
+    if (scope.value === 'business_unit_group' && groupId.value) {
+      // Obtener todos los roles únicos de los usuarios filtrados
+      const allRoles = new Set();
+      filteredUsers.value.forEach((user) => {
+        if (user.roles && user.roles.length > 0) {
+          user.roles.forEach((role) => {
+            allRoles.add(role.id);
+          });
+        }
+      });
+
+      console.log('All roles found:', Array.from(allRoles)); // Debug
+
+      // Asignar automáticamente todos los roles como auditados
+      audited.value = Array.from(allRoles);
+
+      console.log('Audited roles assigned:', audited.value); // Debug
+    }
   } catch (err) {
     console.error('Error fetching users:', err);
     filteredUsers.value = [];
   }
 };
 
-watch([scope, businessId, businessUnitId], () => {
+// Modificar el watcher para que funcione correctamente
+watch([scope, businessId, businessUnitId, groupId], async () => {
   if (scope.value) {
-    fetchUsersByScope();
+    // Limpiar selecciones solo si no es grupo
+    if (scope.value !== 'business_unit_group') {
+      audited.value = [];
+    }
+    auditors.value = [];
+
+    // Ejecutar fetchUsersByScope
+    await fetchUsersByScope();
   }
-  auditors.value = [];
-  audited.value = [];
+});
+
+// Eliminar el watcher anterior que estaba causando conflictos
+// watch([scope, businessId, businessUnitId], () => {
+//   if (scope.value) {
+//     fetchUsersByScope();
+//   }
+//   auditors.value = [];
+//   audited.value = [];
+// });
+
+// Watcher específico para cuando se selecciona un grupo
+watch(groupId, async (newGroupId) => {
+  if (scope.value === 'business_unit_group' && newGroupId) {
+    console.log('Group ID changed, fetching users for group:', newGroupId);
+    await fetchUsersByScope();
+  }
 });
 
 onMounted(async () => {
@@ -303,6 +370,10 @@ const validate = async () => {
                   label="Selecciona el Grupo"
                   required
                 />
+                <v-alert type="info" variant="tonal" class="mt-2" density="compact">
+                  <strong>Asignación automática:</strong> Al seleccionar un grupo, se asignarán automáticamente TODOS los roles de las
+                  unidades de negocio que pertenecen a este grupo como auditados.
+                </v-alert>
               </div>
             </v-col>
           </v-row>
@@ -318,6 +389,8 @@ const validate = async () => {
               color="primary"
               class="mt-2"
               label="Selecciona a los Auditores"
+              :hint="`${filteredRoles.length} roles disponibles`"
+              persistent-hint
             />
           </div>
           <div class="mb-6">
@@ -332,7 +405,20 @@ const validate = async () => {
               color="primary"
               class="mt-2"
               label="Selecciona a los Auditados"
+              :hint="scope === 'business_unit_group' ? 'Selección automática para grupos' : `${filteredRoles.length} roles disponibles`"
+              persistent-hint
+              :disabled="scope === 'business_unit_group'"
+              :readonly="scope === 'business_unit_group'"
             />
+            <v-alert
+              v-if="scope === 'business_unit_group' && audited.length > 0"
+              type="success"
+              variant="tonal"
+              class="mt-2"
+              density="compact"
+            >
+              Se han asignado automáticamente {{ audited.length }} roles de las unidades del grupo seleccionado.
+            </v-alert>
           </div>
           <div class="mb-6">
             <v-label>Frecuencia</v-label>

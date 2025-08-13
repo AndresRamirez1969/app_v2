@@ -74,6 +74,7 @@ const statusOptions = ref([
 
 const auth = useAuthStore();
 const router = useRouter();
+const isLoading = ref(false);
 
 // Detectar si es móvil
 const isMobile = ref(false);
@@ -98,11 +99,10 @@ const canCreate = computed(() => {
 
 const currentPage = ref(1);
 const forms = ref({ data: [], last_page: 1 });
-const isLoading = ref(false);
 
 const fetchForms = async () => {
-  isLoading.value = true;
   try {
+    isLoading.value = true;
     const res = await axiosInstance.get('/forms', {
       params: {
         search: filters.value.search,

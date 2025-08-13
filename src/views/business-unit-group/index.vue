@@ -20,6 +20,7 @@ const auth = useAuthStore();
 const canView = ref(false);
 const canCreate = ref(false);
 const canEditPermission = ref(false);
+const isLoading = ref(false);
 
 function hasPermission(permission) {
   return auth.user?.permissions?.includes(permission);
@@ -37,7 +38,14 @@ onMounted(async () => {
     canView.value = true;
     canCreate.value = hasPermission('businessUnitGroup.create');
     canEditPermission.value = hasPermission('businessUnitGroup.update');
-    await fetchBusinessUnitGroups();
+    try {
+      isLoading.value = true;
+      await fetchBusinessUnitGroups();
+    } catch (error) {
+      console.error('Error fetching business unit groups:', error);
+    } finally {
+      isLoading.value = false;
+    }
   } else {
     canView.value = false;
     if (hasPermission('businessUnitGroup.view') && auth.user?.business_unit_group_id) {
@@ -55,6 +63,8 @@ const fetchBusinessUnitGroups = async (params = {}) => {
     console.log('Business unit groups cargados:', filteredBusinessUnitGroups.value);
   } catch (error) {
     console.error('Error fetching business unit groups:', error);
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -114,7 +124,12 @@ function handleFilter(options) {
 
       <v-row>
         <v-col>
-          <BusinessUnitGroupsList :items="filteredBusinessUnitGroups" :isMobile="mdAndDown" :can-edit-permission="canEditPermission" />
+          <BusinessUnitGroupsList
+            :items="filteredBusinessUnitGroups"
+            :isMobile="mdAndDown"
+            :can-edit-permission="canEditPermission"
+            :isLoading="isLoading"
+          />
         </v-col>
       </v-row>
     </v-container>

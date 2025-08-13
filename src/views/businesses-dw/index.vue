@@ -19,6 +19,7 @@ const filterOptions = ref({});
 const auth = useAuthStore();
 const canView = ref(false);
 const canCreate = ref(false);
+const isLoading = ref(false);
 
 // Nuevo: Computed para saber si el usuario tiene business.update
 const canEditPermission = ref(false);
@@ -34,11 +35,14 @@ onMounted(async () => {
     canCreate.value = hasPermission('business.create');
     canEditPermission.value = hasPermission('business.update');
     try {
+      isLoading.value = true;
       const { data } = await axios.get('/businesses');
       businesses.value = data.data;
-      filteredBusinesses.value = data.data;
+      filteredBusinesses.value = data.data.slice(0, 10);
     } catch (error) {
       console.error('Error fetching businesses:', error);
+    } finally {
+      isLoading.value = false;
     }
   } else {
     canView.value = false;
@@ -133,7 +137,7 @@ function applyFilters() {
       <v-row>
         <v-col>
           <!-- Pasa la prop canEditPermission a BusinessList -->
-          <BusinessList :items="filteredBusinesses" :isMobile="mdAndDown" :can-edit-permission="canEditPermission" />
+          <BusinessList :items="filteredBusinesses" :isMobile="mdAndDown" :can-edit-permission="canEditPermission" :isLoading="isLoading" />
         </v-col>
       </v-row>
     </v-container>

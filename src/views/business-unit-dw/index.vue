@@ -20,6 +20,7 @@ const auth = useAuthStore();
 const canView = ref(false);
 const canCreate = ref(false);
 const canEditPermission = ref(false);
+const isLoading = ref(false);
 
 function hasPermission(permission) {
   return auth.user?.permissions?.includes(permission);
@@ -32,12 +33,15 @@ onMounted(async () => {
     canCreate.value = hasPermission('businessUnit.create');
     canEditPermission.value = hasPermission('businessUnit.update');
     try {
+      isLoading.value = true;
       const { data } = await axios.get('/business-units');
       business_units.value = data.data; // <-- SOLO EL ARRAY
       filteredBusinessUnits.value = data.data; // <-- SOLO EL ARRAY
       console.log('Business units cargados:', filteredBusinessUnits.value);
     } catch (error) {
       console.error('Error fetching business units:', error);
+    } finally {
+      isLoading.value = false;
     }
   } else {
     canView.value = false;
@@ -137,7 +141,12 @@ function applyFilters() {
 
       <v-row>
         <v-col>
-          <BusinessUnitList :items="filteredBusinessUnits" :isMobile="mdAndDown" :can-edit-permission="canEditPermission" />
+          <BusinessUnitList
+            :items="filteredBusinessUnits"
+            :isMobile="mdAndDown"
+            :can-edit-permission="canEditPermission"
+            :isLoading="isLoading"
+          />
         </v-col>
       </v-row>
     </v-container>
