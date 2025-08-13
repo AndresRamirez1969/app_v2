@@ -293,7 +293,7 @@ onMounted(() => {
                     <td @click.stop>
                       <div class="d-flex gap-2">
                         <v-btn color="primary" variant="outlined" @click="exportResponse(response.id)"> Exportar PDF </v-btn>
-                        <v-btn color="secondary" variant="outlined" @click="viewUserResponse(response)"> Ver Usuario </v-btn>
+                        <v-btn color="info" variant="outlined" @click="viewUserResponse(response)"> Ver Respuestas </v-btn>
                       </div>
                     </td>
                   </tr>

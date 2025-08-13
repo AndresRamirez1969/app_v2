@@ -175,7 +175,9 @@ const MainRoutes = {
       meta: {
         requiresAuth: true,
         title: 'Respuesta de Usuario'
-      },
+      }
+    },
+    {
       name: 'Business Unit Groups',
       path: '/grupos-dw',
       component: () => import('@/views/business-unit-group/index.vue')
@@ -223,6 +225,11 @@ const MainRoutes = {
     {
       name: 'Role Create DW',
       path: '/roles-dw/create',
+      component: () => import('@/views/roles/create.vue')
+    },
+    {
+      name: 'Role Create',
+      path: '/roles/create',
       component: () => import('@/views/roles/create.vue')
     },
     {

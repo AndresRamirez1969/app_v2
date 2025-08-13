@@ -27,6 +27,8 @@ const businessId = ref('');
 const scope = ref('');
 const businesses = ref([]);
 const businessUnits = ref([]);
+const groups = ref([]);
+const groupId = ref('');
 const logo = ref(null);
 
 const sameLogo = ref(false);
@@ -100,6 +102,11 @@ onMounted(async () => {
       ...businessUnit,
       customLabel: `${businessUnit.legal_name}`
     }));
+    const resGroup = await axiosInstance.get('/business-unit-groups');
+    groups.value = resGroup.data.data.map((group) => ({
+      ...group,
+      customLabel: `${group.name}`
+    }));
   } catch (err) {
     console.log(err);
   }
@@ -144,6 +151,10 @@ const validate = async () => {
       formData.append('business_id', businessId.value);
       formData.append('business_unit_id', businessUnitId.value);
       formData.append('organization_id', user?.organization_id);
+    } else if (scope.value === 'business_unit_group') {
+      formData.append('business_unit_group_id', groupId.value);
+      formData.append('organization_id', user?.organization_id);
+      formData.append('business_id', businessId.value);
     }
 
     const res = await axiosInstance.post('/forms', formData, {
@@ -231,6 +242,7 @@ const validate = async () => {
                 <v-radio label="Organizacional" value="organization" />
                 <v-radio label="Por Negocio" value="business" />
                 <v-radio label="Por Unidad" value="business_unit" />
+                <v-radio label="Asignar a Grupo" value="business_unit_group" />
               </v-radio-group>
             </v-col>
           </v-row>
@@ -269,6 +281,26 @@ const validate = async () => {
                   color="primary"
                   class="mt-2"
                   label="Selecciona la Unidad de Negocio"
+                  required
+                />
+              </div>
+            </v-col>
+          </v-row>
+
+          <!-- Select de Grupo (solo cuando scope es 'business_unit_group') -->
+          <v-row v-if="scope === 'business_unit_group'" class="my-0">
+            <v-col cols="12" sm="6" class="py-0">
+              <div class="mb-6">
+                <v-label>Grupo</v-label>
+                <v-select
+                  v-model="groupId"
+                  :items="groups"
+                  item-title="customLabel"
+                  item-value="id"
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2"
+                  label="Selecciona el Grupo"
                   required
                 />
               </div>
