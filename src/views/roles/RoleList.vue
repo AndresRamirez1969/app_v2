@@ -4,6 +4,14 @@ import { useRouter } from 'vue-router';
 import RoleTableMeta from './RoleTableMeta.vue';
 import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiPencil, mdiEye } from '@mdi/js';
 import { useAuthStore } from '@/stores/auth';
+import { permissionTranslations } from '@/utils/permissionTranslations';
+
+// Traducción de nombres de roles especiales
+const roleNameTranslations = {
+  superadmin: 'Super Administrador',
+  admin: 'Administrador',
+  sponsor: 'Sponsor'
+};
 
 const props = defineProps({
   items: Array,
@@ -20,12 +28,11 @@ const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
 const isSponsor = computed(() => roles.value.includes('sponsor'));
 const canEdit = computed(() => permissions.value.includes('role.update'));
-const canView = computed(() => permissions.value.includes('user.view')); // Cambiado a user.view
+const canView = computed(() => permissions.value.includes('user.view'));
 const canCreate = computed(() => permissions.value.includes('role.create'));
 const canShowDropdown = computed(() => canView.value || canEdit.value);
 
 const filteredItems = computed(() => {
-  // Solo superadmin puede ver el rol superadmin, admin no ve superadmin, sponsor no ve admin/superadmin/sponsor
   return (props.items || []).filter((r) => {
     if (r.name === 'superadmin') return isSuperadmin.value;
     if (r.name === 'admin') return isSuperadmin.value || isAdmin.value;
@@ -72,13 +79,29 @@ const paginatedItems = computed(() => {
   return sortedItems.value.slice(start, start + itemsPerPage.value);
 });
 
-const goToEdit = (role) => router.push({ path: `/roles/${role.id}/edit` });
-const goToShow = (role) => router.push({ path: `/roles/${role.id}` });
+const goToEdit = (role) => router.push({ path: `/roles-dw/${role.id}/edit` });
+const goToShow = (role) => router.push({ path: `/roles-dw/${role.id}` });
+
+function getOrganizationLabel(role) {
+  if (role.name === 'superadmin') return 'Único';
+  if (['admin', 'sponsor'].includes(role.name)) return 'Global';
+  return role.organization_id ?? 'N/A';
+}
+
+// Traduce el nombre del rol si es especial
+function translateRoleName(name) {
+  return roleNameTranslations[name] || name;
+}
+
+function translatePermission(name) {
+  if (permissionTranslations[name]) return permissionTranslations[name];
+  const action = name?.split('.')?.[1];
+  return permissionTranslations[action] || action || name;
+}
 </script>
 
 <template>
   <div>
-    <!-- Botón agregar rol solo si tiene permiso -->
     <div v-if="canCreate" class="mb-4 d-flex justify-end">
       <slot name="add-btn" />
     </div>
@@ -90,20 +113,20 @@ const goToShow = (role) => router.push({ path: `/roles/${role.id}` });
           v-for="role in paginatedItems"
           :key="role.id"
           class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
-          @click="canView ? () => goToShow(role) : undefined"
+          @click="canView ? () => goToShow(role) : null"
           :style="{ cursor: canView ? 'pointer' : 'default' }"
         >
           <v-row no-gutters align="center" class="mb-1">
             <v-col cols="12">
               <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <router-link :to="`/roles/${role.id}`" @click.stop style="text-decoration: underline; color: #1976d2 !important">
+                  <router-link :to="`/roles-dw/${role.id}`" @click.stop style="text-decoration: underline; color: #1976d2 !important">
                     {{ role.id }}
                   </router-link>
                 </div>
               </div>
-              <div class="font-weight-medium mb-1">{{ role.name }}</div>
-              <div class="text-caption"><strong>Organización:</strong> {{ role.organization_id ?? 'N/A' }}</div>
+              <div class="font-weight-medium mb-1">{{ translateRoleName(role.name) }}</div>
+              <div class="text-caption"><strong>Organización:</strong> {{ getOrganizationLabel(role) }}</div>
               <div class="text-caption">
                 <strong>Permisos:</strong>
                 <template v-if="role.permissions && role.permissions.length">
@@ -115,9 +138,11 @@ const goToShow = (role) => router.push({ path: `/roles/${role.id}` });
                     color="primary"
                     text-color="white"
                   >
-                    {{ perm.name }}
+                    {{ translatePermission(perm.name) }}
                   </v-chip>
-                  <v-chip v-if="role.permissions.length > 10" class="ma-1" size="small" color="grey" text-color="white"> + más </v-chip>
+                  <v-chip v-if="role.permissions.length > 10" class="ma-1" size="small" color="grey" text-color="white">
+                    +{{ role.permissions.length - 10 }} más
+                  </v-chip>
                 </template>
                 <span v-else>Sin permisos</span>
               </div>
@@ -153,17 +178,17 @@ const goToShow = (role) => router.push({ path: `/roles/${role.id}` });
             <tr
               v-for="role in paginatedItems"
               :key="role.id"
-              @click="canView ? () => goToShow(role) : undefined"
+              @click="canView ? goToShow(role) : null"
               :class="['row-clickable', { 'row-disabled': !canView }]"
               :style="{ cursor: canView ? 'pointer' : 'default' }"
             >
               <td class="id-cell">
-                <router-link :to="`/roles/${role.id}`" @click.stop style="text-decoration: underline; color: #1976d2 !important">
+                <router-link :to="`/roles-dw/${role.id}`" @click.stop style="text-decoration: underline; color: #1976d2 !important">
                   {{ role.id }}
                 </router-link>
               </td>
-              <td class="name-cell">{{ role.name }}</td>
-              <td class="org-cell">{{ role.organization_id ?? 'N/A' }}</td>
+              <td class="name-cell">{{ translateRoleName(role.name) }}</td>
+              <td class="org-cell">{{ getOrganizationLabel(role) }}</td>
               <td class="permissions-cell">
                 <template v-if="role.permissions && role.permissions.length">
                   <v-chip
@@ -174,9 +199,11 @@ const goToShow = (role) => router.push({ path: `/roles/${role.id}` });
                     color="primary"
                     text-color="white"
                   >
-                    {{ perm.name }}
+                    {{ translatePermission(perm.name) }}
                   </v-chip>
-                  <v-chip v-if="role.permissions.length > 10" class="ma-1" size="small" color="grey" text-color="white"> + más </v-chip>
+                  <v-chip v-if="role.permissions.length > 10" class="ma-1" size="small" color="grey" text-color="white">
+                    +{{ role.permissions.length - 10 }} más
+                  </v-chip>
                 </template>
                 <span v-else>Sin permisos</span>
               </td>

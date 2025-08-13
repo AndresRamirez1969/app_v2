@@ -48,7 +48,7 @@ const fetchRoles = async (params = {}) => {
 };
 
 const goToCreate = () => {
-  router.push('/roles/create');
+  router.push('/roles-dw/create');
 };
 
 function handleSearch(text) {
