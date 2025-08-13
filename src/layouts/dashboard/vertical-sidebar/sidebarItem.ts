@@ -6,7 +6,9 @@ import {
   ShopTwoTone,
   IdcardTwoTone,
   FileTextTwoTone,
-  SnippetsTwoTone
+  SnippetsTwoTone,
+  TeamOutlined,
+  SafetyCertificateTwoTone
 } from '@ant-design/icons-vue';
 
 export interface menu {
@@ -27,7 +29,6 @@ export interface menu {
 }
 
 const sidebarItem: menu[] = [
-  { header: 'Utilidades' },
   {
     title: 'Home',
     icon: DashboardTwoTone,
@@ -53,6 +54,23 @@ const sidebarItem: menu[] = [
         title: 'Grupos de Ubicación DW',
         icon: DatabaseTwoTone,
         to: '/grupos-dw'
+      }
+    ]
+  },
+  // NUEVO: Dropdown Usuarios con Usuarios DW y Roles
+  {
+    title: 'Usuarios',
+    icon: TeamOutlined,
+    children: [
+      {
+        title: 'Usuarios DW',
+        icon: IdcardTwoTone,
+        to: '/usuarios-dw'
+      },
+      {
+        title: 'Roles & Permisos',
+        icon: SafetyCertificateTwoTone,
+        to: '/roles-dw'
       }
     ]
   },

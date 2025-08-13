@@ -17,6 +17,7 @@ const hasOrgViewAny = computed(() => permissions.value.includes('organization.vi
 const hasBusinessViewAny = computed(() => permissions.value.includes('business.viewAny'));
 const hasBusinessUnitViewAny = computed(() => permissions.value.includes('businessUnit.viewAny'));
 const hasBusinessUnitGroupViewAny = computed(() => permissions.value.includes('businessUnitGroup.viewAny'));
+const hasUserViewAny = computed(() => permissions.value.includes('user.viewAny'));
 
 function getOrgDwRoute() {
   return '/organizaciones-dw';
@@ -29,6 +30,9 @@ function getBusinessUnitDwRoute() {
 }
 function getBusinessUnitGroupDwRoute() {
   return '/grupos-dw';
+}
+function getUserDwRoute() {
+  return '/usuarios-dw';
 }
 
 // Sidebar SOLO muestra los apartados si el usuario es superadmin o tiene el permiso viewAny
@@ -60,6 +64,10 @@ const sidebarMenu = computed(() => {
           .filter(Boolean);
         // Solo muestra el dropdown si hay al menos un hijo visible
         return children.length > 0 ? { ...item, children } : null;
+      }
+      if (item.title === 'Usuarios DW') {
+        const show = userRoles.value.includes('superadmin') || hasUserViewAny.value;
+        return show ? { ...item, to: getUserDwRoute() } : null;
       }
       return item;
     })

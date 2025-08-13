@@ -25,17 +25,13 @@ const emit = defineEmits(['update:page', 'sort']);
             Nombre
             <slot name="sort-icon" :column="'name'" />
           </th>
-          <th @click="emit('sort', 'email')" class="cursor-pointer email-header">
-            Email
-            <slot name="sort-icon" :column="'email'" />
+          <th @click="emit('sort', 'organization_id')" class="cursor-pointer org-header">
+            Organización
+            <slot name="sort-icon" :column="'organization_id'" />
           </th>
-          <th @click="emit('sort', 'role')" class="cursor-pointer role-header">
-            Rol
-            <slot name="sort-icon" :column="'role'" />
-          </th>
-          <th @click="emit('sort', 'status')" class="cursor-pointer status-header">
-            Estatus
-            <slot name="sort-icon" :column="'status'" />
+          <th @click="emit('sort', 'permissions')" class="cursor-pointer permissions-header">
+            Permisos
+            <slot name="sort-icon" :column="'permissions'" />
           </th>
           <th class="actions-header"></th>
         </tr>
@@ -55,3 +51,5 @@ const emit = defineEmits(['update:page', 'sort']);
     </div>
   </div>
 </template>
+
+<style scoped src="@/styles/roles.css"></style>

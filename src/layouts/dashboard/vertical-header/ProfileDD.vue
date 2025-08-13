@@ -118,13 +118,6 @@ const handleLogout = async () => {
               <v-list-item-title class="text-h6"> Ver Perfil</v-list-item-title>
             </v-list-item>
 
-            <v-list-item color="primary" rounded="0" value="Billing">
-              <template v-slot:prepend>
-                <WalletOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-              </template>
-              <v-list-item-title class="text-h6"> Billing</v-list-item-title>
-            </v-list-item>
-
             <!-- Organizaciones DW -->
             <v-list-item
               v-if="showOrgDwProfile"
@@ -174,7 +167,7 @@ const handleLogout = async () => {
               <template v-slot:prepend>
                 <LogoutOutlined :style="{ fontSize: '14px' }" class="mr-4" />
               </template>
-              <v-list-item-title class="text-subtitle-2"> Logout</v-list-item-title>
+              <v-list-item-title class="text-subtitle-2"> Cerrar Sesión</v-list-item-title>
             </v-list-item>
           </v-list>
         </v-window-item>
