@@ -17,12 +17,12 @@ const router = useRouter();
 const auth = useAuthStore();
 
 const user = computed(() => auth.user || { roles: [], permissions: [] });
-// INTEGRACIÓN: roles ahora son array de strings
 const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
-const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
+const isSponsor = computed(() => roles.value.includes('sponsor'));
+const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value);
 const canEdit = computed(() => permissions.value.includes('businessUnit.update') || props.canEditPermission);
 const canView = computed(() => permissions.value.includes('businessUnit.view'));
 

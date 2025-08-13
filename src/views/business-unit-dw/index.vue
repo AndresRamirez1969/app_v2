@@ -41,8 +41,8 @@ onMounted(async () => {
     }
   } else {
     canView.value = false;
-    if (hasPermission('businessUnit.view') && auth.user?.business_id) {
-      router.replace(`/ubicaciones-dw/${auth.user.business_id}`);
+    if (hasPermission('businessUnit.view') && auth.user?.business_unit_id) {
+      router.replace(`/ubicaciones-dw/${auth.user.business_unit_id}`);
     }
   }
 });

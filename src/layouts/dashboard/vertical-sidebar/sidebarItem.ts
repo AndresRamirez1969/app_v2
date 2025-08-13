@@ -6,7 +6,9 @@ import {
   ShopTwoTone,
   IdcardTwoTone,
   FileTextTwoTone,
-  SnippetsTwoTone
+  SnippetsTwoTone,
+  TeamOutlined,
+  SafetyCertificateTwoTone
 } from '@ant-design/icons-vue';
 
 export interface menu {
@@ -27,23 +29,11 @@ export interface menu {
 }
 
 const sidebarItem: menu[] = [
-  { header: 'Utilidades' },
   {
     title: 'Home',
     icon: DashboardTwoTone,
     to: '/dashboard'
   },
-  // {
-  //   title: 'Organizaciones',
-  //   icon: DatabaseTwoTone,
-  //   to: '/organizaciones'
-  // },
-  // {
-  //   title: 'Negocios',
-  //   icon: CrownTwoTone,
-  //   to: '/negocios'
-  // },
-
   {
     title: 'Organizaciones DW',
     icon: DatabaseTwoTone
@@ -53,14 +43,37 @@ const sidebarItem: menu[] = [
     icon: CrownTwoTone
   },
   {
-    title: 'Ubicaciones DW',
-    icon: DatabaseTwoTone
+    title: 'Ubicaciones',
+    icon: DatabaseTwoTone,
+    children: [
+      {
+        title: 'Ubicaciones DW',
+        icon: DatabaseTwoTone
+      },
+      {
+        title: 'Grupos de Ubicación DW',
+        icon: DatabaseTwoTone,
+        to: '/grupos-dw'
+      }
+    ]
   },
-  // {
-  //   title: 'Unidades',
-  //   icon: ShopTwoTone,
-  //   to: '/unidades'
-  // },
+  // NUEVO: Dropdown Usuarios con Usuarios DW y Roles
+  {
+    title: 'Usuarios',
+    icon: TeamOutlined,
+    children: [
+      {
+        title: 'Usuarios DW',
+        icon: IdcardTwoTone,
+        to: '/usuarios-dw'
+      },
+      {
+        title: 'Roles & Permisos',
+        icon: SafetyCertificateTwoTone,
+        to: '/roles-dw'
+      }
+    ]
+  },
   {
     title: 'Usuarios',
     icon: IdcardTwoTone,
@@ -76,11 +89,6 @@ const sidebarItem: menu[] = [
     icon: FileTextTwoTone,
     to: '/mis-formularios'
   },
-  // {
-  //   title: 'Organizaciones DW',
-  //   icon: DatabaseTwoTone,
-  //   to: '/organizaciones-dw'
-  // },
   {
     title: 'Reportes',
     icon: SnippetsTwoTone,

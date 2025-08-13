@@ -1,0 +1,5 @@
+.id-header {
+  min-width: 110px; /* o ajusta a 115px si lo necesitas */
+  white-space: nowrap;
+  vertical-align: middle;
+}

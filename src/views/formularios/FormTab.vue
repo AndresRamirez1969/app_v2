@@ -58,7 +58,10 @@ import { useAuthStore } from '@/stores/auth';
 import debounce from 'lodash/debounce';
 import { useRouter } from 'vue-router';
 
+
 const { mdAndDown } = useDisplay();
+const router = useRouter();
+
 
 const filters = ref({
   search: '',

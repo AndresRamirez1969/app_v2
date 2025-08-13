@@ -175,7 +175,65 @@ const MainRoutes = {
       meta: {
         requiresAuth: true,
         title: 'Respuesta de Usuario'
-      }
+      },
+      name: 'Business Unit Groups',
+      path: '/grupos-dw',
+      component: () => import('@/views/business-unit-group/index.vue')
+    },
+    {
+      name: 'Business Unit Group Create DW',
+      path: '/grupos-dw/create',
+      component: () => import('@/views/business-unit-group/create.vue')
+    },
+    {
+      name: 'Business Unit Group Edit DW',
+      path: '/grupos-dw/:id/edit',
+      component: () => import('@/views/business-unit-group/edit.vue')
+    },
+    {
+      name: 'Business Unit Group Show DW',
+      path: '/grupos-dw/:id',
+      component: () => import('@/views/business-unit-group/show.vue')
+    },
+    {
+      name: 'Users DW',
+      path: '/usuarios-dw',
+      component: () => import('@/views/users-dw/index.vue')
+    },
+    {
+      name: 'User Create DW',
+      path: '/usuarios-dw/create',
+      component: () => import('@/views/users-dw/create.vue')
+    },
+    {
+      name: 'User Edit DW',
+      path: '/usuarios-dw/:id/edit',
+      component: () => import('@/views/users-dw/edit.vue')
+    },
+    {
+      name: 'User Show DW',
+      path: '/usuarios-dw/:id',
+      component: () => import('@/views/users-dw/show.vue')
+    },
+    {
+      name: 'Roles DW',
+      path: '/roles-dw',
+      component: () => import('@/views/roles/index.vue')
+    },
+    {
+      name: 'Role Create DW',
+      path: '/roles-dw/create',
+      component: () => import('@/views/roles/create.vue')
+    },
+    {
+      name: 'Role Edit DW',
+      path: '/roles-dw/:id/edit',
+      component: () => import('@/views/roles/edit.vue')
+    },
+    {
+      name: 'Role Show DW',
+      path: '/roles-dw/:id',
+      component: () => import('@/views/roles/show.vue')
     }
   ]
 };

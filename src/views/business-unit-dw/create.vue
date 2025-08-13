@@ -203,16 +203,16 @@ const validate = async () => {
     // Crear unidad de negocio
     const res = await axiosInstance.post('/business-units', formData);
 
-    // Asignar business_unit_id al usuario (simulación, depende de tu backend)
-    if (res?.data?.id) {
-      auth.user.business_unit_id = res.data.id;
+    // Obtener el ID del business unit creado de forma robusta
+    const newId = res?.data?.id || res?.data?.business_unit?.id || res?.data?.data?.id;
+
+    if (newId) {
+      auth.user.business_unit_id = newId;
+      await auth.fetchUser();
+      router.replace(`/ubicaciones-dw/${newId}`);
+    } else {
+      errorMsg.value = 'No se pudo obtener el ID de la ubicación creada.';
     }
-
-    // Refresca datos del usuario (por si el backend lo actualiza)
-    await auth.fetchUser();
-
-    // Redirige al show de la empresa recién creada
-    router.replace(`/ubicaciones-dw/${res.data.id}`);
   } catch (err) {
     errorMsg.value = err?.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(' ') : 'Error al crear la ubicación';
     console.error('❌ Error al crear la ubicación:', err);
