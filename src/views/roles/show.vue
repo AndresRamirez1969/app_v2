@@ -5,6 +5,14 @@ import { useDisplay } from 'vuetify';
 import axiosInstance from '@/utils/axios';
 import { mdiArrowLeft, mdiPencil, mdiChevronDown, mdiDotsHorizontal } from '@mdi/js';
 import { useAuthStore } from '@/stores/auth';
+import { permissionTranslations } from '@/utils/permissionTranslations';
+
+// Traducción de nombres de roles especiales
+const roleNameTranslations = {
+  superadmin: 'Super Administrador',
+  admin: 'Administrador',
+  sponsor: 'Sponsor'
+};
 
 const router = useRouter();
 const route = useRoute();
@@ -27,7 +35,7 @@ const goToEdit = () => {
 };
 
 const goToIndex = () => {
-  router.push('/roles');
+  router.push('/roles-dw');
 };
 
 // Diccionario para traducir modelos a español
@@ -36,28 +44,73 @@ const modelNames = {
   role: 'Rol',
   permission: 'Permiso',
   businessUnit: 'Ubicación',
-  businessUnitGroup: 'Grupo de Ubicaciones'
+  businessUnitGroup: 'Grupo de Ubicaciones',
+  organization: 'Organización',
+  business: 'Negocio',
+  form: 'Formulario',
+  person: 'Persona'
   // Agrega aquí más modelos según tu sistema
 };
 
-function groupPermissionsByModel(perms) {
+const allModels = Object.keys(modelNames);
+
+// Agrupa permisos por modelo, considerando los permisos directos y los de los roles vinculados
+function getPermissionsByModelFromLinkedRoles(role) {
   const grouped = {};
-  (perms || []).forEach((perm) => {
-    // Se asume que el permiso tiene un campo 'model' o 'model_name'
-    const model = perm.model || perm.model_name || 'Otro';
+  // Permisos directos del rol
+  const directPerms = role?.permissions || [];
+  // Permisos de los roles vinculados
+  const linkedRoles = role?.roles || [];
+  let allPerms = [...directPerms];
+  linkedRoles.forEach((r) => {
+    if (r.permissions) allPerms = allPerms.concat(r.permissions);
+  });
+  // Agrupa por modelo usando el nombre del permiso
+  allPerms.forEach((perm) => {
+    // No mostrar form_field ni permission
+    if (perm.name?.startsWith('form_field.') || perm.name?.startsWith('permission.')) {
+      return;
+    }
+    let model = perm.name?.split('.')[0] || perm.model || perm.model_name || 'Otro';
+    // Agrupa form_response en form
+    if (model === 'form_response') {
+      model = 'form';
+    }
+    // Agrupa permission en role (pero ya los filtramos arriba)
     if (!grouped[model]) grouped[model] = [];
     grouped[model].push(perm);
   });
   return grouped;
 }
 
+const modelsWithPermissions = computed(() => {
+  // Solo modelos con permisos vinculados
+  return Object.keys(permissionsByModel.value).filter(
+    (model) => permissionsByModel.value[model] && permissionsByModel.value[model].length > 0
+  );
+});
+
+// Traduce el nombre del rol si es especial
+function translateRoleName(name) {
+  return roleNameTranslations[name] || name;
+}
+
+// Traduce el nombre del permiso usando el diccionario
+function translatePermission(name) {
+  // Busca traducción exacta primero
+  if (permissionTranslations[name]) return permissionTranslations[name];
+  // Si no existe, busca por acción
+  const action = name?.split('.')?.[1];
+  return permissionTranslations[action] || action || name;
+}
+
 onMounted(async () => {
   if (!canView.value) return;
   try {
     const id = route.params.id;
-    const res = await axiosInstance.get(`/roles/${id}?with=permissions`);
+    const res = await axiosInstance.get(`/roles/${id}?with=permissions,roles.permissions`);
     role.value = res.data || res.data.role || res.data.data;
-    permissionsByModel.value = groupPermissionsByModel(role.value.permissions || []);
+    permissionsByModel.value = getPermissionsByModelFromLinkedRoles(role.value);
   } catch (err) {
     console.error('Error al obtener el rol:', err);
   }
@@ -82,7 +135,7 @@ onMounted(async () => {
         </template>
         <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="role">
           {{ role.id ? `${role.id}` : '' }}
-          {{ role.name ? `- ${role.name}` : '- Rol' }}
+          {{ role.name ? `- ${translateRoleName(role.name)}` : '- Rol' }}
         </h3>
         <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="role">
           {{ role.id ? `${role.id}` : '' }}
@@ -157,7 +210,7 @@ onMounted(async () => {
               </tr>
               <tr>
                 <td class="font-weight-bold text-subtitle-1">Nombre</td>
-                <td>{{ role?.name ?? 'No disponible' }}</td>
+                <td>{{ role?.name ? translateRoleName(role.name) : 'No disponible' }}</td>
               </tr>
             </tbody>
           </v-table>
@@ -184,38 +237,46 @@ onMounted(async () => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(perms, model) in permissionsByModel" :key="model">
+            <tr v-for="model in modelsWithPermissions" :key="model">
               <td class="model-cell">
                 {{ modelNames[model] || model }}
               </td>
               <td class="permissions-cell">
-                <template v-if="perms && perms.length">
-                  <v-chip v-for="perm in perms" :key="perm.id || perm.name" class="ma-1" size="small" color="primary" text-color="white">
-                    {{ perm.display_name || perm.name }}
-                  </v-chip>
-                </template>
-                <span v-else>Sin permisos</span>
+                <v-chip
+                  v-for="perm in permissionsByModel[model]"
+                  :key="perm.id || perm.name"
+                  class="ma-1"
+                  size="small"
+                  color="primary"
+                  text-color="white"
+                >
+                  {{ translatePermission(perm.name) }}
+                </v-chip>
               </td>
             </tr>
-            <tr v-if="Object.keys(permissionsByModel).length === 0">
+            <tr v-if="modelsWithPermissions.length === 0">
               <td colspan="2" class="text-center text-medium-emphasis">No hay permisos vinculados.</td>
             </tr>
           </tbody>
         </v-table>
         <!-- Mobile Cards -->
         <div class="d-md-none">
-          <v-card v-for="(perms, model) in permissionsByModel" :key="model" class="mb-4 pa-3 elevation-1 rounded-lg">
+          <v-card v-for="model in modelsWithPermissions" :key="model" class="mb-4 pa-3 elevation-1 rounded-lg">
             <div class="font-weight-bold mb-2">{{ modelNames[model] || model }}</div>
             <div>
-              <template v-if="perms && perms.length">
-                <v-chip v-for="perm in perms" :key="perm.id || perm.name" class="ma-1" size="small" color="primary" text-color="white">
-                  {{ perm.display_name || perm.name }}
-                </v-chip>
-              </template>
-              <span v-else>Sin permisos</span>
+              <v-chip
+                v-for="perm in permissionsByModel[model]"
+                :key="perm.id || perm.name"
+                class="ma-1"
+                size="small"
+                color="primary"
+                text-color="white"
+              >
+                {{ translatePermission(perm.name) }}
+              </v-chip>
             </div>
           </v-card>
-          <v-card v-if="Object.keys(permissionsByModel).length === 0" class="mb-4 pa-4 elevation-1 rounded-lg text-center">
+          <v-card v-if="modelsWithPermissions.length === 0" class="mb-4 pa-4 elevation-1 rounded-lg text-center">
             <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No hay permisos vinculados</div>
           </v-card>
         </div>
