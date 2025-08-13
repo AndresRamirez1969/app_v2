@@ -20,6 +20,7 @@ const filterOptions = ref({});
 const auth = useAuthStore();
 const canView = ref(false);
 const canCreate = ref(false);
+const isLoading = ref(false);
 
 function hasPermission(permission) {
   return Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission);
@@ -32,7 +33,14 @@ onMounted(async () => {
   }
   canView.value = true;
   canCreate.value = hasPermission('role.create');
-  await fetchRoles();
+  try {
+    isLoading.value = true;
+    await fetchRoles();
+  } catch (error) {
+    console.error('Error fetching roles:', error);
+  } finally {
+    isLoading.value = false;
+  }
 });
 
 const fetchRoles = async (params = {}) => {
@@ -99,7 +107,7 @@ async function applyFilters() {
 
       <v-row>
         <v-col>
-          <RoleList :items="filteredRoles" :isMobile="mdAndDown" />
+          <RoleList :items="filteredRoles" :isMobile="mdAndDown" :isLoading="isLoading" />
         </v-col>
       </v-row>
     </v-container>

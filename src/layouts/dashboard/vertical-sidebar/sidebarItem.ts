@@ -57,6 +57,21 @@ const sidebarItem: menu[] = [
       }
     ]
   },
+  {
+    title: 'Formularios',
+    icon: FileTextTwoTone,
+    to: '/formularios'
+  },
+  {
+    title: 'Mis Formularios',
+    icon: FileTextTwoTone,
+    to: '/mis-formularios'
+  },
+  {
+    title: 'Reportes',
+    icon: SnippetsTwoTone,
+    to: '/reportes'
+  },
   // NUEVO: Dropdown Usuarios con Usuarios DW y Roles
   {
     title: 'Usuarios',
@@ -73,26 +88,6 @@ const sidebarItem: menu[] = [
         to: '/roles-dw'
       }
     ]
-  },
-  {
-    title: 'Usuarios',
-    icon: IdcardTwoTone,
-    to: '/usuarios'
-  },
-  {
-    title: 'Formularios',
-    icon: FileTextTwoTone,
-    to: '/formularios'
-  },
-  {
-    title: 'Mis Formularios',
-    icon: FileTextTwoTone,
-    to: '/mis-formularios'
-  },
-  {
-    title: 'Reportes',
-    icon: SnippetsTwoTone,
-    to: '/reportes'
   }
 ];
 

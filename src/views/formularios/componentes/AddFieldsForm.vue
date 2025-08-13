@@ -149,8 +149,15 @@
         <v-card>
           <v-card-title>Editar Campo</v-card-title>
           <v-card-text>
-            <v-form ref="editForm">
-              <v-text-field v-model="editingField.label" label="Etiqueta del Campo" variant="outlined" required class="mb-4" />
+            <v-form ref="editForm" @submit.prevent="saveEditedField">
+              <v-text-field
+                v-model="editingField.label"
+                label="Etiqueta del Campo"
+                variant="outlined"
+                required
+                class="mb-4"
+                @keyup.enter="saveEditedField"
+              />
 
               <v-checkbox v-model="editingField.is_required" label="Campo requerido" class="mb-4" />
 
@@ -163,6 +170,7 @@
                     variant="outlined"
                     density="compact"
                     class="mr-2"
+                    @keyup.enter="saveEditedField"
                   />
                   <v-btn icon size="small" color="error" @click="removeOption(index)">
                     <v-icon :icon="mdiDelete"></v-icon>
@@ -436,6 +444,11 @@ const handleDrop = (event) => {
   try {
     const fieldType = JSON.parse(event.dataTransfer.getData('application/json'));
     addFieldType(fieldType);
+
+    const newFieldIndex = currentFields.value.length - 1;
+    if (newFieldIndex >= 0) {
+      editField(newFieldIndex);
+    }
   } catch (error) {
     console.error('Error parsing dropped data:', error);
   }
@@ -453,7 +466,6 @@ const addFieldType = (fieldType) => {
   };
 
   currentFields.value.push(newField);
-  toast.success(`Campo ${fieldType.label} agregado`);
 };
 
 const removeCurrentField = (index) => {
@@ -462,7 +474,6 @@ const removeCurrentField = (index) => {
   currentFields.value.forEach((field, idx) => {
     field.order = idx;
   });
-  toast.success('Campo eliminado');
 };
 
 const editField = (index) => {
@@ -479,7 +490,6 @@ const saveEditedField = () => {
 
   if (editingFieldIndex.value >= 0) {
     currentFields.value[editingFieldIndex.value] = { ...editingField.value };
-    toast.success('Campo actualizado');
   }
 
   showEditDialog.value = false;
@@ -521,7 +531,7 @@ const saveCurrentFields = () => {
   fields.value = [...fields.value, ...currentFields.value];
   currentFields.value = [];
   showFieldBuilder.value = false;
-  toast.success('Campos agregados al formulario');
+  toast.warning('No olvides guardar los campos');
 };
 
 const removeField = (index) => {

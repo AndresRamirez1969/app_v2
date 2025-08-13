@@ -7,7 +7,8 @@ import { useAuthStore } from '@/stores/auth';
 
 const props = defineProps({
   items: Array,
-  isMobile: Boolean
+  isMobile: Boolean,
+  isLoading: Boolean
 });
 
 const router = useRouter();
@@ -78,14 +79,23 @@ const goToShow = (role) => router.push({ path: `/roles/${role.id}` });
 
 <template>
   <div>
-    <!-- Botón agregar rol solo si tiene permiso -->
-    <div v-if="canCreate" class="mb-4 d-flex justify-end">
-      <slot name="add-btn" />
+    <div v-if="isLoading" class="text-center py-8">
+      <v-progress-circular indeterminate color="primary" size="64" />
+      <p class="mt-4">Cargando roles...</p>
     </div>
 
-    <!-- Modo móvil (cards) -->
-    <template v-if="isMobile">
-      <template v-if="paginatedItems.length">
+    <template v-else>
+      <div v-if="!paginatedItems.length" class="text-center py-8">
+        <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
+        <p class="mt-4 text-h6 text-grey-darken-1">No existen roles</p>
+        <p class="text-body-2 text-grey">No se encontraron roles con los filtros aplicados</p>
+      </div>
+      <div v-if="canCreate" class="mb-4 d-flex justify-end">
+        <slot name="add-btn" />
+      </div>
+
+      <!-- Modo móvil (cards) -->
+      <template v-else-if="isMobile">
         <v-card
           v-for="role in paginatedItems"
           :key="role.id"
@@ -125,96 +135,84 @@ const goToShow = (role) => router.push({ path: `/roles/${role.id}` });
           </v-row>
         </v-card>
       </template>
-      <template v-else>
-        <v-card class="mb-4 pa-4 elevation-1 rounded-lg text-center">
-          <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No se encontraron roles</div>
-        </v-card>
-      </template>
-    </template>
 
-    <!-- Modo escritorio (tabla) -->
-    <template v-if="!isMobile">
-      <RoleTableMeta
-        :items="sortedItems.value"
-        :page="page"
-        :itemsPerPage="itemsPerPage"
-        :sortBy="sortBy"
-        :sortDesc="sortDesc"
-        @update:page="page = $event"
-        @sort="toggleSort"
-      >
-        <template #sort-icon="{ column }">
-          <v-icon v-if="sortBy === column" size="16" class="ml-1">
-            {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
-          </v-icon>
-        </template>
-        <template #rows>
-          <template v-if="paginatedItems.length">
-            <tr
-              v-for="role in paginatedItems"
-              :key="role.id"
-              @click="canView ? () => goToShow(role) : undefined"
-              :class="['row-clickable', { 'row-disabled': !canView }]"
-              :style="{ cursor: canView ? 'pointer' : 'default' }"
-            >
-              <td class="id-cell">
-                <router-link :to="`/roles/${role.id}`" @click.stop style="text-decoration: underline; color: #1976d2 !important">
-                  {{ role.id }}
-                </router-link>
-              </td>
-              <td class="name-cell">{{ role.name }}</td>
-              <td class="org-cell">{{ role.organization_id ?? 'N/A' }}</td>
-              <td class="permissions-cell">
-                <template v-if="role.permissions && role.permissions.length">
-                  <v-chip
-                    v-for="(perm, idx) in role.permissions.slice(0, 10)"
-                    :key="perm.id || perm.name"
-                    class="ma-1"
-                    size="small"
-                    color="primary"
-                    text-color="white"
-                  >
-                    {{ perm.name }}
-                  </v-chip>
-                  <v-chip v-if="role.permissions.length > 10" class="ma-1" size="small" color="grey" text-color="white"> + más </v-chip>
-                </template>
-                <span v-else>Sin permisos</span>
-              </td>
-              <td class="actions-cell" @click.stop>
-                <v-menu v-if="canShowDropdown" location="bottom end">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
-                      <v-icon :icon="mdiDotsHorizontal" size="20" />
-                    </v-btn>
+      <!-- Modo escritorio (tabla) -->
+      <template v-if="!isMobile">
+        <RoleTableMeta
+          :items="sortedItems.value"
+          :page="page"
+          :itemsPerPage="itemsPerPage"
+          :sortBy="sortBy"
+          :sortDesc="sortDesc"
+          @update:page="page = $event"
+          @sort="toggleSort"
+        >
+          <template #sort-icon="{ column }">
+            <v-icon v-if="sortBy === column" size="16" class="ml-1">
+              {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
+            </v-icon>
+          </template>
+          <template #rows>
+            <template v-if="paginatedItems.length">
+              <tr
+                v-for="role in paginatedItems"
+                :key="role.id"
+                @click="canView ? () => goToShow(role) : undefined"
+                :class="['row-clickable', { 'row-disabled': !canView }]"
+                :style="{ cursor: canView ? 'pointer' : 'default' }"
+              >
+                <td class="id-cell">
+                  <router-link :to="`/roles/${role.id}`" @click.stop style="text-decoration: underline; color: #1976d2 !important">
+                    {{ role.id }}
+                  </router-link>
+                </td>
+                <td class="name-cell">{{ role.name }}</td>
+                <td class="org-cell">{{ role.organization_id ?? 'N/A' }}</td>
+                <td class="permissions-cell">
+                  <template v-if="role.permissions && role.permissions.length">
+                    <v-chip
+                      v-for="(perm, idx) in role.permissions.slice(0, 10)"
+                      :key="perm.id || perm.name"
+                      class="ma-1"
+                      size="small"
+                      color="primary"
+                      text-color="white"
+                    >
+                      {{ perm.name }}
+                    </v-chip>
+                    <v-chip v-if="role.permissions.length > 10" class="ma-1" size="small" color="grey" text-color="white"> + más </v-chip>
                   </template>
-                  <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
-                    <v-list-item v-if="canView" @click="goToShow(role)">
-                      <template #prepend>
-                        <v-icon :icon="mdiEye" size="18" />
-                      </template>
-                      <v-list-item-title>Ver</v-list-item-title>
-                    </v-list-item>
-                    <v-divider v-if="canEdit && canView" class="my-1" />
-                    <v-list-item v-if="canEdit" @click="goToEdit(role)">
-                      <template #prepend>
-                        <v-icon :icon="mdiPencil" size="18" />
-                      </template>
-                      <v-list-item-title>Editar</v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
-              </td>
-            </tr>
+                  <span v-else>Sin permisos</span>
+                </td>
+                <td class="actions-cell" @click.stop>
+                  <v-menu v-if="canShowDropdown" location="bottom end">
+                    <template #activator="{ props }">
+                      <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
+                        <v-icon :icon="mdiDotsHorizontal" size="20" />
+                      </v-btn>
+                    </template>
+                    <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
+                      <v-list-item v-if="canView" @click="goToShow(role)">
+                        <template #prepend>
+                          <v-icon :icon="mdiEye" size="18" />
+                        </template>
+                        <v-list-item-title>Ver</v-list-item-title>
+                      </v-list-item>
+                      <v-divider v-if="canEdit && canView" class="my-1" />
+                      <v-list-item v-if="canEdit" @click="goToEdit(role)">
+                        <template #prepend>
+                          <v-icon :icon="mdiPencil" size="18" />
+                        </template>
+                        <v-list-item-title>Editar</v-list-item-title>
+                      </v-list-item>
+                    </v-list>
+                  </v-menu>
+                </td>
+              </tr>
+            </template>
           </template>
-          <template v-else>
-            <tr>
-              <td :colspan="5" class="text-center py-8">
-                <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No se encontraron roles</div>
-              </td>
-            </tr>
-          </template>
-        </template>
-      </RoleTableMeta>
+        </RoleTableMeta>
+      </template>
     </template>
   </div>
 </template>

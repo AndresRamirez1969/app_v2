@@ -10,7 +10,8 @@ import axiosInstance from '@/utils/axios';
 const props = defineProps({
   items: Array,
   isMobile: Boolean,
-  canEditPermission: Boolean
+  canEditPermission: Boolean,
+  isLoading: Boolean
 });
 
 const router = useRouter();
@@ -89,9 +90,18 @@ const toggleStatus = async (group) => {
 
 <template>
   <div>
-    <!-- Modo móvil (cards) -->
-    <template v-if="isMobile">
-      <template v-if="paginatedItems.length">
+    <div v-if="isLoading" class="text-center py-8">
+      <v-progress-circular indeterminate color="primary" size="64" />
+      <p class="mt-4">Cargando grupos...</p>
+    </div>
+    <template v-else>
+      <div v-if="!paginatedItems.length" class="text-center py-8">
+        <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
+        <p class="mt-4 text-h6 text-grey-darken-1">No existen grupos</p>
+        <p class="text-body-2 text-grey">No se encontraron grupos con los filtros aplicados</p>
+      </div>
+      <!-- Modo móvil (cards) -->
+      <template v-else-if="isMobile">
         <v-card
           v-for="group in paginatedItems"
           :key="group.id"
@@ -154,95 +164,83 @@ const toggleStatus = async (group) => {
           </v-row>
         </v-card>
       </template>
-      <template v-else>
-        <v-card class="mb-4 pa-4 elevation-1 rounded-lg text-center">
-          <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No se encontraron grupos</div>
-        </v-card>
-      </template>
-    </template>
 
-    <!-- Modo escritorio (tabla) -->
-    <template v-if="!isMobile">
-      <BusinessUnitGroupsTableMeta
-        :items="sortedItems.value"
-        :page="page"
-        :itemsPerPage="itemsPerPage"
-        :sortBy="sortBy"
-        :sortDesc="sortDesc"
-        @update:page="page = $event"
-        @sort="toggleSort"
-      >
-        <template #sort-icon="{ column }">
-          <v-icon v-if="sortBy === column" size="16" class="ml-1">
-            {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
-          </v-icon>
-        </template>
-        <template #rows>
-          <template v-if="paginatedItems.length">
-            <tr
-              v-for="group in paginatedItems"
-              :key="group.id"
-              @click="canView ? goToShow(group) : undefined"
-              :class="['row-clickable', { 'row-disabled': !canView }]"
-              :style="{ cursor: canView ? 'pointer' : 'default' }"
-            >
-              <td>
-                <router-link v-if="canView" :to="`/grupos-dw/${group.id}`" @click.stop class="link-blue">
-                  {{ group.id }}
-                </router-link>
-                <span v-else>{{ group.id }}</span>
-              </td>
-              <td>{{ group.name }}</td>
-              <td>{{ group.business_units_count ?? group.businessUnits?.length ?? 0 }}</td>
-              <td>
-                <StatusChip :status="group.status" />
-              </td>
-              <td @click.stop>
-                <v-menu v-if="canShowDropdown" location="bottom end">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
-                      <v-icon :icon="mdiDotsHorizontal" size="20" />
-                    </v-btn>
-                  </template>
-                  <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
-                    <template v-if="canView">
-                      <v-list-item @click="goToShow(group)">
-                        <template #prepend>
-                          <v-icon :icon="mdiEye" size="18" />
-                        </template>
-                        <v-list-item-title>Ver</v-list-item-title>
-                      </v-list-item>
-                      <v-divider class="my-1" />
+      <!-- Modo escritorio (tabla) -->
+      <template v-if="!isMobile">
+        <BusinessUnitGroupsTableMeta
+          :items="sortedItems.value"
+          :page="page"
+          :itemsPerPage="itemsPerPage"
+          :sortBy="sortBy"
+          :sortDesc="sortDesc"
+          @update:page="page = $event"
+          @sort="toggleSort"
+        >
+          <template #sort-icon="{ column }">
+            <v-icon v-if="sortBy === column" size="16" class="ml-1">
+              {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
+            </v-icon>
+          </template>
+          <template #rows>
+            <template v-if="paginatedItems.length">
+              <tr
+                v-for="group in paginatedItems"
+                :key="group.id"
+                @click="canView ? goToShow(group) : undefined"
+                :class="['row-clickable', { 'row-disabled': !canView }]"
+                :style="{ cursor: canView ? 'pointer' : 'default' }"
+              >
+                <td>
+                  <router-link v-if="canView" :to="`/grupos-dw/${group.id}`" @click.stop class="link-blue">
+                    {{ group.id }}
+                  </router-link>
+                  <span v-else>{{ group.id }}</span>
+                </td>
+                <td>{{ group.name }}</td>
+                <td>{{ group.business_units_count ?? group.businessUnits?.length ?? 0 }}</td>
+                <td>
+                  <StatusChip :status="group.status" />
+                </td>
+                <td @click.stop>
+                  <v-menu v-if="canShowDropdown" location="bottom end">
+                    <template #activator="{ props }">
+                      <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
+                        <v-icon :icon="mdiDotsHorizontal" size="20" />
+                      </v-btn>
                     </template>
-                    <v-list-item v-if="canEdit" @click="goToEdit(group)">
-                      <template #prepend>
-                        <v-icon :icon="mdiPencil" size="18" />
+                    <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
+                      <template v-if="canView">
+                        <v-list-item @click="goToShow(group)">
+                          <template #prepend>
+                            <v-icon :icon="mdiEye" size="18" />
+                          </template>
+                          <v-list-item-title>Ver</v-list-item-title>
+                        </v-list-item>
+                        <v-divider class="my-1" />
                       </template>
-                      <v-list-item-title>Editar</v-list-item-title>
-                    </v-list-item>
-                    <v-divider class="my-1" v-if="canToggleStatus" />
-                    <v-list-item v-if="canToggleStatus" @click="toggleStatus(group)">
-                      <template #prepend>
-                        <v-icon :icon="group.status === 'activa' || group.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
-                      </template>
-                      <v-list-item-title>
-                        {{ group.status === 'activa' || group.status === 'active' ? 'Desactivar' : 'Activar' }}
-                      </v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
-              </td>
-            </tr>
+                      <v-list-item v-if="canEdit" @click="goToEdit(group)">
+                        <template #prepend>
+                          <v-icon :icon="mdiPencil" size="18" />
+                        </template>
+                        <v-list-item-title>Editar</v-list-item-title>
+                      </v-list-item>
+                      <v-divider class="my-1" v-if="canToggleStatus" />
+                      <v-list-item v-if="canToggleStatus" @click="toggleStatus(group)">
+                        <template #prepend>
+                          <v-icon :icon="group.status === 'activa' || group.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
+                        </template>
+                        <v-list-item-title>
+                          {{ group.status === 'activa' || group.status === 'active' ? 'Desactivar' : 'Activar' }}
+                        </v-list-item-title>
+                      </v-list-item>
+                    </v-list>
+                  </v-menu>
+                </td>
+              </tr>
+            </template>
           </template>
-          <template v-else>
-            <tr>
-              <td :colspan="5" class="text-center py-8">
-                <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No se encontraron grupos</div>
-              </td>
-            </tr>
-          </template>
-        </template>
-      </BusinessUnitGroupsTableMeta>
+        </BusinessUnitGroupsTableMeta>
+      </template>
     </template>
   </div>
 </template>

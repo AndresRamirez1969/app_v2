@@ -19,6 +19,7 @@ const filterOptions = ref({});
 const auth = useAuthStore();
 const canView = ref(false);
 const canCreate = ref(false);
+const isLoading = ref(false);
 
 function hasPermission(permission) {
   return Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission);
@@ -32,11 +33,14 @@ onMounted(async () => {
   canView.value = true;
   canCreate.value = hasPermission('user.create');
   try {
+    isLoading.value = true;
     const { data } = await axios.get('/users');
     users.value = data.data;
     filteredUsers.value = data.data;
   } catch (error) {
     console.error('Error fetching users:', error);
+  } finally {
+    isLoading.value = false;
   }
 });
 
@@ -124,7 +128,7 @@ function applyFilters() {
 
       <v-row>
         <v-col>
-          <UserList :items="filteredUsers" :isMobile="mdAndDown" />
+          <UserList :items="filteredUsers" :isMobile="mdAndDown" :isLoading="isLoading" />
         </v-col>
       </v-row>
     </v-container>
