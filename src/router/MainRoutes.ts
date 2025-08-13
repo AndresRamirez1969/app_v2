@@ -169,6 +169,13 @@ const MainRoutes = {
       component: () => import('@/views/business-unit-dw/show.vue')
     },
     {
+      name: 'UserResponse',
+      path: '/reportes/:formId/usuarios/:userId/:responseId',
+      component: () => import('@/views/reports/components/ShowUserResponse.vue'),
+      meta: {
+        requiresAuth: true,
+        title: 'Respuesta de Usuario'
+      },
       name: 'Business Unit Groups',
       path: '/grupos-dw',
       component: () => import('@/views/business-unit-group/index.vue')

@@ -8,7 +8,6 @@ import {
   LockOutlined,
   CommentOutlined,
   UnorderedListOutlined,
-  WalletOutlined,
   ApartmentOutlined,
   ShopOutlined,
   EnvironmentOutlined
@@ -107,7 +106,6 @@ const handleLogout = async () => {
     <v-tabs v-model="tab" color="primary" grow>
       <v-tab value="111"> <UserOutlined class="v-icon--start" /> Profile </v-tab>
     </v-tabs>
-    <perfect-scrollbar style="height: calc(100vh - 300px); max-height: 240px">
       <v-window v-model="tab">
         <v-window-item value="111">
           <v-list class="py-0" aria-label="profile list" aria-busy="true">
@@ -210,6 +208,5 @@ const handleLogout = async () => {
           </v-list>
         </v-window-item>
       </v-window>
-    </perfect-scrollbar>
   </div>
 </template>

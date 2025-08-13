@@ -574,6 +574,15 @@
   resolved "https://registry.npmjs.org/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.43.0.tgz"
   integrity sha512-SnGhLiE5rlK0ofq8kzuDkM0g7FN1s5VYY+YSMTibP7CqShxCQvqtNxTARS4xX4PFJfHjG0ZQYX9iGzI3FQh5Aw==
 
+"@selemondev/vue3-signature-pad@^1.3.2", "@selemondev/vue3-signature-pad@^1.4.0":
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/@selemondev/vue3-signature-pad/-/vue3-signature-pad-1.4.0.tgz#3b667f05c03279ad5ff226df3a906f9be1a6450c"
+  integrity sha512-2FiQw+AmnOHlYucmOM9urotVu+WjyhMuWNy7XsIZmviW93o0dqNw+bcrCQ0qNMmNvFC7oGIVJoJalvmCdj2Jtw==
+  dependencies:
+    "@selemondev/vue3-signature-pad" "^1.3.2"
+    nanoid "^5.0.9"
+    signature_pad "^5.0.4"
+
 "@simonwep/pickr@~1.8.0":
   version "1.8.2"
   resolved "https://registry.npmjs.org/@simonwep/pickr/-/pickr-1.8.2.tgz"
@@ -608,6 +617,67 @@
   version "4.0.3"
   resolved "https://registry.npmjs.org/@svgdotjs/svg.select.js/-/svg.select.js-4.0.3.tgz"
   integrity sha512-qkMgso1sd2hXKd1FZ1weO7ANq12sNmQJeGDjs46QwDVsxSRcHmvWKL2NDF7Yimpwf3sl5esOLkPqtV2bQ3v/Jg==
+
+"@syncfusion/ej2-base@~30.2.4":
+  version "30.2.4"
+  resolved "https://registry.yarnpkg.com/@syncfusion/ej2-base/-/ej2-base-30.2.4.tgz#03f48dfe9ac38853e37a3b3dd19e4831342af300"
+  integrity sha512-us2prdXBYQF5QOq0aCag6kr3uR8guvpUEomE/niXmCX5M7e1lVpmcxDgnlF6WfMrm9cKtJkotrnPZKa9zR2N5Q==
+  dependencies:
+    "@syncfusion/ej2-icons" "~30.2.4"
+
+"@syncfusion/ej2-buttons@~30.2.4":
+  version "30.2.4"
+  resolved "https://registry.yarnpkg.com/@syncfusion/ej2-buttons/-/ej2-buttons-30.2.4.tgz#868ab76186e6b3157872a842c7a2aa5ef719500b"
+  integrity sha512-NbZD8aI3AgVM0JEEB+CGh8e46ClxqCGrZ0AkRVifLX8Z7NmuZ9PV7d8JQDyPWWQmKIu3V4nc6ChmiYtBEkcC3w==
+  dependencies:
+    "@syncfusion/ej2-base" "~30.2.4"
+
+"@syncfusion/ej2-icons@~30.2.4":
+  version "30.2.4"
+  resolved "https://registry.yarnpkg.com/@syncfusion/ej2-icons/-/ej2-icons-30.2.4.tgz#b9175d77a6ee463546f345efd942ba81a9168996"
+  integrity sha512-zKJaCs9AhPT/xOVvjlSAQCCcQX9P+P/ajVd2Xe2UxeSuJpB8K9D1+4MHXe6lZOdY/hOyNWocpZc60UmcaAcR/Q==
+
+"@syncfusion/ej2-inputs@30.2.4":
+  version "30.2.4"
+  resolved "https://registry.yarnpkg.com/@syncfusion/ej2-inputs/-/ej2-inputs-30.2.4.tgz#4b5a6b5bdc889934f19020bb1d0fe7008eec1b4a"
+  integrity sha512-9z8F2f23GAsdEzFeSXTpUut0e67QlkOBe4+KUxgW4G2WSWOwdJvnIaMlL6uTv0cMc4ULq8K1j64ldwlHByOx6g==
+  dependencies:
+    "@syncfusion/ej2-base" "~30.2.4"
+    "@syncfusion/ej2-buttons" "~30.2.4"
+    "@syncfusion/ej2-popups" "~30.2.4"
+    "@syncfusion/ej2-splitbuttons" "~30.2.4"
+
+"@syncfusion/ej2-popups@~30.2.4":
+  version "30.2.4"
+  resolved "https://registry.yarnpkg.com/@syncfusion/ej2-popups/-/ej2-popups-30.2.4.tgz#2c1b27ea538aa9534d2ed7a4b5b02a1bece672fb"
+  integrity sha512-nlfLVgmMNK6xk/c6UN7OuLgsnMqX8cn+Ql84PVovI2cgc1MCT4Jh46MRbArXtJfeCtWIyHMVE4+hfbNAXYDhWQ==
+  dependencies:
+    "@syncfusion/ej2-base" "~30.2.4"
+    "@syncfusion/ej2-buttons" "~30.2.4"
+
+"@syncfusion/ej2-splitbuttons@~30.2.4":
+  version "30.2.4"
+  resolved "https://registry.yarnpkg.com/@syncfusion/ej2-splitbuttons/-/ej2-splitbuttons-30.2.4.tgz#4709c235b5a4d1f6d8d6fad43d0dd744e6675fe3"
+  integrity sha512-9p0wMvNgZtcHJbwGh/RxLpEtu4AioqooO2d/aW72FufeSniR3/31fwSKBOzOu4EvR7EaYGXAnVxrmHTEojzlRg==
+  dependencies:
+    "@syncfusion/ej2-base" "~30.2.4"
+    "@syncfusion/ej2-popups" "~30.2.4"
+
+"@syncfusion/ej2-vue-base@~30.2.4":
+  version "30.2.4"
+  resolved "https://registry.yarnpkg.com/@syncfusion/ej2-vue-base/-/ej2-vue-base-30.2.4.tgz#773664682b747a4df784f6ccf2a2ac14c58b2e4e"
+  integrity sha512-GZT+iSJ+hkzbpoz1EzN2Mv1pSB1EF4M4HYcfXnqVqY7bTvEdVJIzCaRpmkDMOSNLrv9LbLwp3MMBeqZSG7v1Aw==
+  dependencies:
+    "@syncfusion/ej2-base" "~30.2.4"
+
+"@syncfusion/ej2-vue-inputs@^30.2.4":
+  version "30.2.4"
+  resolved "https://registry.yarnpkg.com/@syncfusion/ej2-vue-inputs/-/ej2-vue-inputs-30.2.4.tgz#938b746ed8480d3eaea3bcc188bc4ba7f8bdaf29"
+  integrity sha512-8mY7k8nABezs7gM4UU6I2r4DfOFUB6lF31plfFcv1/NYXWvgSuBgXamSZLsFHvNw4/7v/osHGJ1vwFjoGbRt3g==
+  dependencies:
+    "@syncfusion/ej2-base" "~30.2.4"
+    "@syncfusion/ej2-inputs" "30.2.4"
+    "@syncfusion/ej2-vue-base" "~30.2.4"
 
 "@tsconfig/node20@20.1.4":
   version "20.1.4"
@@ -1905,6 +1975,11 @@ math-intrinsics@^1.1.0:
   resolved "https://registry.npmjs.org/math-intrinsics/-/math-intrinsics-1.1.0.tgz"
   integrity sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==
 
+merge-images@^1.1.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/merge-images/-/merge-images-1.2.0.tgz#740117bd655b310fe2046f7c980798ded8d6d4f2"
+  integrity sha512-hEGvgnTdXr08uzGvEArxRsKpy7WmozM73YaSi4s5IYF4LxrhANpqfHaz9CgBZ5+0+s2NsjPnPdStz3aCc0Yulw==
+
 merge2@^1.3.0:
   version "1.4.1"
   resolved "https://registry.npmjs.org/merge2/-/merge2-1.4.1.tgz"
@@ -1968,6 +2043,11 @@ nanoid@^3.3.11:
   version "3.3.11"
   resolved "https://registry.npmjs.org/nanoid/-/nanoid-3.3.11.tgz"
   integrity sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==
+
+nanoid@^5.0.9:
+  version "5.1.5"
+  resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-5.1.5.tgz#f7597f9d9054eb4da9548cdd53ca70f1790e87de"
+  integrity sha512-Ir/+ZpE9fDsNH0hQ3C68uyThDXzYcim2EqcZ8zn8Chtt1iylPT9xXJB0kPCnqzgcEGikO9RxSrh63MsmVCU7Fw==
 
 nanopop@^2.1.0:
   version "2.4.2"
@@ -2314,6 +2394,16 @@ shelljs@^0.8.3:
     interpret "^1.0.0"
     rechoir "^0.6.2"
 
+signature_pad@^3.0.0-beta.3:
+  version "3.0.0-beta.4"
+  resolved "https://registry.yarnpkg.com/signature_pad/-/signature_pad-3.0.0-beta.4.tgz#2a8441559e9f439e7f2f525da3ee630ef973ecf6"
+  integrity sha512-cOf2NhVuTiuNqe2X/ycEmizvCDXk0DoemhsEpnkcGnA4kS5iJYTCqZ9As7tFBbsch45Q1EdX61833+6sjJ8rrw==
+
+signature_pad@^5.0.4:
+  version "5.0.10"
+  resolved "https://registry.yarnpkg.com/signature_pad/-/signature_pad-5.0.10.tgz#765a8e2ebab2999ab9244de6c2ffb7e868d1cbb9"
+  integrity sha512-t7rLjpAtxYAIrTHr7EKfY8ulTWF+G/LFMto502a61KZvZNWZSwhTPeLE6171YMDd2sSYRBwQ17ENK5huAi9Rsg==
+
 sortablejs@1.14.0:
   version "1.14.0"
   resolved "https://registry.yarnpkg.com/sortablejs/-/sortablejs-1.14.0.tgz#6d2e17ccbdb25f464734df621d4f35d4ab35b3d8"
@@ -2509,6 +2599,14 @@ vue-router@^4.5.1:
   integrity sha512-ogAF3P97NPm8fJsE4by9dwSYtDwXIY1nFY9T6DyQnGHd1E2Da94w9JIolpe42LJGIl0DwOHBi8TcRPlPGwbTtw==
   dependencies:
     "@vue/devtools-api" "^6.6.4"
+
+vue-signature-pad@^3.0.2:
+  version "3.0.2"
+  resolved "https://registry.yarnpkg.com/vue-signature-pad/-/vue-signature-pad-3.0.2.tgz#5706f6d4197566773e14f5cb501f5383f21fdb33"
+  integrity sha512-o25o+lROfCmzASS2+fU8ZV801kV+D4/02zkZ+ez3NKeiUmbxW7kwlUf5oKQkvA+l7Ou9xGsGLsirBLch3jyX8A==
+  dependencies:
+    merge-images "^1.1.0"
+    signature_pad "^3.0.0-beta.3"
 
 vue-tabler-icons@2.21.0:
   version "2.21.0"

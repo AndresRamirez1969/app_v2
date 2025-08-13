@@ -51,6 +51,11 @@ export const ADMIN_FORM_ROLES = [
   { label: 'Contestar', value: 'form_response.store' }
 ];
 
+export const ADMIN_RESPONSE_ROLES = [
+  { label: 'Ver Todos', value: 'form_response.viewAny' },
+  { label: 'Ver', value: 'form_response.view' }
+];
+
 // --------Sponsor Assignable Roles ---------
 
 export const SPONSOR_ORG_ROLES = [{ label: 'Ver', value: 'organization.view' }];
@@ -108,11 +113,13 @@ export const FIELD_TYPES = (field: { type: string }) => {
   if (field.type === 'date') return 'v-text-field';
   if (field.type === 'checkbox') return 'v-checkbox';
   if (field.type === 'select') return 'v-select';
+  if (field.type === 'switch') return 'v-switch';
   if (field.type === 'radio') return 'v-radio-group';
   if (field.type === 'textarea') return 'v-textarea';
   if (field.type === 'file') return 'v-file-input';
   if (field.type === 'number') return 'v-text-field';
   if (field.type === 'range') return 'v-slider';
+  if (field.type === 'signature') return 'Signature';
 
   return 'v-text-field';
 };
@@ -149,6 +156,11 @@ export const getFieldProps = (field: { type: string; label: string; is_required:
         multiple: true,
         closableChips: true
       };
+    case 'switch':
+      return {
+        ...baseProps,
+        color: 'primary'
+      };
     case 'radio':
       return {
         ...baseProps,
@@ -156,11 +168,7 @@ export const getFieldProps = (field: { type: string; label: string; is_required:
         items: field.options || []
       };
     case 'checkbox':
-      return {
-        ...baseProps,
-        multiple: true,
-        items: field.options || []
-      };
+      return { ...baseProps };
     case 'file':
       return {
         ...baseProps,
@@ -175,6 +183,12 @@ export const getFieldProps = (field: { type: string; label: string; is_required:
         'thumb-label': 'always',
         'show-ticks': 'always',
         step: 10
+      };
+    case 'signature':
+      return {
+        ...baseProps,
+        variant: 'outlined',
+        color: 'primary'
       };
     default:
       return baseProps;

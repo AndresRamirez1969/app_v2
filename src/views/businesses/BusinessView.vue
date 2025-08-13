@@ -3,12 +3,13 @@ import { ref, computed } from 'vue';
 import { mdiEye } from '@mdi/js';
 import EditBusiness from './components/EditBusiness.vue';
 import { useAuthStore } from '@/stores/auth';
-import { router } from '@/router';
+import { useRouter } from 'vue-router';
 
 const showEditDialog = ref(false);
 const selectedBusId = ref(null);
 
 const auth = useAuthStore();
+const router = useRouter();
 
 const props = defineProps({
   businesses: Array,

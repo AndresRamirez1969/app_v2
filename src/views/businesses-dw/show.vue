@@ -23,6 +23,7 @@ const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
 const canView = computed(() => permissions.value.includes('business.view'));
+const canViewAny = computed(() => permissions.value.includes('business.viewAny'));
 const canEditPermission = computed(() => permissions.value.includes('business.update'));
 const canShow = computed(() => isSuperadmin.value || isAdmin.value || roles.value.includes('sponsor') || canView.value);
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || canEditPermission.value);
@@ -149,7 +150,7 @@ onMounted(async () => {
   <v-container fluid v-if="canShow">
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
-        <template v-if="isSuperadmin">
+        <template v-if="canViewAny || isSuperadmin">
           <v-btn
             icon
             variant="text"

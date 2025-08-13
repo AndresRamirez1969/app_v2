@@ -2,12 +2,18 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import UserFormTable from './UserFormTable.vue';
-import { CHIPCOLOR } from '@/constants/constants';
 import { mdiChevronUp, mdiChevronDown } from '@mdi/js';
 
 const props = defineProps({
   items: Array,
-  isMobile: Boolean
+  isLoading: {
+    type: Boolean,
+    default: false
+  },
+  isMobile: {
+    type: Boolean,
+    default: false
+  }
 });
 
 const router = useRouter();
@@ -44,16 +50,14 @@ const getResponseStatus = (form) => {
   }
 
   // Si no ha respondido
-  if (!form.has_responded) {
+  if (!form.has_responded && form.frequency === 'once_per_day') {
     return { text: 'Sin Responder', color: 'warning' };
   }
 
   // Si ya respondió pero puede seguir respondiendo (multiple_per_day)
-  if (form.has_responded && form.frequency === 'multiple_per_day') {
-    return { text: 'Faltan Respuestas', color: 'info' };
+  if (form.frequency === 'multiple_per_day') {
+    return { text: 'Formulario Persistente', color: 'info' };
   }
-
-  return { text: 'Sin Responder', color: 'warning' };
 };
 
 // Filtrar formularios según la lógica del backend
@@ -102,9 +106,6 @@ const fillForm = (form) => {
                     {{ form.folio }}
                   </router-link>
                 </div>
-                <v-chip :color="CHIPCOLOR(form.status)" text-color="white" size="small">
-                  {{ getStatusLabel(form.status) }}
-                </v-chip>
               </div>
               <div class="font-weight-medium mb-1">{{ form.name }}</div>
               <div class="text-caption"><strong>Creado:</strong> {{ formatDate(form.created_at) }}</div>
@@ -127,44 +128,68 @@ const fillForm = (form) => {
 
     <!-- Modo escritorio (solo tabla) -->
     <template v-if="!isMobile">
-      <UserFormTable
-        :items="sortedItems"
-        :page="page"
-        :itemsPerPage="itemsPerPage"
-        :sortBy="sortBy"
-        :sortDesc="sortDesc"
-        @update:page="page = $event"
-        @sort="toggleSort"
-      >
-        <template #sort-icon="{ column }">
-          <v-icon v-if="sortBy === column" size="16" class="ml-1">
-            {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
-          </v-icon>
-        </template>
-        <template #rows>
-          <template v-if="paginatedItems.length">
-            <tr v-for="form in paginatedItems" :key="form.id" @click="fillForm(form)" class="row-clickable" style="cursor: pointer">
-              <td class="folio-cell">
-                {{ form.folio }}
-              </td>
-              <td class="name-cell">{{ form.name }}</td>
-              <td class="date-cell">{{ formatDate(form.created_at) }}</td>
-              <td class="response-cell">
-                <v-chip :color="getResponseStatus(form).color" text-color="white" size="small">
-                  {{ getResponseStatus(form).text }}
-                </v-chip>
-              </td>
-            </tr>
-          </template>
-          <template v-else>
-            <tr>
-              <td :colspan="5" class="text-center py-8">
-                <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No existen formularios aun...</div>
-              </td>
-            </tr>
-          </template>
-        </template>
-      </UserFormTable>
+      <v-card class="elevation-1">
+        <v-card-text class="pa-0">
+          <div v-if="isLoading" class="text-center py-8">
+            <v-progress-circular indeterminate color="primary" size="64" />
+            <p class="mt-4">Cargando formularios...</p>
+          </div>
+          <div v-else-if="!items || items.length === 0" class="text-center py-8">
+            <h3 class="text-h6 text-grey-darken-1">Aun no hay formularios que llenar</h3>
+          </div>
+
+          <div v-else>
+            <UserFormTable
+              :items="sortedItems"
+              :page="page"
+              :itemsPerPage="itemsPerPage"
+              :sortBy="sortBy"
+              :sortDesc="sortDesc"
+              @update:page="page = $event"
+              @sort="toggleSort"
+              density="comfortable"
+              class="fixed-table"
+            >
+              <template #sort-icon="{ column }">
+                <v-icon v-if="sortBy === column" size="16" class="ml-1">
+                  {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
+                </v-icon>
+              </template>
+              <template #rows>
+                <template v-if="paginatedItems.length">
+                  <tr v-for="form in paginatedItems" :key="form.id" @click="fillForm(form)" class="row-clickable" style="cursor: pointer">
+                    <td class="folio-cell">
+                      {{ form.folio }}
+                    </td>
+                    <td class="name-cell">{{ form.name }}</td>
+                    <td class="date-cell">{{ formatDate(form.created_at) }}</td>
+                    <td class="response-cell">
+                      <v-chip :color="getResponseStatus(form).color" text-color="white" size="small">
+                        {{ getResponseStatus(form).text }}
+                      </v-chip>
+                    </td>
+                  </tr>
+                </template>
+                <template v-else>
+                  <tr>
+                    <td :colspan="5" class="text-center py-8">
+                      <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No existen formularios aun...</div>
+                    </td>
+                  </tr>
+                </template>
+              </template>
+            </UserFormTable>
+            <div class="d-flex justify-center mt-4">
+              <v-pagination
+                v-model="page"
+                :length="Math.ceil(sortedItems.length / itemsPerPage)"
+                :total-visible="7"
+                @update:model-value="page = $event"
+              />
+            </div>
+          </div>
+        </v-card-text>
+      </v-card>
     </template>
   </div>
 </template>

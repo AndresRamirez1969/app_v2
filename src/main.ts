@@ -14,6 +14,7 @@ import 'ant-design-vue/dist/reset.css';
 import Toast from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 import '@formkit/themes/genesis';
+import { VueSignaturePad } from 'vue-signature-pad';
 
 // google-fonts
 import '@fontsource/public-sans/400.css';
@@ -25,6 +26,7 @@ import '@fontsource/public-sans/700.css';
 import { fakeBackend } from '@/utils/helpers/fake-backend';
 
 const app = createApp(App);
+app.component('VueSignaturePad', VueSignaturePad);
 const pro = createProPlugin('fk-748c917a9d', inputs);
 fakeBackend();
 app.use(

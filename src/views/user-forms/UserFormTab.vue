@@ -1,10 +1,12 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue';
-import UiParentCard from '@/components/shared/UiParentCard.vue';
+import { useDisplay } from 'vuetify';
 import UserFormView from './UserFormView.vue';
 import axiosInstance from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
 import debounce from 'lodash/debounce';
+
+const { mdAndDown } = useDisplay();
 
 const filters = ref({
   search: '',
@@ -12,12 +14,6 @@ const filters = ref({
 });
 
 const auth = useAuthStore();
-
-const isMobile = ref(false);
-
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768;
-};
 
 watch(
   () => auth.permissions,
@@ -55,12 +51,6 @@ const fetchForms = async () => {
           };
         } catch (err) {
           console.error('Failed to fetch form response status', err);
-          return {
-            ...form,
-            has_responded: false,
-            frequency: 'once_per_day',
-            can_respond: true
-          };
         }
       })
     );
@@ -69,6 +59,7 @@ const fetchForms = async () => {
       ...res.data,
       data: formResponseStatus
     };
+    console.log(formResponseStatus);
   } catch (err) {
     console.error('Failed to fetch forms', err);
   } finally {
@@ -78,8 +69,6 @@ const fetchForms = async () => {
 
 onMounted(() => {
   fetchForms();
-  checkMobile();
-  window.addEventListener('resize', checkMobile);
 });
 
 const debouncedFetch = debounce(fetchForms, 400);
@@ -94,32 +83,34 @@ watch(
 </script>
 
 <template>
-  <v-row>
-    <v-container fluid class="pa-0">
-      <v-row align="center" justify="space-between" class="ma-0 px-3 py-2">
-        <v-col cols="auto" class="pa-0 d-flex align-center">
-          <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Formularios</h1>
-        </v-col>
-        <v-col cols="12" md="12">
-          <UiParentCard title="Gestionar Formularios">
-            <template #action>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="filters.search"
-                  label="Buscar por Nombre o Folio"
-                  clearable
-                  density="comfortable"
-                  variant="outlined"
-                  hide-details
-                  @keyup.enter="fetchForms"
-                  prepend-inner-icon="mdi-magnify"
-                />
-              </v-col>
-            </template>
-            <UserFormView :items="forms.data" :isMobile="isMobile" :isLoading="isLoading" @formUpdated="fetchForms" />
-          </UiParentCard>
-        </v-col>
-      </v-row>
-    </v-container>
-  </v-row>
+  <v-container fluid>
+    <v-row class="align-center justify-space-between mb-4">
+      <v-col cols="auto" class="d-flex align-center">
+        <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Tus Formularios</h1>
+      </v-col>
+    </v-row>
+    <v-row class="mb-2">
+      <v-col cols="12">
+        <div class="d-flex align-center mb-2" style="gap: 16px">
+          <v-text-field
+            v-model="filters.search"
+            label="Buscar por Nombre o Folio"
+            clearable
+            density="comfortable"
+            variant="outlined"
+            hide-details
+            @keyup.enter="fetchForms"
+            prepend-inner-icon="mdi-magnify"
+            style="min-width: 220px"
+            @click:clear="fetchForms"
+          />
+        </div>
+      </v-col>
+    </v-row>
+    <v-row>
+      <v-col>
+        <UserFormView :items="forms.data" :isMobile="mdAndDown" :isLoading="isLoading" @formUpdated="fetchForms" />
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
