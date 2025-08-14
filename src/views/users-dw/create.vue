@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, watch, onMounted } from 'vue';
+import { reactive, ref, watch, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import axiosInstance from '@/utils/axios';
@@ -17,16 +17,22 @@ const organizationSearch = ref('');
 const businessSearch = ref('');
 const businessUnitSearch = ref('');
 const roleSearch = ref('');
+const orgRoleSearch = ref('');
 
 const organizationOptions = ref([]);
 const businessOptions = ref([]);
 const businessUnitOptions = ref([]);
 const roleOptions = ref([]);
+const allRoleOptions = ref([]);
+const orgRoleOptions = ref([]);
 
 const loadingOrganizations = ref(false);
 const loadingBusinesses = ref(false);
 const loadingBusinessUnits = ref(false);
 const loadingRoles = ref(false);
+const loadingOrgRoles = ref(false);
+
+const selectedOrgForRoles = ref(null);
 
 onMounted(() => {
   const user = auth.user;
@@ -48,6 +54,10 @@ const form = reactive({
     phone_number: ''
   }
 });
+
+const isSuperadmin = computed(() => auth.user?.roles?.includes('superadmin'));
+const isSponsor = computed(() => auth.user?.roles?.includes('sponsor'));
+const userOrgId = computed(() => auth.user?.organization_id);
 
 watch(
   () => form.profile_picture,
@@ -135,36 +145,81 @@ watch([businessUnitSearch, () => form.organization_id, () => form.business_id], 
 });
 onMounted(() => fetchBusinessUnits(''));
 
-// --- ROLES AUTOCOMPLETE (filtrado y con labels personalizados) ---
-const fetchRoles = async (searchText = '') => {
+// --- ROLES AUTOCOMPLETE (para superadmin: todos, para otros: filtrados) ---
+const fetchAllRoles = async () => {
   loadingRoles.value = true;
   try {
-    const { data } = await axiosInstance.get('/roles', {
-      params: { q: searchText }
-    });
-    // Filtrar roles según el usuario autenticado
-    const user = auth.user;
-    let allowedRoles = data.data || [];
-    if (!(user?.roles?.includes('superadmin') || user?.roles?.includes('admin'))) {
-      allowedRoles = allowedRoles.filter((r) => r.name !== 'admin' && r.name !== 'sponsor');
-    }
-    // Mapear nombres a labels personalizados
-    roleOptions.value = allowedRoles.map((r) => ({
-      ...r,
-      display:
-        r.name === 'superadmin' ? 'Super Administrador' : r.name === 'admin' ? 'Administrador' : r.name === 'sponsor' ? 'Sponsor' : r.name
-    }));
+    const { data } = await axiosInstance.get('/roles', { params: { q: roleSearch.value } });
+    allRoleOptions.value = (data.data || []).filter((r) => r.name !== 'superadmin');
   } catch (e) {
-    roleOptions.value = [];
+    allRoleOptions.value = [];
   } finally {
     loadingRoles.value = false;
   }
 };
 
-watch(roleSearch, (val) => {
-  fetchRoles(val);
+const fetchOrgRoles = async (orgId) => {
+  loadingOrgRoles.value = true;
+  try {
+    const { data } = await axiosInstance.get('/roles', { params: { organization_id: orgId } });
+    orgRoleOptions.value = (data.data || []).filter((r) => r.name !== 'superadmin');
+  } catch (e) {
+    orgRoleOptions.value = [];
+  } finally {
+    loadingOrgRoles.value = false;
+  }
+};
+
+// --- ROLES PARA EL SELECT PRINCIPAL ---
+const filteredRoleOptions = computed(() => {
+  // Superadmin: filtra por organización seleccionada
+  if (isSuperadmin.value) {
+    if (!selectedOrgForRoles.value) return [];
+    return orgRoleOptions.value.map((r) => ({
+      ...r,
+      display: r.name === 'admin' ? 'Administrador' : r.name === 'sponsor' ? 'Sponsor' : r.name
+    }));
+  }
+  // Sponsor: solo roles de su organización, excluyendo admin
+  if (isSponsor.value) {
+    return allRoleOptions.value
+      .filter((r) => (r.organization_id === userOrgId.value || r.name === 'sponsor') && r.name !== 'admin')
+      .map((r) => ({
+        ...r,
+        display: r.name === 'sponsor' ? 'Sponsor' : r.name
+      }));
+  }
+  // Otros: roles de su organización + admin + sponsor
+  return allRoleOptions.value
+    .filter((r) => r.organization_id === userOrgId.value || r.name === 'admin' || r.name === 'sponsor')
+    .map((r) => ({
+      ...r,
+      display: r.name === 'admin' ? 'Administrador' : r.name === 'sponsor' ? 'Sponsor' : r.name
+    }));
 });
-onMounted(() => fetchRoles(''));
+
+// --- WATCHERS PARA ROLES ---
+watch(roleSearch, () => {
+  if (isSuperadmin.value) {
+    if (selectedOrgForRoles.value) fetchOrgRoles(selectedOrgForRoles.value);
+  } else {
+    fetchAllRoles();
+  }
+});
+onMounted(() => {
+  if (isSuperadmin.value) {
+    fetchOrganizations('');
+  }
+  fetchAllRoles();
+});
+
+// Cuando el superadmin selecciona una organización, filtra los roles
+watch(selectedOrgForRoles, (orgId) => {
+  if (isSuperadmin.value && orgId) {
+    fetchOrgRoles(orgId);
+    form.role = null;
+  }
+});
 
 // --- SOLO UNO DE LOS 3 SELECTS ---
 watch(
@@ -320,11 +375,35 @@ const validate = async () => {
             <v-label>Email</v-label>
             <v-text-field v-model="form.email" variant="outlined" color="primary" class="mt-2 mb-4" required />
 
+            <!-- Select de organización para superadmin -->
+            <template v-if="isSuperadmin">
+              <v-label>Organización para filtrar roles</v-label>
+              <v-autocomplete
+                v-model="selectedOrgForRoles"
+                :items="organizationOptions"
+                :loading="loadingOrganizations"
+                v-model:search-input="orgRoleSearch"
+                item-title="display"
+                item-value="id"
+                variant="outlined"
+                color="primary"
+                class="mt-2 mb-4"
+                density="compact"
+                placeholder="Selecciona una organización"
+                clearable
+                hide-details
+                :menu-props="{ maxHeight: '300px' }"
+                required
+              />
+            </template>
+
+            <div style="height: 22px"></div>
+
             <v-label>Rol</v-label>
             <v-autocomplete
               v-model="form.role"
-              :items="roleOptions"
-              :loading="loadingRoles"
+              :items="filteredRoleOptions"
+              :loading="isSuperadmin ? loadingOrgRoles : loadingRoles"
               v-model:search-input="roleSearch"
               item-title="display"
               item-value="name"
@@ -361,7 +440,7 @@ const validate = async () => {
               item-value="id"
               variant="outlined"
               color="primary"
-              class="mt-2 mb-6"
+              class="mt-2 mb-4"
               density="compact"
               placeholder="Selecciona una organización"
               clearable

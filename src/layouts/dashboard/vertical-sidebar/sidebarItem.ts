@@ -85,7 +85,7 @@ const sidebarItem: menu[] = [
       {
         title: 'Roles & Permisos',
         icon: SafetyCertificateTwoTone,
-        to: '/roles-dw'
+        to: '/roles'
       }
     ]
   }

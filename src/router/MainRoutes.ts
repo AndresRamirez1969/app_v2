@@ -52,11 +52,6 @@ const MainRoutes = {
       component: () => import('@/views/users/UsersTab.vue')
     },
     {
-      name: 'Roles',
-      path: '/roles',
-      component: () => import('@/views/users/roles/ViewRole.vue')
-    },
-    {
       name: 'Profile',
       path: 'perfil',
       component: () => import('@/views/user/UserProfile.vue'),
@@ -218,28 +213,23 @@ const MainRoutes = {
       component: () => import('@/views/users-dw/show.vue')
     },
     {
-      name: 'Roles DW',
-      path: '/roles-dw',
+      name: 'Roles',
+      path: '/roles',
       component: () => import('@/views/roles/index.vue')
     },
     {
-      name: 'Role Create DW',
-      path: '/roles-dw/create',
-      component: () => import('@/views/roles/create.vue')
-    },
-    {
       name: 'Role Create',
-      path: '/roles/create',
+      path: '/roles/crear',
       component: () => import('@/views/roles/create.vue')
     },
     {
-      name: 'Role Edit DW',
-      path: '/roles-dw/:id/edit',
+      name: 'Role Edit',
+      path: '/roles/editar/:id',
       component: () => import('@/views/roles/edit.vue')
     },
     {
-      name: 'Role Show DW',
-      path: '/roles-dw/:id',
+      name: 'Role Show',
+      path: '/roles/:id',
       component: () => import('@/views/roles/show.vue')
     }
   ]

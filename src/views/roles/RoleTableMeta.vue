@@ -7,7 +7,8 @@ const props = defineProps({
   page: Number,
   itemsPerPage: Number,
   sortBy: String,
-  sortDesc: Boolean
+  sortDesc: Boolean,
+  showOrganization: Boolean // NUEVO: solo superadmin ve la columna
 });
 const emit = defineEmits(['update:page', 'sort']);
 </script>
@@ -25,7 +26,7 @@ const emit = defineEmits(['update:page', 'sort']);
             Nombre
             <slot name="sort-icon" :column="'name'" />
           </th>
-          <th @click="emit('sort', 'organization_id')" class="cursor-pointer org-header">
+          <th v-if="props.showOrganization" @click="emit('sort', 'organization_id')" class="cursor-pointer org-header">
             Organización
             <slot name="sort-icon" :column="'organization_id'" />
           </th>

@@ -136,7 +136,7 @@ async function saveGroup() {
       business_id: businessId.value,
       business_units: selectedBusinessUnits.value
     });
-    router.push(`/grupos-dw/${groupId}`); // Redirige al show del grupo editado
+    router.push(`/grupos-dw/${groupId}`);
   } catch (e) {
     console.error('Error updating group:', e);
   } finally {
@@ -166,6 +166,14 @@ function toggleSort(column) {
       </v-col>
     </v-row>
 
+    <!-- Información General -->
+    <v-row>
+      <v-col cols="12">
+        <h4 class="font-weight-bold mb-3">Información General</h4>
+        <v-divider class="mb-6" />
+      </v-col>
+    </v-row>
+
     <!-- Nombre del grupo -->
     <v-row>
       <v-col>
@@ -173,10 +181,24 @@ function toggleSort(column) {
       </v-col>
     </v-row>
 
+    <!-- Divider entre nombre y filtro -->
+    <v-row>
+      <v-col cols="12">
+        <v-divider class="mb-6" />
+      </v-col>
+    </v-row>
+
     <!-- Filtros de organización y empresa -->
     <v-row>
       <v-col>
-        <BusinessUnitFilter @filter="handleFilter" @org-biz-change="handleOrgBizChange" :showOrganization="true" :showBusiness="true" />
+        <BusinessUnitFilter
+          @filter="handleFilter"
+          @org-biz-change="handleOrgBizChange"
+          :showOrganization="true"
+          :showBusiness="true"
+          :organization-id="organizationId"
+          :business-id="businessId"
+        />
       </v-col>
     </v-row>
 
@@ -213,3 +235,5 @@ function toggleSort(column) {
     </v-row>
   </v-container>
 </template>
+
+<style scoped src="@/styles/roles.css"></style>

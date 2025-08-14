@@ -23,9 +23,8 @@ const itemsPerPage = ref(10);
 const total = ref(0);
 const sortBy = ref('folio');
 const sortDesc = ref(false);
-const search = ref(''); // <-- Campo de búsqueda centralizado
+const search = ref('');
 
-// --- Control de acceso por permisos (solo businessUnitGroup.create) ---
 const canCreate = computed(() => {
   const user = auth.user;
   return user?.permissions?.includes('businessUnitGroup.create');
@@ -41,7 +40,6 @@ function getBusinessUnitParams() {
   if (role === 'admin') {
     return { organization_id: auth.user.organization_id };
   }
-  // Sponsor y cualquier otro rol: solo de su business
   return { business_id: auth.user.business_id };
 }
 
@@ -80,7 +78,7 @@ const fetchBusinessUnits = async () => {
       per_page: itemsPerPage.value,
       sort_by: sortBy.value,
       sort_desc: sortDesc.value ? 1 : 0,
-      search: search.value // <-- Usa el search centralizado
+      search: search.value
     };
     const { data } = await axios.get('/business-units', { params });
     businessUnits.value = data.data;
@@ -106,7 +104,6 @@ watch([organizationId, businessId, filters, page, itemsPerPage, sortBy, sortDesc
   if (canCreate.value) fetchBusinessUnits();
 });
 
-// Watch para buscar mientras escribe
 watch(search, () => {
   page.value = 1;
   if (canCreate.value) fetchBusinessUnits();
@@ -176,7 +173,6 @@ async function saveGroup() {
   if (!name.value || !organizationId.value || !businessId.value || !selectedBusinessUnits.value.length) return;
   saving.value = true;
   try {
-    // 1. Crear el grupo
     const groupRes = await axios.post('/business-unit-groups', {
       name: name.value,
       organization_id: organizationId.value,
@@ -185,7 +181,6 @@ async function saveGroup() {
     });
     const groupId = groupRes.data?.id || groupRes.data?.data?.id || groupRes.data?.group?.id;
 
-    // 2. Actualizar cada business unit con el group_id (asegura que el backend acepte este campo)
     if (groupId) {
       await Promise.all(
         selectedBusinessUnits.value.map((unitId) => axios.put(`/business-units/${unitId}`, { business_unit_group_id: groupId }))
@@ -222,10 +217,25 @@ function toggleSort(column) {
     </v-row>
 
     <template v-if="canCreate">
+      <!-- Información General -->
+      <v-row>
+        <v-col cols="12">
+          <h4 class="font-weight-bold mb-3">Información General</h4>
+          <v-divider class="mb-6" />
+        </v-col>
+      </v-row>
+
       <!-- Nombre del grupo -->
       <v-row>
         <v-col>
           <v-text-field v-model="name" label="Nombre del grupo" variant="outlined" color="primary" required class="mb-4" />
+        </v-col>
+      </v-row>
+
+      <!-- Divider entre nombre y filtro -->
+      <v-row>
+        <v-col cols="12">
+          <v-divider class="mb-5" />
         </v-col>
       </v-row>
 
@@ -285,3 +295,5 @@ function toggleSort(column) {
     </template>
   </v-container>
 </template>
+
+<style scoped src="@/styles/roles.css"></style>

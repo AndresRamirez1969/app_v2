@@ -14,6 +14,8 @@ const roleNameTranslations = {
   sponsor: 'Sponsor'
 };
 
+const protectedRoles = ['superadmin', 'admin', 'sponsor'];
+
 const router = useRouter();
 const route = useRoute();
 const { mdAndDown } = useDisplay();
@@ -27,6 +29,9 @@ const permissions = computed(() => user.value.permissions || []);
 const canView = computed(() => permissions.value.includes('role.view'));
 const canViewAny = computed(() => permissions.value.includes('role.viewAny'));
 const canEdit = computed(() => permissions.value.includes('role.update'));
+const isSuperadmin = computed(() => roles.value.includes('superadmin'));
+
+const isProtectedRole = computed(() => protectedRoles.includes(role.value?.name?.toLowerCase()));
 
 const goToEdit = () => {
   if (role.value?.id) {
@@ -35,7 +40,7 @@ const goToEdit = () => {
 };
 
 const goToIndex = () => {
-  router.push('/roles-dw');
+  router.push('/roles');
 };
 
 // Diccionario para traducir modelos a español
@@ -104,6 +109,11 @@ function translatePermission(name) {
   return permissionTranslations[action] || action || name;
 }
 
+function translateOrganizationName(id) {
+  // Implementa tu lógica de traducción aquí si es necesario
+  return id;
+}
+
 onMounted(async () => {
   if (!canView.value) return;
   try {
@@ -142,7 +152,7 @@ onMounted(async () => {
         </h3>
       </v-col>
       <v-col class="d-flex justify-end align-center">
-        <template v-if="canEdit">
+        <template v-if="canEdit && !isProtectedRole">
           <v-menu location="bottom end" v-if="!mdAndDown">
             <template #activator="{ props }">
               <v-btn
@@ -211,6 +221,24 @@ onMounted(async () => {
               <tr>
                 <td class="font-weight-bold text-subtitle-1">Nombre</td>
                 <td>{{ role?.name ? translateRoleName(role.name) : 'No disponible' }}</td>
+              </tr>
+              <tr v-if="isSuperadmin">
+                <td class="font-weight-bold text-subtitle-1">Organización</td>
+                <td>
+                  <template v-if="role?.name === 'superadmin'"> Único </template>
+                  <template v-else-if="role?.name === 'admin' || role?.name === 'sponsor'"> Global </template>
+                  <template
+                    v-else-if="role?.organization && (role.organization.folio || role.organization.legal_name || role.organization.name)"
+                  >
+                    <router-link
+                      :to="`/organizaciones-dw/${role.organization.id}`"
+                      style="text-decoration: underline; color: #1976d2 !important"
+                    >
+                      {{ role.organization.folio ?? role.organization.id }} - {{ role.organization.legal_name ?? role.organization.name }}
+                    </router-link>
+                  </template>
+                  <template v-else> No disponible </template>
+                </td>
               </tr>
             </tbody>
           </v-table>

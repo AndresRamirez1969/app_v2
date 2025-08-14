@@ -3,3 +3,53 @@
   white-space: nowrap;
   vertical-align: middle;
 }
+
+.uniform-table th,
+.uniform-table td {
+  padding: 8px !important;
+  vertical-align: middle !important;
+}
+.uniform-col {
+  min-width: 80px;
+  max-width: 220px;
+  word-break: break-word;
+}
+.v-checkbox .v-selection-control__input {
+  min-width: 32px !important;
+  min-height: 32px !important;
+}
+.v-checkbox .v-icon--size-default {
+  color: #fff !important;
+}
+.v-checkbox .v-selection-control__wrapper {
+  background: #1976d2 !important;
+  border-radius: 6px;
+}
+
+.row-clickable {
+  transition: background 0.2s;
+}
+.row-clickable:hover {
+  cursor: pointer;
+  background: #f5f5f5;
+}
+.row-disabled {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.selected-row {
+  background-color: #e3f2fd !important; /* Azul cielo, igual que business unit group */
+  color: #1976d2 !important;
+}
+.selected-row .v-chip,
+.selected-row .v-icon,
+.selected-row .v-checkbox .v-selection-control__wrapper {
+  color: #1976d2 !important;
+  background: transparent !important;
+}
+
+.permission-card.selected-row {
+  background-color: #e3f2fd !important; /* Azul cielo, igual que business unit group */
+  border: 1.5px solid #90caf9 !important;
+}
