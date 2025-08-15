@@ -183,9 +183,7 @@ const fetchForms = async () => {
   try {
     const params = {
       search: filters.value.search,
-      page: currentPage.value,
-      supervisor_role_id: currentRole.value,
-      status: 'active'
+      page: currentPage.value
     };
 
     // Agregar filtro de fecha si está seleccionada
@@ -198,7 +196,7 @@ const fetchForms = async () => {
       params.created_at = formattedDate;
     }
 
-    const res = await axiosInstance.get('/forms', { params });
+    const res = await axiosInstance.get('/forms/responses');
     forms.value = res.data;
 
     console.log('Formularios filtrados:', {

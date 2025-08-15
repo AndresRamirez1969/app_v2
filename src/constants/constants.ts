@@ -51,7 +51,7 @@ export const ADMIN_FORM_ROLES = [
   { label: 'Contestar', value: 'form_response.store' }
 ];
 
-export const ADMIN_RESPONSE_ROLES = [{ label: 'Ver Todos', value: 'form_response.viewAny' }];
+export const ADMIN_RESPONSE_ROLES = [{ label: 'Ver Todos', value: 'form.hasResponses' }];
 
 // --------Sponsor Assignable Roles ---------
 

@@ -16,6 +16,18 @@ const goBack = () => {
   router.push('/formularios');
 };
 
+const canViewAnyBusiness = computed(() => {
+  return user?.permissions?.includes('business.viewAny');
+});
+
+const canViewAnyUnit = computed(() => {
+  return user?.permissions?.includes('business_unit.viewAny');
+});
+
+const userBusinesses = computed(() => {
+  return user?.business_id;
+});
+
 const fieldErrors = reactive({
   name: '',
   supervisor: '',
@@ -131,8 +143,26 @@ watch([scope, businessId, businessUnitId, groupId], async () => {
     }
     auditors.value = [];
 
+    if ((scope.value === 'business' || scope.value === 'business_unit') && userBusinesses.value && !canViewAnyBusiness.value) {
+      businessId.value = userBusinesses.value;
+      // Actualizar las unidades de negocio cuando se asigna automáticamente el negocio
+      if (scope.value === 'business_unit') {
+        await fetchBusinessUnits();
+      }
+    }
+
     // Ejecutar fetchUsersByScope
     await fetchUsersByScope();
+  }
+});
+
+// Agregar un watcher específico para businessId que actualice las unidades de negocio
+watch(businessId, async (newBusinessId) => {
+  if (newBusinessId && scope.value === 'business_unit') {
+    // Limpiar la unidad de negocio seleccionada
+    businessUnitId.value = '';
+    // Actualizar las unidades de negocio disponibles
+    await fetchBusinessUnits();
   }
 });
 
@@ -142,6 +172,25 @@ watch(groupId, async (newGroupId) => {
     await fetchUsersByScope();
   }
 });
+
+// Modificar la función fetchBusinessUnits para que se ejecute cuando sea necesario
+const fetchBusinessUnits = async (searchText = '') => {
+  try {
+    const params = { q: searchText, limit: 10 };
+
+    // Solo hacer la llamada si tenemos un scope que requiere unidades de negocio
+    if (scope.value === 'business_unit') {
+      const res = await axiosInstance.get('/business-units', { params });
+      businessUnits.value = res.data.data.map((businessUnit) => ({
+        ...businessUnit,
+        customLabel: `${businessUnit.legal_name}`
+      }));
+    }
+  } catch (err) {
+    console.log(err);
+    businessUnits.value = [];
+  }
+};
 
 onMounted(async () => {
   try {
@@ -153,11 +202,9 @@ onMounted(async () => {
       customLabel: `${business.legal_name}`
     }));
 
-    const resBusinessUnit = await axiosInstance.get('/business-units');
-    businessUnits.value = resBusinessUnit.data.data.map((businessUnit) => ({
-      ...businessUnit,
-      customLabel: `${businessUnit.legal_name}`
-    }));
+    // No ejecutar fetchBusinessUnits aquí, se ejecutará cuando se seleccione el scope
+    // await fetchBusinessUnits();
+
     const resGroup = await axiosInstance.get('/business-unit-groups');
     groups.value = resGroup.data.data.map((group) => ({
       ...group,
@@ -483,9 +530,13 @@ const validate = async () => {
                   class="mt-2"
                   label="Selecciona el Negocio"
                   required
+                  :disabled="userBusinesses && !canViewAnyBusiness"
                   :error-messages="fieldErrors.businessId"
                   @update:model-value="clearFieldError('businessId')"
                 />
+                <v-alert v-if="userBusinesses && !canViewAnyBusiness" type="info" variant="tonal" class="mt-2" density="compact">
+                  <strong>Asignación automática de negocio</strong>
+                </v-alert>
               </div>
             </v-col>
           </v-row>
