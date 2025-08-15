@@ -54,7 +54,7 @@ const sidebarItem: menu[] = [
       {
         title: 'Grupos de Ubicaciones',
         icon: BranchesOutlined,
-        to: '/grupos-dw'
+        to: '/grupos-de-ubicaciones'
       }
     ]
   },
@@ -81,7 +81,7 @@ const sidebarItem: menu[] = [
       {
         title: 'Usuarios',
         icon: UserOutlined,
-        to: '/usuarios-dw'
+        to: '/usuarios'
       },
       {
         title: 'Roles & Permisos',

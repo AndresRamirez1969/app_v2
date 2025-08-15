@@ -231,7 +231,7 @@ onMounted(async () => {
                     v-else-if="role?.organization && (role.organization.folio || role.organization.legal_name || role.organization.name)"
                   >
                     <router-link
-                      :to="`/organizaciones-dw/${role.organization.id}`"
+                      :to="`/organizaciones/${role.organization.id}`"
                       style="text-decoration: underline; color: #1976d2 !important"
                     >
                       {{ role.organization.folio ?? role.organization.id }} - {{ role.organization.legal_name ?? role.organization.name }}

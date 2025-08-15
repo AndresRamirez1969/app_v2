@@ -107,7 +107,7 @@
                 <td v-if="isSuperadmin" class="org-cell">
                   <template v-if="role.organization && (role.organization.folio || role.organization.legal_name || role.organization.name)">
                     <router-link
-                      :to="`/organizaciones-dw/${role.organization.id}`"
+                      :to="`/organizaciones/${role.organization.id}`"
                       @click.stop
                       style="text-decoration: underline; color: #1976d2 !important"
                     >

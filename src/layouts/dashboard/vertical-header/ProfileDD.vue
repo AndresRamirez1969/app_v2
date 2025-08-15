@@ -33,7 +33,7 @@ const hasBusinessUnitViewAny = computed(() => permissions.value.includes('busine
 const hasBusinessUnitId = computed(() => !!authStore.user?.business_unit_id);
 const hasBusinessUnitView = computed(() => permissions.value.includes('businessUnit.view'));
 
-// Mostrar DW en ProfileDD solo si NO es superadmin y NO tiene el permiso viewAny
+// Mostrar  en ProfileDD solo si NO es superadmin y NO tiene el permiso viewAny
 const showOrgDwProfile = computed(() => {
   return !userRoles.value.includes('superadmin') && !hasOrgViewAny.value;
 });
@@ -48,14 +48,14 @@ const showBusinessUnitDwProfile = computed(() => {
 function getOrgDwRoute() {
   if (hasOrgId.value) {
     if (userRoles.value.includes('admin') || hasOrgCreate.value) {
-      return `/organizaciones-dw/${authStore.user.organization_id}`;
+      return `/organizaciones/${authStore.user.organization_id}`;
     }
     if (userRoles.value.includes('sponsor') || hasOrgView.value) {
-      return `/organizaciones-dw/${authStore.user.organization_id}`;
+      return `/organizaciones/${authStore.user.organization_id}`;
     }
   }
   if (userRoles.value.includes('admin') || hasOrgCreate.value) {
-    return '/organizaciones-dw/create';
+    return '/organizaciones/crear';
   }
   return null;
 }
@@ -66,7 +66,7 @@ function isOrgDwDisabled() {
 function getBusinessDwRoute() {
   if (hasBusinessId.value) {
     if (userRoles.value.includes('admin') || userRoles.value.includes('sponsor') || permissions.value.includes('business.view')) {
-      return `/negocios-dw/${authStore.user.business_id}`;
+      return `/empresas/${authStore.user.business_id}`;
     }
   }
   return null;
@@ -78,7 +78,7 @@ function isBusinessDwDisabled() {
 function getBusinessUnitDwRoute() {
   if (hasBusinessUnitId.value) {
     if (userRoles.value.includes('admin') || userRoles.value.includes('sponsor') || hasBusinessUnitView.value) {
-      return `/ubicaciones-dw/${authStore.user.business_unit_id}`;
+      return `/ubicaciones/${authStore.user.business_unit_id}`;
     }
   }
   return null;
@@ -116,49 +116,49 @@ const handleLogout = async () => {
             <v-list-item-title class="text-h6"> Ver Perfil</v-list-item-title>
           </v-list-item>
 
-          <!-- Organizaciones DW -->
+          <!-- Organizaciones  -->
           <v-list-item
             v-if="showOrgDwProfile"
             :disabled="isOrgDwDisabled()"
             @click="!isOrgDwDisabled() && $router.push(getOrgDwRoute())"
             color="primary"
             rounded="0"
-            value="OrganizacionesDW"
+            value="Organizaciones"
           >
             <template v-slot:prepend>
               <ApartmentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
             </template>
-            <v-list-item-title class="text-h6"> Organizaciones DW</v-list-item-title>
+            <v-list-item-title class="text-h6"> Organizaciones</v-list-item-title>
           </v-list-item>
 
-          <!-- Empresas DW -->
+          <!-- Empresas  -->
           <v-list-item
             v-if="showBusinessDwProfile"
             :disabled="isBusinessDwDisabled()"
             @click="!isBusinessDwDisabled() && $router.push(getBusinessDwRoute())"
             color="primary"
             rounded="0"
-            value="EmpresasDW"
+            value="Empresas"
           >
             <template v-slot:prepend>
               <ShopOutlined :style="{ fontSize: '14px' }" class="mr-4" />
             </template>
-            <v-list-item-title class="text-h6"> Empresas DW</v-list-item-title>
+            <v-list-item-title class="text-h6"> Empresas</v-list-item-title>
           </v-list-item>
 
-          <!-- Ubicaciones DW -->
+          <!-- Ubicaciones  -->
           <v-list-item
             v-if="showBusinessUnitDwProfile"
             :disabled="isBusinessUnitDwDisabled()"
             @click="!isBusinessUnitDwDisabled() && $router.push(getBusinessUnitDwRoute())"
             color="primary"
             rounded="0"
-            value="UbicacionesDW"
+            value="Ubicaciones"
           >
             <template v-slot:prepend>
               <EnvironmentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
             </template>
-            <v-list-item-title class="text-h6"> Ubicaciones DW</v-list-item-title>
+            <v-list-item-title class="text-h6"> Ubicaciones</v-list-item-title>
           </v-list-item>
 
           <v-list-item @click="handleLogout" color="secondary" rounded="0">

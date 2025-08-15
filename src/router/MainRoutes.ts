@@ -22,36 +22,6 @@ const MainRoutes = {
       component: () => import('@/views/typography/TypographyPage.vue')
     },
     {
-      name: 'Business',
-      path: '/negocios',
-      component: () => import('@/views/businesses/BusinessTab.vue')
-    },
-    {
-      name: 'BusinessDetail',
-      path: '/negocio/:id',
-      component: () => import('@/views/businesses/ShowBusiness.vue')
-    },
-    {
-      name: 'Units',
-      path: '/unidades',
-      component: () => import('@/views/business_units/UnitsTabs.vue')
-    },
-    {
-      name: 'UnitDetail',
-      path: '/unidad/:id',
-      component: () => import('@/views/business_units/components/ShowUnit.vue')
-    },
-    {
-      name: 'Grupos',
-      path: '/grupos',
-      component: () => import('@/views/business_units/unit_groups/UnitsGroupsTab.vue')
-    },
-    {
-      name: 'Users',
-      path: '/usuarios',
-      component: () => import('@/views/users/UsersTab.vue')
-    },
-    {
       name: 'Profile',
       path: 'perfil',
       component: () => import('@/views/user/UserProfile.vue'),
@@ -88,50 +58,45 @@ const MainRoutes = {
       path: '/formulario/:id/llenar',
       component: () => import('../views/user-forms/componentes/FillForm.vue')
     },
-    // {
-    //   name: 'other',
-    //   path: '/organizaciones',
-    //   component: () => import('@/views/organizations/OrganizationTab.vue')
-    // },
     {
-      name: 'Organizaciones DW',
-      path: '/organizaciones-dw',
-      component: () => import('@/views/organizations-dw/index.vue')
+      name: 'Organizaciones',
+      path: '/organizaciones',
+      component: () => import('@/views/organizations/index.vue')
     },
     {
-      name: 'Organization Create DW',
-      path: '/organizaciones-dw/create',
-      component: () => import('@/views/organizations-dw/create.vue')
+      name: 'Organization Create',
+      path: '/organizaciones/crear',
+      component: () => import('@/views/organizations/create.vue')
     },
     {
-      name: 'Organization Edit DW',
-      path: '/organizaciones-dw/:id/edit',
-      component: () => import('@/views/organizations-dw/edit.vue')
+      name: 'Organization Edit',
+      path: '/organizaciones/editar/:id',
+      component: () => import('@/views/organizations/edit.vue')
     },
     {
-      name: 'Organization Show DW',
-      path: '/organizaciones-dw/:id',
-      component: () => import('@/views/organizations-dw/show.vue')
+      name: 'Organization Show',
+      path: '/organizaciones/:id',
+      component: () => import('@/views/organizations/show.vue')
     },
     {
-      name: 'Business DW',
-      path: '/negocios-dw',
-      component: () => import('@/views/businesses-dw/index.vue')
+      name: 'Business',
+      path: '/empresas',
+      component: () => import('@/views/businesses/index.vue')
     },
     {
-      name: 'Business Create DW',
-      path: '/negocios-dw/create',
-      component: () => import('@/views/businesses-dw/create.vue')
+      name: 'Business Create',
+      path: '/empresas/crear',
+      component: () => import('@/views/businesses/create.vue')
     },
     {
-      name: 'Business Edit DW',
-      path: '/negocios-dw/:id/edit',
-      component: () => import('@/views/businesses-dw/edit.vue')
+      name: 'Business Edit',
+      path: '/empresas/editar/:id',
+      component: () => import('@/views/businesses/edit.vue')
     },
     {
-      name: 'Business Show DW',
-      path: '/negocios-dw/:id',
-      component: () => import('@/views/businesses-dw/show.vue')
+      name: 'Business Show',
+      path: '/empresas/:id',
+      component: () => import('@/views/businesses/show.vue')
     },
     {
       name: 'Reports',
@@ -145,23 +110,23 @@ const MainRoutes = {
     },
     {
       name: 'Business Unit DW',
-      path: '/ubicaciones-dw',
-      component: () => import('@/views/business-unit-dw/index.vue')
+      path: '/ubicaciones',
+      component: () => import('@/views/business_unit/index.vue')
     },
     {
       name: 'Business Unit Create DW',
-      path: '/ubicaciones-dw/create',
-      component: () => import('@/views/business-unit-dw/create.vue')
+      path: '/ubicaciones/crear',
+      component: () => import('@/views/business_unit/create.vue')
     },
     {
       name: 'Business Unit Edit DW',
-      path: '/ubicaciones-dw/:id/edit',
-      component: () => import('@/views/business-unit-dw/edit.vue')
+      path: '/ubicaciones/editar/:id',
+      component: () => import('@/views/business_unit/edit.vue')
     },
     {
       name: 'Business Unit Show DW',
-      path: '/ubicaciones-dw/:id',
-      component: () => import('@/views/business-unit-dw/show.vue')
+      path: '/ubicaciones/:id',
+      component: () => import('@/views/business_unit/show.vue')
     },
     {
       name: 'UserResponse',
@@ -174,43 +139,43 @@ const MainRoutes = {
     },
     {
       name: 'Business Unit Groups',
-      path: '/grupos-dw',
-      component: () => import('@/views/business-unit-group/index.vue')
+      path: '/grupos-de-ubicaciones',
+      component: () => import('@/views/business_unit_group/index.vue')
     },
     {
-      name: 'Business Unit Group Create DW',
-      path: '/grupos-dw/create',
-      component: () => import('@/views/business-unit-group/create.vue')
+      name: 'Business Unit Group Create',
+      path: '/grupos-de-ubicaciones/crear',
+      component: () => import('@/views/business_unit_group/create.vue')
     },
     {
-      name: 'Business Unit Group Edit DW',
-      path: '/grupos-dw/:id/edit',
-      component: () => import('@/views/business-unit-group/edit.vue')
+      name: 'Business Unit Group Edit',
+      path: '/grupos-de-ubicaciones/editar/:id',
+      component: () => import('@/views/business_unit_group/edit.vue')
     },
     {
-      name: 'Business Unit Group Show DW',
-      path: '/grupos-dw/:id',
-      component: () => import('@/views/business-unit-group/show.vue')
+      name: 'Business Unit Group Show',
+      path: '/grupos-de-ubicaciones/:id',
+      component: () => import('@/views/business_unit_group/show.vue')
     },
     {
-      name: 'Users DW',
-      path: '/usuarios-dw',
-      component: () => import('@/views/users-dw/index.vue')
+      name: 'Users',
+      path: '/usuarios',
+      component: () => import('@/views/users/index.vue')
     },
     {
-      name: 'User Create DW',
-      path: '/usuarios-dw/create',
-      component: () => import('@/views/users-dw/create.vue')
+      name: 'User Create',
+      path: '/usuarios/crear',
+      component: () => import('@/views/users/create.vue')
     },
     {
-      name: 'User Edit DW',
-      path: '/usuarios-dw/:id/edit',
-      component: () => import('@/views/users-dw/edit.vue')
+      name: 'User Edit',
+      path: '/usuarios/editar/:id',
+      component: () => import('@/views/users/edit.vue')
     },
     {
-      name: 'User Show DW',
-      path: '/usuarios-dw/:id',
-      component: () => import('@/views/users-dw/show.vue')
+      name: 'User Show',
+      path: '/usuarios/:id',
+      component: () => import('@/views/users/show.vue')
     },
     {
       name: 'Roles',

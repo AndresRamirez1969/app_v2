@@ -24,19 +24,19 @@ const hasUserViewAny = computed(() => permissions.value.includes('user.viewAny')
 const hasRoleViewAny = computed(() => permissions.value.includes('role.viewAny'));
 
 function getOrgDwRoute() {
-  return '/organizaciones-dw';
+  return '/organizaciones';
 }
 function getBusinessDwRoute() {
-  return '/negocios-dw';
+  return '/empresas';
 }
 function getBusinessUnitDwRoute() {
-  return '/ubicaciones-dw';
+  return '/ubicaciones';
 }
 function getBusinessUnitGroupDwRoute() {
-  return '/grupos-dw';
+  return '/grupos-de-ubicaciones';
 }
 function getUserDwRoute() {
-  return '/usuarios-dw';
+  return '/usuarios';
 }
 function getRolesRoute() {
   return '/roles';
