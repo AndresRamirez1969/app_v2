@@ -113,7 +113,8 @@ const formatAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
-const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
+// Truncar texto a 60 caracteres
+const truncate = (text, max = 50) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 onMounted(async () => {
   try {
@@ -439,7 +440,7 @@ onMounted(async () => {
                 </div>
               </td>
               <td>{{ unit.legal_name || 'No disponible' }}</td>
-              <td>{{ unit.address ? truncate(formatAddress(unit.address), 80) : 'No disponible' }}</td>
+              <td>{{ unit.address ? truncate(formatAddress(unit.address), 50) : 'No disponible' }}</td>
               <td></td>
               <td>
                 <StatusChip :status="unit.status" v-if="unit.status" />
