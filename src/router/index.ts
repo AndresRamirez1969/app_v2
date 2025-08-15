@@ -29,12 +29,25 @@ router.beforeEach(async (to, from, next) => {
     auth.returnUrl = to.fullPath;
     return next('/login');
   }
+
+  // Si está logueado y va a /login, redirige según rol y organización
   if (auth.isLoggedIn && to.path === '/login') {
-    return next(auth.returnUrl || '/dashboard');
+    const roles = auth.user?.roles || [];
+    const isAdmin = roles.includes('admin');
+    const hasOrg = !!auth.user?.organization_id;
+
+    if (isAdmin && !hasOrg) {
+      return next('/organizaciones/crear');
+    } else {
+      return next('/dashboard');
+    }
   }
-  if (auth.isLoggedIn && !auth.user?.organization_id && to.path !== '/organizaciones-dw/create') {
-    return next('/organizaciones-dw/create');
+
+  // Si está logueado, es admin y no tiene organización, y no está en /organizaciones/crear, redirige
+  if (auth.isLoggedIn && auth.user?.roles?.includes('admin') && !auth.user?.organization_id && to.path !== '/organizaciones/crear') {
+    return next('/organizaciones/crear');
   }
+
   next();
 });
 
@@ -48,4 +61,4 @@ router.afterEach(() => {
   uiStore.isLoading = false;
 });
 
-export default router; // <-- Agrega esto al final
+export default router;

@@ -23,8 +23,12 @@ const passwordRules = [(v: string) => !!v || 'La contraseña es obligatoria'];
 const login = async () => {
   try {
     await auth.login(email.value, password.value, rememberMe.value);
-    if (!auth.user?.organization_id) {
-      router.push('/organizaciones-dw/create');
+    const roles = auth.user?.roles || [];
+    const isAdmin = roles.includes('admin');
+    const hasOrg = !!auth.user?.organization_id;
+
+    if (isAdmin && !hasOrg) {
+      router.push('/organizaciones/crear');
     } else {
       router.push('/dashboard');
     }
