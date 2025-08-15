@@ -1,21 +1,27 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
 import OrganizationTableMeta from './OrganizationTableMeta.vue';
 import StatusChip from '@/components/status/StatusChip.vue';
-import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiPencil, mdiEye, mdiCancel, mdiCheckCircle } from '@mdi/js';
 import { useAuthStore } from '@/stores/auth';
+import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiPencil, mdiEye, mdiCancel, mdiCheckCircle } from '@mdi/js';
 
 const props = defineProps({
   items: Array,
-  isMobile: Boolean
+  isMobile: Boolean,
+  page: Number,
+  itemsPerPage: Number,
+  sortBy: String,
+  sortDesc: Boolean,
+  meta: Object
 });
+
+const emit = defineEmits(['update:page', 'sort']);
 
 const router = useRouter();
 const auth = useAuthStore();
 
-// Integración: roles y permisos vienen como arrays directos del backend
 const user = computed(() => auth.user || { roles: [], permissions: [] });
 const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
@@ -24,20 +30,6 @@ const canToggleStatus = computed(() => isSuperadmin.value);
 const canEdit = computed(() => permissions.value.includes('organization.update'));
 const canView = computed(() => permissions.value.includes('organization.view'));
 const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatus.value);
-
-const sortBy = ref('folio');
-const sortDesc = ref(false);
-const page = ref(1);
-const itemsPerPage = ref(10);
-
-const toggleSort = (column) => {
-  if (sortBy.value === column) {
-    sortDesc.value = !sortDesc.value;
-  } else {
-    sortBy.value = column;
-    sortDesc.value = false;
-  }
-};
 
 const fullAddress = (address) => {
   if (!address) return 'No disponible';
@@ -53,20 +45,7 @@ const fullAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
-const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
-
-const sortedItems = computed(() => {
-  return [...props.items].sort((a, b) => {
-    const aVal = sortBy.value === 'address' ? fullAddress(a.address).toLowerCase() : (a[sortBy.value]?.toString().toLowerCase() ?? '');
-    const bVal = sortBy.value === 'address' ? fullAddress(b.address).toLowerCase() : (b[sortBy.value]?.toString().toLowerCase() ?? '');
-    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
-  });
-});
-
-const paginatedItems = computed(() => {
-  const start = (page.value - 1) * itemsPerPage.value;
-  return sortedItems.value.slice(start, start + itemsPerPage.value);
-});
+const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 const goToEdit = (org) => router.push({ path: `/organizaciones/editar/${org.id}` });
 const goToShow = (org) => router.push({ path: `/organizaciones/${org.id}` });
@@ -84,15 +63,23 @@ const toggleStatus = async (org) => {
     alert('No se pudo cambiar el estatus');
   }
 };
+
+// Métodos para paginación y ordenamiento
+function handlePageChange(newPage) {
+  emit('update:page', newPage);
+}
+function handleSort(column) {
+  emit('sort', { sortBy: column, sortDesc: props.sortBy === column ? !props.sortDesc : false });
+}
 </script>
 
 <template>
   <div>
     <!-- Modo móvil (solo cards) -->
     <template v-if="isMobile">
-      <template v-if="paginatedItems.length">
+      <template v-if="props.items.length">
         <v-card
-          v-for="org in paginatedItems"
+          v-for="org in props.items"
           :key="org.id"
           class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
           @click="canView ? goToShow(org) : undefined"
@@ -128,7 +115,7 @@ const toggleStatus = async (org) => {
               <div class="font-weight-medium mb-1">{{ org.legal_name }}</div>
               <div class="text-caption">
                 <strong>Dirección:</strong>
-                {{ truncate(fullAddress(org.address), 80) }}
+                {{ truncate(fullAddress(org.address), 60) }}
               </div>
             </v-col>
           </v-row>
@@ -144,23 +131,25 @@ const toggleStatus = async (org) => {
     <!-- Modo escritorio (solo tabla) -->
     <template v-if="!isMobile">
       <OrganizationTableMeta
-        :items="sortedItems.value"
-        :page="page"
-        :itemsPerPage="itemsPerPage"
-        :sortBy="sortBy"
-        :sortDesc="sortDesc"
-        @update:page="page = $event"
-        @sort="toggleSort"
+        :items="props.items"
+        :page="props.page"
+        :itemsPerPage="props.itemsPerPage"
+        :sortBy="props.sortBy"
+        :sortDesc="props.sortDesc"
+        :meta="props.meta"
+        @update:page="handlePageChange"
+        @sort="handleSort"
       >
         <template #sort-icon="{ column }">
-          <v-icon v-if="sortBy === column" size="16" class="ml-1">
-            {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
+          <v-icon v-if="props.sortBy === column" size="16" class="ml-1">
+            <!-- Usa los íconos importados -->
+            {{ props.sortDesc ? mdiChevronDown : mdiChevronUp }}
           </v-icon>
         </template>
         <template #rows>
-          <template v-if="paginatedItems.length">
+          <template v-if="props.items.length">
             <tr
-              v-for="org in paginatedItems"
+              v-for="org in props.items"
               :key="org.id"
               @click="canView ? goToShow(org) : undefined"
               :class="['row-clickable', { 'row-disabled': !canView }]"
@@ -181,7 +170,7 @@ const toggleStatus = async (org) => {
                 </v-avatar>
               </td>
               <td class="legal-cell">{{ org.legal_name }}</td>
-              <td class="address-cell">{{ truncate(fullAddress(org.address), 80) }}</td>
+              <td class="address-cell">{{ truncate(fullAddress(org.address), 60) }}</td>
               <td class="status-cell">
                 <StatusChip :status="org.status" />
               </td>

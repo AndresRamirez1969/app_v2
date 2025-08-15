@@ -62,7 +62,7 @@
         :item-title="'name'"
         :item-value="'name'"
         clearable
-        return-object="false"
+        :return-object="false"
         :filter="customCountryFilter"
       />
     </div>
@@ -180,6 +180,7 @@ const normalize = (str) =>
 
 const customCountryFilter = (item, queryText) => normalize(item.name).includes(normalize(queryText));
 
+// INTEGRACIÓN: Usar AdvancedMarkerElement en vez de Marker
 const initMap = (lat, lng) => {
   const position = { lat, lng };
   if (!map.value) {
@@ -187,10 +188,24 @@ const initMap = (lat, lng) => {
       center: position,
       zoom: 16
     });
-    marker.value = new google.maps.Marker({ position, map: map.value });
+    if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
+      marker.value = new google.maps.marker.AdvancedMarkerElement({
+        map: map.value,
+        position
+      });
+    } else {
+      // fallback para versiones antiguas
+      marker.value = new google.maps.Marker({ position, map: map.value });
+    }
   } else {
     map.value.setCenter(position);
-    marker.value.setPosition(position);
+    if (marker.value && marker.value.position) {
+      // AdvancedMarkerElement
+      marker.value.position = position;
+    } else if (marker.value && marker.value.setPosition) {
+      // Marker clásico
+      marker.value.setPosition(position);
+    }
   }
 };
 

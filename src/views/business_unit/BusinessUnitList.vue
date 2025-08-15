@@ -58,7 +58,7 @@ const fullAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
-const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
+const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 const sortedItems = computed(() => {
   return [...props.items].sort((a, b) => {
@@ -146,7 +146,7 @@ const toggleStatus = async (uni) => {
               <div class="font-weight-medium mb-1">{{ uni.legal_name }}</div>
               <div class="text-caption">
                 <strong>Dirección:</strong>
-                {{ truncate(fullAddress(uni.address), 80) }}
+                {{ truncate(fullAddress(uni.address), 60) }}
               </div>
             </v-col>
           </v-row>
@@ -193,7 +193,7 @@ const toggleStatus = async (uni) => {
                   </v-avatar>
                 </td>
                 <td class="legal-cell">{{ uni.legal_name }}</td>
-                <td class="address-cell">{{ truncate(fullAddress(uni.address), 80) }}</td>
+                <td class="address-cell">{{ truncate(fullAddress(uni.address), 60) }}</td>
                 <td class="status-cell">
                   <StatusChip :status="uni.status" />
                 </td>

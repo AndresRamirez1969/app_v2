@@ -10,36 +10,54 @@ import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const organizations = ref([]);
-const filteredOrganizations = ref([]);
+const meta = ref({});
 const { mdAndDown } = useDisplay();
 
 const searchText = ref('');
 const filterOptions = ref({});
+const sortBy = ref('legal_name');
+const sortDesc = ref(false);
+const page = ref(1);
+const itemsPerPage = ref(10);
 
 const auth = useAuthStore();
 const canView = ref(false);
 const canCreate = ref(false);
 
-// Adaptación: roles y permisos vienen en el objeto user, como arrays
 function hasPermission(permission) {
   return Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission);
 }
 
+async function fetchOrganizations() {
+  if (!canView.value) return;
+  try {
+    const params = {
+      search: searchText.value,
+      status: filterOptions.value.status,
+      created_at_start: filterOptions.value.createdAtStart,
+      created_at_end: filterOptions.value.createdAtEnd,
+      sort_by: sortBy.value,
+      sort_desc: sortDesc.value,
+      page: page.value,
+      per_page: itemsPerPage.value
+    };
+    const { data } = await axios.get('/organizations', { params });
+    organizations.value = data.data;
+    meta.value = data.meta || {};
+  } catch (error) {
+    console.error('Error fetching organizations:', error);
+    organizations.value = [];
+  }
+}
+
 onMounted(async () => {
-  // Verifica permiso para ver organizaciones
   if (!hasPermission('organization.viewAny')) {
     canView.value = false;
     return;
   }
   canView.value = true;
   canCreate.value = hasPermission('organization.create');
-  try {
-    const { data } = await axios.get('/organizations');
-    organizations.value = data.data;
-    filteredOrganizations.value = data.data;
-  } catch (error) {
-    console.error('Error fetching organizations:', error);
-  }
+  await fetchOrganizations();
 });
 
 const goToCreate = () => {
@@ -48,45 +66,25 @@ const goToCreate = () => {
 
 function handleSearch(text) {
   searchText.value = text;
-  applyFilters();
+  page.value = 1;
+  fetchOrganizations();
 }
 
-async function handleFilter(filters) {
+function handleFilter(filters) {
   filterOptions.value = filters;
-  try {
-    const { data } = await axios.get('/organizations', { params: filters });
-    filteredOrganizations.value = data.data;
-  } catch (error) {
-    console.error('Error fetching filtered organizations:', error);
-    filteredOrganizations.value = [];
-  }
+  page.value = 1;
+  fetchOrganizations();
 }
 
-function applyFilters() {
-  let result = organizations.value;
-
-  if (searchText.value) {
-    const q = searchText.value.toLowerCase();
-    result = result.filter(
-      (org) =>
-        (org.legal_name && org.legal_name.toLowerCase().includes(q)) ||
-        (org.alias && org.alias.toLowerCase().includes(q)) ||
-        (org.folio && String(org.folio).toLowerCase().includes(q)) ||
-        (org.address && Object.values(org.address).join(' ').toLowerCase().includes(q))
-    );
-  }
-
-  if (filterOptions.value.status) {
-    result = result.filter((org) => org.status === filterOptions.value.status);
-  }
-  if (filterOptions.value.createdAt) {
-    result = result.filter((org) => org.created_at && org.created_at >= filterOptions.value.createdAt);
-  }
-  if (filterOptions.value.updatedAt) {
-    result = result.filter((org) => org.updated_at && org.updated_at >= filterOptions.value.updatedAt);
-  }
-
-  filteredOrganizations.value = result;
+// Recibe eventos de paginación y ordenamiento desde OrganizationList
+function handlePageChange(newPage) {
+  page.value = newPage;
+  fetchOrganizations();
+}
+function handleSort({ sortBy: newSortBy, sortDesc: newSortDesc }) {
+  sortBy.value = newSortBy;
+  sortDesc.value = newSortDesc;
+  fetchOrganizations();
 }
 </script>
 
@@ -115,7 +113,17 @@ function applyFilters() {
 
       <v-row>
         <v-col>
-          <OrganizationList :items="filteredOrganizations" :isMobile="mdAndDown" />
+          <OrganizationList
+            :items="organizations"
+            :isMobile="mdAndDown"
+            :page="page"
+            :itemsPerPage="itemsPerPage"
+            :sortBy="sortBy"
+            :sortDesc="sortDesc"
+            :meta="meta"
+            @update:page="handlePageChange"
+            @sort="handleSort"
+          />
         </v-col>
       </v-row>
     </v-container>
