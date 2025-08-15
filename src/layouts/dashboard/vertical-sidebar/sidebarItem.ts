@@ -31,16 +31,16 @@ export interface menu {
 
 const sidebarItem: menu[] = [
   {
-    title: 'Dashboard',
+    title: 'Inicio',
     icon: AppstoreOutlined,
     to: '/dashboard'
   },
   {
-    title: 'Organizaciones DW',
+    title: 'Organizaciones',
     icon: ApartmentOutlined
   },
   {
-    title: 'Empresas DW',
+    title: 'Empresas',
     icon: ShopOutlined
   },
   {
@@ -48,11 +48,11 @@ const sidebarItem: menu[] = [
     icon: EnvironmentOutlined,
     children: [
       {
-        title: 'Ubicaciones DW',
+        title: 'Ubicaciones',
         icon: EnvironmentOutlined
       },
       {
-        title: 'Grupos de Ubicación DW',
+        title: 'Grupos de Ubicaciones',
         icon: BranchesOutlined,
         to: '/grupos-dw'
       }
@@ -79,7 +79,7 @@ const sidebarItem: menu[] = [
     icon: TeamOutlined,
     children: [
       {
-        title: 'Usuarios DW',
+        title: 'Usuarios',
         icon: UserOutlined,
         to: '/usuarios-dw'
       },

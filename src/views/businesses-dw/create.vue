@@ -39,7 +39,11 @@ onMounted(async () => {
   if (user?.roles?.includes('superadmin')) {
     try {
       const res = await axiosInstance.get('/organizations');
-      organizations.value = Array.isArray(res.data) ? res.data : res.data.data;
+      const orgs = Array.isArray(res.data) ? res.data : res.data.data;
+      organizations.value = orgs.map((org) => ({
+        ...org,
+        display: `${org.folio || ''} - ${org.legal_name || ''}`.trim()
+      }));
     } catch (e) {
       organizations.value = [];
     }
@@ -219,7 +223,7 @@ const validate = async () => {
               <v-select
                 v-model="selectedOrganization"
                 :items="organizations"
-                item-title="legal_name"
+                item-title="display"
                 item-value="id"
                 variant="outlined"
                 color="primary"

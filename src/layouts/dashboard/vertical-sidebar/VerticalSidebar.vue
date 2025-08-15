@@ -46,11 +46,11 @@ function getRolesRoute() {
 const sidebarMenu = computed(() => {
   return sidebarItems
     .map((item) => {
-      if (item.title === 'Organizaciones DW') {
+      if (item.title === 'Organizaciones') {
         const show = userRoles.value.includes('superadmin') || hasOrgViewAny.value;
         return show ? { ...item, to: getOrgDwRoute() } : null;
       }
-      if (item.title === 'Empresas DW') {
+      if (item.title === 'Empresas') {
         const show = userRoles.value.includes('superadmin') || hasBusinessViewAny.value;
         return show ? { ...item, to: getBusinessDwRoute() } : null;
       }
@@ -58,11 +58,11 @@ const sidebarMenu = computed(() => {
         // Dropdown: solo muestra hijos que el usuario puede ver
         const children = (item.children || [])
           .map((child) => {
-            if (child.title === 'Ubicaciones DW') {
+            if (child.title === 'Ubicaciones') {
               const show = userRoles.value.includes('superadmin') || hasBusinessUnitViewAny.value;
               return show ? { ...child, to: getBusinessUnitDwRoute() } : null;
             }
-            if (child.title === 'Grupos de Ubicación DW') {
+            if (child.title === 'Grupos de Ubicación') {
               const show = userRoles.value.includes('superadmin') || hasBusinessUnitGroupViewAny.value;
               return show ? { ...child, to: getBusinessUnitGroupDwRoute() } : null;
             }
