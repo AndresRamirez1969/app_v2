@@ -1,23 +1,17 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
 import OrganizationTableMeta from './OrganizationTableMeta.vue';
 import StatusChip from '@/components/status/StatusChip.vue';
-import { useAuthStore } from '@/stores/auth';
 import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiPencil, mdiEye, mdiCancel, mdiCheckCircle } from '@mdi/js';
+import { useAuthStore } from '@/stores/auth';
 
 const props = defineProps({
   items: Array,
   isMobile: Boolean,
-  page: Number,
-  itemsPerPage: Number,
-  sortBy: String,
-  sortDesc: Boolean,
-  meta: Object
+  isLoading: Boolean
 });
-
-const emit = defineEmits(['update:page', 'sort']);
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -30,6 +24,20 @@ const canToggleStatus = computed(() => isSuperadmin.value);
 const canEdit = computed(() => permissions.value.includes('organization.update'));
 const canView = computed(() => permissions.value.includes('organization.view'));
 const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatus.value);
+
+const sortBy = ref('folio');
+const sortDesc = ref(false);
+const page = ref(1);
+const itemsPerPage = ref(10);
+
+const toggleSort = (column) => {
+  if (sortBy.value === column) {
+    sortDesc.value = !sortDesc.value;
+  } else {
+    sortBy.value = column;
+    sortDesc.value = false;
+  }
+};
 
 const fullAddress = (address) => {
   if (!address) return 'No disponible';
@@ -47,6 +55,19 @@ const fullAddress = (address) => {
 
 const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
+const sortedItems = computed(() => {
+  return [...props.items].sort((a, b) => {
+    const aVal = sortBy.value === 'address' ? fullAddress(a.address).toLowerCase() : (a[sortBy.value]?.toString().toLowerCase() ?? '');
+    const bVal = sortBy.value === 'address' ? fullAddress(b.address).toLowerCase() : (b[sortBy.value]?.toString().toLowerCase() ?? '');
+    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
+  });
+});
+
+const paginatedItems = computed(() => {
+  const start = (page.value - 1) * itemsPerPage.value;
+  return sortedItems.value.slice(start, start + itemsPerPage.value);
+});
+
 const goToEdit = (org) => router.push({ path: `/organizaciones/editar/${org.id}` });
 const goToShow = (org) => router.push({ path: `/organizaciones/${org.id}` });
 
@@ -63,23 +84,29 @@ const toggleStatus = async (org) => {
     alert('No se pudo cambiar el estatus');
   }
 };
-
-// Métodos para paginación y ordenamiento
-function handlePageChange(newPage) {
-  emit('update:page', newPage);
-}
-function handleSort(column) {
-  emit('sort', { sortBy: column, sortDesc: props.sortBy === column ? !props.sortDesc : false });
-}
 </script>
 
 <template>
   <div>
-    <!-- Modo móvil (solo cards) -->
-    <template v-if="isMobile">
-      <template v-if="props.items.length">
+    <!-- Loading global -->
+    <div v-if="isLoading" class="text-center py-8">
+      <v-progress-circular indeterminate color="primary" size="64" />
+      <p class="mt-4">Cargando organizaciones...</p>
+    </div>
+
+    <!-- Contenido cuando no está cargando -->
+    <template v-else>
+      <!-- Mensaje cuando no hay organizaciones -->
+      <div v-if="!paginatedItems.length" class="text-center py-8">
+        <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
+        <p class="mt-4 text-h6 text-grey-darken-1">No existen organizaciones</p>
+        <p class="text-body-2 text-grey">No se encontraron organizaciones con los filtros aplicados</p>
+      </div>
+
+      <!-- Modo móvil (solo cards) -->
+      <template v-else-if="isMobile">
         <v-card
-          v-for="org in props.items"
+          v-for="org in paginatedItems"
           :key="org.id"
           class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
           @click="canView ? goToShow(org) : undefined"
@@ -100,12 +127,7 @@ function handleSort(column) {
             <v-col cols="8">
               <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <router-link
-                    v-if="canView"
-                    :to="`/organizaciones/${org.id}`"
-                    @click.stop
-                    style="text-decoration: underline; color: #1976d2 !important"
-                  >
+                  <router-link v-if="canView" :to="`/organizaciones/${org.id}`" @click.stop style="text-decoration: underline">
                     {{ org.folio }}
                   </router-link>
                   <span v-else>{{ org.folio }}</span>
@@ -121,103 +143,89 @@ function handleSort(column) {
           </v-row>
         </v-card>
       </template>
-      <template v-else>
-        <v-card class="mb-4 pa-4 elevation-1 rounded-lg text-center">
-          <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No se encontraron organizaciones</div>
-        </v-card>
-      </template>
-    </template>
 
-    <!-- Modo escritorio (solo tabla) -->
-    <template v-if="!isMobile">
-      <OrganizationTableMeta
-        :items="props.items"
-        :page="props.page"
-        :itemsPerPage="props.itemsPerPage"
-        :sortBy="props.sortBy"
-        :sortDesc="props.sortDesc"
-        :meta="props.meta"
-        @update:page="handlePageChange"
-        @sort="handleSort"
-      >
-        <template #sort-icon="{ column }">
-          <v-icon v-if="props.sortBy === column" size="16" class="ml-1">
-            <!-- Usa los íconos importados -->
-            {{ props.sortDesc ? mdiChevronDown : mdiChevronUp }}
-          </v-icon>
-        </template>
-        <template #rows>
-          <template v-if="props.items.length">
-            <tr
-              v-for="org in props.items"
-              :key="org.id"
-              @click="canView ? goToShow(org) : undefined"
-              :class="['row-clickable', { 'row-disabled': !canView }]"
-              :style="{ cursor: canView ? 'pointer' : 'default' }"
-            >
-              <td class="folio-cell">
-                <router-link v-if="canView" :to="`/organizaciones/${org.id}`" @click.stop style="text-decoration: underline">
-                  {{ org.folio }}
-                </router-link>
-                <span v-else>{{ org.folio }}</span>
-              </td>
-              <td class="logo-cell">
-                <v-avatar v-if="org.logo" size="48" class="logo-avatar">
-                  <img :src="org.logo" alt="Logo" class="logo-img-cover" />
-                </v-avatar>
-                <v-avatar v-else size="48" color="grey lighten-2" class="d-flex align-center justify-center">
-                  <span style="font-size: 12px; color: #888">Sin logo</span>
-                </v-avatar>
-              </td>
-              <td class="legal-cell">{{ org.legal_name }}</td>
-              <td class="address-cell">{{ truncate(fullAddress(org.address), 60) }}</td>
-              <td class="status-cell">
-                <StatusChip :status="org.status" />
-              </td>
-              <td class="actions-cell" @click.stop>
-                <v-menu v-if="canShowDropdown" location="bottom end">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
-                      <v-icon :icon="mdiDotsHorizontal" size="20" />
-                    </v-btn>
-                  </template>
-                  <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
-                    <v-list-item v-if="canView" @click="goToShow(org)">
-                      <template #prepend>
-                        <v-icon :icon="mdiEye" size="18" />
-                      </template>
-                      <v-list-item-title>Ver</v-list-item-title>
-                    </v-list-item>
-                    <v-divider class="my-1" v-if="canEdit && canView" />
-                    <v-list-item v-if="canEdit" @click="goToEdit(org)">
-                      <template #prepend>
-                        <v-icon :icon="mdiPencil" size="18" />
-                      </template>
-                      <v-list-item-title>Editar</v-list-item-title>
-                    </v-list-item>
-                    <v-divider class="my-1" v-if="canToggleStatus && (canEdit || canView)" />
-                    <v-list-item v-if="canToggleStatus" @click="toggleStatus(org)">
-                      <template #prepend>
-                        <v-icon :icon="org.status === 'activa' || org.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
-                      </template>
-                      <v-list-item-title>
-                        {{ org.status === 'activa' || org.status === 'active' ? 'Desactivar' : 'Activar' }}
-                      </v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
-              </td>
-            </tr>
+      <!-- Modo escritorio (solo tabla) -->
+      <template v-else>
+        <OrganizationTableMeta
+          :items="sortedItems.value"
+          :page="page"
+          :itemsPerPage="itemsPerPage"
+          :sortBy="sortBy"
+          :sortDesc="sortDesc"
+          @update:page="page = $event"
+          @sort="toggleSort"
+        >
+          <template #sort-icon="{ column }">
+            <v-icon v-if="sortBy === column" size="16" class="ml-1">
+              {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
+            </v-icon>
           </template>
-          <template v-else>
-            <tr>
-              <td :colspan="6" class="text-center py-8">
-                <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No se encontraron organizaciones</div>
-              </td>
-            </tr>
+          <template #rows>
+            <template v-if="paginatedItems.length">
+              <tr
+                v-for="org in paginatedItems"
+                :key="org.id"
+                @click="canView ? goToShow(org) : undefined"
+                :class="['row-clickable', { 'row-disabled': !canView }]"
+                :style="{ cursor: canView ? 'pointer' : 'default' }"
+              >
+                <td class="folio-cell">
+                  <router-link v-if="canView" :to="`/organizaciones/${org.id}`" @click.stop style="text-decoration: underline">
+                    {{ org.folio }}
+                  </router-link>
+                  <span v-else>{{ org.folio }}</span>
+                </td>
+                <td class="logo-cell">
+                  <v-avatar v-if="org.logo" size="48" class="logo-avatar">
+                    <img :src="org.logo" alt="Logo" class="logo-img-cover" />
+                  </v-avatar>
+                  <v-avatar v-else size="48" color="grey lighten-2" class="d-flex align-center justify-center">
+                    <span style="font-size: 12px; color: #888">Sin logo</span>
+                  </v-avatar>
+                </td>
+                <td class="legal-cell">{{ org.legal_name }}</td>
+                <td class="address-cell">{{ truncate(fullAddress(org.address), 60) }}</td>
+                <td class="status-cell">
+                  <StatusChip :status="org.status" />
+                </td>
+                <td class="actions-cell" @click.stop>
+                  <v-menu v-if="canShowDropdown" location="bottom end">
+                    <template #activator="{ props }">
+                      <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
+                        <v-icon :icon="mdiDotsHorizontal" size="20" />
+                      </v-btn>
+                    </template>
+                    <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
+                      <v-list-item v-if="canView" @click="goToShow(org)">
+                        <template #prepend>
+                          <v-icon :icon="mdiEye" size="18" />
+                        </template>
+                        <v-list-item-title>Ver</v-list-item-title>
+                      </v-list-item>
+                      <v-divider class="my-1" v-if="canEdit && canView" />
+                      <v-list-item v-if="canEdit" @click="goToEdit(org)">
+                        <template #prepend>
+                          <v-icon :icon="mdiPencil" size="18" />
+                        </template>
+                        <v-list-item-title>Editar</v-list-item-title>
+                      </v-list-item>
+                      <v-divider class="my-1" v-if="canToggleStatus" />
+                      <v-list-item v-if="canToggleStatus" @click="toggleStatus(org)">
+                        <template #prepend>
+                          <v-icon :icon="org.status === 'activa' || org.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
+                        </template>
+                        <v-list-item-title>
+                          {{ org.status === 'activa' || org.status === 'active' ? 'Desactivar' : 'Activar' }}
+                        </v-list-item-title>
+                      </v-list-item>
+                    </v-list>
+                  </v-menu>
+                </td>
+              </tr>
+            </template>
           </template>
-        </template>
-      </OrganizationTableMeta>
+        </OrganizationTableMeta>
+      </template>
     </template>
   </div>
 </template>

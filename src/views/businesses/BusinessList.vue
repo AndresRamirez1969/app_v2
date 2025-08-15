@@ -17,7 +17,6 @@ const router = useRouter();
 const auth = useAuthStore();
 
 const user = computed(() => auth.user || { roles: [], permissions: [] });
-// Ahora los roles son array de strings, no objetos
 const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
@@ -26,7 +25,6 @@ const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
 const canEdit = computed(() => permissions.value.includes('business.update'));
 const canView = computed(() => permissions.value.includes('business.view'));
 
-// Mostrar menú solo si tiene al menos un permiso relevante
 const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatus.value);
 
 const sortBy = ref('folio');

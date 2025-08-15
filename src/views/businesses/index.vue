@@ -21,7 +21,7 @@ const canView = ref(false);
 const canCreate = ref(false);
 const isLoading = ref(false);
 
-// Nuevo: Computed para saber si el usuario tiene business.update
+// Computed para saber si el usuario tiene business.update
 const canEditPermission = ref(false);
 
 function hasPermission(permission) {
@@ -65,11 +65,22 @@ function handleSearch(text) {
 async function handleFilter(filters) {
   filterOptions.value = filters;
   try {
-    // Integración para filtrar por organizationId
     const params = { ...filters };
     if (filters.organizationId) {
-      params.organization_id = filters.organizationId; // el backend espera organization_id
+      params.organization_id = filters.organizationId;
       delete params.organizationId;
+    }
+    // Cambia los nombres de los filtros de fecha
+    if (filters.createdAtStart) {
+      params.created_at_start = filters.createdAtStart;
+      delete params.createdAtStart;
+    }
+    if (filters.createdAtEnd) {
+      params.created_at_end = filters.createdAtEnd;
+      delete params.createdAtEnd;
+    }
+    if (searchText.value) {
+      params.search = searchText.value;
     }
     const { data } = await axios.get('/businesses', { params });
     filteredBusinesses.value = data.data;
@@ -96,11 +107,17 @@ function applyFilters() {
   if (filterOptions.value.status) {
     result = result.filter((bus) => bus.status === filterOptions.value.status);
   }
-  if (filterOptions.value.createdAt) {
-    result = result.filter((bus) => bus.created_at && bus.created_at >= filterOptions.value.createdAt);
+  if (filterOptions.value.createdAtStart) {
+    result = result.filter((bus) => bus.created_at && bus.created_at >= filterOptions.value.createdAtStart);
   }
-  if (filterOptions.value.updatedAt) {
-    result = result.filter((bus) => bus.updated_at && bus.updated_at >= filterOptions.value.updatedAt);
+  if (filterOptions.value.createdAtEnd) {
+    result = result.filter((bus) => bus.created_at && bus.created_at <= filterOptions.value.createdAtEnd);
+  }
+  if (filterOptions.value.updatedAtStart) {
+    result = result.filter((bus) => bus.updated_at && bus.updated_at >= filterOptions.value.updatedAtStart);
+  }
+  if (filterOptions.value.updatedAtEnd) {
+    result = result.filter((bus) => bus.updated_at && bus.updated_at <= filterOptions.value.updatedAtEnd);
   }
   // Filtro por organization_id (si existe en filterOptions)
   if (filterOptions.value.organizationId) {
