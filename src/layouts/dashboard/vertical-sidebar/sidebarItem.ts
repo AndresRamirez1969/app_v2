@@ -1,16 +1,17 @@
 // icons
 import {
-  CrownTwoTone,
-  DatabaseTwoTone,
-  DashboardTwoTone,
-  ShopTwoTone,
-  IdcardTwoTone,
-  FileTextTwoTone,
-  SnippetsTwoTone,
   TeamOutlined,
-  SafetyCertificateTwoTone
+  UserOutlined,
+  LockOutlined,
+  FolderOpenOutlined,
+  FileTextOutlined,
+  FileAddOutlined,
+  EnvironmentOutlined,
+  BranchesOutlined,
+  ShopOutlined,
+  AppstoreOutlined,
+  ApartmentOutlined
 } from '@ant-design/icons-vue';
-
 export interface menu {
   header?: string;
   title?: string;
@@ -30,46 +31,46 @@ export interface menu {
 
 const sidebarItem: menu[] = [
   {
-    title: 'Home',
-    icon: DashboardTwoTone,
+    title: 'Dashboard',
+    icon: AppstoreOutlined,
     to: '/dashboard'
   },
   {
     title: 'Organizaciones DW',
-    icon: DatabaseTwoTone
+    icon: ApartmentOutlined
   },
   {
     title: 'Empresas DW',
-    icon: CrownTwoTone
+    icon: ShopOutlined
   },
   {
     title: 'Ubicaciones',
-    icon: DatabaseTwoTone,
+    icon: EnvironmentOutlined,
     children: [
       {
         title: 'Ubicaciones DW',
-        icon: DatabaseTwoTone
+        icon: EnvironmentOutlined
       },
       {
         title: 'Grupos de Ubicación DW',
-        icon: DatabaseTwoTone,
+        icon: BranchesOutlined,
         to: '/grupos-dw'
       }
     ]
   },
   {
     title: 'Formularios',
-    icon: FileTextTwoTone,
+    icon: FileAddOutlined,
     to: '/formularios'
   },
   {
     title: 'Mis Formularios',
-    icon: FileTextTwoTone,
+    icon: FileTextOutlined,
     to: '/mis-formularios'
   },
   {
     title: 'Reportes',
-    icon: SnippetsTwoTone,
+    icon: FolderOpenOutlined,
     to: '/reportes'
   },
   // NUEVO: Dropdown Usuarios con Usuarios DW y Roles
@@ -79,12 +80,12 @@ const sidebarItem: menu[] = [
     children: [
       {
         title: 'Usuarios DW',
-        icon: IdcardTwoTone,
+        icon: UserOutlined,
         to: '/usuarios-dw'
       },
       {
         title: 'Roles & Permisos',
-        icon: SafetyCertificateTwoTone,
+        icon: LockOutlined,
         to: '/roles'
       }
     ]
