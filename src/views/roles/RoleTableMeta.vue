@@ -7,37 +7,45 @@ const props = defineProps({
   page: Number,
   itemsPerPage: Number,
   sortBy: String,
-  sortDesc: Boolean
+  sortDesc: Boolean,
+  showOrganization: Boolean // Solo superadmin ve la columna
 });
 const emit = defineEmits(['update:page', 'sort']);
 </script>
 
 <template>
   <div>
+    <!-- Título "Organización" solo para superadmin -->
+    <div v-if="props.showOrganization" class="mb-3">
+      <h4 class="font-weight-bold">Organización</h4>
+      <v-divider class="mb-4" />
+    </div>
     <v-table density="comfortable" class="fixed-table elevation-1 rounded-lg">
       <thead>
-        <tr>
-          <th @click="emit('sort', 'id')" class="cursor-pointer id-header">
-            Identificador
-            <slot name="sort-icon" :column="'id'" />
-          </th>
-          <th @click="emit('sort', 'name')" class="cursor-pointer name-header">
-            Nombre
-            <slot name="sort-icon" :column="'name'" />
-          </th>
-          <th @click="emit('sort', 'organization_id')" class="cursor-pointer org-header">
-            Organización
-            <slot name="sort-icon" :column="'organization_id'" />
-          </th>
-          <th @click="emit('sort', 'permissions')" class="cursor-pointer permissions-header">
-            Permisos
-            <slot name="sort-icon" :column="'permissions'" />
-          </th>
-          <th class="actions-header"></th>
-        </tr>
+        <slot name="header">
+          <tr>
+            <th @click="emit('sort', 'id')" class="cursor-pointer id-header">
+              Identificador
+              <slot name="sort-icon" :column="'id'" />
+            </th>
+            <th @click="emit('sort', 'name')" class="cursor-pointer name-header">
+              Nombre
+              <slot name="sort-icon" :column="'name'" />
+            </th>
+            <th v-if="props.showOrganization" @click="emit('sort', 'organization_id')" class="cursor-pointer org-header">
+              Organización
+              <slot name="sort-icon" :column="'organization_id'" />
+            </th>
+            <th @click="emit('sort', 'permissions')" class="cursor-pointer permissions-header">
+              Permisos
+              <slot name="sort-icon" :column="'permissions'" />
+            </th>
+            <th class="actions-header"></th>
+          </tr>
+        </slot>
       </thead>
       <tbody>
-        <slot name="rows" />
+        <slot name="rows" :showOrganization="props.showOrganization" />
       </tbody>
     </v-table>
     <div class="d-flex justify-center mt-4">

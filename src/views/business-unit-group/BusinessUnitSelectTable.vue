@@ -1,5 +1,4 @@
 <script setup>
-import { useDisplay } from 'vuetify';
 import StatusChip from '@/components/status/StatusChip.vue';
 
 const props = defineProps({
@@ -10,17 +9,21 @@ const props = defineProps({
   page: Number,
   itemsPerPage: {
     type: Number,
-    default: 8
+    default: 10
   },
   sortBy: String,
   sortDesc: Boolean,
-  selectedBusinessUnits: Array
+  selectedBusinessUnits: Array,
+  total: Number
 });
 const emit = defineEmits(['update:page', 'sort', 'toggle']);
 
-const { mdAndDown } = useDisplay();
+// Saber si está seleccionada
+function isSelected(id) {
+  return props.selectedBusinessUnits?.includes(id);
+}
 
-// Handler para seleccionar al hacer click en la fila/card
+// Handler para seleccionar al hacer click en la fila
 function handleRowClick(unit, event) {
   // Evita el toggle si el click fue sobre el checkbox
   if (event && (event.target.closest('.checkbox-compact') || event.target.tagName === 'INPUT' || event.target.tagName === 'LABEL')) {
@@ -29,127 +32,81 @@ function handleRowClick(unit, event) {
   emit('toggle', unit.id);
 }
 
-// Saber si está seleccionada
-function isSelected(id) {
-  return props.selectedBusinessUnits?.includes(id);
+function handleSort(column) {
+  emit('sort', column);
+}
+
+function handlePageChange(val) {
+  emit('update:page', val);
 }
 </script>
 
 <template>
-  <div>
-    <!-- Desktop Table -->
-    <v-table v-if="!mdAndDown" density="comfortable" class="fixed-table elevation-1 rounded-lg">
-      <thead>
-        <tr>
-          <th class="select-header"></th>
-          <th @click="emit('sort', 'folio')" class="cursor-pointer folio-header">Folio</th>
-          <th class="logo-header">Logo</th>
-          <th @click="emit('sort', 'legal_name')" class="cursor-pointer legal-header">Nombre Legal</th>
-          <th @click="emit('sort', 'alias')" class="cursor-pointer alias-header">Alias</th>
-          <th @click="emit('sort', 'address')" class="cursor-pointer address-header">Dirección</th>
-          <th class="status-header">Estado</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="unit in items"
-          :key="unit.id"
-          class="row-clickable"
-          :class="{ 'selected-row': isSelected(unit.id) }"
-          @click="(event) => handleRowClick(unit, event)"
-        >
-          <td class="select-cell">
-            <v-checkbox
-              :model-value="isSelected(unit.id)"
-              @update:model-value="emit('toggle', unit.id)"
-              hide-details
-              density="compact"
-              class="checkbox-compact"
-              color="primary"
-              @click.stop
-            />
-          </td>
-          <td class="folio-cell">{{ unit.folio }}</td>
-          <td class="logo-cell">
-            <v-avatar v-if="unit.logo" size="48" class="logo-avatar">
-              <img :src="unit.logo" alt="Logo" />
-            </v-avatar>
-            <v-avatar v-else size="48" color="grey lighten-2" class="logo-avatar">
-              <span style="font-size: 12px; color: #888">Sin logo</span>
-            </v-avatar>
-          </td>
-          <td class="legal-cell">{{ unit.legal_name }}</td>
-          <td class="alias-cell">{{ unit.alias }}</td>
-          <td class="address-cell">{{ unit.addressFormatted }}</td>
-          <td class="status-cell">
-            <StatusChip :status="unit.status" />
-          </td>
-        </tr>
-        <tr v-if="!items.length">
-          <td colspan="7" class="text-center py-8">No hay ubicaciones disponibles</td>
-        </tr>
-      </tbody>
-    </v-table>
-
-    <!-- Mobile Cards -->
-    <div v-else>
-      <v-card
+  <v-table class="rounded-lg elevation-1 uniform-table" style="width: 100%">
+    <thead>
+      <tr>
+        <th class="font-weight-bold text-center uniform-col" style="width: 80px"></th>
+        <th class="font-weight-bold text-center uniform-col cursor-pointer" style="width: 80px" @click="handleSort('folio')">Folio</th>
+        <th class="font-weight-bold text-center uniform-col" style="width: 72px">Logo</th>
+        <th class="font-weight-bold text-center uniform-col cursor-pointer" style="width: 180px" @click="handleSort('legal_name')">
+          Nombre Legal
+        </th>
+        <th class="font-weight-bold text-center uniform-col cursor-pointer" style="width: 120px" @click="handleSort('alias')">Alias</th>
+        <th class="font-weight-bold text-center uniform-col cursor-pointer" style="width: 240px" @click="handleSort('address')">
+          Dirección
+        </th>
+        <th class="font-weight-bold text-center uniform-col" style="width: 120px">Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr
         v-for="unit in items"
         :key="unit.id"
-        class="mb-3 elevation-1 rounded-lg row-clickable business-unit-card"
-        :class="{ 'selected-card': isSelected(unit.id) }"
-        style="cursor: pointer; padding: 16px 12px"
+        class="row-clickable"
+        :class="{ 'selected-row': isSelected(unit.id) }"
+        :style="{ cursor: 'pointer' }"
         @click="(event) => handleRowClick(unit, event)"
       >
-        <v-row no-gutters align="center">
-          <!-- Checkbox cuadrado igual que en la tabla -->
-          <v-col cols="2" class="d-flex justify-center align-center" style="max-width: 40px">
+        <td class="text-center uniform-col" style="padding-left: 0; padding-right: 8px">
+          <div class="d-flex justify-center align-center" style="height: 100%">
             <v-checkbox
               :model-value="isSelected(unit.id)"
               @update:model-value="emit('toggle', unit.id)"
-              hide-details
-              density="compact"
-              class="checkbox-compact"
               color="primary"
+              hide-details
+              :ripple="false"
+              class="pa-0 ma-0 checkbox-compact"
+              style="--v-checkbox-bg: #1976d2; --v-checkbox-checked-color: #fff"
               @click.stop
             />
-          </v-col>
-          <v-col cols="2" class="d-flex justify-center align-center" style="max-width: 56px">
-            <v-avatar v-if="unit.logo" size="48" class="logo-avatar-mobile">
-              <img :src="unit.logo" alt="Logo" />
-            </v-avatar>
-            <v-avatar v-else size="48" color="grey lighten-2" class="logo-avatar-mobile">
-              <span style="font-size: 12px; color: #888">Sin logo</span>
-            </v-avatar>
-          </v-col>
-          <v-col cols="8" class="pl-2">
-            <div class="d-flex align-center mb-1" style="justify-content: space-between">
-              <div class="text-caption" style="margin-right: 8px">
-                <strong>{{ unit.folio }}</strong>
-              </div>
-              <StatusChip :status="unit.status" />
-            </div>
-            <div class="font-weight-medium mb-1">{{ unit.legal_name }}</div>
-            <div class="text-caption"><strong>Alias:</strong> {{ unit.alias }}</div>
-            <div class="text-caption"><strong>Dirección:</strong> {{ unit.addressFormatted }}</div>
-          </v-col>
-        </v-row>
-      </v-card>
-      <v-card v-if="!items.length" class="mb-4 pa-4 elevation-1 rounded-lg text-center">
-        <div class="font-weight-bold mb-2" style="font-size: 1.2rem">No hay ubicaciones disponibles</div>
-      </v-card>
-    </div>
-
-    <div class="d-flex justify-center mt-4">
-      <v-pagination
-        v-model="props.page"
-        :length="Math.ceil((props.items?.length || 1) / 8)"
-        total-visible="7"
-        color="primary"
-        @update:modelValue="emit('update:page', $event)"
-      />
-    </div>
-  </div>
+          </div>
+        </td>
+        <td class="text-center uniform-col">{{ unit.folio }}</td>
+        <td class="text-center uniform-col">
+          <v-avatar v-if="unit.logo" size="48" class="logo-avatar">
+            <img :src="unit.logo" alt="Logo" />
+          </v-avatar>
+          <v-avatar v-else size="48" color="grey lighten-2" class="logo-avatar">
+            <span style="font-size: 12px; color: #888">Sin logo</span>
+          </v-avatar>
+        </td>
+        <td class="text-center uniform-col">{{ unit.legal_name }}</td>
+        <td class="text-center uniform-col">{{ unit.alias }}</td>
+        <td class="text-center uniform-col">{{ unit.addressFormatted }}</td>
+        <td class="text-center uniform-col">
+          <StatusChip :status="unit.status" />
+        </td>
+      </tr>
+      <tr v-if="items.length === 0">
+        <td colspan="7" class="text-center text-medium-emphasis">No hay ubicaciones disponibles.</td>
+      </tr>
+    </tbody>
+  </v-table>
+  <v-row v-if="Math.ceil(total / itemsPerPage) > 1">
+    <v-col class="d-flex justify-center">
+      <v-pagination v-model="props.page" :length="Math.ceil(total / itemsPerPage)" @update:model-value="handlePageChange" color="primary" />
+    </v-col>
+  </v-row>
 </template>
 
 <style scoped src="@/styles/business_unit_select_table.css"></style>

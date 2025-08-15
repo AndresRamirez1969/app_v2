@@ -70,8 +70,8 @@
         </v-btn>
         <v-card-title class="font-weight-bold">Filtros avanzados</v-card-title>
         <v-card-text class="pb-0">
-          <!-- Organization select filter (para todos) -->
-          <div class="mb-3">
+          <!-- Organization select filter SOLO para superadmin -->
+          <div class="mb-3" v-if="isSuperadmin">
             <v-autocomplete
               v-model="selectedOrganization"
               :items="organizationOptions"
@@ -187,6 +187,9 @@ const organizationOptions = ref([]);
 const organizationSearch = ref('');
 const loadingOrganizations = ref(false);
 
+const auth = useAuthStore();
+const isSuperadmin = computed(() => auth.user?.roles?.includes('superadmin'));
+
 const fetchOrganizations = async (searchText) => {
   loadingOrganizations.value = true;
   try {
@@ -208,13 +211,13 @@ const fetchOrganizations = async (searchText) => {
 };
 
 watch(dialog, (val) => {
-  if (val && organizationOptions.value.length === 0) {
+  if (val && organizationOptions.value.length === 0 && isSuperadmin.value) {
     fetchOrganizations('');
   }
 });
 
 watch(organizationSearch, (val) => {
-  fetchOrganizations(val);
+  if (isSuperadmin.value) fetchOrganizations(val);
 });
 
 function customFilter(item, queryText, itemText) {
@@ -242,7 +245,7 @@ function formatDateOnly(val) {
 
 function applyFilters() {
   emit('filter', {
-    organizationId: selectedOrganization.value,
+    organizationId: isSuperadmin.value ? selectedOrganization.value : undefined,
     createdAtStart: formatDateOnly(createdAtStart.value),
     createdAtEnd: formatDateOnly(createdAtEnd.value)
   });
