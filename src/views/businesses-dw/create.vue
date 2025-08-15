@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, watch, onMounted } from 'vue';
+import { reactive, ref, watch, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
@@ -15,6 +15,7 @@ const parsedAddress = ref({});
 const logoPreview = ref(null);
 const errorMsg = ref('');
 const canCreate = ref(false);
+const isLoading = ref(false);
 
 // Organización para superadmin
 const organizations = ref([]);
@@ -22,6 +23,22 @@ const selectedOrganization = ref(null);
 
 // Zona horaria (igual que business unit)
 const timezoneSearch = ref('');
+
+// Errores de validación por campo
+const fieldErrors = reactive({
+  legal_name: '',
+  timezone: '',
+  address: '',
+  logo: ''
+});
+
+// Referencias a los campos para poder hacer scroll
+const fieldRefs = {
+  legal_name: ref(null),
+  timezone: ref(null),
+  address: ref(null),
+  logo: ref(null)
+};
 
 onMounted(async () => {
   const user = auth.user;
@@ -64,6 +81,96 @@ const form = reactive({
   }
 });
 
+const clearFieldError = (fieldName) => {
+  if (fieldErrors[fieldName]) {
+    fieldErrors[fieldName] = '';
+  }
+};
+
+const scrollToField = async (fieldName) => {
+  await nextTick();
+
+  const fieldRef = fieldRefs[fieldName];
+  if (fieldRef && fieldRef.value) {
+    const element = fieldRef.value.$el || fieldRef.value;
+
+    // Hacer scroll suave hacia el elemento
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest'
+    });
+
+    // Enfocar el campo si es posible
+    if (element.focus) {
+      element.focus();
+    } else if (element.$el && element.$el.focus) {
+      element.$el.focus();
+    }
+  }
+};
+
+const validateField = (fieldName, value) => {
+  clearFieldError(fieldName);
+  switch (fieldName) {
+    case 'legal_name':
+      if (!value || value.trim() === '') {
+        fieldErrors.legal_name = 'El nombre legal es obligatorio';
+        return false;
+      }
+      break;
+    case 'address':
+      if (!parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
+        fieldErrors.address = 'La dirección es obligatoria';
+        return false;
+      }
+      break;
+    case 'logo':
+      if (!value) {
+        fieldErrors.logo = 'El logo es obligatorio';
+        return false;
+      }
+      break;
+    case 'timezone':
+      if (!value) {
+        fieldErrors.timezone = 'La zona horaria es obligatoria';
+        return false;
+      }
+      break;
+  }
+  return true;
+};
+
+const validateAllFields = async () => {
+  let isValid = true;
+  let firstErrorField = null;
+
+  // Validar nombre legal
+  if (!validateField('legal_name', form.legal_name)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'legal_name';
+  }
+
+  // Validar zona horaria
+  if (!validateField('timezone', form.timezone)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'timezone';
+  }
+
+  // Validar dirección
+  if (!validateField('address', parsedAddress.value)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'address';
+  }
+
+  // Si hay errores, hacer scroll al primer campo con error
+  if (!isValid && firstErrorField) {
+    await scrollToField(firstErrorField);
+  }
+
+  return isValid;
+};
+
 watch(
   () => form.logo,
   (file) => {
@@ -79,13 +186,16 @@ watch(
 
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
+  // Limpiar error de dirección cuando se selecciona una
+  if (val && Object.keys(val).length > 0) {
+    clearFieldError('address');
+  }
 };
 
 const validate = async () => {
   errorMsg.value = '';
 
-  if (!form.legal_name || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
-    errorMsg.value = 'Por favor completa el nombre legal y la dirección.';
+  if (!(await validateAllFields())) {
     return;
   }
 
@@ -103,6 +213,8 @@ const validate = async () => {
   }
 
   try {
+    isLoading.value = true;
+
     const formData = new FormData();
     formData.append('legal_name', form.legal_name);
     formData.append('alias', form.alias || '');
@@ -156,8 +268,43 @@ const validate = async () => {
       errorMsg.value = 'No se pudo obtener el ID de la empresa creada.';
     }
   } catch (err) {
-    errorMsg.value = err?.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(' ') : 'Error al crear empresa';
-    console.error('❌ Error al crear empresa:', err);
+    if (err?.response?.data?.errors) {
+      // Mapear errores del servidor a campos específicos
+      const serverErrors = err.response.data.errors;
+      let firstServerErrorField = null;
+
+      if (serverErrors.legal_name) {
+        fieldErrors.legal_name = serverErrors.legal_name[0];
+        if (!firstServerErrorField) firstServerErrorField = 'legal_name';
+      }
+      if (serverErrors.address) {
+        fieldErrors.address = serverErrors.address[0];
+        if (!firstServerErrorField) firstServerErrorField = 'address';
+      }
+      if (serverErrors.logo) {
+        fieldErrors.logo = serverErrors.logo[0];
+        if (!firstServerErrorField) firstServerErrorField = 'logo';
+      }
+
+      // Si hay errores del servidor, hacer scroll al primer campo con error
+      if (firstServerErrorField) {
+        await scrollToField(firstServerErrorField);
+      }
+
+      // Si hay errores que no se pueden mapear, mostrarlos en el mensaje general
+      const unmappedErrors = Object.keys(serverErrors).filter((key) => !['legal_name', 'address', 'logo'].includes(key));
+
+      if (unmappedErrors.length > 0) {
+        errorMsg.value = unmappedErrors
+          .map((key) => serverErrors[key])
+          .flat()
+          .join(' ');
+      }
+    } else {
+      errorMsg.value = 'Error al crear empresa';
+    }
+  } finally {
+    isLoading.value = false;
   }
 };
 </script>
@@ -205,16 +352,20 @@ const validate = async () => {
           </v-col>
 
           <v-col cols="12" md="6">
-            <v-label>Logo</v-label>
+            <v-label>Logo <span class="text-error">*</span></v-label>
             <v-file-input
+              ref="fieldRefs.logo"
               v-model="form.logo"
               variant="outlined"
               color="primary"
               class="mt-2 mb-4"
               accept="image/*"
               density="compact"
+              required
               show-size
               :multiple="false"
+              :error-messages="fieldErrors.logo"
+              @update:model-value="clearFieldError('logo')"
             />
 
             <!-- Select de organización SOLO para superadmin -->
@@ -235,8 +386,17 @@ const validate = async () => {
               />
             </template>
 
-            <v-label>Nombre Legal</v-label>
-            <v-text-field v-model="form.legal_name" variant="outlined" color="primary" class="mt-2 mb-4" required />
+            <v-label>Nombre Legal <span class="text-error">*</span></v-label>
+            <v-text-field
+              ref="fieldRefs.legal_name"
+              v-model="form.legal_name"
+              variant="outlined"
+              color="primary"
+              class="mt-2 mb-4"
+              required
+              :error-messages="fieldErrors.legal_name"
+              @update:model-value="clearFieldError('legal_name')"
+            />
 
             <v-label>Alias</v-label>
             <v-text-field v-model="form.alias" variant="outlined" color="primary" class="mt-2 mb-4" />
@@ -244,8 +404,9 @@ const validate = async () => {
             <v-label>Descripción</v-label>
             <v-textarea v-model="form.description" variant="outlined" color="primary" auto-grow rows="3" class="mt-2" />
 
-            <v-label>Zona Horaria</v-label>
+            <v-label>Zona Horaria <span class="text-error">*</span></v-label>
             <v-autocomplete
+              ref="fieldRefs.timezone"
               v-model="form.timezone"
               :items="timezones.map((tz) => ({ label: tz, value: tz }))"
               v-model:search-input="timezoneSearch"
@@ -259,13 +420,26 @@ const validate = async () => {
               clearable
               hide-details
               :menu-props="{ maxHeight: '300px' }"
+              :error-messages="fieldErrors.timezone"
+              @update:model-value="clearFieldError('timezone')"
             />
           </v-col>
 
           <!-- Dirección -->
           <v-col cols="12" class="mt-4">
-            <v-label>Dirección</v-label>
+            <v-label>Dirección <span class="text-error">*</span></v-label>
             <AddressAutocomplete class="mt-2" @update:parsedAddress="handleParsedAddress" />
+            <v-text-field
+              ref="fieldRefs.address"
+              v-if="fieldErrors.address"
+              :model-value="''"
+              variant="outlined"
+              color="error"
+              class="mt-2"
+              :error-messages="fieldErrors.address"
+              readonly
+              hide-details
+            />
           </v-col>
         </v-row>
 
@@ -300,7 +474,12 @@ const validate = async () => {
         <!-- Botón -->
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
-            <v-btn color="primary" class="mt-6" @click="validate">Crear Empresa</v-btn>
+            <v-btn color="primary" class="mt-6" :loading="isLoading" :disabled="isLoading" @click="validate">
+              <template v-slot:loader>
+                <v-progress-circular indeterminate color="white" size="20" />
+              </template>
+              {{ isLoading ? 'Creando Empresa...' : 'Crear Empresa' }}
+            </v-btn>
           </v-col>
         </v-row>
 

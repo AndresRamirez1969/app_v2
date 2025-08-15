@@ -23,7 +23,11 @@ const passwordRules = [(v: string) => !!v || 'La contraseña es obligatoria'];
 const login = async () => {
   try {
     await auth.login(email.value, password.value, rememberMe.value);
-    router.push('/dashboard');
+    if (!auth.user?.organization_id) {
+      router.push('/organizaciones-dw/create');
+    } else {
+      router.push('/dashboard');
+    }
   } catch (err) {
     toast.error('Credenciales inválidas');
     console.error('Login error:', err);

@@ -99,7 +99,7 @@ const sidebarMenu = computed(() => {
         return show ? { ...item, to: '/formularios' } : null;
       }
       if (item.title === 'Reportes') {
-        const show = userRoles.value.includes('superadmin') || hasResponseViewAny.value;
+        const show = userRoles.value.includes('superadmin') || userRoles.value.includes('admin') || hasResponseViewAny.value;
         return show ? { ...item, to: '/reportes' } : null;
       }
       return item;

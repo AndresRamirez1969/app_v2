@@ -51,10 +51,7 @@ export const ADMIN_FORM_ROLES = [
   { label: 'Contestar', value: 'form_response.store' }
 ];
 
-export const ADMIN_RESPONSE_ROLES = [
-  { label: 'Ver Todos', value: 'form_response.viewAny' },
-  { label: 'Ver', value: 'form_response.view' }
-];
+export const ADMIN_RESPONSE_ROLES = [{ label: 'Ver Todos', value: 'form_response.viewAny' }];
 
 // --------Sponsor Assignable Roles ---------
 
@@ -193,4 +190,11 @@ export const getFieldProps = (field: { type: string; label: string; is_required:
     default:
       return baseProps;
   }
+};
+
+// --------Funciones auxiliares ---------
+export const urlToFile = async (url: string, filename: string) => {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new File([blob], filename, { type: blob.type });
 };

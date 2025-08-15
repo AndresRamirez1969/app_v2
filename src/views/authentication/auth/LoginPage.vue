@@ -16,9 +16,9 @@
 
         <AuthLogin />
 
-        <div class="text-center mt-6">
+        <!-- <div class="text-center mt-6">
           <small style="font-size: 0.95rem"> ¿No tienes una cuenta? <a href="/register">Regístrate</a> </small>
-        </div>
+        </div> -->
       </v-card>
     </div>
   </v-container>

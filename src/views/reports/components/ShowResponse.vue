@@ -31,11 +31,11 @@ const filters = ref({
 
 // Opciones de filtro por fecha
 const dateFilterOptions = [
-  { label: 'Todas las fechas', value: 'all' },
-  { label: 'Hoy', value: 'today' },
-  { label: 'Esta semana', value: 'week' },
-  { label: 'Este mes', value: 'month' },
-  { label: 'Personalizado', value: 'custom' }
+  { title: 'Todas las fechas', value: 'all' },
+  { title: 'Hoy', value: 'today' },
+  { title: 'Esta semana', value: 'week' },
+  { title: 'Este mes', value: 'month' },
+  { title: 'Personalizado', value: 'custom' }
 ];
 
 const getReports = async () => {
