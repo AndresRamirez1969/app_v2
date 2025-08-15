@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, watch, onMounted } from 'vue';
+import { reactive, ref, watch, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
@@ -18,6 +18,22 @@ const canCreate = ref(false);
 
 // Para el input de búsqueda de zona horaria
 const timezoneSearch = ref('');
+
+// Errores de validación por campo
+const fieldErrors = reactive({
+  legal_name: '',
+  timezone: '',
+  address: '',
+  logo: ''
+});
+
+// Referencias a los campos para poder hacer scroll
+const fieldRefs = {
+  legal_name: ref(null),
+  timezone: ref(null),
+  address: ref(null),
+  logo: ref(null)
+};
 
 onMounted(() => {
   const user = auth.user;
@@ -45,6 +61,102 @@ const form = reactive({
 // Convierte el array de timezones en objetos { label, value }
 const timezones = tzRaw.map((tz) => ({ label: tz, value: tz }));
 
+// Función para limpiar errores de un campo específico
+const clearFieldError = (fieldName) => {
+  if (fieldErrors[fieldName]) {
+    fieldErrors[fieldName] = '';
+  }
+};
+
+// Función para hacer scroll hacia un campo específico
+const scrollToField = async (fieldName) => {
+  await nextTick();
+
+  const fieldRef = fieldRefs[fieldName];
+  if (fieldRef && fieldRef.value) {
+    const element = fieldRef.value.$el || fieldRef.value;
+
+    // Hacer scroll suave hacia el elemento
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest'
+    });
+
+    // Enfocar el campo si es posible
+    if (element.focus) {
+      element.focus();
+    } else if (element.$el && element.$el.focus) {
+      element.$el.focus();
+    }
+  }
+};
+
+// Función para validar un campo específico
+const validateField = (fieldName, value) => {
+  clearFieldError(fieldName);
+
+  switch (fieldName) {
+    case 'legal_name':
+      if (!value || value.trim() === '') {
+        fieldErrors.legal_name = 'El nombre legal es obligatorio';
+        return false;
+      }
+      break;
+
+    case 'timezone':
+      if (!value || value.trim() === '') {
+        fieldErrors.timezone = 'La zona horaria es obligatoria';
+        return false;
+      }
+      break;
+
+    case 'address':
+      if (!parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
+        fieldErrors.address = 'La dirección es obligatoria';
+        return false;
+      }
+      break;
+
+    case 'logo':
+      // El logo es opcional, no necesita validación
+      break;
+  }
+
+  return true;
+};
+
+// Función para validar todos los campos y hacer scroll al primero con error
+const validateAllFields = async () => {
+  let isValid = true;
+  let firstErrorField = null;
+
+  // Validar nombre legal
+  if (!validateField('legal_name', form.legal_name)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'legal_name';
+  }
+
+  // Validar zona horaria
+  if (!validateField('timezone', form.timezone)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'timezone';
+  }
+
+  // Validar dirección
+  if (!validateField('address', parsedAddress.value)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'address';
+  }
+
+  // Si hay errores, hacer scroll al primer campo con error
+  if (!isValid && firstErrorField) {
+    await scrollToField(firstErrorField);
+  }
+
+  return isValid;
+};
+
 watch(
   () => form.logo,
   (file) => {
@@ -60,15 +172,24 @@ watch(
 
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
+  // Limpiar error de dirección cuando se selecciona una
+  if (val && Object.keys(val).length > 0) {
+    clearFieldError('address');
+  }
 };
 
+const isLoading = ref(false);
+
 const validate = async () => {
+  // Limpiar mensaje de error general
   errorMsg.value = '';
 
-  if (!form.legal_name || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0 || !form.timezone) {
-    errorMsg.value = 'Por favor completa el nombre legal, la dirección y la zona horaria.';
-    return;
+  // Validar todos los campos
+  if (!(await validateAllFields())) {
+    return; // No continuar si hay errores de validación
   }
+
+  isLoading.value = true;
 
   try {
     const formData = new FormData();
@@ -104,13 +225,49 @@ const validate = async () => {
     }
   } catch (err) {
     if (err?.response?.data?.errors) {
-      errorMsg.value = Object.values(err.response.data.errors).flat().join(' ');
+      // Mapear errores del servidor a campos específicos
+      const serverErrors = err.response.data.errors;
+      let firstServerErrorField = null;
+
+      if (serverErrors.legal_name) {
+        fieldErrors.legal_name = serverErrors.legal_name[0];
+        if (!firstServerErrorField) firstServerErrorField = 'legal_name';
+      }
+      if (serverErrors.timezone) {
+        fieldErrors.timezone = serverErrors.timezone[0];
+        if (!firstServerErrorField) firstServerErrorField = 'timezone';
+      }
+      if (serverErrors.address) {
+        fieldErrors.address = serverErrors.address[0];
+        if (!firstServerErrorField) firstServerErrorField = 'address';
+      }
+      if (serverErrors.logo) {
+        fieldErrors.logo = serverErrors.logo[0];
+        if (!firstServerErrorField) firstServerErrorField = 'logo';
+      }
+
+      // Si hay errores del servidor, hacer scroll al primer campo con error
+      if (firstServerErrorField) {
+        await scrollToField(firstServerErrorField);
+      }
+
+      // Si hay errores que no se pueden mapear, mostrarlos en el mensaje general
+      const unmappedErrors = Object.keys(serverErrors).filter((key) => !['legal_name', 'timezone', 'address', 'logo'].includes(key));
+
+      if (unmappedErrors.length > 0) {
+        errorMsg.value = unmappedErrors
+          .map((key) => serverErrors[key])
+          .flat()
+          .join(' ');
+      }
     } else if (err?.response?.data?.message) {
       errorMsg.value = err.response.data.message;
     } else {
       errorMsg.value = 'Error al crear organización';
     }
     console.error('❌ Error al crear organización:', err);
+  } finally {
+    isLoading.value = false;
   }
 };
 </script>
@@ -160,18 +317,31 @@ const validate = async () => {
           <v-col cols="12" md="6">
             <v-label>Logo</v-label>
             <v-file-input
+              ref="fieldRefs.logo"
               v-model="form.logo"
               variant="outlined"
               color="primary"
               class="mt-2 mb-4"
               accept="image/*"
               density="compact"
+              required
               show-size
               :multiple="false"
+              :error-messages="fieldErrors.logo"
+              @update:model-value="clearFieldError('logo')"
             />
 
-            <v-label>Nombre Legal</v-label>
-            <v-text-field v-model="form.legal_name" variant="outlined" color="primary" class="mt-2 mb-4" required />
+            <v-label>Nombre Legal <span class="text-error">*</span></v-label>
+            <v-text-field
+              ref="fieldRefs.legal_name"
+              v-model="form.legal_name"
+              variant="outlined"
+              color="primary"
+              class="mt-2 mb-4"
+              required
+              :error-messages="fieldErrors.legal_name"
+              @update:model-value="clearFieldError('legal_name')"
+            />
 
             <v-label>Alias</v-label>
             <v-text-field v-model="form.alias" variant="outlined" color="primary" class="mt-2 mb-4" />
@@ -180,8 +350,9 @@ const validate = async () => {
             <v-textarea v-model="form.description" variant="outlined" color="primary" auto-grow rows="3" class="mt-2" />
 
             <!-- Campo de zona horaria con búsqueda tipo autocomplete -->
-            <v-label>Zona Horaria</v-label>
+            <v-label>Zona Horaria <span class="text-error">*</span></v-label>
             <v-autocomplete
+              ref="fieldRefs.timezone"
               v-model="form.timezone"
               :items="timezones"
               v-model:search-input="timezoneSearch"
@@ -196,13 +367,26 @@ const validate = async () => {
               hide-details
               :menu-props="{ maxHeight: '400px' }"
               required
+              :error-messages="fieldErrors.timezone"
+              @update:model-value="clearFieldError('timezone')"
             />
           </v-col>
 
           <!-- Dirección -->
           <v-col cols="12" class="mt-4">
-            <v-label>Dirección</v-label>
+            <v-label>Dirección <span class="text-error">*</span></v-label>
             <AddressAutocomplete class="mt-2" @update:parsedAddress="handleParsedAddress" />
+            <v-text-field
+              ref="fieldRefs.address"
+              v-if="fieldErrors.address"
+              :model-value="''"
+              variant="outlined"
+              color="error"
+              class="mt-2"
+              :error-messages="fieldErrors.address"
+              readonly
+              hide-details
+            />
           </v-col>
         </v-row>
 
@@ -237,10 +421,16 @@ const validate = async () => {
         <!-- Botón -->
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
-            <v-btn color="primary" class="mt-6" @click="validate">Crear Organización</v-btn>
+            <v-btn color="primary" class="mt-6" :loading="isLoading" :disabled="isLoading" @click="validate">
+              <template v-slot:loader>
+                <v-progress-circular indeterminate color="white" size="20" />
+              </template>
+              {{ isLoading ? 'Creando Organización...' : 'Crear Organización' }}
+            </v-btn>
           </v-col>
         </v-row>
 
+        <!-- Mensaje de error general (solo para errores no mapeables) -->
         <v-alert
           v-if="errorMsg"
           type="error"

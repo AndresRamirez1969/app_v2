@@ -31,9 +31,11 @@ router.beforeEach(async (to, from, next) => {
   }
   if (auth.isLoggedIn && to.path === '/login') {
     return next(auth.returnUrl || '/dashboard');
-  } else {
-    next();
   }
+  if (auth.isLoggedIn && !auth.user?.organization_id && to.path !== '/organizaciones-dw/create') {
+    return next('/organizaciones-dw/create');
+  }
+  next();
 });
 
 router.beforeEach(() => {

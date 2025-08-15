@@ -22,7 +22,6 @@ const hasResponseViewAny = computed(() => permissions.value.includes('form_respo
 const hasBusinessUnitGroupViewAny = computed(() => permissions.value.includes('businessUnitGroup.viewAny'));
 const hasUserViewAny = computed(() => permissions.value.includes('user.viewAny'));
 
-
 function getOrgDwRoute() {
   return '/organizaciones-dw';
 }
@@ -82,7 +81,7 @@ const sidebarMenu = computed(() => {
         return show ? { ...item, to: '/formularios' } : null;
       }
       if (item.title === 'Reportes') {
-        const show = userRoles.value.includes('superadmin') || hasResponseViewAny.value;
+        const show = userRoles.value.includes('superadmin') || userRoles.value.includes('admin') || hasResponseViewAny.value;
         return show ? { ...item, to: '/reportes' } : null;
       }
       return item;

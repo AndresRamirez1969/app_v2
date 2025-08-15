@@ -41,7 +41,8 @@ export const useAuthStore = defineStore('auth', {
     },
     hasPermissions: (state) => (permission: string) => {
       return state.permissions.includes(permission);
-    }
+    },
+    getOrganization: (state) => state.user?.organization || null
   },
 
   actions: {

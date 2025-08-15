@@ -28,6 +28,57 @@ const loadingBusinesses = ref(false);
 const loadingBusinessUnits = ref(false);
 const loadingRoles = ref(false);
 
+const fieldErrors = reactive({
+  name: '',
+  email: '',
+  role: '',
+  organization_id: ''
+});
+
+const fieldRefs = {
+  name: ref(null),
+  email: ref(null),
+  role: ref(null),
+  organization_id: ref(null)
+};
+
+const clearFieldError = (fieldName) => {
+  if (fieldErrors[fieldName]) {
+    fieldErrors[fieldName] = '';
+  }
+};
+
+const validateField = (fieldName, value) => {
+  clearFieldError(fieldName);
+  switch (fieldName) {
+    case 'name':
+      if (!value || value.trim() === '') {
+        fieldErrors.name = 'El nombre es obligatorio';
+        return false;
+      }
+      break;
+    case 'email':
+      if (!value || value.trim() === '') {
+        fieldErrors.email = 'El email es obligatorio';
+        return false;
+      }
+      break;
+    case 'role':
+      if (!value || value.trim() === '') {
+        fieldErrors.role = 'El rol es obligatorio';
+        return false;
+      }
+      break;
+    case 'organization_id':
+      if (!value || value.trim() === '') {
+        fieldErrors.organization_id = 'El usuario debe pertenecer a una entidad';
+        return false;
+      }
+      break;
+  }
+  return true;
+};
+
 onMounted(() => {
   const user = auth.user;
   canCreate.value = user?.permissions?.includes('user.create');
@@ -195,10 +246,11 @@ watch(
   }
 );
 
+const isLoading = ref(false);
 // --- VALIDATION & SUBMIT ---
 const validate = async () => {
   errorMsg.value = '';
-
+  isLoading.value = true;
   if (!form.name || !form.email || !form.role || (!form.organization_id && !form.business_id && !form.business_unit_id)) {
     errorMsg.value = 'Por favor completa el nombre, email, rol y selecciona organización, empresa o ubicación.';
     return;
@@ -249,13 +301,33 @@ const validate = async () => {
     }
   } catch (err) {
     if (err?.response?.data?.errors) {
-      errorMsg.value = Object.values(err.response.data.errors).flat().join(' ');
+      const serverErrors = err.response.data.errors;
+      let firstServerErrorField = null;
+
+      if (serverErrors.name) {
+        fieldErrors.name = serverErrors.name[0];
+        if (!firstServerErrorField) firstServerErrorField = 'name';
+      }
+      if (serverErrors.email) {
+        fieldErrors.email = serverErrors.email[0];
+        if (!firstServerErrorField) firstServerErrorField = 'email';
+      }
+      if (serverErrors.role) {
+        fieldErrors.role = serverErrors.role[0];
+        if (!firstServerErrorField) firstServerErrorField = 'role';
+      }
+      if (serverErrors.organization_id) {
+        fieldErrors.organization_id = serverErrors.organization_id[0];
+        if (!firstServerErrorField) firstServerErrorField = 'organization_id';
+      }
     } else if (err?.response?.data?.message) {
       errorMsg.value = err.response.data.message;
     } else {
       errorMsg.value = 'Error al crear usuario';
     }
     console.error('❌ Error al crear usuario:', err);
+  } finally {
+    isLoading.value = false;
   }
 };
 </script>
@@ -314,13 +386,13 @@ const validate = async () => {
               :multiple="false"
             />
 
-            <v-label>Nombre</v-label>
+            <v-label>Nombre <span class="text-error">*</span></v-label>
             <v-text-field v-model="form.name" variant="outlined" color="primary" class="mt-2 mb-4" required />
 
-            <v-label>Email</v-label>
+            <v-label>Email <span class="text-error">*</span></v-label>
             <v-text-field v-model="form.email" variant="outlined" color="primary" class="mt-2 mb-4" required />
 
-            <v-label>Rol</v-label>
+            <v-label>Rol <span class="text-error">*</span></v-label>
             <v-autocomplete
               v-model="form.role"
               :items="roleOptions"
@@ -351,7 +423,7 @@ const validate = async () => {
 
         <v-row>
           <v-col cols="12" md="12">
-            <v-label>Organización</v-label>
+            <v-label>Organización <span class="text-error">*</span></v-label>
             <v-autocomplete
               v-model="form.organization_id"
               :items="organizationOptions"
@@ -415,7 +487,12 @@ const validate = async () => {
 
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
-            <v-btn color="primary" class="mt-6" @click="validate">Crear Usuario</v-btn>
+            <v-btn color="primary" class="mt-6" :loading="isLoading" :disabled="isLoading" @click="validate">
+              <template v-slot:loader>
+                <v-progress-circular indeterminate color="white" size="20" />
+              </template>
+              {{ isLoading ? 'Creando Usuario...' : 'Crear Usuario' }}
+            </v-btn>
           </v-col>
         </v-row>
 

@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed, reactive } from 'vue';
 import axiosInstance from '@/utils/axios';
-import { FREQUENCY } from '@/constants/constants';
+import { FREQUENCY, urlToFile } from '@/constants/constants';
 import { useAuthStore } from '@/stores/auth';
 import { mdiArrowLeft } from '@mdi/js';
 import { useRouter } from 'vue-router';
@@ -15,6 +15,15 @@ const router = useRouter();
 const goBack = () => {
   router.push('/formularios');
 };
+
+const fieldErrors = reactive({
+  name: '',
+  supervisor: '',
+  auditors: '',
+  audited: '',
+  frequency: '',
+  scope: ''
+});
 
 const Regform = ref('');
 const name = ref('');
@@ -51,6 +60,7 @@ const fetchAllUsers = async () => {
       ...user,
       customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
     }));
+    console.log(res.data.data);
   } catch (err) {
     console.error('Error fetching users:', err);
     allUsers.value = [];
@@ -61,17 +71,14 @@ const fetchUsersByScope = async () => {
   try {
     // Validar que tengamos los parámetros necesarios antes de hacer la llamada
     if (scope.value === 'business_unit_group' && !groupId.value) {
-      console.log('Group scope selected but no group ID available yet');
       return;
     }
 
     if (scope.value === 'business' && !businessId.value) {
-      console.log('Business scope selected but no business ID available yet');
       return;
     }
 
     if (scope.value === 'business_unit' && !businessUnitId.value) {
-      console.log('Business unit scope selected but no business unit ID available yet');
       return;
     }
 
@@ -87,17 +94,12 @@ const fetchUsersByScope = async () => {
       params.business_unit_group_id = groupId.value;
     }
 
-    console.log('Fetching users with params:', params); // Debug
-
     const res = await axiosInstance.get('/users-by-scope', { params });
-    console.log('Users response:', res.data); // Debug
 
     filteredUsers.value = res.data.data.map((user) => ({
       ...user,
       customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
     }));
-
-    console.log('Filtered users:', filteredUsers.value); // Debug
 
     // Si es grupo, asignar automáticamente todos los roles disponibles
     if (scope.value === 'business_unit_group' && groupId.value) {
@@ -111,12 +113,8 @@ const fetchUsersByScope = async () => {
         }
       });
 
-      console.log('All roles found:', Array.from(allRoles)); // Debug
-
       // Asignar automáticamente todos los roles como auditados
       audited.value = Array.from(allRoles);
-
-      console.log('Audited roles assigned:', audited.value); // Debug
     }
   } catch (err) {
     console.error('Error fetching users:', err);
@@ -138,19 +136,9 @@ watch([scope, businessId, businessUnitId, groupId], async () => {
   }
 });
 
-// Eliminar el watcher anterior que estaba causando conflictos
-// watch([scope, businessId, businessUnitId], () => {
-//   if (scope.value) {
-//     fetchUsersByScope();
-//   }
-//   auditors.value = [];
-//   audited.value = [];
-// });
-
 // Watcher específico para cuando se selecciona un grupo
 watch(groupId, async (newGroupId) => {
   if (scope.value === 'business_unit_group' && newGroupId) {
-    console.log('Group ID changed, fetching users for group:', newGroupId);
     await fetchUsersByScope();
   }
 });
@@ -159,6 +147,7 @@ onMounted(async () => {
   try {
     await fetchAllUsers();
     const resBusiness = await axiosInstance.get('/businesses');
+    console.log(resBusiness.data.data);
     businesses.value = resBusiness.data.data.map((business) => ({
       ...business,
       customLabel: `${business.legal_name}`
@@ -178,9 +167,125 @@ onMounted(async () => {
     console.log(err);
   }
 });
+const clearFieldError = (fieldName) => {
+  if (fieldErrors[fieldName]) {
+    fieldErrors[fieldName] = '';
+  }
+};
 
+const validateField = (fieldName, value) => {
+  clearFieldError(fieldName);
+
+  switch (fieldName) {
+    case 'name':
+      if (!value) {
+        fieldErrors.name = 'El nombre del formulario es obligatorio';
+        return false;
+      }
+      break;
+
+    case 'supervisor':
+      if (!value) {
+        fieldErrors.supervisor = 'El supervisor es obligatorio';
+        return false;
+      }
+      break;
+
+    case 'auditors':
+      if (!value || value.length === 0) {
+        fieldErrors.auditors = 'Debe seleccionar al menos un auditor';
+        return false;
+      }
+      break;
+
+    case 'audited':
+      if (!value || value.length === 0) {
+        fieldErrors.audited = 'Debe seleccionar al menos un auditado';
+        return false;
+      }
+      break;
+
+    case 'frequency':
+      if (!value) {
+        fieldErrors.frequency = 'La frecuencia es obligatoria';
+        return false;
+      }
+      break;
+
+    case 'scope':
+      if (!value) {
+        fieldErrors.scope = 'El alcance es obligatorio';
+        return false;
+      }
+      break;
+
+    case 'logo':
+      if (!sameLogo.value && (!value || (Array.isArray(value) && value.length === 0))) {
+        fieldErrors.logo = 'El logo es obligatorio';
+        return false;
+      }
+      break;
+  }
+
+  return true;
+};
+
+const validateAllFields = () => {
+  let isValid = true;
+
+  if (!validateField('name', name.value)) {
+    isValid = false;
+  }
+
+  if (!validateField('supervisor', supervisor.value)) {
+    isValid = false;
+  }
+
+  if (!validateField('auditors', auditors.value)) {
+    isValid = false;
+  }
+
+  if (!validateField('audited', audited.value)) {
+    isValid = false;
+  }
+
+  if (!validateField('frequency', frequency.value)) {
+    isValid = false;
+  }
+
+  if (!validateField('scope', scope.value)) {
+    isValid = false;
+  }
+
+  if (scope.value === 'business' || scope.value === 'business_unit' || scope.value === 'business_unit_group') {
+    if (!businessId.value) {
+      isValid = false;
+    }
+  }
+
+  if (scope.value === 'business_unit') {
+    if (!businessUnitId.value) {
+      isValid = false;
+    }
+  }
+
+  if (scope.value === 'business_unit_group') {
+    if (!groupId.value) {
+      isValid = false;
+    }
+  }
+
+  if (!validateField('logo', logo.value)) {
+    isValid = false;
+  }
+
+  return isValid;
+};
+
+const isLoading = ref(false);
 const validate = async () => {
   try {
+    isLoading.value = true;
     const formData = new FormData();
     formData.append('name', name.value);
 
@@ -205,8 +310,20 @@ const validate = async () => {
     if (logo.value && !sameLogo.value) {
       formData.append('logo', logo.value);
     }
-    if (sameLogo.value) {
-      formData.append('logo', user?.organization?.logo);
+    if (sameLogo.value && scope.value !== 'organization') {
+      let selectBusiness = null;
+      if (scope.value === 'business' && businessId.value) {
+        selectBusiness = businesses.value.find((b) => b.id === businessId.value);
+      } else if (scope.value === 'business_unit' && businessId.value) {
+        selectBusiness = businesses.value.find((b) => b.id === businessId.value);
+      } else if (scope.value === 'business_unit_group' && businessId.value) {
+        selectBusiness = businesses.value.find((b) => b.id === businessId.value);
+      }
+
+      if (selectBusiness?.logo) {
+        const logoFile = await urlToFile(selectBusiness.logo, selectBusiness.legal_name);
+        formData.append('logo', logoFile);
+      }
     }
 
     if (scope.value === 'organization') {
@@ -230,7 +347,6 @@ const validate = async () => {
       }
     });
 
-    console.log('Formulario creado', res);
     toast.success('Formulario creado correctamente');
 
     const newForm = res.data.form;
@@ -242,14 +358,15 @@ const validate = async () => {
       });
     }
   } catch (err) {
-    console.log('Failed to save form', err);
     toast.error('Error al crear el formulario');
+  } finally {
+    isLoading.value = false;
   }
 };
 </script>
 
 <template>
-  <v-card>
+  <v-container fluid>
     <v-toolbar class="mb-4" density="compact" title="Creacion de Formulario">
       <template #prepend v-if="!isSponsor">
         <v-btn icon @click="goBack">
@@ -260,34 +377,29 @@ const validate = async () => {
     <v-row>
       <v-col cols="12" md="12">
         <v-form ref="Regform" lazy-validation action="/dashboards/analytical" class="container mt-5">
+          <!-- Nombre del Formulario -->
           <v-row class="my-0">
             <v-col cols="12" sm="6" class="py-0">
               <div class="mb-6">
-                <v-label>Nombre del Formulario</v-label>
-                <v-text-field v-model="name" required variant="outlined" class="mt-2" color="primary"></v-text-field>
-              </div>
-            </v-col>
-            <v-col cols="12" sm="6" class="py-0">
-              <div class="mb-6">
-                <v-label>Logo</v-label>
-                <v-file-input
-                  v-if="!sameLogo"
-                  v-model="logo"
-                  label="Logo"
-                  :multiple="false"
+                <v-label>Nombre del Formulario <span class="text-error">*</span></v-label>
+                <v-text-field
+                  v-model="name"
+                  required
                   variant="outlined"
-                  color="primary"
                   class="mt-2"
-                  accept="image/*"
-                >
-                </v-file-input>
-                <!-- Ahorita no jala! Implementar en el futuro -->
-                <v-switch v-model="sameLogo" label="Mismo que Organizacion" color="primary" class="mt-2" />
+                  color="primary"
+                  :error-messages="fieldErrors.name"
+                  @update:model-value="clearFieldError('name')"
+                />
               </div>
             </v-col>
+          </v-row>
+
+          <!-- Supervisor -->
+          <v-row class="my-0">
             <v-col cols="12" sm="6" class="py-0">
               <div class="mb-6">
-                <v-label>Supervisor</v-label>
+                <v-label>Supervisor <span class="text-error">*</span></v-label>
                 <v-select
                   v-model="supervisor"
                   :items="allRoles"
@@ -297,20 +409,62 @@ const validate = async () => {
                   color="primary"
                   class="mt-2"
                   label="Selecciona al Supervisor"
+                  :error-messages="fieldErrors.supervisor"
+                  @update:model-value="clearFieldError('supervisor')"
                 />
               </div>
             </v-col>
           </v-row>
 
+          <!-- Alcance -->
           <v-row class="my-0">
             <v-col cols="12" sm="6" class="py-0 d-flex flex-column justify-center">
-              <v-label class="mb2">Alcance</v-label>
+              <v-label class="mb2">Alcance <span class="text-error">*</span></v-label>
               <v-radio-group v-model="scope" inline>
                 <v-radio label="Organizacional" value="organization" />
                 <v-radio label="Por Negocio" value="business" />
                 <v-radio label="Por Unidad" value="business_unit" />
                 <v-radio label="Asignar a Grupo" value="business_unit_group" />
               </v-radio-group>
+              <v-text-field
+                v-if="fieldErrors.scope"
+                :model-value="''"
+                variant="outlined"
+                color="error"
+                class="mt-2"
+                :error-messages="fieldErrors.scope"
+                readonly
+                hide-details
+              />
+            </v-col>
+          </v-row>
+
+          <!-- Logo -->
+          <v-row class="my-0">
+            <v-col cols="12" sm="6" class="py-0">
+              <div class="mb-6">
+                <v-label>Logo <span class="text-error">*</span></v-label>
+                <v-file-input
+                  v-if="!sameLogo"
+                  v-model="logo"
+                  label="Logo"
+                  :multiple="false"
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2"
+                  accept="image/*"
+                  :error-messages="fieldErrors.logo"
+                  @update:model-value="clearFieldError('logo')"
+                />
+                <!-- Switch solo cuando NO es alcance organizacional -->
+                <v-switch
+                  v-if="scope && scope !== 'organization'"
+                  v-model="sameLogo"
+                  label="Mismo logo que Negocio"
+                  color="primary"
+                  class="mt-2"
+                />
+              </div>
             </v-col>
           </v-row>
 
@@ -318,7 +472,7 @@ const validate = async () => {
           <v-row v-if="scope === 'business' || scope === 'business_unit'" class="my-0">
             <v-col cols="12" sm="6" class="py-0">
               <div class="mb-6">
-                <v-label>Negocio</v-label>
+                <v-label>Negocio <span class="text-error">*</span></v-label>
                 <v-select
                   v-model="businessId"
                   :items="businesses"
@@ -329,6 +483,8 @@ const validate = async () => {
                   class="mt-2"
                   label="Selecciona el Negocio"
                   required
+                  :error-messages="fieldErrors.businessId"
+                  @update:model-value="clearFieldError('businessId')"
                 />
               </div>
             </v-col>
@@ -338,7 +494,7 @@ const validate = async () => {
           <v-row v-if="scope === 'business_unit'" class="my-0">
             <v-col cols="12" sm="6" class="py-0">
               <div class="mb-6">
-                <v-label>Unidad de Negocio</v-label>
+                <v-label>Unidad de Negocio <span class="text-error">*</span></v-label>
                 <v-select
                   v-model="businessUnitId"
                   :items="businessUnits"
@@ -349,6 +505,8 @@ const validate = async () => {
                   class="mt-2"
                   label="Selecciona la Unidad de Negocio"
                   required
+                  :error-messages="fieldErrors.businessUnitId"
+                  @update:model-value="clearFieldError('businessUnitId')"
                 />
               </div>
             </v-col>
@@ -358,7 +516,7 @@ const validate = async () => {
           <v-row v-if="scope === 'business_unit_group'" class="my-0">
             <v-col cols="12" sm="6" class="py-0">
               <div class="mb-6">
-                <v-label>Grupo</v-label>
+                <v-label>Grupo <span class="text-error">*</span></v-label>
                 <v-select
                   v-model="groupId"
                   :items="groups"
@@ -369,6 +527,8 @@ const validate = async () => {
                   class="mt-2"
                   label="Selecciona el Grupo"
                   required
+                  :error-messages="fieldErrors.groupId"
+                  @update:model-value="clearFieldError('groupId')"
                 />
                 <v-alert type="info" variant="tonal" class="mt-2" density="compact">
                   <strong>Asignación automática:</strong> Al seleccionar un grupo, se asignarán automáticamente TODOS los roles de las
@@ -377,11 +537,13 @@ const validate = async () => {
               </div>
             </v-col>
           </v-row>
+
+          <!-- Auditores -->
           <div class="mb-6">
-            <v-label>Auditores</v-label>
+            <v-label>Auditores <span class="text-error">*</span></v-label>
             <v-select
               v-model="auditors"
-              :items="filteredRoles"
+              :items="allRoles"
               multiple
               item-title="customLabel"
               item-value="id"
@@ -389,12 +551,16 @@ const validate = async () => {
               color="primary"
               class="mt-2"
               label="Selecciona a los Auditores"
-              :hint="`${filteredRoles.length} roles disponibles`"
+              :hint="`${allRoles.length} roles disponibles`"
               persistent-hint
+              :error-messages="fieldErrors.auditors"
+              @update:model-value="clearFieldError('auditors')"
             />
           </div>
+
+          <!-- Auditados -->
           <div class="mb-6">
-            <v-label>Auditados</v-label>
+            <v-label>Auditados <span class="text-error">*</span></v-label>
             <v-select
               v-model="audited"
               multiple
@@ -409,6 +575,8 @@ const validate = async () => {
               persistent-hint
               :disabled="scope === 'business_unit_group'"
               :readonly="scope === 'business_unit_group'"
+              :error-messages="fieldErrors.audited"
+              @update:model-value="clearFieldError('audited')"
             />
             <v-alert
               v-if="scope === 'business_unit_group' && audited.length > 0"
@@ -420,8 +588,10 @@ const validate = async () => {
               Se han asignado automáticamente {{ audited.length }} roles de las unidades del grupo seleccionado.
             </v-alert>
           </div>
+
+          <!-- Frecuencia -->
           <div class="mb-6">
-            <v-label>Frecuencia</v-label>
+            <v-label>Frecuencia <span class="text-error">*</span></v-label>
             <v-select
               v-model="frequency"
               :items="FREQUENCY"
@@ -431,12 +601,31 @@ const validate = async () => {
               color="primary"
               class="mt-2"
               label="Selecciona la frecuencia del formulario"
+              required
+              :error-messages="fieldErrors.frequency"
+              @update:model-value="clearFieldError('frequency')"
             />
           </div>
+
           <div class="d-sm-inline-flex align-center mt-2 mb-7 mb-sm-0 font-weight-bold"></div>
-          <v-btn color="primary" block class="mt-4" variant="flat" size="large" @click="validate()">Crear Formulario</v-btn>
+
+          <v-btn
+            color="primary"
+            block
+            class="mt-4"
+            variant="flat"
+            size="large"
+            :loading="isLoading"
+            :disabled="isLoading"
+            @click="validate()"
+          >
+            <template v-slot:loader>
+              <v-progress-circular indeterminate color="white" size="20" />
+            </template>
+            {{ isLoading ? 'Creando Formulario...' : 'Crear Formulario' }}
+          </v-btn>
         </v-form>
       </v-col>
     </v-row>
-  </v-card>
+  </v-container>
 </template>
