@@ -1,15 +1,15 @@
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import axios from '@/utils/axios';
 import BusinessUnitFilter from '../business_unit/BusinessUnitFilter.vue';
 import BusinessUnitSelectTable from './BusinessUnitSelectTable.vue';
 
-import { useAuthStore } from '@/stores/auth';
-const auth = useAuthStore();
-
 const router = useRouter();
+const route = useRoute();
+
+const groupId = route.params.id;
 
 const name = ref('');
 const organizationId = ref(null);
@@ -24,24 +24,9 @@ const total = ref(0);
 const sortBy = ref('folio');
 const sortDesc = ref(false);
 const search = ref('');
+const status = ref(null);
 
-const canCreate = computed(() => {
-  const user = auth.user;
-  return user?.permissions?.includes('businessUnitGroup.create');
-});
-
-function getBusinessUnitParams() {
-  if (!auth.user) return {};
-
-  const role = auth.user.role;
-  if (role === 'superadmin') {
-    return {};
-  }
-  if (role === 'admin') {
-    return { organization_id: auth.user.organization_id };
-  }
-  return { business_id: auth.user.business_id };
-}
+const showWarning = ref(false);
 
 const fullAddress = (address) => {
   if (!address) return 'No disponible';
@@ -62,18 +47,10 @@ const truncate = (text, max = 50) => (!text ? '' : text.length > max ? text.slic
 const fetchBusinessUnits = async () => {
   loading.value = true;
   try {
-    const roleParams = getBusinessUnitParams();
-    if (!canCreate.value) {
-      businessUnits.value = [];
-      total.value = 0;
-      loading.value = false;
-      return;
-    }
     const params = {
       ...filters.value,
-      ...roleParams,
-      organization_id: organizationId.value || roleParams.organization_id,
-      business_id: businessId.value || roleParams.business_id,
+      organization_id: organizationId.value,
+      business_id: businessId.value,
       page: page.value,
       per_page: itemsPerPage.value,
       sort_by: sortBy.value,
@@ -92,25 +69,33 @@ const fetchBusinessUnits = async () => {
   }
 };
 
-const sortedItems = computed(() => {
-  return [...businessUnits.value].sort((a, b) => {
-    const aVal = sortBy.value === 'address' ? fullAddress(a.address).toLowerCase() : (a[sortBy.value]?.toString().toLowerCase() ?? '');
-    const bVal = sortBy.value === 'address' ? fullAddress(b.address).toLowerCase() : (b[sortBy.value]?.toString().toLowerCase() ?? '');
-    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
-  });
-});
+const fetchGroup = async () => {
+  try {
+    const { data } = await axios.get(`/business-unit-groups/${groupId}`);
+    name.value = data.name;
+    organizationId.value = data.organization_id;
+    businessId.value = data.business_id;
+    selectedBusinessUnits.value = data.business_units.map((bu) => bu.id);
+    status.value = data.status;
+  } catch (e) {
+    console.error('Error fetching group:', e);
+  }
+};
 
-watch([organizationId, businessId, filters, page, itemsPerPage, sortBy, sortDesc, canCreate], () => {
-  if (canCreate.value) fetchBusinessUnits();
+const sortedItems = computed(() => businessUnits.value);
+
+watch([organizationId, businessId, filters, page, itemsPerPage, sortBy, sortDesc], () => {
+  fetchBusinessUnits();
 });
 
 watch(search, () => {
   page.value = 1;
-  if (canCreate.value) fetchBusinessUnits();
+  fetchBusinessUnits();
 });
 
-onMounted(() => {
-  if (canCreate.value) fetchBusinessUnits();
+onMounted(async () => {
+  await fetchGroup();
+  fetchBusinessUnits();
 });
 
 function handleFilter(newFilters) {
@@ -126,7 +111,7 @@ function handleFilter(newFilters) {
     created_at_end: newFilters.createdAtEnd
   };
   page.value = 1;
-  if (canCreate.value) fetchBusinessUnits();
+  fetchBusinessUnits();
 }
 
 function handleOrgBizChange({ organizationId: orgId, businessId: bizId }) {
@@ -134,7 +119,7 @@ function handleOrgBizChange({ organizationId: orgId, businessId: bizId }) {
   businessId.value = bizId;
   selectedBusinessUnits.value = [];
   page.value = 1;
-  if (canCreate.value) fetchBusinessUnits();
+  fetchBusinessUnits();
 }
 
 function handleSearch(val) {
@@ -142,27 +127,8 @@ function handleSearch(val) {
 }
 
 function toggleBusinessUnit(id) {
-  const unit = businessUnits.value.find((u) => u.id === id);
-  if (!unit) return;
-
-  if (selectedBusinessUnits.value.length === 0) {
-    organizationId.value = unit.organization_id;
-    businessId.value = unit.business_id;
-    selectedBusinessUnits.value = [id];
-    return;
-  }
-
-  if (unit.organization_id !== organizationId.value || unit.business_id !== businessId.value) {
-    alert('Solo puedes seleccionar unidades de negocio del mismo organización y empresa.');
-    return;
-  }
-
   if (selectedBusinessUnits.value.includes(id)) {
     selectedBusinessUnits.value = selectedBusinessUnits.value.filter((buId) => buId !== id);
-    if (selectedBusinessUnits.value.length === 0) {
-      organizationId.value = null;
-      businessId.value = null;
-    }
   } else {
     selectedBusinessUnits.value.push(id);
   }
@@ -170,25 +136,23 @@ function toggleBusinessUnit(id) {
 
 const saving = ref(false);
 async function saveGroup() {
-  if (!name.value || !organizationId.value || !businessId.value || !selectedBusinessUnits.value.length) return;
+  showWarning.value = false;
+  if (!name.value || !selectedBusinessUnits.value.length) {
+    showWarning.value = true;
+    return;
+  }
   saving.value = true;
   try {
-    const groupRes = await axios.post('/business-unit-groups', {
+    await axios.put(`/business-unit-groups/${groupId}`, {
       name: name.value,
       organization_id: organizationId.value,
       business_id: businessId.value,
-      business_units: selectedBusinessUnits.value
+      business_units: selectedBusinessUnits.value,
+      status: status.value
     });
-    const groupId = groupRes.data?.id || groupRes.data?.data?.id || groupRes.data?.group?.id;
-
-    if (groupId) {
-      await Promise.all(
-        selectedBusinessUnits.value.map((unitId) => axios.put(`/business-units/${unitId}`, { business_unit_group_id: groupId }))
-      );
-    }
-    router.push('/grupos-de-ubicaciones');
+    router.push(`/grupos-de-ubicaciones/${groupId}`);
   } catch (e) {
-    console.error('Error saving group:', e);
+    console.error('Error updating group:', e);
   } finally {
     saving.value = false;
   }
@@ -212,51 +176,75 @@ function toggleSort(column) {
         <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
           <v-icon :icon="mdiArrowLeft"></v-icon>
         </v-btn>
-        <h3 class="font-weight-medium ml-3 mb-0">Agregar Grupo de Ubicaciones</h3>
+        <h3 class="font-weight-medium ml-3 mb-0">Editar Grupo de Ubicaciones</h3>
       </v-col>
     </v-row>
 
-    <template v-if="canCreate">
-      <!-- Información General -->
-      <v-row>
-        <v-col cols="12">
-          <h4 class="font-weight-bold mb-3">Información General</h4>
-          <v-divider class="mb-6" />
-        </v-col>
-      </v-row>
+    <!-- Información General -->
+    <v-row>
+      <v-col cols="12">
+        <h4 class="font-weight-bold mb-3">Información General</h4>
+        <v-divider class="mb-6" />
+      </v-col>
+    </v-row>
 
-      <!-- Nombre del grupo -->
-      <v-row>
-        <v-col>
-          <v-text-field v-model="name" label="Nombre del grupo" variant="outlined" color="primary" required class="mb-4" />
-        </v-col>
-      </v-row>
+    <!-- Nombre del grupo -->
+    <v-row>
+      <v-col>
+        <v-text-field
+          v-model="name"
+          label="Nombre del grupo"
+          variant="outlined"
+          color="primary"
+          required
+          class="mb-4"
+          :error="showWarning && !name"
+          :error-messages="showWarning && !name ? 'Este campo es obligatorio.' : ''"
+          hint="Este campo es requerido."
+          persistent-hint
+        />
+      </v-col>
+    </v-row>
 
-      <!-- Divider entre nombre y filtro -->
-      <v-row>
-        <v-col cols="12">
-          <v-divider class="mb-5" />
-        </v-col>
-      </v-row>
+    <!-- Divider entre nombre y filtro -->
+    <v-row>
+      <v-col cols="12">
+        <v-divider class="mb-5" />
+      </v-col>
+    </v-row>
 
-      <!-- Filtros de organización y empresa y búsqueda -->
-      <v-row>
-        <v-col>
-          <BusinessUnitFilter
-            @filter="handleFilter"
-            @org-biz-change="handleOrgBizChange"
-            @search="handleSearch"
-            :showOrganization="true"
-            :showBusiness="true"
-            :organization-id="organizationId"
-            :business-id="businessId"
-          />
-        </v-col>
-      </v-row>
+    <!-- Filtros de organización y empresa y búsqueda -->
+    <v-row>
+      <v-col>
+        <BusinessUnitFilter
+          @filter="handleFilter"
+          @org-biz-change="handleOrgBizChange"
+          @search="handleSearch"
+          :showOrganization="true"
+          :showBusiness="true"
+          :organization-id="organizationId"
+          :business-id="businessId"
+        />
+      </v-col>
+    </v-row>
 
-      <!-- Tabla de business units con selección y paginación -->
-      <v-row>
-        <v-col>
+    <!-- Tabla de business units con selección y paginación o mensaje si no hay -->
+    <v-row>
+      <v-col>
+        <template v-if="loading">
+          <div class="text-center py-8">
+            <v-progress-circular indeterminate color="primary" size="64" />
+            <p class="mt-4">Cargando ubicaciones...</p>
+          </div>
+        </template>
+        <template v-else-if="total === 0">
+          <div class="text-center py-8">
+            <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
+            <p class="mt-4 text-h6 text-grey-darken-1">No existen ubicaciones</p>
+            <p class="text-body-2 text-grey">No se encontraron ubicaciones con los filtros aplicados</p>
+          </div>
+        </template>
+        <template v-else>
           <BusinessUnitSelectTable
             :items="sortedItems.map((unit) => ({ ...unit, addressFormatted: truncate(fullAddress(unit.address), 50) }))"
             :total="total"
@@ -268,31 +256,31 @@ function toggleSort(column) {
             @update:page="page = $event"
             @sort="toggleSort"
             @toggle="toggleBusinessUnit"
+            :error="showWarning && !selectedBusinessUnits.length"
+            :is-mobile="$vuetify.display.smAndDown"
           />
-        </v-col>
-      </v-row>
+          <div class="v-messages v-messages__wrapper" style="min-height: 24px; padding-top: 10px">
+            <div
+              class="v-messages__message"
+              :style="
+                showWarning && !selectedBusinessUnits.length
+                  ? 'color: #ff2800; font-size: 0.8125rem; font-weight: 400;'
+                  : 'color: #424242; font-size: 0.8125rem; font-weight: 400;'
+              "
+            >
+              Debes seleccionar al menos una ubicación.
+            </div>
+          </div>
+        </template>
+      </v-col>
+    </v-row>
 
-      <!-- Botón guardar -->
-      <v-row>
-        <v-col class="d-flex justify-end">
-          <v-btn
-            color="primary"
-            :loading="saving"
-            :disabled="!canCreate || !name || !organizationId || !businessId || !selectedBusinessUnits.length"
-            @click="saveGroup"
-          >
-            Guardar Grupo
-          </v-btn>
-        </v-col>
-      </v-row>
-    </template>
-    <template v-else>
-      <v-row>
-        <v-col>
-          <v-alert type="error" variant="outlined" class="mt-4"> No tienes permiso para crear grupos de unidades de negocio. </v-alert>
-        </v-col>
-      </v-row>
-    </template>
+    <!-- Botón guardar -->
+    <v-row>
+      <v-col class="d-flex justify-end">
+        <v-btn color="primary" :loading="saving" @click="saveGroup"> Guardar Cambios </v-btn>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
