@@ -103,7 +103,7 @@
             />
           </div>
 
-          <!-- Business select filter SOLO para superadmin, admin, sponsor o con businessUnit.viewAny -->
+          <!-- Business select filter SOLO para superadmin, admin, sponsor o con businessUnitGroup.viewAny -->
           <div v-if="canShowBusinessFilter" class="mb-3">
             <v-autocomplete
               v-model="selectedBusiness"
@@ -230,7 +230,7 @@ const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
 const isSponsor = computed(() => roles.value.includes('sponsor'));
-const canViewAnyBusinessUnit = computed(() => permissions.value.includes('businessUnit.viewAny'));
+const canViewAnyBusinessUnit = computed(() => permissions.value.includes('businessUnitGroup.viewAny'));
 
 const canShowBusinessFilter = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value || canViewAnyBusinessUnit.value);
 

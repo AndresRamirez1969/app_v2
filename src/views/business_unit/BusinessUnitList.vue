@@ -26,8 +26,6 @@ const isSponsor = computed(() => roles.value.includes('sponsor'));
 const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value);
 const canEdit = computed(() => permissions.value.includes('businessUnit.update') || props.canEditPermission);
 const canView = computed(() => permissions.value.includes('businessUnit.view'));
-
-// Mostrar menú solo si tiene al menos un permiso relevante
 const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatus.value);
 
 const sortBy = ref('folio');
@@ -58,7 +56,7 @@ const fullAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
-const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
+const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 const sortedItems = computed(() => {
   return [...props.items].sort((a, b) => {
@@ -73,15 +71,6 @@ const paginatedItems = computed(() => {
   return sortedItems.value.slice(start, start + itemsPerPage.value);
 });
 
-// --- INTEGRACIÓN DEL LOG PARA DEPURAR ---
-watch(
-  () => props.items,
-  (newItems) => {
-    console.log('BusinessUnitList.vue - items cargados:', newItems);
-  },
-  { immediate: true }
-);
-
 const goToEdit = (uni) => router.push({ path: `/ubicaciones/editar/${uni.id}` });
 const goToShow = (uni) => router.push({ path: `/ubicaciones/${uni.id}` });
 
@@ -90,6 +79,7 @@ const toggleStatus = async (uni) => {
   const isActive = uni.status === 'activa' || uni.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
+    // Solo cambia el status, el backend se encarga de la lógica
     const res = await axiosInstance.put(`/business-units/${uni.id}`, {
       status: newStatus
     });
@@ -112,7 +102,6 @@ const toggleStatus = async (uni) => {
         <p class="mt-4 text-h6 text-grey-darken-1">No existen unidades</p>
         <p class="text-body-2 text-grey">No se encontraron unidades con los filtros aplicados</p>
       </div>
-      <!-- Modo móvil (solo cards) -->
       <template v-else-if="isMobile">
         <v-card
           v-for="uni in paginatedItems"
@@ -146,14 +135,13 @@ const toggleStatus = async (uni) => {
               <div class="font-weight-medium mb-1">{{ uni.legal_name }}</div>
               <div class="text-caption">
                 <strong>Dirección:</strong>
-                {{ truncate(fullAddress(uni.address), 80) }}
+                {{ truncate(fullAddress(uni.address), 60) }}
               </div>
             </v-col>
           </v-row>
         </v-card>
       </template>
 
-      <!-- Modo escritorio (solo tabla) -->
       <template v-if="!isMobile">
         <BusinessUnitTableMeta
           :items="sortedItems.value"
@@ -193,7 +181,7 @@ const toggleStatus = async (uni) => {
                   </v-avatar>
                 </td>
                 <td class="legal-cell">{{ uni.legal_name }}</td>
-                <td class="address-cell">{{ truncate(fullAddress(uni.address), 80) }}</td>
+                <td class="address-cell">{{ truncate(fullAddress(uni.address), 60) }}</td>
                 <td class="status-cell">
                   <StatusChip :status="uni.status" />
                 </td>
@@ -240,13 +228,3 @@ const toggleStatus = async (uni) => {
 </template>
 
 <style scoped src="@/styles/business_unit.css"></style>
-<style scoped>
-.row-clickable:hover {
-  background: #f5f5f5;
-  transition: background 0.2s;
-}
-.row-disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
-</style>

@@ -276,11 +276,13 @@ const validate = async () => {
   <div v-if="canCreate">
     <v-container fluid>
       <!-- Header solo para usuarios con organization.viewAny -->
-      <v-row v-if="auth.user?.roles?.includes('superadmin')" class="align-center mb-6" no-gutters>
+      <v-row class="align-center mb-6" no-gutters>
         <v-col cols="auto" class="d-flex align-center">
-          <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
-            <v-icon :icon="mdiArrowLeft" />
-          </v-btn>
+          <template v-if="auth.user?.roles?.includes('superadmin') || auth.user?.permissions?.includes('organization.viewAny')">
+            <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
+              <v-icon :icon="mdiArrowLeft" />
+            </v-btn>
+          </template>
           <h3 class="font-weight-medium ml-3 mb-0">Agregar Organización</h3>
         </v-col>
       </v-row>

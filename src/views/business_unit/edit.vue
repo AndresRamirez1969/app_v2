@@ -12,7 +12,6 @@ const route = useRoute();
 const business_unitId = route.params.id;
 const auth = useAuthStore();
 
-// Organización y Empresa
 const organizations = ref([]);
 const selectedOrganization = ref(null);
 const organizationSearch = ref('');
@@ -43,7 +42,6 @@ const parsedAddress = ref({});
 const logoPreview = ref(null);
 const errorMsg = ref('');
 
-// Roles y permisos
 const user = computed(() => auth.user || { roles: [], permissions: [] });
 const roles = computed(() => (Array.isArray(user.value.roles) ? user.value.roles : user.value.roles?.map?.((r) => r.name) || []));
 const permissions = computed(() =>
@@ -66,7 +64,6 @@ const fullAddress = computed(() => {
   return '';
 });
 
-// GET de la organización y empresa a la que pertenece la unidad de negocio
 const fetchOrganizationById = async (id) => {
   if (!id) return;
   loadingOrganizations.value = true;
@@ -198,7 +195,6 @@ onMounted(async () => {
       form.person.phone_number = data.person.phone_number || '';
     }
 
-    // GET de la organización y empresa a la que pertenece
     if (data.organization_id) {
       await fetchOrganizationById(data.organization_id);
       selectedOrganization.value = data.organization_id;
@@ -208,7 +204,6 @@ onMounted(async () => {
       selectedBusiness.value = data.business_id;
     }
 
-    // --- NUEVO: Organización y Empresa para selects dinámicos ---
     if (isSuperadmin.value) {
       await fetchOrganizations('');
     }
@@ -220,7 +215,6 @@ onMounted(async () => {
   }
 });
 
-// Actualiza la previsualización del logo si el usuario selecciona uno nuevo
 watch(
   () => form.logo,
   (file) => {
@@ -245,7 +239,6 @@ const validate = async () => {
     return;
   }
 
-  // Validación de organización y empresa
   let organization_id = null;
   if (isSuperadmin.value) {
     if (!selectedOrganization.value) {
@@ -293,7 +286,6 @@ const validate = async () => {
 
     await axiosInstance.post(`/business-units/${business_unitId}?_method=PUT`, formData);
 
-    // Refresca datos del usuario si edita su propia ubicación
     if (auth.user?.business_unit_id && String(auth.user.business_unit_id) === String(business_unitId)) {
       await auth.fetchUser();
     }
@@ -358,7 +350,6 @@ const validate = async () => {
             :multiple="false"
           />
 
-          <!-- Select de organización SOLO para superadmin -->
           <template v-if="isSuperadmin">
             <v-label>Organización</v-label>
             <v-autocomplete
@@ -380,7 +371,6 @@ const validate = async () => {
             <div style="height: 16px"></div>
           </template>
 
-          <!-- Select de empresa SOLO para superadmin, admin, sponsor, businessUnit.create -->
           <template v-if="selectedOrganization && (isSuperadmin || canSelectBusiness)">
             <v-label>Empresa</v-label>
             <v-autocomplete
@@ -484,3 +474,5 @@ const validate = async () => {
     <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso para editar esta ubicación. </v-alert>
   </div>
 </template>
+
+<style scoped src="@/styles/business_unit.css"></style>

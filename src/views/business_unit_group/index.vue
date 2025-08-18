@@ -10,7 +10,6 @@ import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const business_unit_groups = ref([]);
-const filteredBusinessUnitGroups = ref([]);
 const { mdAndDown } = useDisplay();
 
 const searchText = ref('');
@@ -28,7 +27,6 @@ function hasPermission(permission) {
 
 // Carga inicial y permisos
 onMounted(async () => {
-  // Solo puede ver si es superadmin, admin, o tiene ambos permisos
   const isSuperAdmin = auth.user?.roles?.includes('superadmin');
   const isAdmin = auth.user?.roles?.includes('admin');
   const canViewAnyGroup = hasPermission('businessUnitGroup.viewAny');
@@ -59,8 +57,6 @@ const fetchBusinessUnitGroups = async (params = {}) => {
   try {
     const { data } = await axios.get('/business-unit-groups', { params });
     business_unit_groups.value = data.data;
-    filteredBusinessUnitGroups.value = data.data;
-    console.log('Business unit groups cargados:', filteredBusinessUnitGroups.value);
   } catch (error) {
     console.error('Error fetching business unit groups:', error);
   } finally {
@@ -74,7 +70,6 @@ const goToCreate = () => {
 
 // Aplica búsqueda y filtros combinados
 function applyFilters() {
-  // Construye los parámetros para la API según el modelo
   const params = {};
   if (searchText.value) params.search = searchText.value;
   if (filterOptions.value.organizationId) params.organization_id = filterOptions.value.organizationId;
@@ -86,13 +81,11 @@ function applyFilters() {
   fetchBusinessUnitGroups(params);
 }
 
-// Recibe el texto del search bar y actualiza los filtros
 function handleSearch(text) {
   searchText.value = text;
   applyFilters();
 }
 
-// Recibe los filtros avanzados del modal y actualiza los filtros
 function handleFilter(options) {
   filterOptions.value = options;
   applyFilters();
@@ -125,7 +118,7 @@ function handleFilter(options) {
       <v-row>
         <v-col>
           <BusinessUnitGroupsList
-            :items="filteredBusinessUnitGroups"
+            :items="business_unit_groups"
             :isMobile="mdAndDown"
             :can-edit-permission="canEditPermission"
             :isLoading="isLoading"

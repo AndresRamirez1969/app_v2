@@ -23,6 +23,10 @@ const itemsPerPage = ref(10);
 const total = ref(0);
 const sortBy = ref('folio');
 const sortDesc = ref(false);
+const search = ref('');
+const status = ref(null);
+
+const showWarning = ref(false);
 
 const fullAddress = (address) => {
   if (!address) return 'No disponible';
@@ -50,7 +54,8 @@ const fetchBusinessUnits = async () => {
       page: page.value,
       per_page: itemsPerPage.value,
       sort_by: sortBy.value,
-      sort_desc: sortDesc.value ? 1 : 0
+      sort_desc: sortDesc.value ? 1 : 0,
+      search: search.value
     };
     const { data } = await axios.get('/business-units', { params });
     businessUnits.value = data.data;
@@ -71,20 +76,20 @@ const fetchGroup = async () => {
     organizationId.value = data.organization_id;
     businessId.value = data.business_id;
     selectedBusinessUnits.value = data.business_units.map((bu) => bu.id);
+    status.value = data.status;
   } catch (e) {
     console.error('Error fetching group:', e);
   }
 };
 
-const sortedItems = computed(() => {
-  return [...businessUnits.value].sort((a, b) => {
-    const aVal = sortBy.value === 'address' ? fullAddress(a.address).toLowerCase() : (a[sortBy.value]?.toString().toLowerCase() ?? '');
-    const bVal = sortBy.value === 'address' ? fullAddress(b.address).toLowerCase() : (b[sortBy.value]?.toString().toLowerCase() ?? '');
-    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
-  });
-});
+const sortedItems = computed(() => businessUnits.value);
 
 watch([organizationId, businessId, filters, page, itemsPerPage, sortBy, sortDesc], () => {
+  fetchBusinessUnits();
+});
+
+watch(search, () => {
+  page.value = 1;
   fetchBusinessUnits();
 });
 
@@ -117,6 +122,10 @@ function handleOrgBizChange({ organizationId: orgId, businessId: bizId }) {
   fetchBusinessUnits();
 }
 
+function handleSearch(val) {
+  search.value = val;
+}
+
 function toggleBusinessUnit(id) {
   if (selectedBusinessUnits.value.includes(id)) {
     selectedBusinessUnits.value = selectedBusinessUnits.value.filter((buId) => buId !== id);
@@ -127,14 +136,19 @@ function toggleBusinessUnit(id) {
 
 const saving = ref(false);
 async function saveGroup() {
-  if (!name.value || !organizationId.value || !businessId.value || !selectedBusinessUnits.value.length) return;
+  showWarning.value = false;
+  if (!name.value || !selectedBusinessUnits.value.length) {
+    showWarning.value = true;
+    return;
+  }
   saving.value = true;
   try {
     await axios.put(`/business-unit-groups/${groupId}`, {
       name: name.value,
       organization_id: organizationId.value,
       business_id: businessId.value,
-      business_units: selectedBusinessUnits.value
+      business_units: selectedBusinessUnits.value,
+      status: status.value
     });
     router.push(`/grupos-de-ubicaciones/${groupId}`);
   } catch (e) {
@@ -177,23 +191,35 @@ function toggleSort(column) {
     <!-- Nombre del grupo -->
     <v-row>
       <v-col>
-        <v-text-field v-model="name" label="Nombre del grupo" variant="outlined" color="primary" required class="mb-4" />
+        <v-text-field
+          v-model="name"
+          label="Nombre del grupo"
+          variant="outlined"
+          color="primary"
+          required
+          class="mb-4"
+          :error="showWarning && !name"
+          :error-messages="showWarning && !name ? 'Este campo es obligatorio.' : ''"
+          hint="Este campo es requerido."
+          persistent-hint
+        />
       </v-col>
     </v-row>
 
     <!-- Divider entre nombre y filtro -->
     <v-row>
       <v-col cols="12">
-        <v-divider class="mb-6" />
+        <v-divider class="mb-5" />
       </v-col>
     </v-row>
 
-    <!-- Filtros de organización y empresa -->
+    <!-- Filtros de organización y empresa y búsqueda -->
     <v-row>
       <v-col>
         <BusinessUnitFilter
           @filter="handleFilter"
           @org-biz-change="handleOrgBizChange"
+          @search="handleSearch"
           :showOrganization="true"
           :showBusiness="true"
           :organization-id="organizationId"
@@ -202,35 +228,57 @@ function toggleSort(column) {
       </v-col>
     </v-row>
 
-    <!-- Tabla de business units con selección y paginación -->
+    <!-- Tabla de business units con selección y paginación o mensaje si no hay -->
     <v-row>
       <v-col>
-        <BusinessUnitSelectTable
-          :items="sortedItems.map((unit) => ({ ...unit, addressFormatted: truncate(fullAddress(unit.address), 50) }))"
-          :total="total"
-          :page="page"
-          :items-per-page="itemsPerPage"
-          :sort-by="sortBy"
-          :sort-desc="sortDesc"
-          :selected-business-units="selectedBusinessUnits"
-          @update:page="page = $event"
-          @sort="toggleSort"
-          @toggle="toggleBusinessUnit"
-        />
+        <template v-if="loading">
+          <div class="text-center py-8">
+            <v-progress-circular indeterminate color="primary" size="64" />
+            <p class="mt-4">Cargando ubicaciones...</p>
+          </div>
+        </template>
+        <template v-else-if="total === 0">
+          <div class="text-center py-8">
+            <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
+            <p class="mt-4 text-h6 text-grey-darken-1">No existen ubicaciones</p>
+            <p class="text-body-2 text-grey">No se encontraron ubicaciones con los filtros aplicados</p>
+          </div>
+        </template>
+        <template v-else>
+          <BusinessUnitSelectTable
+            :items="sortedItems.map((unit) => ({ ...unit, addressFormatted: truncate(fullAddress(unit.address), 50) }))"
+            :total="total"
+            :page="page"
+            :items-per-page="itemsPerPage"
+            :sort-by="sortBy"
+            :sort-desc="sortDesc"
+            :selected-business-units="selectedBusinessUnits"
+            @update:page="page = $event"
+            @sort="toggleSort"
+            @toggle="toggleBusinessUnit"
+            :error="showWarning && !selectedBusinessUnits.length"
+            :is-mobile="$vuetify.display.smAndDown"
+          />
+          <div class="v-messages v-messages__wrapper" style="min-height: 24px; padding-top: 10px">
+            <div
+              class="v-messages__message"
+              :style="
+                showWarning && !selectedBusinessUnits.length
+                  ? 'color: #ff2800; font-size: 0.8125rem; font-weight: 400;'
+                  : 'color: #424242; font-size: 0.8125rem; font-weight: 400;'
+              "
+            >
+              Debes seleccionar al menos una ubicación.
+            </div>
+          </div>
+        </template>
       </v-col>
     </v-row>
 
     <!-- Botón guardar -->
     <v-row>
       <v-col class="d-flex justify-end">
-        <v-btn
-          color="primary"
-          :loading="saving"
-          :disabled="!name || !organizationId || !businessId || !selectedBusinessUnits.length"
-          @click="saveGroup"
-        >
-          Guardar Cambios
-        </v-btn>
+        <v-btn color="primary" :loading="saving" @click="saveGroup"> Guardar Cambios </v-btn>
       </v-col>
     </v-row>
   </v-container>

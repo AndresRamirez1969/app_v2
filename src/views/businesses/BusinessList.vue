@@ -17,7 +17,6 @@ const router = useRouter();
 const auth = useAuthStore();
 
 const user = computed(() => auth.user || { roles: [], permissions: [] });
-// Ahora los roles son array de strings, no objetos
 const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
@@ -26,7 +25,6 @@ const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
 const canEdit = computed(() => permissions.value.includes('business.update'));
 const canView = computed(() => permissions.value.includes('business.view'));
 
-// Mostrar menú solo si tiene al menos un permiso relevante
 const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatus.value);
 
 const sortBy = ref('folio');
@@ -57,7 +55,7 @@ const fullAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
-const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
+const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 const sortedItems = computed(() => {
   return [...props.items].sort((a, b) => {
@@ -141,7 +139,7 @@ const toggleStatus = async (bus) => {
               <div class="font-weight-medium mb-1">{{ bus.legal_name }}</div>
               <div class="text-caption">
                 <strong>Dirección:</strong>
-                {{ truncate(fullAddress(bus.address), 80) }}
+                {{ truncate(fullAddress(bus.address), 60) }}
               </div>
             </v-col>
           </v-row>
@@ -188,7 +186,7 @@ const toggleStatus = async (bus) => {
                   </v-avatar>
                 </td>
                 <td class="legal-cell">{{ bus.legal_name }}</td>
-                <td class="address-cell">{{ truncate(fullAddress(bus.address), 80) }}</td>
+                <td class="address-cell">{{ truncate(fullAddress(bus.address), 60) }}</td>
                 <td class="status-cell">
                   <StatusChip :status="bus.status" />
                 </td>

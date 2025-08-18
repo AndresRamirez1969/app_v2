@@ -59,7 +59,7 @@ const fullAddress = computed(() => {
 onMounted(async () => {
   try {
     const res = await axiosInstance.get(`/businesses/${businessId}`);
-    const data = res.data;
+    const data = res.data.business || res.data; // <-- Aquí accedemos correctamente
 
     form.legal_name = data.legal_name || '';
     form.alias = data.alias || '';

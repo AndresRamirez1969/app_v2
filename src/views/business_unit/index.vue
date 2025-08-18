@@ -26,7 +26,6 @@ function hasPermission(permission) {
   return auth.user?.permissions?.includes(permission);
 }
 
-// INTEGRACIÓN: roles ahora son array de strings
 onMounted(async () => {
   if (auth.user?.roles?.includes('superadmin') || auth.user?.roles?.includes('admin') || hasPermission('businessUnit.viewAny')) {
     canView.value = true;
@@ -35,9 +34,8 @@ onMounted(async () => {
     try {
       isLoading.value = true;
       const { data } = await axios.get('/business-units');
-      business_units.value = data.data; // <-- SOLO EL ARRAY
-      filteredBusinessUnits.value = data.data; // <-- SOLO EL ARRAY
-      console.log('Business units cargados:', filteredBusinessUnits.value);
+      business_units.value = data.data;
+      filteredBusinessUnits.value = data.data;
     } catch (error) {
       console.error('Error fetching business units:', error);
     } finally {
@@ -55,9 +53,37 @@ const goToCreate = () => {
   router.push('/ubicaciones/crear');
 };
 
-function handleSearch(text) {
+async function handleSearch(text) {
   searchText.value = text;
-  applyFilters();
+  try {
+    isLoading.value = true;
+    const params = {};
+    if (text) {
+      params.search = text;
+    }
+    if (filterOptions.value.organizationId) {
+      params.organization_id = filterOptions.value.organizationId;
+    }
+    if (filterOptions.value.businessId) {
+      params.business_id = filterOptions.value.businessId;
+    }
+    if (filterOptions.value.createdAtStart) {
+      params.created_at_start = filterOptions.value.createdAtStart;
+    }
+    if (filterOptions.value.createdAtEnd) {
+      params.created_at_end = filterOptions.value.createdAtEnd;
+    }
+    if (filterOptions.value.status) {
+      params.status = filterOptions.value.status;
+    }
+    const { data } = await axios.get('/business-units', { params });
+    filteredBusinessUnits.value = data.data;
+  } catch (error) {
+    filteredBusinessUnits.value = [];
+    console.error('Error searching business units:', error);
+  } finally {
+    isLoading.value = false;
+  }
 }
 
 async function handleFilter(filters) {
@@ -72,47 +98,29 @@ async function handleFilter(filters) {
       params.business_id = filters.businessId;
       delete params.businessId;
     }
+    if (filters.createdAtStart) {
+      params.created_at_start = filters.createdAtStart;
+      delete params.createdAtStart;
+    }
+    if (filters.createdAtEnd) {
+      params.created_at_end = filters.createdAtEnd;
+      delete params.createdAtEnd;
+    }
+    if (filters.status) {
+      params.status = filters.status;
+    }
+    if (searchText.value) {
+      params.search = searchText.value;
+    }
+    isLoading.value = true;
     const { data } = await axios.get('/business-units', { params });
-    filteredBusinessUnits.value = data.data; // <-- SOLO EL ARRAY
-    console.log('Business units filtrados:', filteredBusinessUnits.value);
+    filteredBusinessUnits.value = data.data;
   } catch (error) {
     console.error('Error fetching filtered business units:', error);
     filteredBusinessUnits.value = [];
+  } finally {
+    isLoading.value = false;
   }
-}
-
-function applyFilters() {
-  let result = business_units.value;
-
-  if (searchText.value) {
-    const q = searchText.value.toLowerCase();
-    result = result.filter(
-      (uni) =>
-        (uni.legal_name && uni.legal_name.toLowerCase().includes(q)) ||
-        (uni.alias && uni.alias.toLowerCase().includes(q)) ||
-        (uni.folio && String(uni.folio).toLowerCase().includes(q)) ||
-        (uni.address && Object.values(uni.address).join(' ').toLowerCase().includes(q))
-    );
-  }
-
-  if (filterOptions.value.status) {
-    result = result.filter((uni) => uni.status === filterOptions.value.status);
-  }
-  if (filterOptions.value.createdAt) {
-    result = result.filter((uni) => uni.created_at && uni.created_at >= filterOptions.value.createdAt);
-  }
-  if (filterOptions.value.updatedAt) {
-    result = result.filter((uni) => uni.updated_at && uni.updated_at >= filterOptions.value.updatedAt);
-  }
-  if (filterOptions.value.organizationId) {
-    result = result.filter((uni) => String(uni.organization_id) === String(filterOptions.value.organizationId));
-  }
-  if (filterOptions.value.businessId) {
-    result = result.filter((uni) => String(uni.business_id) === String(filterOptions.value.businessId));
-  }
-
-  filteredBusinessUnits.value = result;
-  console.log('Business units después de aplicar filtros:', filteredBusinessUnits.value);
 }
 </script>
 
@@ -152,3 +160,5 @@ function applyFilters() {
     </v-container>
   </div>
 </template>
+
+<style scoped src="@/styles/business_unit.css"></style>

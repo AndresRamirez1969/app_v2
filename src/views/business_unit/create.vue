@@ -10,7 +10,6 @@ import { timezones } from '@/utils/constants/timezones';
 const auth = useAuthStore();
 const router = useRouter();
 
-const Regform = ref(null);
 const parsedAddress = ref({});
 const logoPreview = ref(null);
 const errorMsg = ref('');
@@ -36,24 +35,6 @@ const businesses = ref([]);
 const selectedBusiness = ref(null);
 const businessSearch = ref('');
 const loadingBusinesses = ref(false);
-
-// Errores de validación por campo
-const fieldErrors = reactive({
-  legal_name: '',
-  timezone: '',
-  address: '',
-  logo: '',
-  business: ''
-});
-
-// Referencias a los campos para poder hacer scroll
-const fieldRefs = {
-  legal_name: ref(null),
-  timezone: ref(null),
-  address: ref(null),
-  logo: ref(null),
-  business: ref(null)
-};
 
 onMounted(async () => {
   canCreate.value = isAdmin.value || isSuperadmin.value || user.value?.permissions?.includes('businessUnit.create');
@@ -85,125 +66,6 @@ const form = reactive({
     phone_number: ''
   }
 });
-
-// Función para limpiar errores de un campo específico
-const clearFieldError = (fieldName) => {
-  if (fieldErrors[fieldName]) {
-    fieldErrors[fieldName] = '';
-  }
-};
-
-// Función para hacer scroll hacia un campo específico
-const scrollToField = async (fieldName) => {
-  await nextTick();
-
-  const fieldRef = fieldRefs[fieldName];
-  if (fieldRef && fieldRef.value) {
-    const element = fieldRef.value.$el || fieldRef.value;
-
-    // Hacer scroll suave hacia el elemento
-    element.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-      inline: 'nearest'
-    });
-
-    // Enfocar el campo si es posible
-    if (element.focus) {
-      element.focus();
-    } else if (element.$el && element.$el.focus) {
-      element.$el.focus();
-    }
-  }
-};
-
-// Función para validar un campo específico
-const validateField = (fieldName, value) => {
-  clearFieldError(fieldName);
-
-  switch (fieldName) {
-    case 'legal_name':
-      if (!value) {
-        fieldErrors.legal_name = 'El nombre legal es obligatorio';
-        return false;
-      }
-      break;
-
-    case 'timezone':
-      if (!value) {
-        fieldErrors.timezone = 'La zona horaria es obligatoria';
-        return false;
-      }
-      break;
-
-    case 'address':
-      if (!parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
-        fieldErrors.address = 'La dirección es obligatoria';
-        return false;
-      }
-      break;
-
-    case 'business':
-      if ((isSuperadmin.value || canSelectBusiness.value) && !value) {
-        fieldErrors.business = 'La empresa es obligatoria';
-        return false;
-      }
-      break;
-
-    case 'logo':
-      // El logo es opcional, no necesita validación
-      break;
-  }
-
-  return true;
-};
-
-// Función para validar todos los campos y hacer scroll al primero con error
-const validateAllFields = async () => {
-  let isValid = true;
-  let firstErrorField = null;
-
-  // Validar nombre legal
-  if (!validateField('legal_name', form.legal_name)) {
-    isValid = false;
-    if (!firstErrorField) firstErrorField = 'legal_name';
-  }
-
-  // Validar zona horaria
-  if (!validateField('timezone', form.timezone)) {
-    isValid = false;
-    if (!firstErrorField) firstErrorField = 'timezone';
-  }
-
-  // Validar dirección
-  if (!validateField('address', parsedAddress.value)) {
-    isValid = false;
-    if (!firstErrorField) firstErrorField = 'address';
-  }
-
-  // Validar organización (solo para superadmin)
-  if (isSuperadmin.value) {
-    if (!validateField('organization', selectedOrganization.value)) {
-      isValid = false;
-      if (!firstErrorField) firstErrorField = 'organization';
-    }
-  }
-
-  // Validar business (para superadmin, admin, sponsor, businessUnit.create)
-  if (isSuperadmin.value || canSelectBusiness.value) {
-    if (!validateField('business', selectedBusiness.value)) {
-      isValid = false;
-      if (!firstErrorField) firstErrorField = 'business';
-    }
-  }
-
-  // Si hay errores, hacer scroll al primer campo con error
-  if (!isValid && firstErrorField) {
-    await scrollToField(firstErrorField);
-  }
-
-  return isValid;
-};
 
 watch(
   () => form.logo,
@@ -245,7 +107,6 @@ watch(organizationSearch, (val) => {
 
 watch(selectedOrganization, async (orgId) => {
   selectedBusiness.value = null;
-  clearFieldError('organization');
   if (orgId) await fetchBusinesses('', orgId);
 });
 
@@ -281,21 +142,25 @@ watch(businessSearch, (val) => {
 
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
-  // Limpiar error de dirección cuando se selecciona una
-  if (val && Object.keys(val).length > 0) {
-    clearFieldError('address');
-  }
 };
 
 const isLoading = ref(false);
 
 const validate = async () => {
-  // Limpiar mensaje de error general
   errorMsg.value = '';
 
-  // Validar todos los campos
-  if (!(await validateAllFields())) {
-    return; // No continuar si hay errores de validación
+  // Validación mínima antes de enviar al backend
+  if (!form.legal_name || !form.timezone || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
+    errorMsg.value = 'Completa los campos obligatorios.';
+    return;
+  }
+  if (isSuperadmin.value && !selectedOrganization.value) {
+    errorMsg.value = 'Selecciona una organización.';
+    return;
+  }
+  if ((isSuperadmin.value || canSelectBusiness.value) && !selectedBusiness.value) {
+    errorMsg.value = 'Selecciona una empresa.';
+    return;
   }
 
   isLoading.value = true;
@@ -307,19 +172,12 @@ const validate = async () => {
     formData.append('description', form.description || '');
     formData.append('timezone', form.timezone || '');
 
-    // Validación de organización para superadmin
     let organization_id = null;
     if (isSuperadmin.value) {
-      if (!selectedOrganization.value) {
-        errorMsg.value = 'Selecciona una organización.';
-        return;
-      }
       organization_id = selectedOrganization.value;
     } else if (canSelectBusiness.value) {
       organization_id = user.value.organization_id;
     }
-
-    // Validación de business para superadmin, admin, sponsor, businessUnit.create
     let business_id = null;
     if ((isSuperadmin.value || canSelectBusiness.value) && selectedBusiness.value) {
       business_id = selectedBusiness.value;
@@ -348,10 +206,8 @@ const validate = async () => {
       formData.append('logo', logoFile);
     }
 
-    // Crear unidad de negocio
     const res = await axiosInstance.post('/business-units', formData);
 
-    // Obtener el ID del business unit creado de forma robusta
     const newId = res?.data?.id || res?.data?.business_unit?.id || res?.data?.data?.id;
 
     if (newId) {
@@ -362,57 +218,7 @@ const validate = async () => {
       errorMsg.value = 'No se pudo obtener el ID de la ubicación creada.';
     }
   } catch (err) {
-    if (err?.response?.data?.errors) {
-      // Mapear errores del servidor a campos específicos
-      const serverErrors = err.response.data.errors;
-      let firstServerErrorField = null;
-
-      if (serverErrors.legal_name) {
-        fieldErrors.legal_name = serverErrors.legal_name[0];
-        if (!firstServerErrorField) firstServerErrorField = 'legal_name';
-      }
-      if (serverErrors.timezone) {
-        fieldErrors.timezone = serverErrors.timezone[0];
-        if (!firstServerErrorField) firstServerErrorField = 'timezone';
-      }
-      if (serverErrors.address) {
-        fieldErrors.address = serverErrors.address[0];
-        if (!firstServerErrorField) firstServerErrorField = 'address';
-      }
-      if (serverErrors.logo) {
-        fieldErrors.logo = serverErrors.logo[0];
-        if (!firstServerErrorField) firstServerErrorField = 'logo';
-      }
-      if (serverErrors.organization_id) {
-        fieldErrors.organization = serverErrors.organization_id[0];
-        if (!firstServerErrorField) firstServerErrorField = 'organization';
-      }
-      if (serverErrors.business_id) {
-        fieldErrors.business = serverErrors.business_id[0];
-        if (!firstServerErrorField) firstServerErrorField = 'business';
-      }
-
-      // Si hay errores del servidor, hacer scroll al primer campo con error
-      if (firstServerErrorField) {
-        await scrollToField(firstServerErrorField);
-      }
-
-      // Si hay errores que no se pueden mapear, mostrarlos en el mensaje general
-      const unmappedErrors = Object.keys(serverErrors).filter(
-        (key) => !['legal_name', 'timezone', 'address', 'logo', 'organization_id', 'business_id'].includes(key)
-      );
-
-      if (unmappedErrors.length > 0) {
-        errorMsg.value = unmappedErrors
-          .map((key) => serverErrors[key])
-          .flat()
-          .join(' ');
-      }
-    } else if (err?.response?.data?.message) {
-      errorMsg.value = err.response.data.message;
-    } else {
-      errorMsg.value = 'Error al crear la ubicación';
-    }
+    errorMsg.value = err?.response?.data?.message || 'Error al crear la ubicación';
     console.error('❌ Error al crear la ubicación:', err);
   } finally {
     isLoading.value = false;
@@ -423,7 +229,6 @@ const validate = async () => {
 <template>
   <div v-if="canCreate">
     <v-container fluid>
-      <!-- Header -->
       <v-row class="align-center mb-6" no-gutters>
         <v-col cols="auto" class="d-flex align-center">
           <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
@@ -433,8 +238,7 @@ const validate = async () => {
         </v-col>
       </v-row>
 
-      <v-form ref="Regform" lazy-validation class="mb-10">
-        <!-- Info General -->
+      <v-form class="mb-10">
         <v-row>
           <v-col cols="12">
             <h4 class="font-weight-bold mb-3">Información General</h4>
@@ -465,7 +269,6 @@ const validate = async () => {
           <v-col cols="12" md="6">
             <v-label>Logo</v-label>
             <v-file-input
-              ref="fieldRefs.logo"
               v-model="form.logo"
               variant="outlined"
               color="primary"
@@ -474,15 +277,11 @@ const validate = async () => {
               density="compact"
               show-size
               :multiple="false"
-              :error-messages="fieldErrors.logo"
-              @update:model-value="clearFieldError('logo')"
             />
 
-            <!-- Select de organización SOLO para superadmin -->
             <template v-if="isSuperadmin">
               <v-label>Organización <span class="text-error">*</span></v-label>
               <v-autocomplete
-                ref="fieldRefs.organization"
                 v-model="selectedOrganization"
                 :items="organizations"
                 :loading="loadingOrganizations"
@@ -497,17 +296,13 @@ const validate = async () => {
                 clearable
                 hide-details
                 :menu-props="{ maxHeight: '300px' }"
-                :error-messages="fieldErrors.organization"
-                @update:model-value="clearFieldError('organization')"
               />
               <div style="height: 16px"></div>
             </template>
 
-            <!-- Select de empresa SOLO para superadmin, admin, sponsor, businessUnit.create -->
             <template v-if="selectedOrganization && (isSuperadmin || canSelectBusiness)">
               <v-label>Empresa <span class="text-error">*</span></v-label>
               <v-autocomplete
-                ref="fieldRefs.business"
                 v-model="selectedBusiness"
                 :items="businesses"
                 :loading="loadingBusinesses"
@@ -522,23 +317,12 @@ const validate = async () => {
                 clearable
                 hide-details
                 :menu-props="{ maxHeight: '300px' }"
-                :error-messages="fieldErrors.business"
-                @update:model-value="clearFieldError('business')"
               />
               <div style="height: 16px"></div>
             </template>
 
             <v-label>Nombre Legal <span class="text-error">*</span></v-label>
-            <v-text-field
-              ref="fieldRefs.legal_name"
-              v-model="form.legal_name"
-              variant="outlined"
-              color="primary"
-              class="mt-2 mb-4"
-              required
-              :error-messages="fieldErrors.legal_name"
-              @update:model-value="clearFieldError('legal_name')"
-            />
+            <v-text-field v-model="form.legal_name" variant="outlined" color="primary" class="mt-2 mb-4" required />
 
             <v-label>Alias</v-label>
             <v-text-field v-model="form.alias" variant="outlined" color="primary" class="mt-2 mb-4" />
@@ -548,7 +332,6 @@ const validate = async () => {
 
             <v-label>Zona Horaria <span class="text-error">*</span></v-label>
             <v-autocomplete
-              ref="fieldRefs.timezone"
               v-model="form.timezone"
               :items="timezones.map((tz) => ({ label: tz, value: tz }))"
               v-model:search-input="timezoneSearch"
@@ -563,30 +346,15 @@ const validate = async () => {
               hide-details
               :menu-props="{ maxHeight: '300px' }"
               required
-              :error-messages="fieldErrors.timezone"
-              @update:model-value="clearFieldError('timezone')"
             />
           </v-col>
 
-          <!-- Dirección -->
           <v-col cols="12" class="mt-4">
             <v-label>Dirección <span class="text-error">*</span></v-label>
             <AddressAutocomplete class="mt-2" @update:parsedAddress="handleParsedAddress" />
-            <v-text-field
-              ref="fieldRefs.address"
-              v-if="fieldErrors.address"
-              :model-value="''"
-              variant="outlined"
-              color="error"
-              class="mt-2"
-              :error-messages="fieldErrors.address"
-              readonly
-              hide-details
-            />
           </v-col>
         </v-row>
 
-        <!-- Contacto -->
         <v-row class="mt-10">
           <v-col cols="12">
             <h4 class="font-weight-bold mb-3">Contacto</h4>
@@ -614,7 +382,6 @@ const validate = async () => {
           </v-col>
         </v-row>
 
-        <!-- Botón -->
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
             <v-btn color="primary" class="mt-6" :loading="isLoading" :disabled="isLoading" @click="validate">
@@ -626,7 +393,6 @@ const validate = async () => {
           </v-col>
         </v-row>
 
-        <!-- Mensaje de error general (solo para errores no mapeables) -->
         <v-alert
           v-if="errorMsg"
           type="error"
@@ -641,3 +407,5 @@ const validate = async () => {
     </v-container>
   </div>
 </template>
+
+<style scoped src="@/styles/business_unit.css"></style>

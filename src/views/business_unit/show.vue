@@ -284,14 +284,12 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <!-- Espacio entre cards en mobile -->
     <v-row v-if="mdAndDown">
       <v-col cols="12">
         <div style="height: 24px"></div>
       </v-col>
     </v-row>
 
-    <!-- Contacto -->
     <v-row>
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Contacto</div>
@@ -330,8 +328,8 @@ onMounted(async () => {
           <v-table class="rounded-lg elevation-1">
             <thead>
               <tr>
-                <th class="font-weight-bold text-subtitle-1" style="width: 10%">Nombre</th>
-                <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 15%">Nombre</th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 5%"></th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 20%">Correo</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 25%">Teléfono</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 15%"></th>
@@ -366,14 +364,12 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <!-- Espacio entre contacto y usuarios en mobile y desktop -->
     <v-row>
       <v-col cols="12">
         <div style="height: 32px"></div>
       </v-col>
     </v-row>
 
-    <!-- Tabla de Usuarios relacionados SOLO para superadmin o admin y SOLO en desktop -->
     <v-row v-if="showUserTable">
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Usuarios</div>

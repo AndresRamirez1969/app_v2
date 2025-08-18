@@ -136,30 +136,19 @@ const formatAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
-const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
+const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 onMounted(async () => {
   try {
     const id = route.params.id;
     const res = await axiosInstance.get(`/organizations/${id}`);
-    organization.value = res.data.organization || res.data.data || res.data;
-
-    // Obtener todos los negocios y filtrar por organization_id
-    const busRes = await axiosInstance.get(`/businesses`);
-    const allBusinesses = Array.isArray(busRes.data) ? busRes.data : busRes.data.businesses || busRes.data.data || [];
-    businesses.value = allBusinesses.filter((b) => String(b.organization_id) === String(organization.value.id));
-
-    // Obtener todas las business_units y filtrar por organization_id (de la columna organization_id)
-    const unitRes = await axiosInstance.get(`/business-units`);
-    const allUnits = Array.isArray(unitRes.data) ? unitRes.data : unitRes.data.business_units || unitRes.data.data || [];
-    businessUnits.value = allUnits.filter((u) => String(u.organization_id) === String(organization.value.id));
-
-    // Obtener todos los usuarios y filtrar por organization_id
-    const userRes = await axiosInstance.get(`/users`);
-    const allUsers = Array.isArray(userRes.data) ? userRes.data : userRes.data.users || userRes.data.data || [];
-    users.value = allUsers.filter((u) => String(u.organization_id) === String(organization.value.id));
+    const org = res.data.organization || res.data.data || res.data;
+    organization.value = org;
+    businesses.value = org.businesses || [];
+    businessUnits.value = org.business_units || [];
+    users.value = org.users || [];
   } catch (err) {
-    console.error('Error al obtener la organización, negocios, unidades o usuarios:', err);
+    console.error('Error al obtener la organización:', err);
   }
 });
 </script>
@@ -178,14 +167,14 @@ onMounted(async () => {
           >
             <v-icon :icon="mdiArrowLeft" />
           </v-btn>
-          <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="organization">
-            {{ organization.folio ? `${organization.folio}` : '' }}
-            {{ organization.legal_name ? `- ${organization.legal_name}` : '- Organización' }}
-          </h3>
-          <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="organization">
-            {{ organization.folio ? `${organization.folio}` : '' }}
-          </h3>
         </template>
+        <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="organization">
+          {{ organization.folio ? `${organization.folio}` : '' }}
+          {{ organization.legal_name ? `- ${organization.legal_name}` : '- Organización' }}
+        </h3>
+        <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="organization">
+          {{ organization.folio ? `${organization.folio}` : '' }}
+        </h3>
       </v-col>
       <v-col class="d-flex justify-end align-center">
         <template v-if="canEdit">
@@ -329,7 +318,6 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <!-- Espacio entre cards en mobile -->
     <v-row v-if="mdAndDown">
       <v-col cols="12">
         <div style="height: 24px"></div>
@@ -409,14 +397,12 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <!-- Espacio entre contacto y negocios en mobile y desktop -->
     <v-row>
       <v-col cols="12">
         <div style="height: 32px"></div>
       </v-col>
     </v-row>
 
-    <!-- Negocios relacionados SOLO para superadmin o admin y SOLO en desktop -->
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Empresas</div>
@@ -458,7 +444,7 @@ onMounted(async () => {
                 </div>
               </td>
               <td class="legal-cell">{{ business.legal_name || 'No disponible' }}</td>
-              <td class="address-cell">{{ business.address ? truncate(formatAddress(business.address), 80) : 'No disponible' }}</td>
+              <td class="address-cell">{{ business.address ? truncate(formatAddress(business.address), 60) : 'No disponible' }}</td>
               <td></td>
               <td class="status-cell">
                 <StatusChip :status="business.status" v-if="business.status" />
@@ -509,14 +495,12 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <!-- Espacio entre tablas -->
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div style="height: 32px"></div>
       </v-col>
     </v-row>
 
-    <!-- Tabla de Business Units SOLO para superadmin o admin y SOLO en desktop -->
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Ubicaciones</div>
@@ -558,7 +542,7 @@ onMounted(async () => {
                 </div>
               </td>
               <td class="legal-cell">{{ unit.legal_name || 'No disponible' }}</td>
-              <td class="address-cell">{{ unit.address ? truncate(formatAddress(unit.address), 80) : 'No disponible' }}</td>
+              <td class="address-cell">{{ unit.address ? truncate(formatAddress(unit.address), 60) : 'No disponible' }}</td>
               <td></td>
               <td class="status-cell">
                 <StatusChip :status="unit.status" v-if="unit.status" />
@@ -606,14 +590,12 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <!-- Espacio entre tablas -->
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div style="height: 32px"></div>
       </v-col>
     </v-row>
 
-    <!-- Tabla de Usuarios relacionados SOLO para superadmin o admin y SOLO en desktop -->
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Usuarios</div>

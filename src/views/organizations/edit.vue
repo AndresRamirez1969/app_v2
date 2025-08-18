@@ -69,6 +69,7 @@ const fullAddress = computed(() => {
 onMounted(async () => {
   try {
     const res = await axiosInstance.get(`/organizations/${organizationId}`);
+    // INTEGRACIÓN: toda la info viene del backend en una sola petición
     const data = res.data.organization || res.data.data || res.data;
 
     form.legal_name = data.legal_name || '';
