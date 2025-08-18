@@ -46,6 +46,7 @@ const frequency = ref('');
 const businessUnitId = ref('');
 const businessId = ref('');
 const scope = ref('');
+const hasRating = ref(false);
 const businesses = ref([]);
 const businessUnits = ref([]);
 const groups = ref([]);
@@ -354,6 +355,8 @@ const validate = async () => {
 
     formData.append('frequency', frequency.value);
     formData.append('assignment_scope', scope.value);
+    formData.append('has_rating', hasRating.value ? '1' : '0');
+    console.log(hasRating.value);
     if (logo.value && !sameLogo.value) {
       formData.append('logo', logo.value);
     }
@@ -440,6 +443,7 @@ const validate = async () => {
                 />
               </div>
             </v-col>
+            <v-switch v-model="hasRating" label="Preguntas con ponderación?" color="primary" class="mt-2" />
           </v-row>
 
           <!-- Supervisor -->

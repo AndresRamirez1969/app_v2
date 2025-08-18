@@ -309,7 +309,7 @@ onMounted(async () => {
                   </td>
                 </tr>
                 <tr>
-                  <td class="font-weight-bold text-subtitle-1">Email</td>
+                  <td class="font-weight-bold text-subtitle-1">Correo</td>
                   <td>
                     <span v-if="businessUnit?.person?.email">{{ businessUnit.person.email }}</span>
                     <span v-else>No disponible</span>
@@ -332,7 +332,7 @@ onMounted(async () => {
               <tr>
                 <th class="font-weight-bold text-subtitle-1" style="width: 10%">Nombre</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
-                <th class="font-weight-bold text-subtitle-1" style="width: 20%">Email</th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 20%">Correo</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 25%">Teléfono</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 15%"></th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
@@ -383,7 +383,7 @@ onMounted(async () => {
               <th class="font-weight-bold text-subtitle-1" style="width: 10%">ID</th>
               <th class="font-weight-bold text-subtitle-1" style="width: 10%">Foto</th>
               <th class="font-weight-bold text-subtitle-1" style="width: 20%">Nombre</th>
-              <th class="font-weight-bold text-subtitle-1" style="width: 25%">Email</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 25%">Correo</th>
               <th class="font-weight-bold text-subtitle-1" style="width: 15%">Rol</th>
               <th class="font-weight-bold text-subtitle-1" style="width: 10%">Estatus</th>
               <th class="font-weight-bold text-subtitle-1 actions-header" style="width: 10%"></th>

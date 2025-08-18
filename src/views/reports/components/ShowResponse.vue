@@ -4,6 +4,8 @@ import axiosInstance from '@/utils/axios';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import { mdiDownload, mdiRefresh, mdiArrowLeft, mdiMagnify } from '@mdi/js';
+import { DATE_FILTER_OPTIONS, getDateRange, formatDateForAPI } from '@/constants/constants';
+import { formatDateForUI } from '@/constants/constants';
 
 const route = useRoute();
 const router = useRouter();
@@ -23,20 +25,38 @@ const goBack = () => {
 
 // Filtros
 const filters = ref({
-  dateRange: 'all', // 'all', 'today', 'week', 'month', 'custom'
+  dateRange: 'all',
   startDate: null,
   endDate: null,
   search: ''
 });
 
-// Opciones de filtro por fecha
-const dateFilterOptions = [
-  { title: 'Todas las fechas', value: 'all' },
-  { title: 'Hoy', value: 'today' },
-  { title: 'Esta semana', value: 'week' },
-  { title: 'Este mes', value: 'month' },
-  { title: 'Personalizado', value: 'custom' }
-];
+const dateFilterOptions = ref(DATE_FILTER_OPTIONS);
+
+// Función helper para generar parámetros de filtro
+const getFilterParams = (includePagination = true) => {
+  const params = {
+    search: filters.value.search
+  };
+
+  // Agregar paginación solo si se necesita
+  if (includePagination) {
+    params.page = currentPage.value;
+    params.per_page = itemsPerPage.value;
+  }
+
+  // Agregar filtros de fecha
+  if (filters.value.dateRange !== 'all') {
+    const { start, end, hasValidDates } = getDateRange(filters.value.dateRange, filters.value.startDate, filters.value.endDate);
+
+    if (hasValidDates) {
+      params.start_date = formatDateForAPI(start);
+      params.end_date = formatDateForAPI(end);
+    }
+  }
+
+  return params;
+};
 
 const getReports = async () => {
   isLoading.value = true;
@@ -45,43 +65,14 @@ const getReports = async () => {
     const formRes = await axiosInstance.get(`/forms/${formId}`);
     form.value = formRes.data;
 
-    // Obtener respuestas con filtros y paginación
-    const params = {
-      page: currentPage.value,
-      per_page: itemsPerPage.value,
-      search: filters.value.search
-    };
+    // Usar la función helper
+    const params = getFilterParams(true);
 
-    // Agregar filtros de fecha
-    if (filters.value.dateRange !== 'all') {
-      const now = new Date();
-      let startDate = new Date();
-
-      switch (filters.value.dateRange) {
-        case 'today':
-          startDate.setHours(0, 0, 0, 0);
-          break;
-        case 'week':
-          startDate.setDate(now.getDate() - 7);
-          break;
-        case 'month':
-          startDate.setMonth(now.getMonth() - 1);
-          break;
-        case 'custom':
-          if (filters.value.startDate && filters.value.endDate) {
-            params.start_date = filters.value.startDate;
-            params.end_date = filters.value.endDate;
-          }
-          break;
-      }
-
-      if (filters.value.dateRange !== 'custom') {
-        params.start_date = startDate.toISOString().split('T')[0];
-        params.end_date = now.toISOString().split('T')[0];
-      }
-    }
+    console.log('Params being sent:', params);
 
     const responsesRes = await axiosInstance.get(`/forms/${formId}/responses`, { params });
+    console.log('API response:', responsesRes.data);
+
     responses.value = responsesRes.data.responses.data;
     totalResponses.value = responsesRes.data.responses.total;
   } catch (err) {
@@ -94,11 +85,35 @@ const getReports = async () => {
 
 const exportExcel = async () => {
   try {
-    const response = await axiosInstance.get(`/forms/${formId}/export-excel`);
+    // Usar la función helper sin paginación
+    const exportParams = getFilterParams(false);
+
+    console.log('Export params:', exportParams);
+
+    const response = await axiosInstance.get(`/forms/${formId}/export-excel`, {
+      params: exportParams
+    });
+
     if (response.data.download_url) {
       window.open(response.data.download_url, '_blank', 'noopener noreferrer');
+
+      // Mostrar mensaje informativo sobre los filtros aplicados
+      let filterMessage = 'Reporte exportado correctamente';
+      if (filters.value.dateRange !== 'all') {
+        const dateLabels = {
+          today: 'hoy',
+          week: 'esta semana',
+          month: 'este mes',
+          custom: 'fechas personalizadas'
+        };
+        filterMessage += ` (filtrado por ${dateLabels[filters.value.dateRange]})`;
+      }
+      if (filters.value.search) {
+        filterMessage += ` (búsqueda: "${filters.value.search}")`;
+      }
+
+      toast.success(filterMessage);
     }
-    toast.success('Reporte exportado correctamente');
   } catch (err) {
     console.error('Error exporting responses:', err);
     toast.error('Error al exportar el reporte');
@@ -134,17 +149,6 @@ const viewUserResponse = (response) => {
       responseId: response.id,
       userId: response.user.id
     }
-  });
-};
-
-const formatDate = (dateString) => {
-  if (!dateString) return '—';
-  return new Date(dateString).toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
   });
 };
 
@@ -190,7 +194,7 @@ onMounted(() => {
             </div>
             <div class="d-flex gap-2">
               <v-btn color="primary" variant="outlined" @click="exportExcel" :loading="isLoading" :prepend-icon="mdiDownload">
-                Exportar Todos (Excel)
+                {{ filters.dateRange === 'all' && !filters.search ? 'Exportar Todos (Excel)' : 'Exportar Filtrados (Excel)' }}
               </v-btn>
               <v-btn color="secondary" variant="outlined" @click="getReports" :loading="isLoading" :prepend-icon="mdiRefresh">
                 Actualizar
@@ -201,69 +205,66 @@ onMounted(() => {
       </v-col>
     </v-row>
 
-    <!-- Filtros -->
-    <v-row class="mb-4">
-      <v-col cols="12">
-        <v-card>
-          <v-card-title>Filtros</v-card-title>
-          <v-card-text>
-            <v-row>
-              <v-col cols="12" md="3">
-                <v-select
-                  v-model="filters.dateRange"
-                  :items="dateFilterOptions"
-                  label="Rango de fechas"
-                  variant="outlined"
-                  density="comfortable"
-                  @update:model-value="handleFilterChange"
-                />
-              </v-col>
-              <v-col cols="12" md="3" v-if="filters.dateRange === 'custom'">
-                <v-text-field
-                  v-model="filters.startDate"
-                  type="date"
-                  label="Fecha inicial"
-                  variant="outlined"
-                  density="comfortable"
-                  @update:model-value="handleFilterChange"
-                />
-              </v-col>
-              <v-col cols="12" md="3" v-if="filters.dateRange === 'custom'">
-                <v-text-field
-                  v-model="filters.endDate"
-                  type="date"
-                  label="Fecha final"
-                  variant="outlined"
-                  density="comfortable"
-                  @update:model-value="handleFilterChange"
-                />
-              </v-col>
-              <v-col cols="12" md="3">
-                <v-text-field
-                  v-model="filters.search"
-                  label="Buscar por usuario"
-                  variant="outlined"
-                  density="comfortable"
-                  :prepend-inner-icon="mdiMagnify"
-                  @keyup.enter="handleFilterChange"
-                  @update:model-value="handleFilterChange"
-                />
-              </v-col>
-            </v-row>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Tabla de respuestas -->
+    <!-- Card consolidado con filtros y tabla -->
     <v-row>
       <v-col cols="12">
         <v-card>
           <v-card-title>
             Respuestas de Usuarios
             <v-spacer />
-            <v-chip color="primary" size="small"> Página {{ currentPage }} de {{ totalPages }} </v-chip>
           </v-card-title>
+
+          <!-- Filtros dentro del mismo card -->
+          <v-card-text class="pb-0">
+            <v-row>
+              <v-col cols="12">
+                <v-text-field
+                  v-model="filters.search"
+                  label="Buscar por usuario"
+                  variant="outlined"
+                  density="compact"
+                  :prepend-inner-icon="mdiMagnify"
+                  @keyup.enter="handleFilterChange"
+                  @update:model-value="handleFilterChange"
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-select
+                  v-model="filters.dateRange"
+                  :items="dateFilterOptions"
+                  label="Rango de fechas"
+                  variant="outlined"
+                  density="compact"
+                  @update:model-value="handleFilterChange"
+                />
+              </v-col>
+              <v-col cols="12" md="6" v-if="filters.dateRange === 'custom'">
+                <v-text-field
+                  v-model="filters.startDate"
+                  type="date"
+                  label="Fecha inicial"
+                  variant="outlined"
+                  density="compact"
+                  @update:model-value="handleFilterChange"
+                />
+              </v-col>
+              <v-col cols="12" md="6" v-if="filters.dateRange === 'custom'">
+                <v-text-field
+                  v-model="filters.endDate"
+                  type="date"
+                  label="Fecha final"
+                  variant="outlined"
+                  density="compact"
+                  @update:model-value="handleFilterChange"
+                />
+              </v-col>
+            </v-row>
+          </v-card-text>
+
+          <!-- Divider para separar filtros de contenido -->
+          <v-divider class="mx-4" />
+
+          <!-- Contenido de la tabla -->
           <v-card-text>
             <div v-if="isLoading" class="text-center py-8">
               <v-progress-circular indeterminate color="primary" size="64" />
@@ -283,17 +284,19 @@ onMounted(() => {
                   <tr>
                     <th>Usuario</th>
                     <th>Fecha de respuesta</th>
-                    <th>Acciones</th>
+                    <th>Puntaje</th>
+                    <th v-if="form.has_rating">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="response in responses" :key="response.id" @click="viewUserResponse(response)" style="cursor: pointer">
                     <td>{{ response.user?.name || 'Usuario desconocido' }}</td>
-                    <td>{{ formatDate(response.submitted_at) }}</td>
+                    <td>{{ formatDateForUI(response.submitted_at) }}</td>
+                    <td v-if="form.has_rating">{{ response?.score || '—' }}</td>
                     <td @click.stop>
                       <div class="d-flex gap-2">
                         <v-btn color="primary" variant="outlined" @click="exportResponse(response.id)"> Exportar PDF </v-btn>
-                        <v-btn color="info" variant="outlined" @click="viewUserResponse(response)"> Ver Respuestas </v-btn>
+                        <v-btn color="info" variant="outlined" @click="viewUserResponse(response.id)"> Ver Respuestas </v-btn>
                       </div>
                     </td>
                   </tr>
