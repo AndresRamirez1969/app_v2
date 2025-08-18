@@ -228,7 +228,7 @@ function clearFilters() {
   <div class="d-flex align-center mb-6" style="gap: 16px">
     <v-text-field
       v-model="search"
-      :placeholder="`Buscar por identificador, nombre, email o rol...`"
+      :placeholder="`Buscar por identificador, nombre, correo o rol...`"
       prepend-inner-icon="mdi-magnify"
       clearable
       class="flex-grow-1 search-bar"

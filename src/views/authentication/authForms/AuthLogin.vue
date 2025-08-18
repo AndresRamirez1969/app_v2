@@ -45,7 +45,7 @@ const login = async () => {
       v-model="email"
       :rules="emailRules"
       label="Correo"
-      placeholder="example@domain.com"
+      placeholder="ejemplo@dominio.com"
       required
       variant="outlined"
       color="primary"

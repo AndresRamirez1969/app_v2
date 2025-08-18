@@ -17,7 +17,6 @@
         <p class="text-body-2 text-grey-darken-1">ID: {{ formId }} | Alcance: {{ getScopeLabel(form?.assignment_scope) }}</p>
       </div>
 
-      <!-- Form Fields List -->
       <div v-if="fields.length > 0" class="mb-6">
         <h4 class="text-h6 mb-4">Campos del Formulario</h4>
         <draggable v-model="fields" item-key="order" handle=".drag-handle" @end="onDragEnd" class="v-list">
@@ -29,10 +28,11 @@
 
               <v-list-item-title class="font-weight-medium">
                 {{ field.label }}
-                <v-chip :color="getFieldTypeColor(field.type)" size="x-small" class="ml-2">
+                <v-chip :color="FIELD_COLOR(field.type)" size="x-small" class="ml-2">
                   {{ getFieldTypeLabel(field.type) }}
                 </v-chip>
                 <v-chip v-if="field.is_required" color="red" size="x-small" class="ml-1"> Requerido </v-chip>
+                <v-chip v-if="field.hasWeight" color="purple" size="x-small" class="ml-1"> {{ field.weight }} pts </v-chip>
               </v-list-item-title>
 
               <v-list-item-subtitle> Orden: {{ field.order }} </v-list-item-subtitle>
@@ -47,13 +47,11 @@
         </draggable>
       </div>
 
-      <!-- Add Field Button -->
       <v-btn color="primary" variant="outlined" @click="showFieldBuilder = true" class="mb-4">
         <v-icon class="mr-2" :icon="mdiPlus"></v-icon>
         Agregar Campo
       </v-btn>
 
-      <!-- Field Builder Dialog -->
       <v-dialog v-model="showFieldBuilder" fullscreen hide-overlay transition="dialog-bottom-transition">
         <v-card>
           <v-toolbar color="primary" dark>
@@ -67,7 +65,6 @@
 
           <v-container fluid class="pa-0">
             <v-row no-gutters class="h-100">
-              <!-- Panel izquierdo - Área de configuración -->
               <v-col cols="12" md="6" class="pa-4 border-right">
                 <div class="d-flex justify-space-between align-center mb-4">
                   <h3 class="text-h5">Configuración de Campos</h3>
@@ -76,7 +73,6 @@
                   </v-btn>
                 </div>
 
-                <!-- Área de drop para campos -->
                 <div
                   ref="dropZone"
                   class="drop-zone pa-4 border rounded-lg"
@@ -90,7 +86,6 @@
                     <p>Arrastra tipos de campos aquí para comenzar</p>
                   </div>
 
-                  <!-- Campos configurados -->
                   <draggable v-model="currentFields" item-key="id" handle=".drag-handle" @end="onCurrentFieldsDragEnd" class="v-list">
                     <template #item="{ element: field, index }">
                       <v-card class="mb-3 pa-3" variant="outlined">
@@ -119,7 +114,6 @@
                 </div>
               </v-col>
 
-              <!-- Panel derecho - Tipos de campos disponibles -->
               <v-col cols="12" md="6" class="pa-4 bg-grey-lighten-5">
                 <h3 class="text-h5 mb-4">Tipos de Campos Disponibles</h3>
 
@@ -132,7 +126,7 @@
                       @dragstart="handleDragStart($event, fieldType)"
                       @click="addFieldType(fieldType)"
                     >
-                      <v-icon :icon="fieldType.icon" size="32" :color="getFieldTypeColor(fieldType.value)" class="mb-2"></v-icon>
+                      <v-icon :icon="fieldType.icon" size="32" :color="FIELD_COLOR(fieldType.value)" class="mb-2"></v-icon>
                       <div class="text-body-2 font-weight-medium">{{ fieldType.label }}</div>
                       <div class="text-caption text-grey-darken-1">{{ fieldType.description }}</div>
                     </v-card>
@@ -144,8 +138,7 @@
         </v-card>
       </v-dialog>
 
-      <!-- Edit Field Dialog -->
-      <v-dialog v-model="showEditDialog" max-width="600px">
+      <v-dialog v-model="showEditDialog" max-width="800px">
         <v-card>
           <v-card-title>Editar Campo</v-card-title>
           <v-card-text>
@@ -159,7 +152,7 @@
                 @keyup.enter="saveEditedField"
               />
 
-              <v-checkbox v-model="editingField.is_required" label="Campo requerido" class="mb-4" />
+              <v-checkbox v-if="!form.has_rating" v-model="editingField.is_required" label="Campo requerido" class="mb-4" />
 
               <div v-if="showOptionsField" class="mb-4">
                 <v-label class="text-body-2 font-weight-medium mb-2">Opciones</v-label>
@@ -181,6 +174,39 @@
                   Agregar Opción
                 </v-btn>
               </div>
+              <v-divider class="my-4"></v-divider>
+
+              <div v-if="form?.has_rating" class="d-flex align-center justify-space-between mb-3">
+                <v-label class="text-body-1 font-weight-medium">Ponderación de Puntos</v-label>
+              </div>
+
+              <v-alert v-if="form?.has_rating" type="info" variant="tonal" class="mb-4" density="compact">
+                Asigna puntos a esta pregunta. El total de todas las preguntas no puede exceder 100 puntos.
+              </v-alert>
+
+              <div v-if="form?.has_rating" class="mb-4">
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="editingField.weight"
+                      label="Puntos de la pregunta"
+                      type="number"
+                      variant="outlined"
+                      density="compact"
+                      :min="1"
+                      :max="maxWeightAvailable"
+                      :hint="`Máximo disponible: ${maxWeightAvailable} puntos`"
+                      persistent-hint
+                      @update:model-value="(value) => (editingField.weight = validateWeight(parseInt(value) || 0))"
+                    />
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-alert type="info" variant="tonal" density="compact">
+                      <strong>Peso total usado:</strong> {{ totalWeightUsed }} / 100 puntos
+                    </v-alert>
+                  </v-col>
+                </v-row>
+              </div>
             </v-form>
           </v-card-text>
           <v-card-actions>
@@ -196,29 +222,9 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import {
-  mdiArrowLeft,
-  mdiDrag,
-  mdiDelete,
-  mdiPlus,
-  mdiClose,
-  mdiPencil,
-  mdiFormTextbox,
-  mdiFormTextarea,
-  mdiFormTextboxPassword,
-  mdiNumeric,
-  mdiCalendar,
-  mdiClock,
-  mdiFormSelect,
-  mdiRadioboxMarked,
-  mdiCheckboxMarkedOutline,
-  mdiFileImage,
-  mdiTuneVariant,
-  mdiToggleSwitch,
-  mdiSignature
-} from '@mdi/js';
+import { mdiArrowLeft, mdiDrag, mdiDelete, mdiPlus, mdiClose, mdiPencil } from '@mdi/js';
 import { useRoute, useRouter } from 'vue-router';
-import { SCOPES } from '@/constants/constants';
+import { SCOPES, AVAILABLE_FIELDS, FIELD_COLOR } from '@/constants/constants';
 import axiosInstance from '@/utils/axios';
 import { useToast } from 'vue-toastification';
 import draggable from 'vuedraggable';
@@ -233,9 +239,9 @@ const showEditDialog = ref(false);
 const saving = ref(false);
 const isDragOver = ref(false);
 const editingFieldIndex = ref(-1);
-
-// Fetch objeto de form desde el backend
 const form = ref(null);
+const currentFields = ref([]);
+const availableFieldTypes = ref(AVAILABLE_FIELDS);
 
 const fetchForm = async () => {
   if (!formId.value) return;
@@ -249,139 +255,20 @@ const fetchForm = async () => {
   }
 };
 
-// Campos actuales en el builder
-const currentFields = ref([]);
-
-// Campo que se está editando
 const editingField = ref({
   label: '',
   type: '',
   is_required: false,
   options: [],
-  order: 0
+  order: 0,
+  hasWeight: false,
+  weight: 0
 });
 
-// Tipos de campos disponibles con previews
-const availableFieldTypes = ref([
-  {
-    label: 'Texto',
-    value: 'text',
-    icon: mdiFormTextbox,
-    description: 'Campo de texto simple',
-    preview: 'v-text-field'
-  },
-  {
-    label: 'Área de texto',
-    value: 'textarea',
-    icon: mdiFormTextarea,
-    description: 'Campo de texto multilínea',
-    preview: 'v-textarea'
-  },
-  {
-    label: 'Email',
-    value: 'email',
-    icon: mdiFormTextbox,
-    description: 'Campo para dirección de email',
-    preview: 'v-text-field'
-  },
-  {
-    label: 'Contraseña',
-    value: 'password',
-    icon: mdiFormTextboxPassword,
-    description: 'Campo para contraseñas',
-    preview: 'v-text-field'
-  },
-  {
-    label: 'Número',
-    value: 'number',
-    icon: mdiNumeric,
-    description: 'Campo numérico',
-    preview: 'v-text-field'
-  },
-  {
-    label: 'Fecha',
-    value: 'date',
-    icon: mdiCalendar,
-    description: 'Selector de fecha',
-    preview: 'v-text-field'
-  },
-  {
-    label: 'Hora',
-    value: 'time',
-    icon: mdiClock,
-    description: 'Selector de hora',
-    preview: 'v-text-field'
-  },
-  {
-    label: 'Selector',
-    value: 'select',
-    icon: mdiFormSelect,
-    description: 'Lista desplegable',
-    preview: 'v-select'
-  },
-  {
-    label: 'Radio',
-    value: 'radio',
-    icon: mdiRadioboxMarked,
-    description: 'Botones de radio',
-    preview: 'v-radio-group'
-  },
-  {
-    label: 'Checkbox',
-    value: 'checkbox',
-    icon: mdiCheckboxMarkedOutline,
-    description: 'Casillas de verificación',
-    preview: 'v-checkbox'
-  },
-  {
-    label: 'Archivo',
-    value: 'file',
-    icon: mdiFileImage,
-    description: 'Subida de archivos',
-    preview: 'v-file-input'
-  },
-  {
-    label: 'Firma',
-    value: 'signature',
-    icon: mdiSignature,
-    description: 'Firma digital',
-    preview: 'ejs-signature'
-  },
-  {
-    label: 'Rango',
-    value: 'range',
-    icon: mdiTuneVariant,
-    description: 'Slider de rango',
-    preview: 'v-slider'
-  },
-  {
-    label: 'Switch',
-    value: 'switch',
-    icon: mdiToggleSwitch,
-    description: 'Interruptor',
-    preview: 'v-switch'
-  },
-  {
-    label: 'URL',
-    value: 'url',
-    description: 'Campo para URL',
-    preview: 'v-text-field'
-  },
-  {
-    label: 'Oculto',
-    value: 'hidden',
-
-    description: 'Campo oculto',
-    preview: 'v-text-field'
-  }
-]);
-
-// Computed properties
 const showOptionsField = computed(() => {
   return ['select', 'radio', 'checkbox'].includes(editingField.value.type);
 });
 
-// Methods
 const goBack = () => {
   router.push('/formularios');
 };
@@ -397,31 +284,6 @@ const getFieldTypeLabel = (type) => {
   return fieldType ? fieldType.label : type;
 };
 
-const getFieldTypeColor = (type) => {
-  const colors = {
-    text: 'blue',
-    textarea: 'blue',
-    email: 'green',
-    password: 'red',
-    number: 'orange',
-    date: 'purple',
-    time: 'purple',
-    select: 'indigo',
-    radio: 'indigo',
-    checkbox: 'indigo',
-    file: 'brown',
-    signature: 'pink',
-    color: 'pink',
-    range: 'deep-purple',
-    switch: 'teal',
-    tel: 'cyan',
-    url: 'light-blue',
-    hidden: 'grey'
-  };
-  return colors[type] || 'grey';
-};
-
-// Drag and Drop methods
 const handleDragStart = (event, fieldType) => {
   event.dataTransfer.setData('application/json', JSON.stringify(fieldType));
   event.dataTransfer.effectAllowed = 'copy';
@@ -462,7 +324,9 @@ const addFieldType = (fieldType) => {
     is_required: false,
     options: fieldType.value === 'select' || fieldType.value === 'radio' || fieldType.value === 'checkbox' ? ['Opción 1'] : [],
     order: currentFields.value.length,
-    attributes: {}
+    attributes: {},
+    hasWeight: false,
+    weight: 0
   };
 
   currentFields.value.push(newField);
@@ -470,7 +334,6 @@ const addFieldType = (fieldType) => {
 
 const removeCurrentField = (index) => {
   currentFields.value.splice(index, 1);
-  // Reordenar campos
   currentFields.value.forEach((field, idx) => {
     field.order = idx;
   });
@@ -485,6 +348,16 @@ const editField = (index) => {
 const saveEditedField = () => {
   if (!editingField.value.label) {
     toast.error('La etiqueta del campo es requerida');
+    return;
+  }
+
+  if (editingField.value.hasWeight && editingField.value.weight <= 0) {
+    toast.error('El peso debe ser mayor a 0');
+    return;
+  }
+
+  if (editingField.value.hasWeight && editingField.value.weight > maxWeightAvailable.value) {
+    toast.error(`El peso máximo disponible es ${maxWeightAvailable.value}`);
     return;
   }
 
@@ -508,7 +381,6 @@ const removeOption = (index) => {
 };
 
 const onCurrentFieldsDragEnd = () => {
-  // Reordenar campos
   currentFields.value.forEach((field, index) => {
     field.order = index;
   });
@@ -520,14 +392,12 @@ const saveCurrentFields = () => {
     return;
   }
 
-  // Validar que todos los campos tengan etiqueta
   const invalidFields = currentFields.value.filter((field) => !field.label);
   if (invalidFields.length > 0) {
     toast.error('Todos los campos deben tener una etiqueta');
     return;
   }
 
-  // Agregar campos al formulario principal
   fields.value = [...fields.value, ...currentFields.value];
   currentFields.value = [];
   showFieldBuilder.value = false;
@@ -536,7 +406,7 @@ const saveCurrentFields = () => {
 
 const removeField = (index) => {
   fields.value.splice(index, 1);
-  // Reorder remaining fields
+
   fields.value.forEach((field, idx) => {
     field.order = idx;
   });
@@ -549,10 +419,22 @@ const saveFields = async () => {
     return;
   }
 
+  // Validar que el peso total no exceda 100
+  const totalWeight = fields.value.reduce((total, field) => total + (field.weight || 0), 0);
+  if (totalWeight > 100) {
+    toast.error(`El peso total (${totalWeight}) no puede exceder 100 puntos`);
+    return;
+  }
+
   saving.value = true;
   try {
+    const fieldsToSend = fields.value.map((field) => ({
+      ...field,
+      weight: field.hasWeight ? field.weight : null
+    }));
+
     const response = await axiosInstance.post(`/forms/${formId.value}/fields`, {
-      fields: fields.value
+      fields: fieldsToSend
     });
 
     toast.success('Campos guardados correctamente');
@@ -568,10 +450,35 @@ const saveFields = async () => {
 };
 
 const onDragEnd = () => {
-  // Actualizar el orden de los campos
   fields.value.forEach((field, index) => {
     field.order = index;
   });
+};
+
+// Funciones para calcular el peso total disponible
+const totalWeightUsed = computed(() => {
+  const fieldsWeight = fields.value.reduce((total, field) => total + (field.weight || 0), 0);
+  const currentFieldsWeight = currentFields.value.reduce((total, field) => total + (field.weight || 0), 0);
+  return fieldsWeight + currentFieldsWeight;
+});
+
+const maxWeightAvailable = computed(() => {
+  let currentFieldWeight = 0;
+
+  if (editingFieldIndex.value >= 0) {
+    if (editingFieldIndex.value < currentFields.value.length) {
+      currentFieldWeight = currentFields.value[editingFieldIndex.value]?.weight || 0;
+    }
+  }
+
+  return 100 - totalWeightUsed.value + currentFieldWeight;
+});
+
+const validateWeight = (weight) => {
+  const numWeight = parseInt(weight) || 0;
+  if (numWeight < 0) return 0;
+  if (numWeight > maxWeightAvailable.value) return maxWeightAvailable.value;
+  return numWeight;
 };
 
 onMounted(async () => {

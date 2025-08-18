@@ -343,7 +343,7 @@ onMounted(async () => {
               <td>{{ userData?.name || 'No disponible' }}</td>
             </tr>
             <tr>
-              <td class="font-weight-bold text-subtitle-1">Email</td>
+              <td class="font-weight-bold text-subtitle-1">Correo</td>
               <td>{{ userData?.email || 'No disponible' }}</td>
             </tr>
             <tr>

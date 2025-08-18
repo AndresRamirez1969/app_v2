@@ -317,7 +317,7 @@ const validate = async () => {
         </v-col>
 
         <v-col cols="12" sm="6">
-          <v-label>Email</v-label>
+          <v-label>Correo</v-label>
           <v-text-field v-model="form.person.email" variant="outlined" color="primary" class="mt-2" />
         </v-col>
 

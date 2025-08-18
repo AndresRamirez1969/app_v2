@@ -94,7 +94,7 @@ watch(
 );
 
 const canCreate = computed(() => {
-  return auth.hasPermissions('business.create');
+  return auth.hasPermissions('form.create');
 });
 
 const currentPage = ref(1);

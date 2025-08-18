@@ -273,7 +273,7 @@ const validate = async () => {
   errorMsg.value = '';
 
   if (!form.name || !form.email || !form.role || (!form.organization_id && !form.business_id && !form.business_unit_id)) {
-    errorMsg.value = 'Por favor completa el nombre, email, rol y selecciona organización, empresa o ubicación.';
+    errorMsg.value = 'Por favor completa el nombre, correo, rol y selecciona organización, empresa o ubicación.';
     return;
   }
 
@@ -379,7 +379,7 @@ const validate = async () => {
             <v-label>Nombre</v-label>
             <v-text-field v-model="form.name" variant="outlined" color="primary" class="mt-2 mb-4" required />
 
-            <v-label>Email</v-label>
+            <v-label>Correo</v-label>
             <v-text-field v-model="form.email" variant="outlined" color="primary" class="mt-2 mb-4" required />
 
             <!-- Select de organización para filtrar roles (solo superadmin) -->

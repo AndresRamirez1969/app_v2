@@ -26,7 +26,7 @@ const emit = defineEmits(['update:page', 'sort']);
             <slot name="sort-icon" :column="'name'" />
           </th>
           <th @click="emit('sort', 'email')" class="cursor-pointer email-header">
-            Email
+            Correo
             <slot name="sort-icon" :column="'email'" />
           </th>
           <th @click="emit('sort', 'role')" class="cursor-pointer role-header">

@@ -167,7 +167,7 @@ const toggleStatus = async (targetUser) => {
                 <StatusChip :status="user.status" />
               </div>
               <div class="font-weight-medium mb-1">{{ user.name }}</div>
-              <div class="text-caption"><strong>Email:</strong> {{ user.email }}</div>
+              <div class="text-caption"><strong>Correo:</strong> {{ user.email }}</div>
               <div class="text-caption">
                 <strong>Rol:</strong>
                 <span v-if="user.roles && user.roles.length">

@@ -65,7 +65,7 @@ const validateField = (fieldName, value) => {
       break;
     case 'email':
       if (!value || value.trim() === '') {
-        fieldErrors.email = 'El email es obligatorio';
+        fieldErrors.email = 'El correo es obligatorio';
         return false;
       }
       break;
@@ -307,7 +307,7 @@ const validate = async () => {
   errorMsg.value = '';
   isLoading.value = true;
   if (!form.name || !form.email || !form.role || (!form.organization_id && !form.business_id && !form.business_unit_id)) {
-    errorMsg.value = 'Por favor completa el nombre, email, rol y selecciona organización, empresa o ubicación.';
+    errorMsg.value = 'Por favor completa el nombre, correo, rol y selecciona organización, empresa o ubicación.';
     return;
   }
 
@@ -444,7 +444,7 @@ const validate = async () => {
             <v-label>Nombre <span class="text-error">*</span></v-label>
             <v-text-field v-model="form.name" variant="outlined" color="primary" class="mt-2 mb-4" required />
 
-            <v-label>Email <span class="text-error">*</span></v-label>
+            <v-label>Correo <span class="text-error">*</span></v-label>
             <v-text-field v-model="form.email" variant="outlined" color="primary" class="mt-2 mb-4" required />
 
             <!-- Select de organización para superadmin -->

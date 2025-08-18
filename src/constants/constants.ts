@@ -1,6 +1,18 @@
 // Constantes que se usan en el proyecto para evitar repetir código
 // NO MODIFICAR, SOLO AGREGAR!!!!
 
+import { mdiFormTextarea, mdiFormTextbox, mdiFormTextboxPassword } from '@mdi/js';
+import { mdiNumeric } from '@mdi/js';
+import { mdiCalendar } from '@mdi/js';
+import { mdiClock } from '@mdi/js';
+import { mdiFormSelect } from '@mdi/js';
+import { mdiRadioboxMarked } from '@mdi/js';
+import { mdiCheckboxMarkedOutline } from '@mdi/js';
+import { mdiFileImage } from '@mdi/js';
+import { mdiSignature } from '@mdi/js';
+import { mdiTuneVariant } from '@mdi/js';
+import { mdiToggleSwitch } from '@mdi/js';
+
 export const TIMEZONES = [
   { label: 'Zona Sureste (UTC-5)', value: 'UTC-5' },
   { label: 'Zona Centro (UTC-6)', value: 'UTC-6' },
@@ -51,7 +63,7 @@ export const ADMIN_FORM_ROLES = [
   { label: 'Contestar', value: 'form_response.store' }
 ];
 
-export const ADMIN_RESPONSE_ROLES = [{ label: 'Ver Todos', value: 'form_response.viewAny' }];
+export const ADMIN_RESPONSE_ROLES = [{ label: 'Ver Todos', value: 'form.hasResponses' }];
 
 // --------Sponsor Assignable Roles ---------
 
@@ -192,9 +204,222 @@ export const getFieldProps = (field: { type: string; label: string; is_required:
   }
 };
 
+export const AVAILABLE_FIELDS = [
+  {
+    label: 'Texto',
+    value: 'text',
+    icon: mdiFormTextbox,
+    description: 'Campo de texto simple',
+    preview: 'v-text-field'
+  },
+  {
+    label: 'Área de texto',
+    value: 'textarea',
+    icon: mdiFormTextarea,
+    description: 'Campo de texto multilínea',
+    preview: 'v-textarea'
+  },
+  {
+    label: 'Email',
+    value: 'email',
+    icon: mdiFormTextbox,
+    description: 'Campo para dirección de email',
+    preview: 'v-text-field'
+  },
+  {
+    label: 'Contraseña',
+    value: 'password',
+    icon: mdiFormTextboxPassword,
+    description: 'Campo para contraseñas',
+    preview: 'v-text-field'
+  },
+  {
+    label: 'Número',
+    value: 'number',
+    icon: mdiNumeric,
+    description: 'Campo numérico',
+    preview: 'v-text-field'
+  },
+  {
+    label: 'Fecha',
+    value: 'date',
+    icon: mdiCalendar,
+    description: 'Selector de fecha',
+    preview: 'v-text-field'
+  },
+  {
+    label: 'Hora',
+    value: 'time',
+    icon: mdiClock,
+    description: 'Selector de hora',
+    preview: 'v-text-field'
+  },
+  {
+    label: 'Selector',
+    value: 'select',
+    icon: mdiFormSelect,
+    description: 'Lista desplegable',
+    preview: 'v-select'
+  },
+  {
+    label: 'Radio',
+    value: 'radio',
+    icon: mdiRadioboxMarked,
+    description: 'Botones de radio',
+    preview: 'v-radio-group'
+  },
+  {
+    label: 'Checkbox',
+    value: 'checkbox',
+    icon: mdiCheckboxMarkedOutline,
+    description: 'Casillas de verificación',
+    preview: 'v-checkbox'
+  },
+  {
+    label: 'Archivo',
+    value: 'file',
+    icon: mdiFileImage,
+    description: 'Subida de archivos',
+    preview: 'v-file-input'
+  },
+  {
+    label: 'Firma',
+    value: 'signature',
+    icon: mdiSignature,
+    description: 'Firma digital',
+    preview: 'ejs-signature'
+  },
+  {
+    label: 'Rango',
+    value: 'range',
+    icon: mdiTuneVariant,
+    description: 'Slider de rango',
+    preview: 'v-slider'
+  },
+  {
+    label: 'Switch',
+    value: 'switch',
+    icon: mdiToggleSwitch,
+    description: 'Interruptor',
+    preview: 'v-switch'
+  },
+  {
+    label: 'URL',
+    value: 'url',
+    description: 'Campo para URL',
+    preview: 'v-text-field'
+  },
+  {
+    label: 'Oculto',
+    value: 'hidden',
+
+    description: 'Campo oculto',
+    preview: 'v-text-field'
+  }
+];
+
+export const FIELD_COLOR = (type: string) => {
+  const colors: Record<string, string> = {
+    text: 'blue',
+    textarea: 'blue',
+    email: 'green',
+    password: 'red',
+    number: 'orange',
+    date: 'purple',
+    time: 'purple',
+    select: 'indigo',
+    radio: 'indigo',
+    checkbox: 'indigo',
+    file: 'brown',
+    signature: 'pink',
+    color: 'pink',
+    range: 'deep-purple',
+    switch: 'teal',
+    tel: 'cyan',
+    url: 'light-blue',
+    hidden: 'grey'
+  };
+  return colors[type] || 'grey';
+};
+
 // --------Funciones auxiliares ---------
 export const urlToFile = async (url: string, filename: string) => {
   const response = await fetch(url);
   const blob = await response.blob();
   return new File([blob], filename, { type: blob.type });
+};
+
+// --------Filtros de fecha reportes ---------
+
+export const DATE_FILTER_OPTIONS = [
+  { title: 'Todas las fechas', value: 'all' },
+  { title: 'Hoy', value: 'today' },
+  { title: 'Esta semana', value: 'week' },
+  { title: 'Este mes', value: 'month' },
+  { title: 'Personalizado', value: 'custom' }
+];
+
+export const getDateRange = (dateRange: string, startDate?: string, endDate?: string) => {
+  let start = null;
+  let end = null;
+
+  switch (dateRange) {
+    case 'today':
+      start = new Date();
+      start.setHours(0, 0, 0, 0);
+      end = new Date();
+      end.setHours(23, 59, 59, 999);
+      break;
+    case 'week':
+      // Obtener el inicio de la semana actual (lunes)
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      start = new Date(now);
+      start.setDate(now.getDate() - daysToMonday);
+      start.setHours(0, 0, 0, 0);
+      end = new Date();
+      end.setHours(23, 59, 59, 999);
+      break;
+    case 'month':
+      // Obtener el inicio del mes actual
+      start = new Date();
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      end = new Date();
+      end.setHours(23, 59, 59, 999);
+      break;
+    case 'custom':
+      if (startDate && endDate) {
+        start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+      }
+      break;
+  }
+
+  return {
+    start,
+    end,
+    hasValidDates: !!(start && end)
+  };
+};
+
+// Para convertir fechas a formato de API (YYYY-MM-DD)
+export const formatDateForAPI = (date: Date) => {
+  return date.toISOString().split('T')[0];
+};
+
+// Para mostrar fechas en la UI (formato localizado)
+export const formatDateForUI = (dateString: string | Date) => {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 };
