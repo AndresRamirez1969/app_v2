@@ -188,21 +188,15 @@ const submitForm = async () => {
 
 <template>
   <v-container fluid>
+    <v-row class="align-center mb-6" no-gutters>
+      <v-col cols="auto" class="d-flex align-center">
+        <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
+          <v-icon :icon="mdiArrowLeft" />
+        </v-btn>
+        <h3 class="font-weight-medium ml-3 mb-0">{{ form?.name || 'Formulario' }}</h3>
+      </v-col>
+    </v-row>
     <v-card>
-      <v-toolbar class="mb-4" density="compact" :title="form?.name || 'Formulario'">
-        <template #prepend>
-          <v-btn icon @click="goBack">
-            <v-icon :icon="mdiArrowLeft" />
-          </v-btn>
-        </template>
-        <template v-slot:append>
-          <v-btn color="primary" variant="flat" @click="submitForm" :loading="submitting" :disabled="isLoading">
-            <v-icon :icon="mdiCheck" class="mr-2" />
-            Enviar Formulario
-          </v-btn>
-        </template>
-      </v-toolbar>
-
       <v-card-text>
         <div v-if="isLoading" class="text-center pa-8">
           <v-progress-circular indeterminate color="primary" size="64" />
@@ -212,7 +206,6 @@ const submitForm = async () => {
         <div v-else-if="form && form.fields">
           <!-- Información del formulario -->
           <div class="mb-6">
-            <h2 class="text-h4 mb-2">{{ form.name }}</h2>
             <p v-if="form.description" class="text-body-1 text-grey-darken-1 mb-4">
               {{ form.description }}
             </p>
@@ -287,6 +280,14 @@ const submitForm = async () => {
               />
             </div>
           </v-form>
+
+          <!-- Botón de enviar al final -->
+          <div class="d-flex justify-end mt-6">
+            <v-btn color="primary" variant="flat" @click="submitForm" :loading="submitting" :disabled="isLoading" size="large">
+              <v-icon :icon="mdiCheck" class="mr-2" />
+              Enviar Formulario
+            </v-btn>
+          </div>
         </div>
 
         <div v-else class="text-center pa-8">

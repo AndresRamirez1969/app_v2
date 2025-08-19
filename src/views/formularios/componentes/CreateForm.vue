@@ -30,6 +30,7 @@ const userBusinesses = computed(() => {
 
 const fieldErrors = reactive({
   name: '',
+  description: '',
   supervisor: '',
   auditors: '',
   audited: '',
@@ -39,6 +40,7 @@ const fieldErrors = reactive({
 
 const Regform = ref('');
 const name = ref('');
+const description = ref('');
 const supervisor = ref('');
 const auditors = ref([]);
 const audited = ref([]);
@@ -336,7 +338,7 @@ const validate = async () => {
     isLoading.value = true;
     const formData = new FormData();
     formData.append('name', name.value);
-
+    formData.append('description', description.value);
     // Obtener el ID del rol del supervisor
     const supervisorRole = allRoles.value.find((role) => role.id === supervisor.value);
     if (supervisorRole) {
@@ -444,6 +446,23 @@ const validate = async () => {
               </div>
             </v-col>
             <v-switch v-model="hasRating" label="Preguntas con ponderación?" color="primary" class="mt-2" />
+          </v-row>
+
+          <!-- Descripción -->
+          <v-row class="my-0">
+            <v-col cols="12" sm="6" class="py-0">
+              <div class="mb-6">
+                <v-label>Descripción</v-label>
+                <v-text-field
+                  v-model="description"
+                  variant="outlined"
+                  class="mt-2"
+                  color="primary"
+                  :error-messages="fieldErrors.description"
+                  @update:model-value="clearFieldError('description')"
+                />
+              </div>
+            </v-col>
           </v-row>
 
           <!-- Supervisor -->

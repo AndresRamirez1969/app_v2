@@ -152,7 +152,7 @@
                 @keyup.enter="saveEditedField"
               />
 
-              <v-checkbox v-if="!form.has_rating" v-model="editingField.is_required" label="Campo requerido" class="mb-4" />
+              <v-checkbox v-model="editingField.is_required" label="Campo requerido" class="mb-4" />
 
               <div v-if="showOptionsField" class="mb-4">
                 <v-label class="text-body-2 font-weight-medium mb-2">Opciones</v-label>
