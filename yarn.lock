@@ -1910,6 +1910,11 @@ keyv@^4.5.4:
   dependencies:
     json-buffer "3.0.1"
 
+laravel-echo@^2.2.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/laravel-echo/-/laravel-echo-2.2.0.tgz#3f871bc580f624ed85f2bc6dd7672c832d429bbd"
+  integrity sha512-pmlAT34FiUMk3B1bntXZ6ownqfRXwHrWdeSW5pWJYolbcfn/ILBA8+E4ZRUmbG0iSvBmwsVOxahTjVU6T0AgEg==
+
 levn@^0.4.1:
   version "0.4.1"
   resolved "https://registry.npmjs.org/levn/-/levn-0.4.1.tgz"
