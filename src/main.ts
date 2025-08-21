@@ -2,6 +2,7 @@ import { createApp } from 'vue';
 import { plugin, defaultConfig } from '@formkit/vue';
 import { createProPlugin, inputs } from '@formkit/pro';
 import { createPinia } from 'pinia';
+import './utils/bootstrap';
 import App from './App.vue';
 import router from './router'; // <-- Cambiado a default import
 import vuetify from './plugins/vuetify';

@@ -1,17 +1,88 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, onUnmounted } from 'vue';
 // icons
 import { CheckCircleOutlined, GiftOutlined, MessageOutlined, SettingOutlined, BellOutlined } from '@ant-design/icons-vue';
 import { useAuthStore } from '@/stores/auth';
 import axiosInstance from '@/utils/axios';
 
 const notifications = ref([]);
+const auth = useAuthStore();
 
 onMounted(async () => {
+  console.log('🔍 Componente montado');
+  await fetchNotifications();
+  setupEchoListener();
+
+  // Test: verificar si Echo está funcionando
+  setTimeout(() => {
+    if (window.Echo) {
+      console.log('🧪 Test: Echo está disponible');
+      console.log('🧪 Test: Usuario ID:', auth.user?.id);
+    }
+  }, 1000);
+});
+
+// onUnmounted(() => {
+//   if (window.Echo) {
+//     window.Echo.private(`user.${auth.user.id}`).stopListening('NotificationSent');
+//   }
+// });
+
+const fetchNotifications = async () => {
   const response = await axiosInstance.get('/notifications');
   notifications.value = response.data.data;
   console.log('notifications', notifications.value);
-});
+};
+
+const setupEchoListener = () => {
+  if (window.Echo && auth.user?.id) {
+    console.log('✅ Echo y usuario disponibles, configurando canal...');
+
+    // Escuchar en el canal privado del usuario
+    window.Echo.private(`user.${auth.user.id}`)
+      .listen('notification.sent', (e) => {
+        console.log(' Evento recibido:', e);
+        console.log('📋 Estructura completa:', JSON.stringify(e, null, 2));
+
+        // Crear nueva notificación
+        const newNotification = {
+          id: e.notification.id || Date.now(),
+          type: e.type || 'info',
+          data: {
+            message: e.notification.message || e.notification.data?.message
+          },
+          created_at: e.timestamp || new Date().toISOString(),
+          read_at: null
+        };
+
+        console.log(' Nueva notificación creada:', newNotification);
+
+        // Agregar al inicio del array
+        notifications.value.unshift(newNotification);
+
+        // Opcional: Mostrar toast o notificación visual
+        showToastNotification(newNotification);
+
+        console.log('✅ Notificación agregada al array. Total:', notifications.value.length);
+      })
+      .listen('.notification.read', (e) => {
+        console.log('📖 Evento de lectura recibido:', e);
+
+        // Actualizar estado de lectura
+        const notification = notifications.value.find((n) => n.id === e.notification_id);
+        if (notification) {
+          notification.read_at = new Date().toISOString();
+          console.log('✅ Notificación marcada como leída');
+        }
+      });
+
+    console.log('✅ Listener configurado exitosamente');
+  } else {
+    console.log('❌ Echo o usuario no disponibles');
+    console.log('Echo:', window.Echo);
+    console.log('Usuario:', auth.user);
+  }
+};
 
 const isActive = ref(true);
 
