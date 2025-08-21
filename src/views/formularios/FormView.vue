@@ -69,6 +69,11 @@ const viewForm = (form) => {
 };
 
 const publishForm = async (form) => {
+  if (form.fields.length === 0) {
+    toast.error('No se puede publicar un formulario sin campos');
+    return;
+  }
+
   try {
     await axiosInstance.put(`/forms/${form.id}/status`, {
       status: 'active'

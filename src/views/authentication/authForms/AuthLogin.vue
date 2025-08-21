@@ -11,6 +11,7 @@ const eyeOffIcon = mdiEyeOff;
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToast();
+const isLoading = ref(false);
 
 const email = ref('');
 const password = ref('');
@@ -22,6 +23,7 @@ const passwordRules = [(v: string) => !!v || 'La contraseña es obligatoria'];
 
 const login = async () => {
   try {
+    isLoading.value = true;
     await auth.login(email.value, password.value, rememberMe.value);
     const roles = auth.user?.roles || [];
     const isAdmin = roles.includes('admin');
@@ -35,6 +37,8 @@ const login = async () => {
   } catch (err) {
     toast.error('Credenciales inválidas');
     console.error('Login error:', err);
+  } finally {
+    isLoading.value = false;
   }
 };
 </script>
@@ -73,11 +77,11 @@ const login = async () => {
       <v-checkbox v-model="rememberMe" label="Recuérdame" density="compact" hide-details class="ma-0 pa-0" />
     </div>
 
-    <v-btn color="primary" block variant="flat" size="large" type="submit"> Iniciar Sesión </v-btn>
+    <v-btn color="primary" block variant="flat" size="large" type="submit" :loading="isLoading"> Iniciar Sesión </v-btn>
   </v-form>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .loginForm {
   .v-text-field .v-field--active input {
     font-weight: 500;

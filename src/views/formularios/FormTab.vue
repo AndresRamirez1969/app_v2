@@ -3,6 +3,7 @@
     <v-row class="align-center justify-space-between mb-4">
       <v-col cols="auto" class="d-flex align-center">
         <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Formularios</h1>
+        <v-btn :icon="mdiHelpCircleOutline" variant="text" color="primary" size="small" class="ml-2" @click="infoModal = true" />
       </v-col>
       <v-col cols="auto" class="d-flex align-center justify-end" v-if="canCreate">
         <v-btn color="primary" class="text-white" elevation="1" @click="router.push({ name: 'CreateForm', params: { id: auth.user.id } })">
@@ -45,6 +46,22 @@
         <FormView :items="forms.data" :isMobile="mdAndDown" :isLoading="isLoading" @formUpdated="fetchForms" />
       </v-col>
     </v-row>
+    <v-dialog v-model="infoModal" max-width="600">
+      <v-card>
+        <v-card-title>Información sobre Formularios</v-card-title>
+        <v-card-text>
+          <p>Aqui podras ver los formularios que has creado, editarlos o publicarlos.</p>
+          <p>
+            Para publicar un formulario, haz click en el boton de "Acciones" y selecciona "Publicar". Una vez que se publique un formulario,
+            estara disponible para que usuarios asignados lo contesten.
+          </p>
+          <p>Para editar o ver mas informacion sobre un formulario, haz click en cualquier parte de la fila del formulario.</p>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn color="primary" @click="infoModal = false">Cerrar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -53,7 +70,7 @@ import { ref, watch, computed, onMounted } from 'vue';
 import { useDisplay } from 'vuetify';
 import FormView from './FormView.vue';
 import axiosInstance from '@/utils/axios';
-import { mdiPlus } from '@mdi/js';
+import { mdiPlus, mdiHelpCircleOutline } from '@mdi/js';
 import { useAuthStore } from '@/stores/auth';
 import debounce from 'lodash/debounce';
 import { useRouter } from 'vue-router';
@@ -75,6 +92,7 @@ const statusOptions = ref([
 const auth = useAuthStore();
 const router = useRouter();
 const isLoading = ref(false);
+const infoModal = ref(false);
 
 // Detectar si es móvil
 const isMobile = ref(false);
