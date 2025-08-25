@@ -13,7 +13,6 @@ export function useOrganization() {
       const response = await axiosInstance.get(`/organizations/${id}`);
       organization.value = response.data;
     } catch (err) {
-      error.value = err;
       console.error('Error fetching organization:', err);
     } finally {
       loading.value = false;

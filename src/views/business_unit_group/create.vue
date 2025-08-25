@@ -2,14 +2,17 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
-import axios from '@/utils/axios';
+import axiosInstance from '@/utils/axios';
 import BusinessUnitFilter from '../business_unit/BusinessUnitFilter.vue';
 import BusinessUnitSelectTable from './BusinessUnitSelectTable.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const route = useRoute();
+const auth = useAuthStore();
 
 const groupId = route.params.id;
+console.log(groupId);
 
 const name = ref('');
 const organizationId = ref(null);
@@ -57,8 +60,10 @@ const fetchBusinessUnits = async () => {
       sort_desc: sortDesc.value ? 1 : 0,
       search: search.value
     };
-    const { data } = await axios.get('/business-units', { params });
+    const { data } = await axiosInstance.get('/business-units', { params });
     businessUnits.value = data.data;
+    businessId.value = data.data[0].business_id;
+    console.log(businessUnits.value);
     total.value = data.total;
   } catch (e) {
     businessUnits.value = [];
@@ -69,18 +74,18 @@ const fetchBusinessUnits = async () => {
   }
 };
 
-const fetchGroup = async () => {
-  try {
-    const { data } = await axios.get(`/business-unit-groups/${groupId}`);
-    name.value = data.name;
-    organizationId.value = data.organization_id;
-    businessId.value = data.business_id;
-    selectedBusinessUnits.value = data.business_units.map((bu) => bu.id);
-    status.value = data.status;
-  } catch (e) {
-    console.error('Error fetching group:', e);
-  }
-};
+// const fetchGroup = async () => {
+//   try {
+//     const { data } = await axiosInstance.get(`/business-unit-groups/${groupId}`);
+//     name.value = data.name;
+//     organizationId.value = data.organization_id;
+//     businessId.value = data.business_id;
+//     selectedBusinessUnits.value = data.business_units.map((bu) => bu.id);
+//     status.value = data.status;
+//   } catch (e) {
+//     console.error('Error fetching group:', e);
+//   }
+// };
 
 const sortedItems = computed(() => businessUnits.value);
 
@@ -94,7 +99,7 @@ watch(search, () => {
 });
 
 onMounted(async () => {
-  await fetchGroup();
+  // await fetchGroup();
   fetchBusinessUnits();
 });
 
@@ -143,9 +148,9 @@ async function saveGroup() {
   }
   saving.value = true;
   try {
-    await axios.put(`/business-unit-groups/${groupId}`, {
+    await axiosInstance.post(`/business-unit-groups/`, {
       name: name.value,
-      organization_id: organizationId.value,
+      organization_id: auth.user.organization_id,
       business_id: businessId.value,
       business_units: selectedBusinessUnits.value,
       status: status.value

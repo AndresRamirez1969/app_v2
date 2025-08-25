@@ -13,8 +13,7 @@ export function showForm() {
       const response = await axiosInstance.get(`/forms/${id}`);
       form.value = response.data;
     } catch (err) {
-      error.value = err;
-      console.error('Error fetching organization:', err);
+      console.error('Error fetching form:', err);
     } finally {
       loading.value = false;
     }

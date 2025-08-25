@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useCustomizerStore } from '../../../stores/customizer';
-import sidebarItems from './sidebarItem';
+import sidebarItems, { type menu } from './sidebarItem';
 import { useAuthStore } from '@/stores/auth';
 
 import NavGroup from './NavGroup/NavGroup.vue';
@@ -133,10 +133,12 @@ const sidebarMenu = computed(() => {
     <perfect-scrollbar class="scrollnavbar">
       <v-list aria-busy="true" aria-label="menu list">
         <template v-for="(item, i) in sidebarMenu" :key="i">
-          <NavGroup :item="item" v-if="item.header" :key="item.title" />
-          <v-divider class="my-3" v-else-if="item.divider" />
-          <NavCollapse class="leftPadding" :item="item" :level="0" v-else-if="item.children" />
-          <NavItem :item="item" v-else />
+          <template v-if="item">
+            <NavGroup :item="item" v-if="item.header" :key="item.title" />
+            <v-divider class="my-3" v-else-if="item.divider" />
+            <NavCollapse class="leftPadding" :item="item" :level="0" v-else-if="item.children" />
+            <NavItem :item="item" v-else />
+          </template>
         </template>
       </v-list>
     </perfect-scrollbar>

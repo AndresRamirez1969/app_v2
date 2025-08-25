@@ -13,8 +13,7 @@ export function showBusiness() {
       const response = await axiosInstance.get(`/businesses/${id}`);
       business.value = response.data;
     } catch (err) {
-      error.value = err;
-      console.error('Error fetching organization:', err);
+      console.error('Error fetching business:', err);
     } finally {
       loading.value = false;
     }

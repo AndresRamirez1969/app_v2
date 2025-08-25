@@ -13,7 +13,6 @@ export function showUnit() {
       const response = await axiosInstance.get(`/business-units/${id}`);
       unit.value = response.data;
     } catch (err) {
-      error.value = err;
       console.error('Error fetching organization:', err);
     } finally {
       loading.value = false;

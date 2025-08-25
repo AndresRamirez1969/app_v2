@@ -44,6 +44,12 @@ const formatDate = (dateString) => {
 
 // Función para obtener el estado de respuesta basado en la respuesta del endpoint
 const getResponseStatus = (form) => {
+  // ✅ AGREGAR VALIDACIÓN DEFENSIVA
+  if (!form || typeof form.can_respond === 'undefined' || typeof form.frequency === 'undefined') {
+    console.warn('Formulario con datos incompletos:', form);
+    return { text: 'Estado Desconocido', color: 'grey' };
+  }
+
   // Si el formulario no puede ser respondido (ya respondido para once_per_day)
   if (!form.can_respond && form.frequency === 'once_per_day') {
     return { text: 'Completado', color: 'success' };
@@ -58,18 +64,15 @@ const getResponseStatus = (form) => {
   if (form.frequency === 'multiple_per_day') {
     return { text: 'Formulario Persistente', color: 'info' };
   }
+
+  return { text: 'Disponible', color: 'primary' };
 };
 
-// Filtrar formularios según la lógica del backend
-const filteredItems = computed(() => {
-  return props.items.filter((form) => {
-    // Solo mostrar formularios que pueden ser respondidos
-    return form.can_respond !== false;
-  });
-});
-
 const sortedItems = computed(() => {
-  return [...filteredItems.value].sort((a, b) => {
+  // ✅ FILTRAR FORMULARIOS INVÁLIDOS ANTES DE ORDENAR
+  const validForms = props.items.filter((form) => form && typeof form.can_respond !== 'undefined' && typeof form.frequency !== 'undefined');
+
+  return validForms.sort((a, b) => {
     const aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
     const bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
     return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);

@@ -91,6 +91,27 @@ const handleLogout = async () => {
   await authStore.logout();
   router.push('/login');
 };
+
+const handleOrgClick = () => {
+  const route = getOrgDwRoute();
+  if (route) {
+    router.push(route);
+  }
+};
+
+const handleBusinessClick = () => {
+  const route = getBusinessDwRoute();
+  if (route) {
+    router.push(route);
+  }
+};
+
+const handleBusinessUnitClick = () => {
+  const route = getBusinessUnitDwRoute();
+  if (route) {
+    router.push(route);
+  }
+};
 </script>
 
 <template>
@@ -120,7 +141,7 @@ const handleLogout = async () => {
           <v-list-item
             v-if="showOrgDwProfile"
             :disabled="isOrgDwDisabled()"
-            @click="!isOrgDwDisabled() && $router.push(getOrgDwRoute())"
+            @click="!isOrgDwDisabled() && handleOrgClick()"
             color="primary"
             rounded="0"
             value="Organizaciones"
@@ -135,7 +156,7 @@ const handleLogout = async () => {
           <v-list-item
             v-if="showBusinessDwProfile"
             :disabled="isBusinessDwDisabled()"
-            @click="!isBusinessDwDisabled() && $router.push(getBusinessDwRoute())"
+            @click="!isBusinessDwDisabled() && handleBusinessClick()"
             color="primary"
             rounded="0"
             value="Empresas"
@@ -150,7 +171,7 @@ const handleLogout = async () => {
           <v-list-item
             v-if="showBusinessUnitDwProfile"
             :disabled="isBusinessUnitDwDisabled()"
-            @click="!isBusinessUnitDwDisabled() && $router.push(getBusinessUnitDwRoute())"
+            @click="!isBusinessUnitDwDisabled() && handleBusinessUnitClick()"
             color="primary"
             rounded="0"
             value="Ubicaciones"

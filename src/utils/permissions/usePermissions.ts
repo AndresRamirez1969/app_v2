@@ -4,7 +4,10 @@ import { computed } from 'vue';
 export const usePermissions = () => {
   const auth = useAuthStore();
 
-  const userRoles = computed(() => auth.user?.roles?.map((r) => r.name) || []);
+  // Definimos el tipo para los roles del usuario
+  type RolUsuario = { name: string };
+
+  const userRoles = computed(() => auth.user?.roles?.map((r: RolUsuario) => r.name) || []);
   const permissions = computed(() => auth.user?.permissions || []);
 
   const hasPermission = (permission: string | string[]) => {
