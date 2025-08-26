@@ -156,3 +156,31 @@ td {
 .gap-mobile > span {
   margin-bottom: 0.5rem;
 }
+
+.phone-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Select de país angosto (bandera + prefijo) */
+.phone-country-field {
+  flex: 0 0 120px !important; /* ajusta 100–140px si quieres más angosto */
+  max-width: 120px !important;
+  min-width: 120px !important;
+}
+
+.phone-country-field :deep(.v-field) {
+  padding-inline: 6px !important;
+}
+
+.phone-country-field :deep(.v-field__input),
+.phone-number-field :deep(.v-field__input) {
+  min-height: 36px !important;
+}
+
+/* El número ocupa el resto */
+.phone-number-field {
+  flex: 1 1 auto !important;
+  min-width: 140px;
+}
