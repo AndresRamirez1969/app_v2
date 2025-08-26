@@ -34,8 +34,9 @@ async function fetchOrganizations() {
     const params = {
       search: searchText.value,
       status: filterOptions.value.status,
-      created_at_start: filterOptions.value.createdAtStart,
-      created_at_end: filterOptions.value.createdAtEnd,
+      // Mapeo correcto de los nombres para el backend
+      created_at_start: filterOptions.value.created_at_start ?? filterOptions.value.createdAtStart,
+      created_at_end: filterOptions.value.created_at_end ?? filterOptions.value.createdAtEnd,
       sort_by: sortBy.value,
       sort_desc: sortDesc.value,
       page: page.value,
@@ -71,6 +72,7 @@ function handleSearch(text) {
 }
 
 function handleFilter(filters) {
+  // Aquí los nombres ya vienen correctos desde OrganizationFilters.vue
   filterOptions.value = filters;
   page.value = 1;
   fetchOrganizations();

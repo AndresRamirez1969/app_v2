@@ -200,8 +200,8 @@ function formatDateOnly(val) {
 function applyFilters() {
   emit('filter', {
     status: status.value,
-    createdAtStart: formatDateOnly(createdAtStart.value),
-    createdAtEnd: formatDateOnly(createdAtEnd.value)
+    created_at_start: formatDateOnly(createdAtStart.value),
+    created_at_end: formatDateOnly(createdAtEnd.value)
   });
   dialog.value = false;
 }
@@ -212,8 +212,8 @@ function clearFilters() {
   createdAtEnd.value = null;
   emit('filter', {
     status: null,
-    createdAtStart: null,
-    createdAtEnd: null
+    created_at_start: null,
+    created_at_end: null
   });
 }
 </script>
