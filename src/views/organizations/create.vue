@@ -1,11 +1,12 @@
 <script setup>
-import { reactive, ref, watch, onMounted, nextTick } from 'vue';
+import { reactive, ref, watch, onMounted, nextTick, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 import axiosInstance from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
 import { timezones as tzRaw } from '@/utils/constants/timezones';
+import { toVuetifyItems, findCountryByCode } from '@/utils/constants/countries';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -17,19 +18,104 @@ const errorMsg = ref('');
 const canCreate = ref(false);
 
 const timezoneSearch = ref('');
+const phoneCountrySearch = ref('');
 
+<<<<<<< HEAD
+=======
+/* -------------------- helpers -------------------- */
+function normalizeString(str) {
+  return str
+    ? str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+    : '';
+}
+
+/** Quita el "(+###)" al final del título, espacios y normaliza */
+function baseCountryTitle(title = '') {
+  return normalizeString(
+    String(title)
+      .replace(/\s*\(\+\d+\)\s*$/, '')
+      .trim()
+  );
+}
+
+/** Obtiene el prefijo telefónico (+###) */
+function getDialPrefix(value, titleFallback = '') {
+  const c = findCountryByCode(value);
+  const fromModel = c?.dial_code ?? c?.calling_code ?? c?.callingCode ?? c?.phoneCode ?? null;
+  if (fromModel) return String(fromModel).startsWith('+') ? fromModel : `+${fromModel}`;
+  const m = String(titleFallback).match(/\(\+[\d]+\)/);
+  if (m && m[0]) return m[0].replace(/[()]/g, ''); // "(+54)" -> "+54"
+  return '';
+}
+
+/** Escoge el mejor item entre duplicados */
+function betterCountryItem(a, b) {
+  const score = (it) => {
+    const dial = getDialPrefix(it.value, it.title);
+    let s = 0;
+    if (dial) s += 2;
+    if (it.value) s += 1;
+    if (String(it.value || '').length <= 3) s += 1; // ISO2/ISO3 suele ser corto
+    return s;
+  };
+  return score(a) >= score(b) ? a : b;
+}
+
+/** Construye UNA sola lista única de países (se ejecuta 1 vez) */
+function buildUniqueCountries() {
+  const raw = toVuetifyItems(); // [{ title, value }, ...] con y sin (+###)
+
+  // 1) Elimina duplicados por value (código de país)
+  const seen = new Set();
+  const filtered = raw.filter((item) => {
+    if (seen.has(item.value)) return false;
+    seen.add(item.value);
+    return true;
+  });
+
+  // 2) Agrupa por nombre base (sin (+###)), escoge el mejor item
+  const byName = new Map();
+  for (const item of filtered) {
+    const key = baseCountryTitle(item.title);
+    const existing = byName.get(key);
+    if (!existing) {
+      byName.set(key, item);
+    } else {
+      byName.set(key, betterCountryItem(existing, item));
+    }
+  }
+
+  // 3) Normaliza el title final: solo nombre (sin (+###))
+  const result = Array.from(byName.values()).map((it) => ({
+    ...it,
+    title: it.title.replace(/\s*\(\+\d+\)\s*$/, '').trim()
+  }));
+
+  // 4) Orden alfabético por nombre base
+  result.sort((a, b) => baseCountryTitle(a.title).localeCompare(baseCountryTitle(b.title)));
+
+  return result;
+}
+
+/* --------- datos reactivos / estados --------- */
+>>>>>>> NEW
 const fieldErrors = reactive({
   legal_name: '',
   timezone: '',
   address: '',
-  logo: ''
+  logo: '',
+  phone_country: ''
 });
 
 const fieldRefs = {
   legal_name: ref(null),
   timezone: ref(null),
   address: ref(null),
-  logo: ref(null)
+  logo: ref(null),
+  phone_country: ref(null)
 };
 
 onMounted(() => {
@@ -51,16 +137,39 @@ const form = reactive({
     first_name: '',
     last_name: '',
     email: '',
+    phone_country: '',
     phone_number: ''
   }
 });
 
+<<<<<<< HEAD
 const timezones = tzRaw.map((tz) => ({ label: tz, value: tz }));
 
+=======
+/* --------- computeds --------- */
+const filteredTimezones = computed(() => {
+  const search = normalizeString(timezoneSearch.value);
+  if (!search) return tzRaw;
+  return tzRaw.filter((tz) => normalizeString(tz.label).includes(search) || normalizeString(tz.value).includes(search));
+});
+
+/** Países únicos (memoizado a través de cierre) */
+const UNIQUE_COUNTRIES = buildUniqueCountries();
+
+const filteredCountries = computed(() => {
+  const q = normalizeString(phoneCountrySearch.value);
+  if (!q) return UNIQUE_COUNTRIES;
+  return UNIQUE_COUNTRIES.filter((item) => {
+    const name = baseCountryTitle(item.title);
+    const dial = normalizeString(getDialPrefix(item.value, item.title));
+    return name.includes(q) || dial.includes(q);
+  });
+});
+
+/* --------- validaciones y envío --------- */
+>>>>>>> NEW
 const clearFieldError = (fieldName) => {
-  if (fieldErrors[fieldName]) {
-    fieldErrors[fieldName] = '';
-  }
+  if (fieldErrors[fieldName]) fieldErrors[fieldName] = '';
 };
 
 const scrollToField = async (fieldName) => {
@@ -68,6 +177,7 @@ const scrollToField = async (fieldName) => {
   const fieldRef = fieldRefs[fieldName];
   if (fieldRef && fieldRef.value) {
     const element = fieldRef.value.$el || fieldRef.value;
+<<<<<<< HEAD
     element.scrollIntoView({
       behavior: 'smooth',
       block: 'center',
@@ -78,6 +188,11 @@ const scrollToField = async (fieldName) => {
     } else if (element.$el && element.$el.focus) {
       element.$el.focus();
     }
+=======
+    element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    if (element.focus) element.focus();
+    else if (element.$el && element.$el.focus) element.$el.focus();
+>>>>>>> NEW
   }
 };
 
@@ -103,7 +218,16 @@ const validateField = (fieldName, value) => {
       }
       break;
     case 'logo':
+<<<<<<< HEAD
       // El logo es opcional
+=======
+      break;
+    case 'phone_country':
+      if (form.person.phone_number && !value) {
+        fieldErrors.phone_country = 'Selecciona el país para el teléfono';
+        return false;
+      }
+>>>>>>> NEW
       break;
   }
   return true;
@@ -124,9 +248,17 @@ const validateAllFields = async () => {
     isValid = false;
     if (!firstErrorField) firstErrorField = 'address';
   }
+<<<<<<< HEAD
   if (!isValid && firstErrorField) {
     await scrollToField(firstErrorField);
   }
+=======
+  if (!validateField('phone_country', form.person.phone_country)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'phone_country';
+  }
+  if (!isValid && firstErrorField) await scrollToField(firstErrorField);
+>>>>>>> NEW
   return isValid;
 };
 
@@ -134,29 +266,35 @@ watch(
   () => form.logo,
   (file) => {
     let imageFile = null;
-    if (Array.isArray(file)) {
-      imageFile = file.length > 0 ? file[0] : null;
-    } else if (file instanceof File || file instanceof Blob) {
-      imageFile = file;
-    }
+    if (Array.isArray(file)) imageFile = file.length > 0 ? file[0] : null;
+    else if (file instanceof File || file instanceof Blob) imageFile = file;
     logoPreview.value = imageFile ? URL.createObjectURL(imageFile) : null;
   }
 );
 
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
+<<<<<<< HEAD
   if (val && Object.keys(val).length > 0) {
     clearFieldError('address');
   }
+=======
+  if (val && Object.keys(val).length > 0) clearFieldError('address');
+>>>>>>> NEW
 };
 
 const isLoading = ref(false);
 
 const validate = async () => {
   errorMsg.value = '';
+<<<<<<< HEAD
   if (!(await validateAllFields())) {
     return;
   }
+=======
+  if (!(await validateAllFields())) return;
+
+>>>>>>> NEW
   isLoading.value = true;
   try {
     const formData = new FormData();
@@ -164,26 +302,31 @@ const validate = async () => {
     formData.append('alias', form.alias || '');
     formData.append('description', form.description || '');
     formData.append('timezone', form.timezone);
+    for (const key in parsedAddress.value) formData.append(`address[${key}]`, parsedAddress.value[key] || '');
 
-    for (const key in parsedAddress.value) {
-      formData.append(`address[${key}]`, parsedAddress.value[key] || '');
-    }
-
+<<<<<<< HEAD
     // INTEGRACIÓN: enviar datos de contacto bajo 'contact'
     const hasContactData = Object.values(form.person).some((val) => val?.trim?.() !== '');
     if (hasContactData) {
       for (const key in form.person) {
         formData.append(`contact[${key}]`, form.person[key] || '');
       }
+=======
+    const hasPersonData = Object.values(form.person).some((val) => val?.trim?.() !== '');
+    if (hasPersonData) {
+      for (const key in form.person) formData.append(`person[${key}]`, form.person[key] || '');
+>>>>>>> NEW
     }
-
     if (form.logo) {
       const logoFile = Array.isArray(form.logo) ? form.logo[0] : form.logo;
       formData.append('logo', logoFile);
     }
 
     const res = await axiosInstance.post('/organizations', formData);
+<<<<<<< HEAD
 
+=======
+>>>>>>> NEW
     const org = res.data.organization || res.data.data || res.data;
     if (org?.id) {
       auth.user.organization_id = org.id;
@@ -196,20 +339,21 @@ const validate = async () => {
       let firstServerErrorField = null;
       if (serverErrors.legal_name) {
         fieldErrors.legal_name = serverErrors.legal_name[0];
-        if (!firstServerErrorField) firstServerErrorField = 'legal_name';
+        firstServerErrorField = firstServerErrorField || 'legal_name';
       }
       if (serverErrors.timezone) {
         fieldErrors.timezone = serverErrors.timezone[0];
-        if (!firstServerErrorField) firstServerErrorField = 'timezone';
+        firstServerErrorField = firstServerErrorField || 'timezone';
       }
       if (serverErrors.address) {
         fieldErrors.address = serverErrors.address[0];
-        if (!firstServerErrorField) firstServerErrorField = 'address';
+        firstServerErrorField = firstServerErrorField || 'address';
       }
       if (serverErrors.logo) {
         fieldErrors.logo = serverErrors.logo[0];
-        if (!firstServerErrorField) firstServerErrorField = 'logo';
+        firstServerErrorField = firstServerErrorField || 'logo';
       }
+<<<<<<< HEAD
       const unmappedErrors = Object.keys(serverErrors).filter((key) => !['legal_name', 'timezone', 'address', 'logo'].includes(key));
       if (unmappedErrors.length > 0) {
         errorMsg.value = unmappedErrors
@@ -220,6 +364,20 @@ const validate = async () => {
       if (firstServerErrorField) {
         await scrollToField(firstServerErrorField);
       }
+=======
+      if (serverErrors.phone_country) {
+        fieldErrors.phone_country = serverErrors.phone_country[0];
+        firstServerErrorField = firstServerErrorField || 'phone_country';
+      }
+      if (firstServerErrorField) await scrollToField(firstServerErrorField);
+
+      const unmapped = Object.keys(serverErrors).filter((k) => !['legal_name', 'timezone', 'address', 'logo', 'phone_country'].includes(k));
+      if (unmapped.length > 0)
+        errorMsg.value = unmapped
+          .map((k) => serverErrors[k])
+          .flat()
+          .join(' ');
+>>>>>>> NEW
     } else if (err?.response?.data?.message) {
       errorMsg.value = err.response.data.message;
     } else {
@@ -313,7 +471,7 @@ const validate = async () => {
             <v-autocomplete
               ref="fieldRefs.timezone"
               v-model="form.timezone"
-              :items="timezones"
+              :items="filteredTimezones"
               v-model:search-input="timezoneSearch"
               item-title="label"
               item-value="value"
@@ -371,7 +529,63 @@ const validate = async () => {
 
           <v-col cols="12" sm="6">
             <v-label>Teléfono</v-label>
-            <v-text-field v-model="form.person.phone_number" variant="outlined" color="primary" class="mt-2" />
+            <div class="phone-group mt-2">
+              <!-- País -->
+              <v-autocomplete
+                ref="fieldRefs.phone_country"
+                v-model="form.person.phone_country"
+                :items="filteredCountries"
+                v-model:search-input="phoneCountrySearch"
+                item-title="title"
+                item-value="value"
+                variant="outlined"
+                color="primary"
+                density="compact"
+                class="phone-country-field"
+                placeholder="País"
+                clearable
+                hide-details
+                :menu-props="{ maxHeight: '400px', width: 320 }"
+                :error-messages="fieldErrors.phone_country"
+                @update:model-value="clearFieldError('phone_country')"
+              >
+                <!-- En el input: bandera + prefijo -->
+                <template #selection="{ item }">
+                  <template v-if="item && item.value">
+                    <span>{{ findCountryByCode(item.value)?.flag }}</span>
+                    <span style="margin-left: 6px">{{ getDialPrefix(item.value, item.title) }}</span>
+                  </template>
+                </template>
+
+                <!-- Menú: bandera + nombre + prefijo a la derecha -->
+                <template #item="{ item, props }">
+                  <v-list-item v-bind="props">
+                    <template #title>
+                      <div class="d-flex align-center justify-space-between">
+                        <span>
+                          <span>{{ findCountryByCode(item.value)?.flag }}</span>
+                          <span style="margin-left: 8px">
+                            {{ item.title.replace(/^.*?\s/, '') }}
+                          </span>
+                        </span>
+                        <span class="text-medium-emphasis">{{ getDialPrefix(item.value, item.title) }}</span>
+                      </div>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-autocomplete>
+
+              <!-- Número -->
+              <v-text-field
+                v-model="form.person.phone_number"
+                variant="outlined"
+                color="primary"
+                density="compact"
+                class="phone-number-field"
+                placeholder="Número"
+                hide-details
+              />
+            </div>
           </v-col>
         </v-row>
 
@@ -400,3 +614,5 @@ const validate = async () => {
     </v-container>
   </div>
 </template>
+
+<style scoped src="@/styles/organization.css"></style>

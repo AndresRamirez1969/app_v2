@@ -6,6 +6,7 @@ import axiosInstance from '@/utils/axios';
 import { mdiArrowLeft, mdiPencil, mdiCancel, mdiCheckCircle, mdiChevronDown, mdiDotsHorizontal, mdiEye } from '@mdi/js';
 import StatusChip from '@/components/status/StatusChip.vue';
 import { useAuthStore } from '@/stores/auth';
+import { findCountryByCode } from '@/utils/constants/countries';
 
 const router = useRouter();
 const route = useRoute();
@@ -135,6 +136,7 @@ const formatAddress = (address) => {
   const parts = [
     address.street,
     address.outdoor_number,
+    address.indoor_number,
     address.neighborhood,
     address.city,
     address.postal_code,
@@ -145,6 +147,15 @@ const formatAddress = (address) => {
 };
 
 const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
+
+// Helper para mostrar teléfono con bandera y prefijo
+function formatPhone(person) {
+  if (!person || !person.phone_number) return 'No disponible';
+  const country = findCountryByCode(person.phone_country);
+  const flag = country?.flag || '';
+  const dial = country?.dial_code || '';
+  return `${flag ? flag + ' ' : ''}${dial ? dial + ' ' : ''}${person.phone_number}`;
+}
 
 onMounted(async () => {
   try {
@@ -382,7 +393,26 @@ onMounted(async () => {
                 <tr>
                   <td class="font-weight-bold text-subtitle-1">Teléfono</td>
                   <td>
+<<<<<<< HEAD
                     <span v-if="contact.phone_number">{{ contact.phone_number }}</span>
+=======
+                    <span v-if="organization?.person?.phone_number">
+                      <template v-if="organization.person.phone_country">
+                        <span>
+                          {{ findCountryByCode(organization.person.phone_country)?.flag || '' }}
+                        </span>
+                        <span style="margin-left: 6px">
+                          {{ findCountryByCode(organization.person.phone_country)?.dial_code || '' }}
+                        </span>
+                        <span style="margin-left: 6px">
+                          {{ organization.person.phone_number }}
+                        </span>
+                      </template>
+                      <template v-else>
+                        {{ organization.person.phone_number }}
+                      </template>
+                    </span>
+>>>>>>> NEW
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
@@ -417,7 +447,26 @@ onMounted(async () => {
                   <span v-else>No disponible</span>
                 </td>
                 <td>
+<<<<<<< HEAD
                   <span v-if="contact.phone_number">{{ contact.phone_number }}</span>
+=======
+                  <span v-if="organization?.person?.phone_number">
+                    <template v-if="organization.person.phone_country">
+                      <span>
+                        {{ findCountryByCode(organization.person.phone_country)?.flag || '' }}
+                      </span>
+                      <span style="margin-left: 6px">
+                        {{ findCountryByCode(organization.person.phone_country)?.dial_code || '' }}
+                      </span>
+                      <span style="margin-left: 6px">
+                        {{ organization.person.phone_number }}
+                      </span>
+                    </template>
+                    <template v-else>
+                      {{ organization.person.phone_number }}
+                    </template>
+                  </span>
+>>>>>>> NEW
                   <span v-else>No disponible</span>
                 </td>
                 <td></td>
@@ -435,6 +484,7 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
+    <!-- ...rest of the file unchanged... -->
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Empresas</div>
@@ -475,7 +525,7 @@ onMounted(async () => {
                   <span v-else style="font-size: 12px; color: #888">Sin logo</span>
                 </div>
               </td>
-              <td class="legal-cell">{{ business.legal_name || 'No disponible' }}</td>
+              <td class="legal-cell">{{ business.name || 'No disponible' }}</td>
               <td class="address-cell">{{ business.address ? truncate(formatAddress(business.address), 60) : 'No disponible' }}</td>
               <td></td>
               <td class="status-cell">
@@ -573,7 +623,7 @@ onMounted(async () => {
                   <span v-else style="font-size: 12px; color: #888">Sin logo</span>
                 </div>
               </td>
-              <td class="legal-cell">{{ unit.legal_name || 'No disponible' }}</td>
+              <td class="legal-cell">{{ unit.name || 'No disponible' }}</td>
               <td class="address-cell">{{ unit.address ? truncate(formatAddress(unit.address), 60) : 'No disponible' }}</td>
               <td></td>
               <td class="status-cell">

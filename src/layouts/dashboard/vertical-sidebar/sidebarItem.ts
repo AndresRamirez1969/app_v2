@@ -73,7 +73,6 @@ const sidebarItem: menu[] = [
     icon: FolderOpenOutlined,
     to: '/reportes'
   },
-  // NUEVO: Dropdown Usuarios con Usuarios DW y Roles
   {
     title: 'Usuarios',
     icon: TeamOutlined,

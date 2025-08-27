@@ -127,10 +127,9 @@ const toggleStatus = async (org) => {
             <v-col cols="8">
               <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <router-link v-if="canView" :to="`/organizaciones/${org.id}`" @click.stop style="text-decoration: underline">
+                  <router-link :to="`/organizaciones/${org.id}`" @click.stop style="text-decoration: underline; color: #1976d2 !important">
                     {{ org.folio }}
                   </router-link>
-                  <span v-else>{{ org.folio }}</span>
                 </div>
                 <StatusChip :status="org.status" />
               </div>
@@ -170,10 +169,9 @@ const toggleStatus = async (org) => {
                 :style="{ cursor: canView ? 'pointer' : 'default' }"
               >
                 <td class="folio-cell">
-                  <router-link v-if="canView" :to="`/organizaciones/${org.id}`" @click.stop style="text-decoration: underline">
+                  <router-link :to="`/organizaciones/${org.id}`" @click.stop style="text-decoration: underline; color: #1976d2 !important">
                     {{ org.folio }}
                   </router-link>
-                  <span v-else>{{ org.folio }}</span>
                 </td>
                 <td class="logo-cell">
                   <v-avatar v-if="org.logo" size="48" class="logo-avatar">
