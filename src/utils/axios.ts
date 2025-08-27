@@ -2,7 +2,7 @@ import axios from 'axios';
 import router from '@/router';
 
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: 'http://52.72.102.50/api',
   withCredentials: false
 });
 
