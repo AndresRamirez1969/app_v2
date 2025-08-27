@@ -485,7 +485,7 @@ onMounted(async () => {
                   <span v-else style="font-size: 12px; color: #888">Sin logo</span>
                 </div>
               </td>
-              <td class="legal-cell">{{ business.legal_name || 'No disponible' }}</td>
+              <td class="legal-cell">{{ business.name || 'No disponible' }}</td>
               <td class="address-cell">{{ business.address ? truncate(formatAddress(business.address), 60) : 'No disponible' }}</td>
               <td></td>
               <td class="status-cell">
@@ -583,7 +583,7 @@ onMounted(async () => {
                   <span v-else style="font-size: 12px; color: #888">Sin logo</span>
                 </div>
               </td>
-              <td class="legal-cell">{{ unit.legal_name || 'No disponible' }}</td>
+              <td class="legal-cell">{{ unit.name || 'No disponible' }}</td>
               <td class="address-cell">{{ unit.address ? truncate(formatAddress(unit.address), 60) : 'No disponible' }}</td>
               <td></td>
               <td class="status-cell">

@@ -3,7 +3,7 @@
     <!-- Search bar -->
     <v-text-field
       v-model="search"
-      :placeholder="`Buscar por nombre legal, alias, folio o dirección...`"
+      :placeholder="`Buscar por nombre legal, alias o folio...`"
       prepend-inner-icon="mdi-magnify"
       clearable
       class="flex-grow-1 search-bar"
