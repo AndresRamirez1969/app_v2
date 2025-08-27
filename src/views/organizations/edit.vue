@@ -93,11 +93,12 @@ onMounted(async () => {
       };
     }
 
-    if (data.person) {
-      form.person.first_name = data.person.first_name || '';
-      form.person.last_name = data.person.last_name || '';
-      form.person.email = data.person.email || '';
-      form.person.phone_number = data.person.phone_number || '';
+    // INTEGRACIÓN: los datos de contacto vienen bajo contact, no person
+    if (data.contact) {
+      form.person.first_name = data.contact.first_name || '';
+      form.person.last_name = data.contact.last_name || '';
+      form.person.email = data.contact.email || '';
+      form.person.phone_number = data.contact.phone_number || '';
     }
   } catch (err) {
     console.error('❌ Error al cargar datos de organización', err);
@@ -126,10 +127,11 @@ const validate = async () => {
       formData.append(`address[${key}]`, parsedAddress.value[key] || '');
     }
 
-    const hasPersonData = Object.values(form.person).some((val) => val && val.trim() !== '');
-    if (hasPersonData) {
+    // INTEGRACIÓN: enviar datos de contacto bajo 'contact'
+    const hasContactData = Object.values(form.person).some((val) => val && val.trim() !== '');
+    if (hasContactData) {
       for (const key in form.person) {
-        formData.append(`person[${key}]`, form.person[key] || '');
+        formData.append(`contact[${key}]`, form.person[key] || '');
       }
     }
 

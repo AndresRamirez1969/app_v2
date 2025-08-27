@@ -16,6 +16,14 @@ const businesses = ref([]);
 const businessUnits = ref([]);
 const users = ref([]);
 
+// Contacto reactivo para mostrar en la tabla de contacto
+const contact = ref({
+  first_name: '',
+  last_name: '',
+  email: '',
+  phone_number: ''
+});
+
 const user = computed(() => auth.user || { roles: [], permissions: [] });
 const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
@@ -147,6 +155,30 @@ onMounted(async () => {
     businesses.value = org.businesses || [];
     businessUnits.value = org.business_units || [];
     users.value = org.users || [];
+
+    // INTEGRACIÓN: los datos de contacto vienen bajo contact, pero soporta person por compatibilidad
+    if (org.contact) {
+      contact.value = {
+        first_name: org.contact.first_name || '',
+        last_name: org.contact.last_name || '',
+        email: org.contact.email || '',
+        phone_number: org.contact.phone_number || ''
+      };
+    } else if (org.person) {
+      contact.value = {
+        first_name: org.person.first_name || '',
+        last_name: org.person.last_name || '',
+        email: org.person.email || '',
+        phone_number: org.person.phone_number || ''
+      };
+    } else {
+      contact.value = {
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone_number: ''
+      };
+    }
   } catch (err) {
     console.error('Error al obtener la organización:', err);
   }
@@ -334,8 +366,8 @@ onMounted(async () => {
                 <tr>
                   <td class="font-weight-bold text-subtitle-1" style="width: 40%">Nombre</td>
                   <td>
-                    <span v-if="organization?.person && (organization.person.first_name || organization.person.last_name)">
-                      {{ [organization.person.first_name, organization.person.last_name].filter(Boolean).join(' ') }}
+                    <span v-if="contact.first_name || contact.last_name">
+                      {{ [contact.first_name, contact.last_name].filter(Boolean).join(' ') }}
                     </span>
                     <span v-else>No disponible</span>
                   </td>
@@ -343,14 +375,14 @@ onMounted(async () => {
                 <tr>
                   <td class="font-weight-bold text-subtitle-1">Correo</td>
                   <td>
-                    <span v-if="organization?.person?.email">{{ organization.person.email }}</span>
+                    <span v-if="contact.email">{{ contact.email }}</span>
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
                 <tr>
                   <td class="font-weight-bold text-subtitle-1">Teléfono</td>
                   <td>
-                    <span v-if="organization?.person?.phone_number">{{ organization.person.phone_number }}</span>
+                    <span v-if="contact.phone_number">{{ contact.phone_number }}</span>
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
@@ -374,18 +406,18 @@ onMounted(async () => {
             <tbody>
               <tr>
                 <td>
-                  <span v-if="organization?.person && (organization.person.first_name || organization.person.last_name)">
-                    {{ [organization.person.first_name, organization.person.last_name].filter(Boolean).join(' ') }}
+                  <span v-if="contact.first_name || contact.last_name">
+                    {{ [contact.first_name, contact.last_name].filter(Boolean).join(' ') }}
                   </span>
                   <span v-else>No disponible</span>
                 </td>
                 <td></td>
                 <td>
-                  <span v-if="organization?.person?.email">{{ organization.person.email }}</span>
+                  <span v-if="contact.email">{{ contact.email }}</span>
                   <span v-else>No disponible</span>
                 </td>
                 <td>
-                  <span v-if="organization?.person?.phone_number">{{ organization.person.phone_number }}</span>
+                  <span v-if="contact.phone_number">{{ contact.phone_number }}</span>
                   <span v-else>No disponible</span>
                 </td>
                 <td></td>

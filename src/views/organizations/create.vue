@@ -16,10 +16,8 @@ const logoPreview = ref(null);
 const errorMsg = ref('');
 const canCreate = ref(false);
 
-// Para el input de búsqueda de zona horaria
 const timezoneSearch = ref('');
 
-// Errores de validación por campo
 const fieldErrors = reactive({
   legal_name: '',
   timezone: '',
@@ -27,7 +25,6 @@ const fieldErrors = reactive({
   logo: ''
 });
 
-// Referencias a los campos para poder hacer scroll
 const fieldRefs = {
   legal_name: ref(null),
   timezone: ref(null),
@@ -58,32 +55,24 @@ const form = reactive({
   }
 });
 
-// Convierte el array de timezones en objetos { label, value }
 const timezones = tzRaw.map((tz) => ({ label: tz, value: tz }));
 
-// Función para limpiar errores de un campo específico
 const clearFieldError = (fieldName) => {
   if (fieldErrors[fieldName]) {
     fieldErrors[fieldName] = '';
   }
 };
 
-// Función para hacer scroll hacia un campo específico
 const scrollToField = async (fieldName) => {
   await nextTick();
-
   const fieldRef = fieldRefs[fieldName];
   if (fieldRef && fieldRef.value) {
     const element = fieldRef.value.$el || fieldRef.value;
-
-    // Hacer scroll suave hacia el elemento
     element.scrollIntoView({
       behavior: 'smooth',
       block: 'center',
       inline: 'nearest'
     });
-
-    // Enfocar el campo si es posible
     if (element.focus) {
       element.focus();
     } else if (element.$el && element.$el.focus) {
@@ -92,10 +81,8 @@ const scrollToField = async (fieldName) => {
   }
 };
 
-// Función para validar un campo específico
 const validateField = (fieldName, value) => {
   clearFieldError(fieldName);
-
   switch (fieldName) {
     case 'legal_name':
       if (!value || value.trim() === '') {
@@ -103,57 +90,43 @@ const validateField = (fieldName, value) => {
         return false;
       }
       break;
-
     case 'timezone':
       if (!value || value.trim() === '') {
         fieldErrors.timezone = 'La zona horaria es obligatoria';
         return false;
       }
       break;
-
     case 'address':
       if (!parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
         fieldErrors.address = 'La dirección es obligatoria';
         return false;
       }
       break;
-
     case 'logo':
-      // El logo es opcional, no necesita validación
+      // El logo es opcional
       break;
   }
-
   return true;
 };
 
-// Función para validar todos los campos y hacer scroll al primero con error
 const validateAllFields = async () => {
   let isValid = true;
   let firstErrorField = null;
-
-  // Validar nombre legal
   if (!validateField('legal_name', form.legal_name)) {
     isValid = false;
     if (!firstErrorField) firstErrorField = 'legal_name';
   }
-
-  // Validar zona horaria
   if (!validateField('timezone', form.timezone)) {
     isValid = false;
     if (!firstErrorField) firstErrorField = 'timezone';
   }
-
-  // Validar dirección
   if (!validateField('address', parsedAddress.value)) {
     isValid = false;
     if (!firstErrorField) firstErrorField = 'address';
   }
-
-  // Si hay errores, hacer scroll al primer campo con error
   if (!isValid && firstErrorField) {
     await scrollToField(firstErrorField);
   }
-
   return isValid;
 };
 
@@ -172,7 +145,6 @@ watch(
 
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
-  // Limpiar error de dirección cuando se selecciona una
   if (val && Object.keys(val).length > 0) {
     clearFieldError('address');
   }
@@ -181,16 +153,11 @@ const handleParsedAddress = (val) => {
 const isLoading = ref(false);
 
 const validate = async () => {
-  // Limpiar mensaje de error general
   errorMsg.value = '';
-
-  // Validar todos los campos
   if (!(await validateAllFields())) {
-    return; // No continuar si hay errores de validación
+    return;
   }
-
   isLoading.value = true;
-
   try {
     const formData = new FormData();
     formData.append('legal_name', form.legal_name);
@@ -202,10 +169,11 @@ const validate = async () => {
       formData.append(`address[${key}]`, parsedAddress.value[key] || '');
     }
 
-    const hasPersonData = Object.values(form.person).some((val) => val?.trim?.() !== '');
-    if (hasPersonData) {
+    // INTEGRACIÓN: enviar datos de contacto bajo 'contact'
+    const hasContactData = Object.values(form.person).some((val) => val?.trim?.() !== '');
+    if (hasContactData) {
       for (const key in form.person) {
-        formData.append(`person[${key}]`, form.person[key] || '');
+        formData.append(`contact[${key}]`, form.person[key] || '');
       }
     }
 
@@ -216,7 +184,6 @@ const validate = async () => {
 
     const res = await axiosInstance.post('/organizations', formData);
 
-    // INTEGRACIÓN CORRECTA: usa el id del objeto organization
     const org = res.data.organization || res.data.data || res.data;
     if (org?.id) {
       auth.user.organization_id = org.id;
@@ -225,10 +192,8 @@ const validate = async () => {
     }
   } catch (err) {
     if (err?.response?.data?.errors) {
-      // Mapear errores del servidor a campos específicos
       const serverErrors = err.response.data.errors;
       let firstServerErrorField = null;
-
       if (serverErrors.legal_name) {
         fieldErrors.legal_name = serverErrors.legal_name[0];
         if (!firstServerErrorField) firstServerErrorField = 'legal_name';
@@ -245,20 +210,15 @@ const validate = async () => {
         fieldErrors.logo = serverErrors.logo[0];
         if (!firstServerErrorField) firstServerErrorField = 'logo';
       }
-
-      // Si hay errores del servidor, hacer scroll al primer campo con error
-      if (firstServerErrorField) {
-        await scrollToField(firstServerErrorField);
-      }
-
-      // Si hay errores que no se pueden mapear, mostrarlos en el mensaje general
       const unmappedErrors = Object.keys(serverErrors).filter((key) => !['legal_name', 'timezone', 'address', 'logo'].includes(key));
-
       if (unmappedErrors.length > 0) {
         errorMsg.value = unmappedErrors
           .map((key) => serverErrors[key])
           .flat()
           .join(' ');
+      }
+      if (firstServerErrorField) {
+        await scrollToField(firstServerErrorField);
       }
     } else if (err?.response?.data?.message) {
       errorMsg.value = err.response.data.message;
@@ -275,7 +235,6 @@ const validate = async () => {
 <template>
   <div v-if="canCreate">
     <v-container fluid>
-      <!-- Header solo para usuarios con organization.viewAny -->
       <v-row class="align-center mb-6" no-gutters>
         <v-col cols="auto" class="d-flex align-center">
           <template v-if="auth.user?.roles?.includes('superadmin') || auth.user?.permissions?.includes('organization.viewAny')">
@@ -288,7 +247,6 @@ const validate = async () => {
       </v-row>
 
       <v-form ref="Regform" lazy-validation class="mb-10">
-        <!-- Info General -->
         <v-row>
           <v-col cols="12">
             <h4 class="font-weight-bold mb-3">Información General</h4>
@@ -351,7 +309,6 @@ const validate = async () => {
             <v-label>Descripción</v-label>
             <v-textarea v-model="form.description" variant="outlined" color="primary" auto-grow rows="3" class="mt-2" />
 
-            <!-- Campo de zona horaria con búsqueda tipo autocomplete -->
             <v-label>Zona Horaria <span class="text-error">*</span></v-label>
             <v-autocomplete
               ref="fieldRefs.timezone"
@@ -374,7 +331,6 @@ const validate = async () => {
             />
           </v-col>
 
-          <!-- Dirección -->
           <v-col cols="12" class="mt-4">
             <v-label>Dirección <span class="text-error">*</span></v-label>
             <AddressAutocomplete class="mt-2" @update:parsedAddress="handleParsedAddress" />
@@ -392,7 +348,6 @@ const validate = async () => {
           </v-col>
         </v-row>
 
-        <!-- Contacto -->
         <v-row class="mt-10">
           <v-col cols="12">
             <h4 class="font-weight-bold mb-3">Contacto</h4>
@@ -420,7 +375,6 @@ const validate = async () => {
           </v-col>
         </v-row>
 
-        <!-- Botón -->
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
             <v-btn color="primary" class="mt-6" :loading="isLoading" :disabled="isLoading" @click="validate">
@@ -432,7 +386,6 @@ const validate = async () => {
           </v-col>
         </v-row>
 
-        <!-- Mensaje de error general (solo para errores no mapeables) -->
         <v-alert
           v-if="errorMsg"
           type="error"
