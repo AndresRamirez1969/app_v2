@@ -26,9 +26,10 @@ const contact = ref({
   phone_number: ''
 });
 
-const user = computed(() => auth.user || { roles: [], permissions: [] });
+const user = computed(() => auth.user || { roles: [], permissions: [], organization_id: null });
 const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
+const userOrganizationId = computed(() => user.value.organization_id);
 
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
@@ -39,7 +40,8 @@ const canShow = computed(() => isSuperadmin.value || isAdmin.value || roles.valu
 
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || canEditPermission.value);
 
-const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value);
+// Solo superadmin puede activar/desactivar organización
+const canToggleStatus = computed(() => isSuperadmin.value);
 
 const canBusinessEdit = computed(() => permissions.value.includes('business.update'));
 const canBusinessView = computed(() => permissions.value.includes('business.view'));
@@ -187,6 +189,14 @@ const getBusinessUnitsCount = (group) => {
 onMounted(async () => {
   try {
     const id = route.params.id;
+
+    if (!isSuperadmin.value) {
+      if (!canView.value || (userOrganizationId.value && String(userOrganizationId.value) !== String(id))) {
+        router.replace('/403');
+        return;
+      }
+    }
+
     const res = await axiosInstance.get(`/organizations/${id}`);
     const org = res.data.organization || res.data.data || res.data;
     organization.value = org;
@@ -263,6 +273,7 @@ onMounted(async () => {
                 </template>
                 <v-list-item-title>Editar</v-list-item-title>
               </v-list-item>
+              <!-- Solo superadmin puede ver el divider y el botón de activar/desactivar -->
               <template v-if="canToggleStatus">
                 <v-divider class="my-1" />
                 <v-list-item @click="toggleStatus">
@@ -297,6 +308,7 @@ onMounted(async () => {
                 </template>
                 <v-list-item-title>Editar</v-list-item-title>
               </v-list-item>
+              <!-- Solo superadmin puede ver el divider y el botón de activar/desactivar -->
               <template v-if="canToggleStatus">
                 <v-divider class="my-1" />
                 <v-list-item @click="toggleStatus">

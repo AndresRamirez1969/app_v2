@@ -58,7 +58,7 @@ async function fetchOrganizations() {
 
 onMounted(async () => {
   if (!hasPermission('organization.viewAny')) {
-    router.replace('/error-403'); // Redirección si no tiene permiso
+    router.replace('/403'); // Redirección si no tiene permiso
     return;
   }
   canView.value = true;

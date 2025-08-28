@@ -32,7 +32,7 @@ const PublicRoutes = {
     },
     {
       name: 'Error 403',
-      path: '/error-403',
+      path: '/403',
       component: () => import('@/views/pages/maintenance/error/Error403Page.vue')
     }
   ]

@@ -246,6 +246,16 @@ watch(
 );
 
 onMounted(async () => {
+  const user = auth.user;
+
+  const canEdit =
+    user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.permissions?.includes('organization.update');
+
+  if (!canEdit) {
+    router.replace('/403');
+    return;
+  }
+
   try {
     const res = await axiosInstance.get(`/organizations/${organizationId}`);
     const data = res.data.organization || res.data.data || res.data;

@@ -102,8 +102,15 @@ const fieldRefs = {
 
 onMounted(() => {
   const user = auth.user;
+
   canCreate.value =
     user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.permissions?.includes('organization.create');
+
+  if (!canCreate.value) {
+    router.replace('/403');
+    return;
+  }
+
   if (user?.organization_id && !user?.roles?.includes('superadmin')) {
     router.replace(`/organizaciones/${user.organization_id}`);
   }
