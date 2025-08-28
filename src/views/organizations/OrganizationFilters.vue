@@ -94,7 +94,7 @@
               <template #activator="{ props }">
                 <v-text-field
                   :model-value="formatDateOnly(createdAtStart)"
-                  label="Creado desde"
+                  label="Fecha de Inicio"
                   readonly
                   v-bind="props"
                   clearable
@@ -105,7 +105,9 @@
                   @click:clear="createdAtStart = null"
                 />
               </template>
-              <v-date-picker v-model="createdAtStart" @update:modelValue="menuCreatedStart = false" />
+              <v-date-picker v-model="createdAtStart" locale="es" @update:modelValue="menuCreatedStart = false">
+                <template #header></template>
+              </v-date-picker>
             </v-menu>
             <v-menu
               v-model="menuCreatedEnd"
@@ -118,7 +120,7 @@
               <template #activator="{ props }">
                 <v-text-field
                   :model-value="formatDateOnly(createdAtEnd)"
-                  label="Creado hasta"
+                  label="Fecha de Fin"
                   readonly
                   v-bind="props"
                   clearable
@@ -129,7 +131,9 @@
                   @click:clear="createdAtEnd = null"
                 />
               </template>
-              <v-date-picker v-model="createdAtEnd" @update:modelValue="menuCreatedEnd = false" />
+              <v-date-picker v-model="createdAtEnd" locale="es" @update:modelValue="menuCreatedEnd = false">
+                <template #header></template>
+              </v-date-picker>
             </v-menu>
           </div>
         </v-card-text>
@@ -169,7 +173,6 @@ const statusOptions = [
   { title: 'Inactivo', value: 'inactive' }
 ];
 
-// NUEVOS filtros de rango de fechas
 const createdAtStart = ref(null);
 const createdAtEnd = ref(null);
 const menuCreatedStart = ref(false);
@@ -177,19 +180,21 @@ const menuCreatedEnd = ref(false);
 
 const { mdAndDown } = useDisplay();
 
-// Emit search on input change (debounced for better UX)
+// Debounce para evitar llamadas excesivas al backend
+let searchTimeout;
 watch(search, (val) => {
-  emit('search', val);
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    emit('search', val);
+  }, 350); // 350ms debounce
 });
 
-// Detect if any filter is active
 const hasActiveFilters = computed(() => !!status.value || !!createdAtStart.value || !!createdAtEnd.value);
 
 function emitSearch() {
   emit('search', search.value);
 }
 
-// Formatea la fecha a YYYY-MM-DD si es necesario
 function formatDateOnly(val) {
   if (!val) return null;
   if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;

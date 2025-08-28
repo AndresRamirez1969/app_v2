@@ -133,7 +133,7 @@ const form = reactive({
   description: '',
   logo: null,
   timezone: '',
-  person: {
+  contact: {
     first_name: '',
     last_name: '',
     email: '',
@@ -181,7 +181,7 @@ const validateField = (fieldName, value) => {
     case 'logo':
       break;
     case 'phone_country':
-      if (form.person.phone_number && !value) {
+      if (form.contact.phone_number && !value) {
         fieldErrors.phone_country = 'Selecciona el país para el teléfono';
         return false;
       }
@@ -205,7 +205,7 @@ const validateAllFields = async () => {
     isValid = false;
     if (!firstErrorField) firstErrorField = 'address';
   }
-  if (!validateField('phone_country', form.person.phone_country)) {
+  if (!validateField('phone_country', form.contact.phone_country)) {
     isValid = false;
     if (!firstErrorField) firstErrorField = 'phone_country';
   }
@@ -238,6 +238,13 @@ const handleParsedAddress = (val) => {
   if (val && Object.keys(val).length > 0) clearFieldError('address');
 };
 
+watch(
+  () => [form.legal_name, form.timezone, parsedAddress.value, form.logo, form.contact.phone_country],
+  () => {
+    errorMsg.value = '';
+  }
+);
+
 onMounted(async () => {
   try {
     const res = await axiosInstance.get(`/organizations/${organizationId}`);
@@ -265,21 +272,13 @@ onMounted(async () => {
       };
     }
 
-<<<<<<< HEAD
-    // INTEGRACIÓN: los datos de contacto vienen bajo contact, no person
+    // INTEGRACIÓN: los datos de contacto vienen bajo contact
     if (data.contact) {
-      form.person.first_name = data.contact.first_name || '';
-      form.person.last_name = data.contact.last_name || '';
-      form.person.email = data.contact.email || '';
-      form.person.phone_number = data.contact.phone_number || '';
-=======
-    if (data.person) {
-      form.person.first_name = data.person.first_name || '';
-      form.person.last_name = data.person.last_name || '';
-      form.person.email = data.person.email || '';
-      form.person.phone_number = data.person.phone_number || '';
-      form.person.phone_country = data.person.phone_country || '';
->>>>>>> NEW
+      form.contact.first_name = data.contact.first_name || '';
+      form.contact.last_name = data.contact.last_name || '';
+      form.contact.email = data.contact.email || '';
+      form.contact.phone_number = data.contact.phone_number || '';
+      form.contact.phone_country = data.contact.phone_country || '';
     }
   } catch (err) {
     console.error('❌ Error al cargar datos de organización', err);
@@ -303,10 +302,10 @@ const validate = async () => {
     }
 
     // INTEGRACIÓN: enviar datos de contacto bajo 'contact'
-    const hasContactData = Object.values(form.person).some((val) => val && val.trim() !== '');
+    const hasContactData = Object.values(form.contact).some((val) => val && val.trim() !== '');
     if (hasContactData) {
-      for (const key in form.person) {
-        formData.append(`contact[${key}]`, form.person[key] || '');
+      for (const key in form.contact) {
+        formData.append(`contact[${key}]`, form.contact[key] || '');
       }
     }
 
@@ -492,32 +491,32 @@ const validate = async () => {
 
           <v-col cols="12" sm="6">
             <v-label>Nombre</v-label>
-            <v-text-field v-model="form.person.first_name" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.first_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Apellido</v-label>
-            <v-text-field v-model="form.person.last_name" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.last_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Correo</v-label>
-            <v-text-field v-model="form.person.email" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.email" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Teléfono</v-label>
-            <div class="phone-group mt-2">
+            <div class="phone-group phone-group-responsive mt-2">
+              <!-- País -->
               <v-autocomplete
                 ref="fieldRefs.phone_country"
-                v-model="form.person.phone_country"
+                v-model="form.contact.phone_country"
                 :items="filteredCountries"
                 v-model:search-input="phoneCountrySearch"
                 item-title="title"
                 item-value="value"
                 variant="outlined"
                 color="primary"
-                density="compact"
                 class="phone-country-field"
                 placeholder="País"
                 clearable
@@ -549,10 +548,9 @@ const validate = async () => {
                 </template>
               </v-autocomplete>
               <v-text-field
-                v-model="form.person.phone_number"
+                v-model="form.contact.phone_number"
                 variant="outlined"
                 color="primary"
-                density="compact"
                 class="phone-number-field"
                 placeholder="Número"
                 hide-details

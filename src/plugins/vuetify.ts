@@ -2,6 +2,7 @@ import { type ThemeDefinition, createVuetify } from 'vuetify';
 import { aliases, mdi } from 'vuetify/iconsets/mdi-svg';
 import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
+import { es } from 'vuetify/locale';
 
 const light: ThemeDefinition = {
   dark: false,
@@ -61,6 +62,23 @@ export default createVuetify({
     defaultTheme: 'light',
     themes: {
       light
+    }
+  },
+  locale: {
+    locale: 'es',
+    messages: {
+      es: {
+        ...es,
+        datePicker: {
+          itemsSelected: '{0} seleccionados',
+          cancel: 'Cancelar',
+          ok: 'Aceptar',
+          today: 'Hoy',
+          range: 'Rango',
+          title: 'Selecciona fecha',
+          input: 'Ingresa fecha'
+        }
+      }
     }
   },
   defaults: {

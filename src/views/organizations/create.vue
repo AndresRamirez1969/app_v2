@@ -20,9 +20,6 @@ const canCreate = ref(false);
 const timezoneSearch = ref('');
 const phoneCountrySearch = ref('');
 
-<<<<<<< HEAD
-=======
-/* -------------------- helpers -------------------- */
 function normalizeString(str) {
   return str
     ? str
@@ -32,7 +29,6 @@ function normalizeString(str) {
     : '';
 }
 
-/** Quita el "(+###)" al final del título, espacios y normaliza */
 function baseCountryTitle(title = '') {
   return normalizeString(
     String(title)
@@ -41,7 +37,6 @@ function baseCountryTitle(title = '') {
   );
 }
 
-/** Obtiene el prefijo telefónico (+###) */
 function getDialPrefix(value, titleFallback = '') {
   const c = findCountryByCode(value);
   const fromModel = c?.dial_code ?? c?.calling_code ?? c?.callingCode ?? c?.phoneCode ?? null;
@@ -51,32 +46,26 @@ function getDialPrefix(value, titleFallback = '') {
   return '';
 }
 
-/** Escoge el mejor item entre duplicados */
 function betterCountryItem(a, b) {
   const score = (it) => {
     const dial = getDialPrefix(it.value, it.title);
     let s = 0;
     if (dial) s += 2;
     if (it.value) s += 1;
-    if (String(it.value || '').length <= 3) s += 1; // ISO2/ISO3 suele ser corto
+    if (String(it.value || '').length <= 3) s += 1;
     return s;
   };
   return score(a) >= score(b) ? a : b;
 }
 
-/** Construye UNA sola lista única de países (se ejecuta 1 vez) */
 function buildUniqueCountries() {
-  const raw = toVuetifyItems(); // [{ title, value }, ...] con y sin (+###)
-
-  // 1) Elimina duplicados por value (código de país)
+  const raw = toVuetifyItems();
   const seen = new Set();
   const filtered = raw.filter((item) => {
     if (seen.has(item.value)) return false;
     seen.add(item.value);
     return true;
   });
-
-  // 2) Agrupa por nombre base (sin (+###)), escoge el mejor item
   const byName = new Map();
   for (const item of filtered) {
     const key = baseCountryTitle(item.title);
@@ -87,21 +76,14 @@ function buildUniqueCountries() {
       byName.set(key, betterCountryItem(existing, item));
     }
   }
-
-  // 3) Normaliza el title final: solo nombre (sin (+###))
   const result = Array.from(byName.values()).map((it) => ({
     ...it,
     title: it.title.replace(/\s*\(\+\d+\)\s*$/, '').trim()
   }));
-
-  // 4) Orden alfabético por nombre base
   result.sort((a, b) => baseCountryTitle(a.title).localeCompare(baseCountryTitle(b.title)));
-
   return result;
 }
 
-/* --------- datos reactivos / estados --------- */
->>>>>>> NEW
 const fieldErrors = reactive({
   legal_name: '',
   timezone: '',
@@ -133,7 +115,7 @@ const form = reactive({
   description: '',
   logo: null,
   timezone: '',
-  person: {
+  contact: {
     first_name: '',
     last_name: '',
     email: '',
@@ -142,18 +124,12 @@ const form = reactive({
   }
 });
 
-<<<<<<< HEAD
-const timezones = tzRaw.map((tz) => ({ label: tz, value: tz }));
-
-=======
-/* --------- computeds --------- */
 const filteredTimezones = computed(() => {
   const search = normalizeString(timezoneSearch.value);
   if (!search) return tzRaw;
   return tzRaw.filter((tz) => normalizeString(tz.label).includes(search) || normalizeString(tz.value).includes(search));
 });
 
-/** Países únicos (memoizado a través de cierre) */
 const UNIQUE_COUNTRIES = buildUniqueCountries();
 
 const filteredCountries = computed(() => {
@@ -166,8 +142,6 @@ const filteredCountries = computed(() => {
   });
 });
 
-/* --------- validaciones y envío --------- */
->>>>>>> NEW
 const clearFieldError = (fieldName) => {
   if (fieldErrors[fieldName]) fieldErrors[fieldName] = '';
 };
@@ -177,22 +151,9 @@ const scrollToField = async (fieldName) => {
   const fieldRef = fieldRefs[fieldName];
   if (fieldRef && fieldRef.value) {
     const element = fieldRef.value.$el || fieldRef.value;
-<<<<<<< HEAD
-    element.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-      inline: 'nearest'
-    });
-    if (element.focus) {
-      element.focus();
-    } else if (element.$el && element.$el.focus) {
-      element.$el.focus();
-    }
-=======
     element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     if (element.focus) element.focus();
     else if (element.$el && element.$el.focus) element.$el.focus();
->>>>>>> NEW
   }
 };
 
@@ -218,16 +179,12 @@ const validateField = (fieldName, value) => {
       }
       break;
     case 'logo':
-<<<<<<< HEAD
-      // El logo es opcional
-=======
       break;
     case 'phone_country':
-      if (form.person.phone_number && !value) {
+      if (form.contact.phone_number && !value) {
         fieldErrors.phone_country = 'Selecciona el país para el teléfono';
         return false;
       }
->>>>>>> NEW
       break;
   }
   return true;
@@ -248,17 +205,11 @@ const validateAllFields = async () => {
     isValid = false;
     if (!firstErrorField) firstErrorField = 'address';
   }
-<<<<<<< HEAD
-  if (!isValid && firstErrorField) {
-    await scrollToField(firstErrorField);
-  }
-=======
-  if (!validateField('phone_country', form.person.phone_country)) {
+  if (!validateField('phone_country', form.contact.phone_country)) {
     isValid = false;
     if (!firstErrorField) firstErrorField = 'phone_country';
   }
   if (!isValid && firstErrorField) await scrollToField(firstErrorField);
->>>>>>> NEW
   return isValid;
 };
 
@@ -274,27 +225,22 @@ watch(
 
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
-<<<<<<< HEAD
-  if (val && Object.keys(val).length > 0) {
-    clearFieldError('address');
-  }
-=======
   if (val && Object.keys(val).length > 0) clearFieldError('address');
->>>>>>> NEW
 };
 
 const isLoading = ref(false);
 
+watch(
+  () => [form.legal_name, form.timezone, parsedAddress.value, form.logo, form.contact.phone_country],
+  () => {
+    errorMsg.value = '';
+  }
+);
+
 const validate = async () => {
   errorMsg.value = '';
-<<<<<<< HEAD
-  if (!(await validateAllFields())) {
-    return;
-  }
-=======
   if (!(await validateAllFields())) return;
 
->>>>>>> NEW
   isLoading.value = true;
   try {
     const formData = new FormData();
@@ -304,18 +250,10 @@ const validate = async () => {
     formData.append('timezone', form.timezone);
     for (const key in parsedAddress.value) formData.append(`address[${key}]`, parsedAddress.value[key] || '');
 
-<<<<<<< HEAD
     // INTEGRACIÓN: enviar datos de contacto bajo 'contact'
-    const hasContactData = Object.values(form.person).some((val) => val?.trim?.() !== '');
+    const hasContactData = Object.values(form.contact).some((val) => val?.trim?.() !== '');
     if (hasContactData) {
-      for (const key in form.person) {
-        formData.append(`contact[${key}]`, form.person[key] || '');
-      }
-=======
-    const hasPersonData = Object.values(form.person).some((val) => val?.trim?.() !== '');
-    if (hasPersonData) {
-      for (const key in form.person) formData.append(`person[${key}]`, form.person[key] || '');
->>>>>>> NEW
+      for (const key in form.contact) formData.append(`contact[${key}]`, form.contact[key] || '');
     }
     if (form.logo) {
       const logoFile = Array.isArray(form.logo) ? form.logo[0] : form.logo;
@@ -323,10 +261,6 @@ const validate = async () => {
     }
 
     const res = await axiosInstance.post('/organizations', formData);
-<<<<<<< HEAD
-
-=======
->>>>>>> NEW
     const org = res.data.organization || res.data.data || res.data;
     if (org?.id) {
       auth.user.organization_id = org.id;
@@ -353,18 +287,6 @@ const validate = async () => {
         fieldErrors.logo = serverErrors.logo[0];
         firstServerErrorField = firstServerErrorField || 'logo';
       }
-<<<<<<< HEAD
-      const unmappedErrors = Object.keys(serverErrors).filter((key) => !['legal_name', 'timezone', 'address', 'logo'].includes(key));
-      if (unmappedErrors.length > 0) {
-        errorMsg.value = unmappedErrors
-          .map((key) => serverErrors[key])
-          .flat()
-          .join(' ');
-      }
-      if (firstServerErrorField) {
-        await scrollToField(firstServerErrorField);
-      }
-=======
       if (serverErrors.phone_country) {
         fieldErrors.phone_country = serverErrors.phone_country[0];
         firstServerErrorField = firstServerErrorField || 'phone_country';
@@ -377,7 +299,6 @@ const validate = async () => {
           .map((k) => serverErrors[k])
           .flat()
           .join(' ');
->>>>>>> NEW
     } else if (err?.response?.data?.message) {
       errorMsg.value = err.response.data.message;
     } else {
@@ -514,33 +435,32 @@ const validate = async () => {
 
           <v-col cols="12" sm="6">
             <v-label>Nombre</v-label>
-            <v-text-field v-model="form.person.first_name" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.first_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Apellido</v-label>
-            <v-text-field v-model="form.person.last_name" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.last_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Correo</v-label>
-            <v-text-field v-model="form.person.email" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.email" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Teléfono</v-label>
-            <div class="phone-group mt-2">
+            <div class="phone-group phone-group-responsive mt-2">
               <!-- País -->
               <v-autocomplete
                 ref="fieldRefs.phone_country"
-                v-model="form.person.phone_country"
+                v-model="form.contact.phone_country"
                 :items="filteredCountries"
                 v-model:search-input="phoneCountrySearch"
                 item-title="title"
                 item-value="value"
                 variant="outlined"
                 color="primary"
-                density="compact"
                 class="phone-country-field"
                 placeholder="País"
                 clearable
@@ -549,15 +469,12 @@ const validate = async () => {
                 :error-messages="fieldErrors.phone_country"
                 @update:model-value="clearFieldError('phone_country')"
               >
-                <!-- En el input: bandera + prefijo -->
                 <template #selection="{ item }">
                   <template v-if="item && item.value">
                     <span>{{ findCountryByCode(item.value)?.flag }}</span>
                     <span style="margin-left: 6px">{{ getDialPrefix(item.value, item.title) }}</span>
                   </template>
                 </template>
-
-                <!-- Menú: bandera + nombre + prefijo a la derecha -->
                 <template #item="{ item, props }">
                   <v-list-item v-bind="props">
                     <template #title>
@@ -574,13 +491,10 @@ const validate = async () => {
                   </v-list-item>
                 </template>
               </v-autocomplete>
-
-              <!-- Número -->
               <v-text-field
-                v-model="form.person.phone_number"
+                v-model="form.contact.phone_number"
                 variant="outlined"
                 color="primary"
-                density="compact"
                 class="phone-number-field"
                 placeholder="Número"
                 hide-details

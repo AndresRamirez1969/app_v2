@@ -7,7 +7,8 @@ const props = defineProps({
   page: Number,
   itemsPerPage: Number,
   sortBy: String,
-  sortDesc: Boolean
+  sortDesc: Boolean,
+  meta: Object
 });
 const emit = defineEmits(['update:page', 'sort']);
 </script>
@@ -26,6 +27,10 @@ const emit = defineEmits(['update:page', 'sort']);
             Nombre Legal
             <slot name="sort-icon" :column="'legal_name'" />
           </th>
+          <th @click="emit('sort', 'alias')" class="cursor-pointer alias-header">
+            Alias
+            <slot name="sort-icon" :column="'alias'" />
+          </th>
           <th @click="emit('sort', 'address')" class="cursor-pointer address-header">
             Dirección
             <slot name="sort-icon" :column="'address'" />
@@ -41,7 +46,7 @@ const emit = defineEmits(['update:page', 'sort']);
     <div class="d-flex justify-center mt-4">
       <v-pagination
         v-model="props.page"
-        :length="Math.ceil((props.items?.length || 1) / props.itemsPerPage)"
+        :length="props.meta?.last_page || 1"
         total-visible="7"
         color="primary"
         @update:modelValue="emit('update:page', $event)"

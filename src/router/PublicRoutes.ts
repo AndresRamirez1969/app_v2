@@ -29,6 +29,11 @@ const PublicRoutes = {
       name: 'Error 404',
       path: '/error',
       component: () => import('@/views/pages/maintenance/error/Error404Page.vue')
+    },
+    {
+      name: 'Error 403',
+      path: '/error-403',
+      component: () => import('@/views/pages/maintenance/error/Error403Page.vue')
     }
   ]
 };

@@ -15,13 +15,14 @@ const organization = ref(null);
 const auth = useAuthStore();
 const businesses = ref([]);
 const businessUnits = ref([]);
+const businessUnitGroups = ref([]);
 const users = ref([]);
 
-// Contacto reactivo para mostrar en la tabla de contacto
 const contact = ref({
   first_name: '',
   last_name: '',
   email: '',
+  phone_country: '',
   phone_number: ''
 });
 
@@ -48,13 +49,19 @@ const canBusinessUnitEdit = computed(() => permissions.value.includes('businessU
 const canBusinessUnitView = computed(() => permissions.value.includes('businessUnit.view'));
 const canBusinessUnitActions = computed(() => canBusinessUnitView.value || canBusinessUnitEdit.value || canToggleStatus.value);
 
+const canBusinessUnitGroupEdit = computed(() => permissions.value.includes('businessUnitGroup.update'));
+const canBusinessUnitGroupView = computed(() => permissions.value.includes('businessUnitGroup.view'));
+const canBusinessUnitGroupActions = computed(
+  () => canBusinessUnitGroupView.value || canBusinessUnitGroupEdit.value || canToggleStatus.value
+);
+
 const canUserEdit = computed(() => permissions.value.includes('user.update'));
 const canUserView = computed(() => permissions.value.includes('user.view'));
 const canUserActions = computed(() => canUserView.value || canUserEdit.value || canToggleStatus.value);
 
 const showBusinessTable = computed(() => (isSuperadmin.value || isAdmin.value) && !mdAndDown.value);
 
-const isActive = computed(() => organization.value?.status === 'activa' || organization.value?.status === 'active');
+const isActive = computed(() => organization.value?.status === 'active');
 
 const goToEdit = () => {
   if (organization.value?.id) {
@@ -71,6 +78,9 @@ const goToBusinessShow = (bus) => router.push({ path: `/empresas/${bus.id}` });
 
 const goToBusinessUnitEdit = (unit) => router.push({ path: `/ubicaciones/editar/${unit.id}` });
 const goToBusinessUnitShow = (unit) => router.push({ path: `/ubicaciones/${unit.id}` });
+
+const goToBusinessUnitGroupEdit = (group) => router.push({ path: `/grupos-ubicaciones/editar/${group.id}` });
+const goToBusinessUnitGroupShow = (group) => router.push({ path: `/grupos-ubicaciones/${group.id}` });
 
 const goToUserEdit = (user) => router.push({ path: `/usuarios/editar/${user.id}` });
 const goToUserShow = (user) => router.push({ path: `/usuarios/${user.id}` });
@@ -91,7 +101,7 @@ const toggleStatus = async () => {
 
 const toggleBusinessStatus = async (bus) => {
   if (!canToggleStatus.value) return;
-  const isActive = bus.status === 'activa' || bus.status === 'active';
+  const isActive = bus.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
     const res = await axiosInstance.put(`/businesses/${bus.id}`, {
@@ -105,7 +115,7 @@ const toggleBusinessStatus = async (bus) => {
 
 const toggleBusinessUnitStatus = async (unit) => {
   if (!canToggleStatus.value) return;
-  const isActive = unit.status === 'activa' || unit.status === 'active';
+  const isActive = unit.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
     const res = await axiosInstance.put(`/business-units/${unit.id}`, {
@@ -117,9 +127,23 @@ const toggleBusinessUnitStatus = async (unit) => {
   }
 };
 
+const toggleBusinessUnitGroupStatus = async (group) => {
+  if (!canToggleStatus.value) return;
+  const isActive = group.status === 'active';
+  const newStatus = isActive ? 'inactive' : 'active';
+  try {
+    const res = await axiosInstance.put(`/business-unit-groups/${group.id}`, {
+      status: newStatus
+    });
+    group.status = res.data.status || newStatus;
+  } catch (err) {
+    alert('No se pudo cambiar el estatus del grupo');
+  }
+};
+
 const toggleUserStatus = async (user) => {
   if (!canToggleStatus.value) return;
-  const isActive = user.status === 'activo' || user.status === 'active';
+  const isActive = user.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
     const res = await axiosInstance.put(`/users/${user.id}`, {
@@ -148,7 +172,6 @@ const formatAddress = (address) => {
 
 const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
-// Helper para mostrar teléfono con bandera y prefijo
 function formatPhone(person) {
   if (!person || !person.phone_number) return 'No disponible';
   const country = findCountryByCode(person.phone_country);
@@ -156,6 +179,10 @@ function formatPhone(person) {
   const dial = country?.dial_code || '';
   return `${flag ? flag + ' ' : ''}${dial ? dial + ' ' : ''}${person.phone_number}`;
 }
+
+const getBusinessUnitsCount = (group) => {
+  return group.business_units_count ?? group.businessUnits?.length ?? 0;
+};
 
 onMounted(async () => {
   try {
@@ -165,28 +192,23 @@ onMounted(async () => {
     organization.value = org;
     businesses.value = org.businesses || [];
     businessUnits.value = org.business_units || [];
+    businessUnitGroups.value = org.business_unit_groups || [];
     users.value = org.users || [];
 
-    // INTEGRACIÓN: los datos de contacto vienen bajo contact, pero soporta person por compatibilidad
     if (org.contact) {
       contact.value = {
         first_name: org.contact.first_name || '',
         last_name: org.contact.last_name || '',
         email: org.contact.email || '',
+        phone_country: org.contact.phone_country || '',
         phone_number: org.contact.phone_number || ''
-      };
-    } else if (org.person) {
-      contact.value = {
-        first_name: org.person.first_name || '',
-        last_name: org.person.last_name || '',
-        email: org.person.email || '',
-        phone_number: org.person.phone_number || ''
       };
     } else {
       contact.value = {
         first_name: '',
         last_name: '',
         email: '',
+        phone_country: '',
         phone_number: ''
       };
     }
@@ -198,6 +220,7 @@ onMounted(async () => {
 
 <template>
   <v-container fluid v-if="canShow">
+    <!-- Encabezado y opciones -->
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
         <template v-if="isSuperadmin">
@@ -291,6 +314,7 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
+    <!-- Información general -->
     <v-row>
       <v-col cols="12" md="4" class="d-flex justify-center align-center">
         <template v-if="organization?.logo">
@@ -361,12 +385,7 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <v-row v-if="mdAndDown">
-      <v-col cols="12">
-        <div style="height: 24px"></div>
-      </v-col>
-    </v-row>
-
+    <!-- Contacto -->
     <v-row>
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Contacto</div>
@@ -377,9 +396,14 @@ onMounted(async () => {
                 <tr>
                   <td class="font-weight-bold text-subtitle-1" style="width: 40%">Nombre</td>
                   <td>
-                    <span v-if="contact.first_name || contact.last_name">
-                      {{ [contact.first_name, contact.last_name].filter(Boolean).join(' ') }}
-                    </span>
+                    <span v-if="contact.first_name">{{ contact.first_name }}</span>
+                    <span v-else>No disponible</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold text-subtitle-1" style="width: 40%">Apellido</td>
+                  <td>
+                    <span v-if="contact.last_name">{{ contact.last_name }}</span>
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
@@ -393,26 +417,16 @@ onMounted(async () => {
                 <tr>
                   <td class="font-weight-bold text-subtitle-1">Teléfono</td>
                   <td>
-<<<<<<< HEAD
-                    <span v-if="contact.phone_number">{{ contact.phone_number }}</span>
-=======
-                    <span v-if="organization?.person?.phone_number">
-                      <template v-if="organization.person.phone_country">
-                        <span>
-                          {{ findCountryByCode(organization.person.phone_country)?.flag || '' }}
-                        </span>
-                        <span style="margin-left: 6px">
-                          {{ findCountryByCode(organization.person.phone_country)?.dial_code || '' }}
-                        </span>
-                        <span style="margin-left: 6px">
-                          {{ organization.person.phone_number }}
-                        </span>
+                    <span v-if="contact.phone_number">
+                      <template v-if="contact.phone_country">
+                        <span>{{ findCountryByCode(contact.phone_country)?.flag || '' }}</span>
+                        <span style="margin-left: 6px">{{ findCountryByCode(contact.phone_country)?.dial_code || '' }}</span>
+                        <span style="margin-left: 6px">{{ contact.phone_number }}</span>
                       </template>
                       <template v-else>
-                        {{ organization.person.phone_number }}
+                        {{ contact.phone_number }}
                       </template>
                     </span>
->>>>>>> NEW
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
@@ -425,7 +439,7 @@ onMounted(async () => {
             <thead>
               <tr>
                 <th class="font-weight-bold text-subtitle-1" style="width: 10%">Nombre</th>
-                <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 10%">Apellido</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 20%">Correo</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 25%">Teléfono</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 15%"></th>
@@ -436,39 +450,31 @@ onMounted(async () => {
             <tbody>
               <tr>
                 <td>
-                  <span v-if="contact.first_name || contact.last_name">
-                    {{ [contact.first_name, contact.last_name].filter(Boolean).join(' ') }}
-                  </span>
+                  <span v-if="contact.first_name">{{ contact.first_name }}</span>
                   <span v-else>No disponible</span>
                 </td>
-                <td></td>
+                <td>
+                  <span v-if="contact.last_name">{{ contact.last_name }}</span>
+                  <span v-else>No disponible</span>
+                </td>
                 <td>
                   <span v-if="contact.email">{{ contact.email }}</span>
                   <span v-else>No disponible</span>
                 </td>
                 <td>
-<<<<<<< HEAD
-                  <span v-if="contact.phone_number">{{ contact.phone_number }}</span>
-=======
-                  <span v-if="organization?.person?.phone_number">
-                    <template v-if="organization.person.phone_country">
-                      <span>
-                        {{ findCountryByCode(organization.person.phone_country)?.flag || '' }}
-                      </span>
-                      <span style="margin-left: 6px">
-                        {{ findCountryByCode(organization.person.phone_country)?.dial_code || '' }}
-                      </span>
-                      <span style="margin-left: 6px">
-                        {{ organization.person.phone_number }}
-                      </span>
+                  <span v-if="contact.phone_number">
+                    <template v-if="contact.phone_country">
+                      <span>{{ findCountryByCode(contact.phone_country)?.flag || '' }}</span>
+                      <span style="margin-left: 6px">{{ findCountryByCode(contact.phone_country)?.dial_code || '' }}</span>
+                      <span style="margin-left: 6px">{{ contact.phone_number }}</span>
                     </template>
                     <template v-else>
-                      {{ organization.person.phone_number }}
+                      {{ contact.phone_number }}
                     </template>
                   </span>
->>>>>>> NEW
                   <span v-else>No disponible</span>
                 </td>
+                <td></td>
                 <td></td>
                 <td></td>
               </tr>
@@ -478,13 +484,7 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <v-row>
-      <v-col cols="12">
-        <div style="height: 32px"></div>
-      </v-col>
-    </v-row>
-
-    <!-- ...rest of the file unchanged... -->
+    <!-- Empresas -->
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Empresas</div>
@@ -556,13 +556,10 @@ onMounted(async () => {
                     <v-divider class="my-1" v-if="canToggleStatus" />
                     <v-list-item v-if="canToggleStatus" @click="toggleBusinessStatus(business)">
                       <template #prepend>
-                        <v-icon
-                          :icon="business.status === 'activa' || business.status === 'active' ? mdiCancel : mdiCheckCircle"
-                          size="18"
-                        />
+                        <v-icon :icon="business.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
                       </template>
                       <v-list-item-title>
-                        {{ business.status === 'activa' || business.status === 'active' ? 'Desactivar' : 'Activar' }}
+                        {{ business.status === 'active' ? 'Desactivar' : 'Activar' }}
                       </v-list-item-title>
                     </v-list-item>
                   </v-list>
@@ -577,12 +574,12 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
+    <!-- Ubicaciones -->
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div style="height: 32px"></div>
       </v-col>
     </v-row>
-
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Ubicaciones</div>
@@ -654,10 +651,10 @@ onMounted(async () => {
                     <v-divider class="my-1" v-if="canToggleStatus" />
                     <v-list-item v-if="canToggleStatus" @click="toggleBusinessUnitStatus(unit)">
                       <template #prepend>
-                        <v-icon :icon="unit.status === 'activa' || unit.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
+                        <v-icon :icon="unit.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
                       </template>
                       <v-list-item-title>
-                        {{ unit.status === 'activa' || unit.status === 'active' ? 'Desactivar' : 'Activar' }}
+                        {{ unit.status === 'active' ? 'Desactivar' : 'Activar' }}
                       </v-list-item-title>
                     </v-list-item>
                   </v-list>
@@ -672,12 +669,100 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
+    <!-- Business Unit Groups -->
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div style="height: 32px"></div>
       </v-col>
     </v-row>
+    <v-row v-if="showBusinessTable">
+      <v-col cols="12">
+        <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Grupos de Ubicaciones</div>
+        <v-table class="rounded-lg elevation-1 fixed-table">
+          <thead>
+            <tr>
+              <th class="font-weight-bold text-subtitle-1" style="width: 10%">ID</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 10%">Nombre</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 20%"></th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 25%">Ubicaciones</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 15%"></th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 10%">Estatus</th>
+              <th class="font-weight-bold text-subtitle-1 actions-header" style="width: 10%"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="group in businessUnitGroups"
+              :key="group.id"
+              :class="['row-clickable', { 'cursor-pointer': canBusinessUnitGroupView }]"
+              @click="canBusinessUnitGroupView ? goToBusinessUnitGroupShow(group) : undefined"
+              :style="{ cursor: canBusinessUnitGroupView ? 'pointer' : 'default' }"
+            >
+              <td>
+                <router-link
+                  v-if="canBusinessUnitGroupView"
+                  :to="`/grupos-ubicaciones/${group.id}`"
+                  style="text-decoration: underline; color: #1976d2 !important"
+                  @click.stop
+                >
+                  {{ group.id }}
+                </router-link>
+                <span v-else>{{ group.id }}</span>
+              </td>
+              <td>{{ group.name || 'No disponible' }}</td>
+              <td>{{ getBusinessUnitsCount(group) }}</td>
+              <td>
+                <StatusChip :status="group.status" v-if="group.status" />
+                <span v-else>No disponible</span>
+              </td>
+              <td class="actions-cell">
+                <v-menu v-if="canBusinessUnitGroupActions" location="bottom end">
+                  <template #activator="{ props }">
+                    <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
+                      <v-icon :icon="mdiDotsHorizontal" size="20" />
+                    </v-btn>
+                  </template>
+                  <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
+                    <v-list-item v-if="canBusinessUnitGroupView" @click="goToBusinessUnitGroupShow(group)">
+                      <template #prepend>
+                        <v-icon :icon="mdiEye" size="18" />
+                      </template>
+                      <v-list-item-title>Ver</v-list-item-title>
+                    </v-list-item>
+                    <v-divider class="my-1" v-if="canBusinessUnitGroupEdit && canBusinessUnitGroupView" />
+                    <v-list-item v-if="canBusinessUnitGroupEdit" @click="goToBusinessUnitGroupEdit(group)">
+                      <template #prepend>
+                        <v-icon :icon="mdiPencil" size="18" />
+                      </template>
+                      <v-list-item-title>Editar</v-list-item-title>
+                    </v-list-item>
+                    <v-divider class="my-1" v-if="canToggleStatus" />
+                    <v-list-item v-if="canToggleStatus" @click="toggleBusinessUnitGroupStatus(group)">
+                      <template #prepend>
+                        <v-icon :icon="group.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
+                      </template>
+                      <v-list-item-title>
+                        {{ group.status === 'active' ? 'Desactivar' : 'Activar' }}
+                      </v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </v-menu>
+              </td>
+            </tr>
+            <tr v-if="businessUnitGroups.length === 0">
+              <td colspan="5" class="text-center text-medium-emphasis">No hay grupos de ubicaciones relacionados.</td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-col>
+    </v-row>
 
+    <!-- Usuarios -->
+    <v-row v-if="showBusinessTable">
+      <v-col cols="12">
+        <div style="height: 32px"></div>
+      </v-col>
+    </v-row>
     <v-row v-if="showBusinessTable">
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Usuarios</div>
@@ -778,10 +863,10 @@ onMounted(async () => {
                     <v-divider class="my-1" v-if="canToggleStatus" />
                     <v-list-item v-if="canToggleStatus" @click="toggleUserStatus(user)">
                       <template #prepend>
-                        <v-icon :icon="user.status === 'activo' || user.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
+                        <v-icon :icon="user.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
                       </template>
                       <v-list-item-title>
-                        {{ user.status === 'activo' || user.status === 'active' ? 'Desactivar' : 'Activar' }}
+                        {{ user.status === 'active' ? 'Desactivar' : 'Activar' }}
                       </v-list-item-title>
                     </v-list-item>
                   </v-list>

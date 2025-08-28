@@ -11,6 +11,8 @@ import { useAuthStore } from '@/stores/auth';
 const router = useRouter();
 const organizations = ref([]);
 const meta = ref({});
+const isLoading = ref(false);
+const errorMsg = ref('');
 const { mdAndDown } = useDisplay();
 
 const searchText = ref('');
@@ -30,11 +32,12 @@ function hasPermission(permission) {
 
 async function fetchOrganizations() {
   if (!canView.value) return;
+  isLoading.value = true;
+  errorMsg.value = '';
   try {
     const params = {
       search: searchText.value,
       status: filterOptions.value.status,
-      // Mapeo correcto de los nombres para el backend
       created_at_start: filterOptions.value.created_at_start ?? filterOptions.value.createdAtStart,
       created_at_end: filterOptions.value.created_at_end ?? filterOptions.value.createdAtEnd,
       sort_by: sortBy.value,
@@ -43,17 +46,19 @@ async function fetchOrganizations() {
       per_page: itemsPerPage.value
     };
     const { data } = await axios.get('/organizations', { params });
-    organizations.value = data.data;
+    organizations.value = Array.isArray(data.data) ? data.data : [];
     meta.value = data.meta || {};
   } catch (error) {
-    console.error('Error fetching organizations:', error);
+    errorMsg.value = 'Error al cargar organizaciones';
     organizations.value = [];
+  } finally {
+    isLoading.value = false;
   }
 }
 
 onMounted(async () => {
   if (!hasPermission('organization.viewAny')) {
-    canView.value = false;
+    router.replace('/error-403'); // Redirección si no tiene permiso
     return;
   }
   canView.value = true;
@@ -72,13 +77,11 @@ function handleSearch(text) {
 }
 
 function handleFilter(filters) {
-  // Aquí los nombres ya vienen correctos desde OrganizationFilters.vue
   filterOptions.value = filters;
   page.value = 1;
   fetchOrganizations();
 }
 
-// Recibe eventos de paginación y ordenamiento desde OrganizationList
 function handlePageChange(newPage) {
   page.value = newPage;
   fetchOrganizations();
@@ -118,6 +121,7 @@ function handleSort({ sortBy: newSortBy, sortDesc: newSortDesc }) {
           <OrganizationList
             :items="organizations"
             :isMobile="mdAndDown"
+            :isLoading="isLoading"
             :page="page"
             :itemsPerPage="itemsPerPage"
             :sortBy="sortBy"
@@ -126,6 +130,7 @@ function handleSort({ sortBy: newSortBy, sortDesc: newSortDesc }) {
             @update:page="handlePageChange"
             @sort="handleSort"
           />
+          <div v-if="errorMsg" class="mt-4 text-error text-center">{{ errorMsg }}</div>
         </v-col>
       </v-row>
     </v-container>

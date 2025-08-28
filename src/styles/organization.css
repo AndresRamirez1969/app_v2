@@ -30,14 +30,29 @@ td {
   vertical-align: middle;
   padding: 0;
 }
+
 .legal-header,
 .legal-cell {
-  width: 180px;
+  width: 140px;
+  min-width: 100px;
+  max-width: 160px;
   text-align: left;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+.alias-header,
+.alias-cell {
+  width: 100px;
+  min-width: 80px;
+  max-width: 120px;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .address-header,
 .address-cell {
   width: 240px;
@@ -163,24 +178,42 @@ td {
   align-items: center;
 }
 
-/* Select de país angosto (bandera + prefijo) */
-.phone-country-field {
-  flex: 0 0 120px !important; /* ajusta 100–140px si quieres más angosto */
-  max-width: 120px !important;
-  min-width: 120px !important;
-}
-
-.phone-country-field :deep(.v-field) {
-  padding-inline: 6px !important;
-}
-
-.phone-country-field :deep(.v-field__input),
-.phone-number-field :deep(.v-field__input) {
-  min-height: 36px !important;
-}
-
-/* El número ocupa el resto */
+/* --- PHONE FIELDS HEIGHT & WIDTH --- */
+.phone-country-field,
 .phone-number-field {
-  flex: 1 1 auto !important;
-  min-width: 140px;
+  min-height: 40px !important; /* igual que los v-text-field por defecto */
+  height: 40px !important;
+  max-height: 40px !important;
+}
+
+.phone-country-field {
+  min-width: 120px !important;
+  max-width: 180px !important;
+}
+
+.phone-number-field {
+  min-width: 190px !important;
+  max-width: 100% !important;
+}
+
+/* --- PHONE GROUP RESPONSIVE --- */
+.phone-group-responsive {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .phone-group-responsive {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+  .phone-country-field,
+  .phone-number-field {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin-bottom: 8px;
+  }
 }
