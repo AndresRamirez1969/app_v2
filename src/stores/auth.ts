@@ -47,21 +47,46 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async login(email: string, password: string, rememberMe: boolean) {
-      const response = await axiosInstance.post('/login', {
-        email,
-        password,
-        remember: rememberMe
-      });
-      const user = response.data.user;
-      if (user && user.organization_id) user.organizationDwId = user.organization_id;
+      try {
+        const response = await axiosInstance.post('/login', {
+          email,
+          password,
+          remember: rememberMe
+        });
 
-      this.token = response.data.token;
-      this.user = user;
-      this.permissions = user.permissions;
+        // Validar que la respuesta tenga la estructura esperada
+        if (!response.data || !response.data.token) {
+          throw new Error('Respuesta del servidor inválida');
+        }
 
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem('authToken', this.token);
-      storage.setItem('authUser', JSON.stringify(user));
+        const user = response.data.user || {};
+        const permissions = user.permissions || [];
+
+        // Agregar organizationDwId si existe organization_id
+        if (user && user.organization_id) {
+          user.organizationDwId = user.organization_id;
+        }
+
+        this.token = response.data.token;
+        this.user = {
+          ...user,
+          permissions: permissions
+        };
+        this.permissions = permissions;
+
+        const storage = rememberMe ? localStorage : sessionStorage;
+        storage.setItem('authToken', this.token);
+        storage.setItem('authUser', JSON.stringify(this.user));
+
+        console.log('✅ Login exitoso:', {
+          user: this.user,
+          permissions: this.permissions,
+          token: this.token ? 'presente' : 'ausente'
+        });
+      } catch (error) {
+        console.error('❌ Error en login:', error);
+        throw error;
+      }
     },
 
     loginWithTokenAndUser(token: string, user: any, permissions: any[] = []) {
