@@ -5,7 +5,7 @@ import { mdiArrowLeft } from '@mdi/js';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 import axiosInstance from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
-import { timezones } from '@/utils/constants/timezones';
+import { timezones as tzRaw } from '@/utils/constants/timezones';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -18,6 +18,15 @@ const canCreate = ref(false);
 const timezoneSearch = ref('');
 
 const user = computed(() => auth.user);
+
+function normalizeString(str) {
+  return str
+    ? str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+    : '';
+}
 
 const isSuperadmin = computed(() => user.value?.roles?.includes('superadmin'));
 const isAdmin = computed(() => user.value?.roles?.includes('admin'));
@@ -126,7 +135,7 @@ const fetchBusinesses = async (searchText, orgId) => {
     });
     businesses.value = (data.data || []).map((b) => ({
       ...b,
-      display: `${b.folio}${b.legal_name ? ' - ' + b.legal_name : ''}`,
+      display: `${b.folio}${b.name ? ' - ' + b.name : ''}`,
       id: b.id
     }));
   } catch (e) {
@@ -143,6 +152,12 @@ watch(businessSearch, (val) => {
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
 };
+
+const filteredTimezones = computed(() => {
+  const search = normalizeString(timezoneSearch.value);
+  if (!search) return tzRaw;
+  return tzRaw.filter((tz) => normalizeString(tz.label).includes(search) || normalizeString(tz.value).includes(search));
+});
 
 const isLoading = ref(false);
 
@@ -333,7 +348,7 @@ const validate = async () => {
             <v-label>Zona Horaria <span class="text-error">*</span></v-label>
             <v-autocomplete
               v-model="form.timezone"
-              :items="timezones.map((tz) => ({ label: tz, value: tz }))"
+              :items="filteredTimezones"
               v-model:search-input="timezoneSearch"
               item-title="label"
               item-value="value"

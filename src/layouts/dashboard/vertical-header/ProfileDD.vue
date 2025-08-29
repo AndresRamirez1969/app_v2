@@ -45,7 +45,7 @@ const showBusinessUnitDwProfile = computed(() => {
 });
 
 // Lógica de rutas y disabled
-function getOrgDwRoute() {
+function getOrgRoute() {
   if (hasOrgId.value) {
     if (userRoles.value.includes('admin') || hasOrgCreate.value) {
       return `/organizaciones/${authStore.user.organization_id}`;
@@ -57,31 +57,31 @@ function getOrgDwRoute() {
   if (userRoles.value.includes('admin') || hasOrgCreate.value) {
     return '/organizaciones/crear';
   }
-  return null;
+  return '/dashboard';
 }
 function isOrgDwDisabled() {
   return !hasOrgId.value && !(userRoles.value.includes('admin') || hasOrgCreate.value);
 }
 
-function getBusinessDwRoute() {
+function getBusinessRoute() {
   if (hasBusinessId.value) {
     if (userRoles.value.includes('admin') || userRoles.value.includes('sponsor') || permissions.value.includes('business.view')) {
       return `/empresas/${authStore.user.business_id}`;
     }
   }
-  return null;
+  return '/dashboard';
 }
 function isBusinessDwDisabled() {
   return !hasBusinessId.value;
 }
 
-function getBusinessUnitDwRoute() {
+function getBusinessUnitRoute() {
   if (hasBusinessUnitId.value) {
     if (userRoles.value.includes('admin') || userRoles.value.includes('sponsor') || hasBusinessUnitView.value) {
       return `/ubicaciones/${authStore.user.business_unit_id}`;
     }
   }
-  return null;
+  return '/dashboard';
 }
 function isBusinessUnitDwDisabled() {
   return !hasBusinessUnitId.value;
@@ -120,7 +120,7 @@ const handleLogout = async () => {
           <v-list-item
             v-if="showOrgDwProfile"
             :disabled="isOrgDwDisabled()"
-            @click="!isOrgDwDisabled() && $router.push(getOrgDwRoute())"
+            @click="getOrgRoute() && $router.push(getOrgRoute())"
             color="primary"
             rounded="0"
             value="Organizaciones"
@@ -135,7 +135,7 @@ const handleLogout = async () => {
           <v-list-item
             v-if="showBusinessDwProfile"
             :disabled="isBusinessDwDisabled()"
-            @click="!isBusinessDwDisabled() && $router.push(getBusinessDwRoute())"
+            @click="getBusinessRoute() && $router.push(getBusinessRoute())"
             color="primary"
             rounded="0"
             value="Empresas"
@@ -150,7 +150,7 @@ const handleLogout = async () => {
           <v-list-item
             v-if="showBusinessUnitDwProfile"
             :disabled="isBusinessUnitDwDisabled()"
-            @click="!isBusinessUnitDwDisabled() && $router.push(getBusinessUnitDwRoute())"
+            @click="getBusinessUnitRoute() && $router.push(getBusinessUnitRoute())"
             color="primary"
             rounded="0"
             value="Ubicaciones"

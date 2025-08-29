@@ -23,19 +23,19 @@ const hasBusinessUnitGroupViewAny = computed(() => permissions.value.includes('b
 const hasUserViewAny = computed(() => permissions.value.includes('user.viewAny'));
 const hasRoleViewAny = computed(() => permissions.value.includes('role.viewAny'));
 
-function getOrgDwRoute() {
+function getOrgRoute() {
   return '/organizaciones';
 }
-function getBusinessDwRoute() {
+function getBusinessRoute() {
   return '/empresas';
 }
-function getBusinessUnitDwRoute() {
+function getBusinessUnitRoute() {
   return '/ubicaciones';
 }
-function getBusinessUnitGroupDwRoute() {
+function getBusinessUnitGroupRoute() {
   return '/grupos-de-ubicaciones';
 }
-function getUserDwRoute() {
+function getUserRoute() {
   return '/usuarios';
 }
 function getRolesRoute() {
@@ -48,11 +48,11 @@ const sidebarMenu = computed(() => {
     .map((item) => {
       if (item.title === 'Organizaciones') {
         const show = userRoles.value.includes('superadmin') || hasOrgViewAny.value;
-        return show ? { ...item, to: getOrgDwRoute() } : null;
+        return show ? { ...item, to: getOrgRoute() } : null;
       }
       if (item.title === 'Empresas') {
         const show = userRoles.value.includes('superadmin') || hasBusinessViewAny.value;
-        return show ? { ...item, to: getBusinessDwRoute() } : null;
+        return show ? { ...item, to: getBusinessRoute() } : null;
       }
       if (item.title === 'Ubicaciones') {
         // Dropdown: solo muestra hijos que el usuario puede ver
@@ -60,11 +60,11 @@ const sidebarMenu = computed(() => {
           .map((child) => {
             if (child.title === 'Ubicaciones') {
               const show = userRoles.value.includes('superadmin') || hasBusinessUnitViewAny.value;
-              return show ? { ...child, to: getBusinessUnitDwRoute() } : null;
+              return show ? { ...child, to: getBusinessUnitRoute() } : null;
             }
             if (child.title === 'Grupos de Ubicación') {
               const show = userRoles.value.includes('superadmin') || hasBusinessUnitGroupViewAny.value;
-              return show ? { ...child, to: getBusinessUnitGroupDwRoute() } : null;
+              return show ? { ...child, to: getBusinessUnitGroupRoute() } : null;
             }
             return child;
           })
@@ -73,12 +73,12 @@ const sidebarMenu = computed(() => {
         return children.length > 0 ? { ...item, children } : null;
       }
       if (item.title === 'Usuarios') {
-        // Dropdown Usuarios con Usuarios DW y Roles & Permisos
+        // Dropdown Usuarios con Usuarios y Roles & Permisos
         const children = (item.children || [])
           .map((child) => {
-            if (child.title === 'Usuarios DW') {
+            if (child.title === 'Usuarios') {
               const show = userRoles.value.includes('superadmin') || hasUserViewAny.value;
-              return show ? { ...child, to: getUserDwRoute() } : null;
+              return show ? { ...child, to: getUserRoute() } : null;
             }
             if (child.title === 'Roles & Permisos') {
               // SOLO si tiene el permiso role.viewAny o es superadmin
@@ -132,7 +132,7 @@ const sidebarMenu = computed(() => {
     </div>
     <perfect-scrollbar class="scrollnavbar">
       <v-list aria-busy="true" aria-label="menu list">
-        <template v-for="(item, i) in sidebarMenu" :key="i">
+        <template v-for="(item, i) in sidebarMenu.filter((item) => item !== null)" :key="i">
           <NavGroup :item="item" v-if="item.header" :key="item.title" />
           <v-divider class="my-3" v-else-if="item.divider" />
           <NavCollapse class="leftPadding" :item="item" :level="0" v-else-if="item.children" />
