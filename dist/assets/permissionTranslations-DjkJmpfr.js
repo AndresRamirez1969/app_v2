@@ -1,0 +1,1 @@
+const e={"form.viewAny":"Ver Todos","form.view":"Ver","form.create":"Crear","form.update":"Actualizar","form.delete":"Eliminar","form.assign":"Asignar","form_response.store":"Responder","form_response.viewAny":"Ver Respuestas",viewAny:"Ver Todos",view:"Ver",store:"Crear",create:"Crear",update:"Editar",assign:"Asignar",delete:"Eliminar"};export{e as p};
