@@ -1,1 +1,0 @@
-import{z as e,c as o,w as r,aa as t,a,C as s,a9 as n,o as p}from"./index-mAfd8qbF.js";import{L as c}from"./LoaderWrapper-XOsx7JNy.js";const i=e({__name:"BlankLayout",setup(u){return(_,f)=>(p(),o(t,null,{default:r(()=>[a(c),a(s(n))]),_:1}))}});export{i as default};

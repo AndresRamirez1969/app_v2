@@ -1,0 +1,1 @@
+import{_ as s,c as e,w as o,V as t,o as r,d as c}from"./index-BtdFDd_C.js";const n={};function d(f,a){return r(),e(t,{class:"mb-0"},{default:o(()=>a[0]||(a[0]=[c("h2",null,"Dashboard",-1)])),_:1})}const _=s(n,[["render",d]]);export{_ as default};
