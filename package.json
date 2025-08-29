@@ -1,12 +1,12 @@
 {
-  "name": "mantis-vuetify-vuejs-free",
+  "name": "tskr-vue",
   "version": "1.2.0",
   "private": false,
   "author": "CodedThemes",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-cli-service build",
+    "build": "vite build",
     "build-stage": "vue-tsc --noEmit && vite build --base=/vue/free/stage/",
     "build-prod": "vue-tsc --noEmit && vite build --base=/vue/free/",
     "preview": "vite preview --port 5050",
@@ -29,7 +29,6 @@
     "@syncfusion/ej2-vue-inputs": "^30.2.4",
     "@tsconfig/node20": "20.1.4",
     "@typescript-eslint/parser": "^8.18.2",
-    "@vue/cli": "^5.0.9",
     "ant-design-vue": "4.2.6",
     "apexcharts": "4.3.0",
     "axios": "^1.10.0",
@@ -67,7 +66,10 @@
     "typescript": "5.7.2",
     "typescript-eslint": "^8.18.2",
     "vite": "6.0.6",
-    "vue-cli-plugin-vuetify": "2.5.8",
     "vue-tsc": "2.2.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
   }
 }

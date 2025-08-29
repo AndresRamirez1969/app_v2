@@ -1,0 +1,1 @@
+import{z as r,bc as t,bd as n,s as d,d as c,N as p,C as a,o as i,_ as l}from"./index-mAfd8qbF.js";const _=r({__name:"LoaderWrapper",setup(u){const o=t(),{isLoading:e}=n(o);return(f,s)=>(i(),d("div",{class:p({"page-loader":!0,loading:a(e),hidden:!a(e)})},s[0]||(s[0]=[c("div",{class:"bar"},null,-1)]),2))}}),b=l(_,[["__scopeId","data-v-4af8b7dc"]]);export{b as L};
