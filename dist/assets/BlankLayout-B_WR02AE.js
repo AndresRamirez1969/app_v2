@@ -1,0 +1,1 @@
+import{z as e,c as o,w as r,aa as t,a,C as s,a9 as n,o as p}from"./index-DA8Oyi7H.js";import{L as c}from"./LoaderWrapper-CP4_bwli.js";const i=e({__name:"BlankLayout",setup(u){return(_,f)=>(p(),o(t,null,{default:r(()=>[a(c),a(s(n))]),_:1}))}});export{i as default};
