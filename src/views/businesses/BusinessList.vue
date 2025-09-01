@@ -89,7 +89,7 @@ const toggleStatus = async (bus) => {
     <!-- Loading global -->
     <div v-if="isLoading" class="text-center py-8">
       <v-progress-circular indeterminate color="primary" size="64" />
-      <p class="mt-4">Cargando negocios...</p>
+      <p class="mt-4">Cargando empresas...</p>
     </div>
 
     <template v-else>

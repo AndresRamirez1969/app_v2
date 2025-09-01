@@ -471,30 +471,6 @@ const validate = async () => {
 
             <div style="height: 22px"></div>
 
-            <!-- Select de organización para superadmin -->
-            <template v-if="isSuperadmin">
-              <v-label>Organización para filtrar roles</v-label>
-              <v-autocomplete
-                v-model="selectedOrgForRoles"
-                :items="organizationOptions"
-                :loading="loadingOrganizations"
-                v-model:search-input="orgRoleSearch"
-                item-title="display"
-                item-value="id"
-                variant="outlined"
-                color="primary"
-                class="mt-2 mb-4"
-                density="compact"
-                placeholder="Selecciona una organización"
-                clearable
-                hide-details
-                :menu-props="{ maxHeight: '300px' }"
-                required
-              />
-            </template>
-
-            <div style="height: 22px"></div>
-
             <v-label>Rol <span class="text-error">*</span></v-label>
             <v-autocomplete
               v-model="form.role"

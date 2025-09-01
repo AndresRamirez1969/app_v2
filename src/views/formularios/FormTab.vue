@@ -2,7 +2,7 @@
   <v-container fluid>
     <v-row class="align-center justify-space-between mb-4">
       <v-col cols="auto" class="d-flex align-center">
-        <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Formularios</h1>
+        <h3 class="font-weight-medium mb-0">Formularios</h3>
         <v-btn :icon="mdiHelpCircleOutline" variant="text" color="primary" size="small" class="ml-2" @click="infoModal = true" />
       </v-col>
       <v-col cols="auto" class="d-flex align-center justify-end" v-if="canCreate">
@@ -12,40 +12,17 @@
         </v-btn>
       </v-col>
     </v-row>
-    <v-row class="mb-2">
-      <v-col cols="12">
-        <div class="d-flex align-center mb-2" style="gap: 16px">
-          <v-text-field
-            v-model="filters.search"
-            label="Buscar por Nombre o Folio"
-            clearable
-            density="comfortable"
-            variant="outlined"
-            hide-details
-            @keyup.enter="fetchForms"
-            prepend-inner-icon="mdi-magnify"
-            style="min-width: 220px"
-            @click:clear="fetchForms"
-          />
-          <v-select
-            v-model="filters.status"
-            :items="statusOptions"
-            label="Estado"
-            clearable
-            density="comfortable"
-            variant="outlined"
-            hide-details
-            style="width: 1px"
-            @update:model-value="fetchForms"
-          />
-        </div>
-      </v-col>
-    </v-row>
+
+    <!-- Filtros -->
+    <FormFilters @search="handleSearch" @filter="handleFilter" />
+
+    <!-- Lista de formularios -->
     <v-row>
       <v-col>
         <FormView :items="forms.data" :isMobile="mdAndDown" :isLoading="isLoading" @formUpdated="fetchForms" />
       </v-col>
     </v-row>
+
     <v-dialog v-model="infoModal" max-width="600">
       <v-card>
         <v-card-title>Información sobre Formularios</v-card-title>
@@ -69,6 +46,7 @@
 import { ref, watch, computed, onMounted } from 'vue';
 import { useDisplay } from 'vuetify';
 import FormView from './FormView.vue';
+import FormFilters from './FormFilters.vue';
 import axiosInstance from '@/utils/axios';
 import { mdiPlus, mdiHelpCircleOutline } from '@mdi/js';
 import { useAuthStore } from '@/stores/auth';
@@ -79,15 +57,10 @@ const { mdAndDown } = useDisplay();
 
 const filters = ref({
   search: '',
-  folio: '',
-  status: null
+  status: null,
+  createdAtStart: null,
+  createdAtEnd: null
 });
-
-const statusOptions = ref([
-  { title: 'Borrador', value: 'draft' },
-  { title: 'Activo', value: 'active' },
-  { title: 'Archivado', value: 'archived' }
-]);
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -118,6 +91,20 @@ const canCreate = computed(() => {
 const currentPage = ref(1);
 const forms = ref({ data: [], last_page: 1 });
 
+const handleSearch = (searchValue) => {
+  filters.value.search = searchValue;
+  currentPage.value = 1;
+  debouncedFetch();
+};
+
+const handleFilter = (filterData) => {
+  filters.value.status = filterData.status;
+  filters.value.createdAtStart = filterData.createdAtStart;
+  filters.value.createdAtEnd = filterData.createdAtEnd;
+  currentPage.value = 1;
+  fetchForms();
+};
+
 const fetchForms = async () => {
   try {
     isLoading.value = true;
@@ -125,7 +112,9 @@ const fetchForms = async () => {
       params: {
         search: filters.value.search,
         page: currentPage.value,
-        status: filters.value.status
+        status: filters.value.status,
+        created_at_start: filters.value.createdAtStart,
+        created_at_end: filters.value.createdAtEnd
       }
     });
     forms.value = res.data;

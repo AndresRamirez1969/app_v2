@@ -4,12 +4,9 @@
   <v-row no-gutters class="overflow-hidden bg-containerBg" style="min-height: 100vh">
     <v-col class="d-flex align-center justify-center">
       <div class="text-center">
-        <div class="errorMedia">
-          <img src="@/assets/images/maintenance/Error500.png" alt="404" />
-        </div>
         <h1 class="text-h1 mt-2 mb-1">Internal Server Error</h1>
-        <p class="text-caption text-lightText">Server error 500. we fixing the problem. please try <br />again at a later stage.</p>
-        <v-btn variant="flat" color="primary" class="mt-4" to="/dashboard/analytics"> Back To Home</v-btn>
+        <p class="text-caption text-lightText">Server error 500. We are fixing the problem. please try <br />again at a later stage.</p>
+        <v-btn color="primary" variant="flat" class="mt-4" @click="$router.back()">Regresar</v-btn>
       </div>
     </v-col>
   </v-row>

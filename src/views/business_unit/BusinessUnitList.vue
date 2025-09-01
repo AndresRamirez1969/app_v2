@@ -92,16 +92,20 @@ const toggleStatus = async (uni) => {
 
 <template>
   <div>
+    <!-- Loading global -->
     <div v-if="isLoading" class="text-center py-8">
       <v-progress-circular indeterminate color="primary" size="64" />
-      <p class="mt-4">Cargando unidades...</p>
+      <p class="mt-4">Cargando ubicaciones...</p>
     </div>
+
     <template v-else>
       <div v-if="!paginatedItems.length" class="text-center py-8">
         <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
-        <p class="mt-4 text-h6 text-grey-darken-1">No existen unidades</p>
-        <p class="text-body-2 text-grey">No se encontraron unidades con los filtros aplicados</p>
+        <p class="mt-4 text-h6 text-grey-darken-1">No existen ubicaciones</p>
+        <p class="text-body-2 text-grey">No se encontraron ubicaciones con los filtros aplicados</p>
       </div>
+
+      <!-- Modo móvil (solo cards) -->
       <template v-else-if="isMobile">
         <v-card
           v-for="uni in paginatedItems"
@@ -142,7 +146,8 @@ const toggleStatus = async (uni) => {
         </v-card>
       </template>
 
-      <template v-if="!isMobile">
+      <!-- Modo desktop (tabla) -->
+      <template v-else>
         <BusinessUnitTableMeta
           :items="sortedItems.value"
           :page="page"

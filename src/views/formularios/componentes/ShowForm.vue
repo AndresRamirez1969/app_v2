@@ -1,7 +1,5 @@
 <template>
-  <v-progress-circular v-if="loading" indeterminate color="primary" />
-
-  <v-card v-else-if="form" class="pa-6 rounded-lg elevation-3">
+  <v-card v-if="form" class="pa-6 rounded-lg elevation-3">
     <v-toolbar class="mb-4" density="compact" title="Detalles del Formulario">
       <template #prepend v-if="!isSponsor">
         <v-btn icon @click="goBack">
@@ -189,7 +187,15 @@
       </div>
     </div>
   </v-card>
-  <div v-else class="text-center pa-4 text-grey">
+
+  <!-- Mostrar loading mientras carga el formulario -->
+  <div v-else-if="loading" class="text-center pa-4">
+    <v-progress-circular indeterminate color="primary" />
+    <p class="mt-4">Cargando formulario...</p>
+  </div>
+
+  <!-- Estado por defecto -->
+  <div v-else class="text-center pa-4">
     <v-progress-circular indeterminate color="primary" />
   </div>
 </template>
@@ -210,6 +216,9 @@ const auth = useAuthStore();
 const users = ref([]);
 const filteredUsers = ref([]);
 
+// Agregar estado para manejar errores de permisos
+const permissionError = ref(false);
+
 const goBack = () => {
   router.push('/formularios');
 };
@@ -225,6 +234,17 @@ const addField = () => {
 const isSponsor = computed(() => {
   return auth.user?.roles?.some((role) => role.name === 'sponsor');
 });
+
+const canView = computed(() => auth.user?.permissions?.includes('form.view'));
+
+const { form, loading, error, fetchForm } = showForm();
+
+// Función para manejar errores de permisos
+const handlePermissionError = (error) => {
+  if (error.response?.status === 403) {
+    router.replace('/403');
+  }
+};
 
 const getScopeColor = (scope) => {
   const colors = {
@@ -258,24 +278,32 @@ const formatDate = (dateString) => {
 };
 
 onMounted(async () => {
-  formId.value = route.params.id;
+  try {
+    if (!canView.value) {
+      router.replace('/403');
+      return;
+    }
 
-  if (formId.value) {
-    fetchForm(formId.value);
+    formId.value = route.params.id;
+
+    if (!formId.value) {
+      console.warn('No form ID found to load');
+      router.replace('/403');
+      return;
+    }
+
+    await fetchForm(parseInt(formId.value));
     await loadUsers();
-  } else {
-    console.warn('No form ID found to load');
+  } catch (err) {
+    handlePermissionError(err);
   }
 });
-
-const { form, loading, fetchForm } = showForm();
 
 const editMode = ref(false);
 const formData = ref({});
 
 watch(form, async (newForm) => {
   if (newForm) {
-    // Mapear roles a usuarios para que funcione con los v-select
     const supervisorUser = users.value.find((user) => user.roles?.some((role) => role.id === newForm.supervisor_role?.id));
 
     const auditorUsers = users.value.filter((user) =>

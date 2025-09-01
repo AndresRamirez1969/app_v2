@@ -5,6 +5,7 @@ import UserFormView from './UserFormView.vue';
 import axiosInstance from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
 import debounce from 'lodash/debounce';
+import UserFormFilters from './UserFormFilters.vue';
 
 const { mdAndDown } = useDisplay();
 
@@ -51,6 +52,7 @@ const fetchForms = async () => {
           };
         } catch (err) {
           console.error('Failed to fetch form response status', err);
+          isLoading.value = false;
         }
       })
     );
@@ -65,6 +67,16 @@ const fetchForms = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+const handleSearch = (search) => {
+  filters.value.search = search;
+  fetchForms();
+};
+
+const handleFilter = (filter) => {
+  filters.value.filter = filter;
+  fetchForms();
 };
 
 onMounted(() => {
@@ -86,27 +98,10 @@ watch(
   <v-container fluid>
     <v-row class="align-center justify-space-between mb-4">
       <v-col cols="auto" class="d-flex align-center">
-        <h1 class="text-h4 text-md-h3 font-weight-bold ma-0">Tus Formularios</h1>
+        <h3 class="font-weight-medium mb-0">Tus Formularios</h3>
       </v-col>
     </v-row>
-    <v-row class="mb-2">
-      <v-col cols="12">
-        <div class="d-flex align-center mb-2" style="gap: 16px">
-          <v-text-field
-            v-model="filters.search"
-            label="Buscar por Nombre o Folio"
-            clearable
-            density="comfortable"
-            variant="outlined"
-            hide-details
-            @keyup.enter="fetchForms"
-            prepend-inner-icon="mdi-magnify"
-            style="min-width: 220px"
-            @click:clear="fetchForms"
-          />
-        </div>
-      </v-col>
-    </v-row>
+    <UserFormFilters @search="handleSearch" @filter="handleFilter" />
     <v-row>
       <v-col>
         <UserFormView :items="forms.data" :isMobile="mdAndDown" :isLoading="isLoading" @formUpdated="fetchForms" />
