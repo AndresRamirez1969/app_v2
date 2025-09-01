@@ -21,7 +21,6 @@ const canView = ref(false);
 const canCreate = ref(false);
 const isLoading = ref(false);
 
-// Computed para saber si el usuario tiene business.update
 const canEditPermission = ref(false);
 
 function hasPermission(permission) {
@@ -29,16 +28,35 @@ function hasPermission(permission) {
 }
 
 onMounted(async () => {
-  // Permitir acceso al index solo a superadmin, admin o con business.viewAny
+  // Si no tiene permiso business.viewAny, redirecciona a /403
+  if (!hasPermission('business.viewAny')) {
+    router.replace('/403');
+    return;
+  }
+
   if (auth.user?.roles?.includes('superadmin') || auth.user?.roles?.includes('admin') || hasPermission('business.viewAny')) {
     canView.value = true;
     canCreate.value = hasPermission('business.create');
     canEditPermission.value = hasPermission('business.update');
     try {
       isLoading.value = true;
-      const { data } = await axios.get('/businesses');
-      businesses.value = data.data;
-      filteredBusinesses.value = data.data.slice(0, 10);
+      const { data } = await axios.get('/businesses', {
+        params: {
+          with: 'address,contact,organization,businessUnits,users',
+          per_page: 10
+        }
+      });
+
+      businesses.value = data.data.map((bus) => ({
+        ...bus,
+        address: bus.address || {},
+        contact: bus.contact || {},
+        organization: bus.organization || {},
+        businessUnits: bus.businessUnits || [],
+        users: bus.users || [],
+        logo: bus.logo || bus.logo_url || null
+      }));
+      filteredBusinesses.value = businesses.value.slice(0, 10);
     } catch (error) {
       console.error('Error fetching businesses:', error);
     } finally {
@@ -46,7 +64,6 @@ onMounted(async () => {
     }
   } else {
     canView.value = false;
-    // Si solo tiene business.view y business_id, redirige al show
     if (hasPermission('business.view') && auth.user?.business_id) {
       router.replace(`/empresas/${auth.user.business_id}`);
     }
@@ -70,7 +87,6 @@ async function handleFilter(filters) {
       params.organization_id = filters.organizationId;
       delete params.organizationId;
     }
-    // Cambia los nombres de los filtros de fecha
     if (filters.createdAtStart) {
       params.created_at_start = filters.createdAtStart;
       delete params.createdAtStart;
@@ -82,8 +98,18 @@ async function handleFilter(filters) {
     if (searchText.value) {
       params.search = searchText.value;
     }
+    params.with = 'address,contact,organization,businessUnits,users';
+    params.per_page = 100;
     const { data } = await axios.get('/businesses', { params });
-    filteredBusinesses.value = data.data;
+    filteredBusinesses.value = (data.data || []).map((bus) => ({
+      ...bus,
+      address: bus.address || {},
+      contact: bus.contact || {},
+      organization: bus.organization || {},
+      businessUnits: bus.businessUnits || [],
+      users: bus.users || [],
+      logo: bus.logo || bus.logo_url || null
+    }));
   } catch (error) {
     console.error('Error fetching filtered businesses:', error);
     filteredBusinesses.value = [];
@@ -97,6 +123,7 @@ function applyFilters() {
     const q = searchText.value.toLowerCase();
     result = result.filter(
       (bus) =>
+        (bus.name && bus.name.toLowerCase().includes(q)) ||
         (bus.legal_name && bus.legal_name.toLowerCase().includes(q)) ||
         (bus.alias && bus.alias.toLowerCase().includes(q)) ||
         (bus.folio && String(bus.folio).toLowerCase().includes(q)) ||
@@ -119,9 +146,8 @@ function applyFilters() {
   if (filterOptions.value.updatedAtEnd) {
     result = result.filter((bus) => bus.updated_at && bus.updated_at <= filterOptions.value.updatedAtEnd);
   }
-  // Filtro por organization_id (si existe en filterOptions)
   if (filterOptions.value.organizationId) {
-    result = result.filter((bus) => String(bus.organization_id) === String(filterOptions.value.organizationId));
+    result = result.filter((bus) => String(bus.organization?.id) === String(filterOptions.value.organizationId));
   }
 
   filteredBusinesses.value = result;
@@ -153,7 +179,6 @@ function applyFilters() {
 
       <v-row>
         <v-col>
-          <!-- Pasa la prop canEditPermission a BusinessList -->
           <BusinessList :items="filteredBusinesses" :isMobile="mdAndDown" :can-edit-permission="canEditPermission" :isLoading="isLoading" />
         </v-col>
       </v-row>

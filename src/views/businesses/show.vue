@@ -7,6 +7,7 @@ import { mdiArrowLeft, mdiPencil, mdiCancel, mdiCheckCircle, mdiChevronDown, mdi
 import StatusChip from '@/components/status/StatusChip.vue';
 import { useAuthStore } from '@/stores/auth';
 import { findCountryByCode } from '@/utils/constants/countries';
+import { timezones } from '@/utils/constants/timezones';
 
 const router = useRouter();
 const route = useRoute();
@@ -17,9 +18,11 @@ const businessUnits = ref([]);
 const users = ref([]);
 const auth = useAuthStore();
 
-const user = computed(() => auth.user || { roles: [], permissions: [] });
+const user = computed(() => auth.user || { roles: [], permissions: [], business_id: null, organization_id: null });
 const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
+const userBusinessId = computed(() => user.value.business_id);
+const userOrganizationId = computed(() => user.value.organization_id);
 
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
@@ -114,45 +117,78 @@ const formatAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
-// Truncar texto a 60 caracteres
 const truncate = (text, max = 50) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
-// Helper para mostrar teléfono con bandera y prefijo igual que en organization
-function formatPhone(person) {
-  if (!person || !person.phone_number) return 'No disponible';
-  const country = findCountryByCode(person.phone_country);
+function formatPhone(contact) {
+  if (!contact || !contact.phone_number) return 'No disponible';
+  const country = findCountryByCode(contact.phone_country);
   const flag = country?.flag || '';
   const dial = country?.dial_code || '';
-  return `${flag ? flag + ' ' : ''}${dial ? dial + ' ' : ''}${person.phone_number}`;
+  return `${flag ? flag + ' ' : ''}${dial ? dial + ' ' : ''}${contact.phone_number}`;
+}
+
+// Get timezone label from value
+function getTimezoneLabel(value) {
+  if (!value) return 'No disponible';
+  const tz = timezones.find((t) => t.value === value);
+  return tz ? tz.label : value;
 }
 
 onMounted(async () => {
   try {
     const id = route.params.id;
-    const res = await axiosInstance.get(`/businesses/${id}`);
-    business.value = res.data.business || res.data.data || res.data;
 
-    // Obtener la organización relacionada (solo para superadmin)
-    if (isSuperadmin.value && business.value?.organization_id) {
-      try {
-        const orgRes = await axiosInstance.get(`/organizations/${business.value.organization_id}`);
-        organization.value = orgRes.data.organization || orgRes.data.data || orgRes.data;
-      } catch (err) {
-        organization.value = null;
+    if (isSuperadmin.value) {
+    } else if (isAdmin.value) {
+      const res = await axiosInstance.get(`/businesses/${id}`);
+      business.value = res.data.business || res.data.data || res.data;
+      if (!business.value?.organization?.id || String(business.value.organization.id) !== String(userOrganizationId.value)) {
+        router.replace('/403');
+        return;
+      }
+      if (business.value?.organization?.id) {
+        organization.value = business.value.organization;
+      }
+      businessUnits.value = business.value.businessUnits || [];
+      users.value = business.value.users || [];
+      return;
+    } else {
+      if (canViewAny.value && canView.value) {
+        const res = await axiosInstance.get(`/businesses/${id}`);
+        business.value = res.data.business || res.data.data || res.data;
+        if (!business.value?.organization?.id || String(business.value.organization.id) !== String(userOrganizationId.value)) {
+          router.replace('/403');
+          return;
+        }
+        if (business.value?.organization?.id) {
+          organization.value = business.value.organization;
+        }
+        businessUnits.value = business.value.businessUnits || [];
+        users.value = business.value.users || [];
+        return;
+      } else if (canView.value && !canViewAny.value) {
+        if (!userBusinessId.value || String(userBusinessId.value) !== String(id)) {
+          router.replace('/403');
+          return;
+        }
+      } else {
+        router.replace('/403');
+        return;
       }
     }
 
-    // Obtener todas las business_units y filtrar por business_id
-    const unitRes = await axiosInstance.get(`/business-units`);
-    const allUnits = Array.isArray(unitRes.data) ? unitRes.data : unitRes.data.business_units || unitRes.data.data || [];
-    businessUnits.value = allUnits.filter((u) => String(u.business_id) === String(business.value.id));
+    const res = await axiosInstance.get(`/businesses/${id}`);
 
-    // Obtener todos los usuarios y filtrar por business_id
-    const userRes = await axiosInstance.get(`/users`);
-    const allUsers = Array.isArray(userRes.data) ? userRes.data : userRes.data.users || userRes.data.data || [];
-    users.value = allUsers.filter((u) => String(u.business_id) === String(business.value.id));
+    business.value = res.data.business || res.data.data || res.data;
+
+    if (business.value?.organization?.id) {
+      organization.value = business.value.organization;
+    }
+
+    businessUnits.value = business.value.businessUnits || [];
+    users.value = business.value.users || [];
   } catch (err) {
-    console.error('Error al obtener la empresa, ubicaciones o usuarios:', err);
+    console.error('Error al obtener la empresa:', err);
   }
 });
 </script>
@@ -161,7 +197,8 @@ onMounted(async () => {
   <v-container fluid v-if="canShow">
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
-        <template v-if="canViewAny || isSuperadmin">
+        <!-- Flecha solo si tiene permiso business.viewAny -->
+        <template v-if="canViewAny">
           <v-btn
             icon
             variant="text"
@@ -171,14 +208,12 @@ onMounted(async () => {
           >
             <v-icon :icon="mdiArrowLeft" />
           </v-btn>
-          <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="business">
-            {{ business.folio ? `${business.folio}` : '' }}
-            {{ business.name ? `- ${business.name}` : '- Empresa' }}
-          </h3>
-          <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="business">
-            {{ business.folio ? `${business.folio}` : '' }}
-          </h3>
         </template>
+        <!-- Título siempre visible -->
+        <h3 class="font-weight-medium ml-3 mb-0" v-if="business">
+          {{ business.folio ? `${business.folio}` : '' }}
+          {{ business?.name ? `- ${business.name}` : '- Empresa' }}
+        </h3>
       </v-col>
       <v-col class="d-flex justify-end align-center">
         <template v-if="canEdit">
@@ -280,14 +315,23 @@ onMounted(async () => {
                 <template v-else> No disponible </template>
               </td>
             </tr>
-            <tr v-if="isSuperadmin || isAdmin">
+            <tr>
               <td class="font-weight-bold text-subtitle-1">Folio</td>
               <td>{{ business?.folio || 'No disponible' }}</td>
             </tr>
-            <tr v-if="isSuperadmin && organization">
+            <tr v-if="organization">
               <td class="font-weight-bold text-subtitle-1">Organización</td>
               <td>
-                <span v-if="organization?.legal_name">{{ organization.legal_name }}</span>
+                <span v-if="organization?.legal_name">
+                  <router-link
+                    v-if="organization.id"
+                    :to="`/organizaciones/${organization.id}`"
+                    style="text-decoration: underline; color: #1976d2 !important"
+                  >
+                    {{ organization.folio ? organization.folio + ' - ' : '' }}{{ organization.legal_name }}
+                  </router-link>
+                  <span v-else> {{ organization.folio ? organization.folio + ' - ' : '' }}{{ organization.legal_name }} </span>
+                </span>
                 <span v-else>No disponible</span>
               </td>
             </tr>
@@ -305,7 +349,9 @@ onMounted(async () => {
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Zona horaria</td>
-              <td>{{ business?.timezone || 'No disponible' }}</td>
+              <td>
+                {{ getTimezoneLabel(business?.timezone) }}
+              </td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Dirección</td>
@@ -321,8 +367,7 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <!-- Espacio entre cards en mobile -->
-    <v-row v-if="mdAndDown">
+    <v-row>
       <v-col cols="12">
         <div style="height: 24px"></div>
       </v-col>
@@ -338,37 +383,29 @@ onMounted(async () => {
                 <tr>
                   <td class="font-weight-bold text-subtitle-1" style="width: 40%">Nombre</td>
                   <td>
-                    <span v-if="business?.person && (business.person.first_name || business.person.last_name)">
-                      {{ [business.person.first_name, business.person.last_name].filter(Boolean).join(' ') }}
-                    </span>
+                    <span v-if="business?.contact?.first_name">{{ business.contact.first_name }}</span>
+                    <span v-else>No disponible</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold text-subtitle-1" style="width: 40%">Apellido</td>
+                  <td>
+                    <span v-if="business?.contact?.last_name">{{ business.contact.last_name }}</span>
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
                 <tr>
                   <td class="font-weight-bold text-subtitle-1">Correo</td>
                   <td>
-                    <span v-if="business?.person?.email">{{ business.person.email }}</span>
+                    <span v-if="business?.contact?.email">{{ business.contact.email }}</span>
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
                 <tr>
                   <td class="font-weight-bold text-subtitle-1">Teléfono</td>
                   <td>
-                    <span v-if="business?.person?.phone_number">
-                      <template v-if="business.person.phone_country">
-                        <span>
-                          {{ findCountryByCode(business.person.phone_country)?.flag || '' }}
-                        </span>
-                        <span style="margin-left: 6px">
-                          {{ findCountryByCode(business.person.phone_country)?.dial_code || '' }}
-                        </span>
-                        <span style="margin-left: 6px">
-                          {{ business.person.phone_number }}
-                        </span>
-                      </template>
-                      <template v-else>
-                        {{ business.person.phone_number }}
-                      </template>
+                    <span v-if="business?.contact?.phone_number">
+                      {{ formatPhone(business.contact) }}
                     </span>
                     <span v-else>No disponible</span>
                   </td>
@@ -381,47 +418,36 @@ onMounted(async () => {
           <v-table class="rounded-lg elevation-1">
             <thead>
               <tr>
-                <th class="font-weight-bold text-subtitle-1" style="width: 10%">Nombre</th>
-                <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 15%">Nombre</th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 15%">Apellido</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 20%">Correo</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 25%">Teléfono</th>
-                <th class="font-weight-bold text-subtitle-1" style="width: 15%"></th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 5%"></th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td>
-                  <span v-if="business?.person && (business.person.first_name || business.person.last_name)">
-                    {{ [business.person.first_name, business.person.last_name].filter(Boolean).join(' ') }}
+                  <span v-if="business?.contact?.first_name">{{ business.contact.first_name }}</span>
+                  <span v-else>No disponible</span>
+                </td>
+                <td>
+                  <span v-if="business?.contact?.last_name">{{ business.contact.last_name }}</span>
+                  <span v-else>No disponible</span>
+                </td>
+                <td>
+                  <span v-if="business?.contact?.email">{{ business.contact.email }}</span>
+                  <span v-else>No disponible</span>
+                </td>
+                <td>
+                  <span v-if="business?.contact?.phone_number">
+                    {{ formatPhone(business.contact) }}
                   </span>
                   <span v-else>No disponible</span>
                 </td>
                 <td></td>
-                <td>
-                  <span v-if="business?.person?.email">{{ business.person.email }}</span>
-                  <span v-else>No disponible</span>
-                </td>
-                <td>
-                  <span v-if="business?.person?.phone_number">
-                    <template v-if="business.person.phone_country">
-                      <span>
-                        {{ findCountryByCode(business.person.phone_country)?.flag || '' }}
-                      </span>
-                      <span style="margin-left: 6px">
-                        {{ findCountryByCode(business.person.phone_country)?.dial_code || '' }}
-                      </span>
-                      <span style="margin-left: 6px">
-                        {{ business.person.phone_number }}
-                      </span>
-                    </template>
-                    <template v-else>
-                      {{ business.person.phone_number }}
-                    </template>
-                  </span>
-                  <span v-else>No disponible</span>
-                </td>
                 <td></td>
                 <td></td>
               </tr>
@@ -431,14 +457,12 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <!-- Espacio entre contacto y ubicaciones en mobile y desktop -->
     <v-row>
       <v-col cols="12">
         <div style="height: 32px"></div>
       </v-col>
     </v-row>
 
-    <!-- Tabla de Business Units SOLO para superadmin o admin y SOLO en desktop -->
     <v-row v-if="showBusinessUnitTable">
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Ubicaciones</div>
@@ -528,14 +552,12 @@ onMounted(async () => {
       </v-col>
     </v-row>
 
-    <!-- Espacio entre tablas -->
     <v-row v-if="showBusinessUnitTable">
       <v-col cols="12">
         <div style="height: 32px"></div>
       </v-col>
     </v-row>
 
-    <!-- Tabla de Usuarios relacionados SOLO para superadmin o admin y SOLO en desktop -->
     <v-row v-if="showBusinessUnitTable">
       <v-col cols="12">
         <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Usuarios</div>

@@ -10,7 +10,8 @@ import { useAuthStore } from '@/stores/auth';
 const props = defineProps({
   items: Array,
   isMobile: Boolean,
-  isLoading: Boolean
+  isLoading: Boolean,
+  totalItems: Number
 });
 
 const router = useRouter();
@@ -55,19 +56,14 @@ const fullAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
-const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
+const truncate = (text, max = 45) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 const sortedItems = computed(() => {
-  return [...props.items].sort((a, b) => {
-    const aVal = sortBy.value === 'address' ? fullAddress(a.address).toLowerCase() : (a[sortBy.value]?.toString().toLowerCase() ?? '');
-    const bVal = sortBy.value === 'address' ? fullAddress(b.address).toLowerCase() : (b[sortBy.value]?.toString().toLowerCase() ?? '');
-    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
-  });
+  return props.items ?? [];
 });
 
 const paginatedItems = computed(() => {
-  const start = (page.value - 1) * itemsPerPage.value;
-  return sortedItems.value.slice(start, start + itemsPerPage.value);
+  return props.items ?? [];
 });
 
 const goToEdit = (bus) => router.push({ path: `/empresas/editar/${bus.id}` });
@@ -96,9 +92,7 @@ const toggleStatus = async (bus) => {
       <p class="mt-4">Cargando negocios...</p>
     </div>
 
-    <!-- Contenido cuando no está cargando -->
     <template v-else>
-      <!-- Mensaje cuando no hay empresas -->
       <div v-if="!paginatedItems.length" class="text-center py-8">
         <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
         <p class="mt-4 text-h6 text-grey-darken-1">No existen empresas</p>
@@ -129,17 +123,21 @@ const toggleStatus = async (bus) => {
             <v-col cols="8">
               <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <router-link v-if="canView" :to="`/empresas/${bus.id}`" @click.stop style="text-decoration: underline">
+                  <!-- Siempre mostrar el folio como link azul -->
+                  <router-link :to="`/empresas/${bus.id}`" @click.stop style="text-decoration: underline; color: #1976d2">
                     {{ bus.folio }}
                   </router-link>
-                  <span v-else>{{ bus.folio }}</span>
                 </div>
                 <StatusChip :status="bus.status" />
               </div>
-              <div class="font-weight-medium mb-1">{{ bus.legal_name }}</div>
+              <div class="font-weight-medium mb-1">{{ bus.name }}</div>
+              <div class="text-caption mb-1">
+                <strong>Alias:</strong>
+                {{ bus.alias || 'Sin alias' }}
+              </div>
               <div class="text-caption">
                 <strong>Dirección:</strong>
-                {{ truncate(fullAddress(bus.address), 60) }}
+                {{ truncate(fullAddress(bus.address), 45) }}
               </div>
             </v-col>
           </v-row>
@@ -149,11 +147,12 @@ const toggleStatus = async (bus) => {
       <!-- Modo escritorio (solo tabla) -->
       <template v-else>
         <BusinessTableMeta
-          :items="sortedItems.value"
+          :items="sortedItems"
           :page="page"
           :itemsPerPage="itemsPerPage"
           :sortBy="sortBy"
           :sortDesc="sortDesc"
+          :totalItems="totalItems"
           @update:page="page = $event"
           @sort="toggleSort"
         >
@@ -185,8 +184,9 @@ const toggleStatus = async (bus) => {
                     <span style="font-size: 12px; color: #888">Sin logo</span>
                   </v-avatar>
                 </td>
-                <td class="legal-cell">{{ bus.legal_name }}</td>
-                <td class="address-cell">{{ truncate(fullAddress(bus.address), 60) }}</td>
+                <td class="legal-cell">{{ bus.name }}</td>
+                <td class="alias-cell">{{ bus.alias || 'Sin alias' }}</td>
+                <td class="address-cell">{{ truncate(fullAddress(bus.address), 45) }}</td>
                 <td class="status-cell">
                   <StatusChip :status="bus.status" />
                 </td>
@@ -233,13 +233,3 @@ const toggleStatus = async (bus) => {
 </template>
 
 <style scoped src="@/styles/business.css"></style>
-<style scoped>
-.row-clickable:hover {
-  background: #f5f5f5;
-  transition: background 0.2s;
-}
-.row-disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
-</style>

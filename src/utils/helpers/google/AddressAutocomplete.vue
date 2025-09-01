@@ -13,6 +13,7 @@
         density="compact"
         @focus="initAutocomplete"
         @input="onStreetInput"
+        :error-messages="addressError"
       />
     </div>
 
@@ -25,6 +26,7 @@
         color="primary"
         hide-details
         density="compact"
+        :error-messages="addressError"
       />
       <v-text-field
         v-model="fields.indoor_number"
@@ -33,38 +35,78 @@
         color="primary"
         hide-details
         density="compact"
+        :error-messages="addressError"
       />
     </div>
 
     <!-- Colonia y Código Postal -->
     <div class="field-group">
-      <v-text-field v-model="fields.neighborhood" label="Colonia" variant="outlined" color="primary" hide-details density="compact" />
-      <v-text-field v-model="fields.postal_code" label="Código Postal" variant="outlined" color="primary" hide-details density="compact" />
-    </div>
-
-    <!-- Ciudad y Estado -->
-    <div class="field-group">
-      <v-text-field v-model="fields.city" label="Ciudad" variant="outlined" color="primary" hide-details density="compact" />
-      <v-text-field v-model="fields.state" label="Estado" variant="outlined" color="primary" hide-details density="compact" />
-    </div>
-
-    <!-- País -->
-    <div class="field-group single">
-      <v-autocomplete
-        v-model="fields.country"
-        :items="countries"
-        label="País"
+      <v-text-field
+        v-model="fields.neighborhood"
+        label="Colonia"
         variant="outlined"
         color="primary"
         hide-details
         density="compact"
-        v-model:search-input="countrySearch"
-        :item-title="'name'"
-        :item-value="'name'"
-        clearable
-        :return-object="false"
-        :filter="customCountryFilter"
+        :error-messages="addressError"
       />
+      <v-text-field
+        v-model="fields.postal_code"
+        label="Código Postal"
+        variant="outlined"
+        color="primary"
+        hide-details
+        density="compact"
+        :error-messages="addressError"
+      />
+    </div>
+
+    <!-- Ciudad y Estado -->
+    <div class="field-group">
+      <v-text-field
+        v-model="fields.city"
+        label="Ciudad"
+        variant="outlined"
+        color="primary"
+        hide-details
+        density="compact"
+        :error-messages="addressError"
+      />
+      <v-text-field
+        v-model="fields.state"
+        label="Estado"
+        variant="outlined"
+        color="primary"
+        hide-details
+        density="compact"
+        :error-messages="addressError"
+      />
+    </div>
+
+    <!-- País -->
+    <div class="field-group single">
+      <div style="display: flex; flex-direction: column">
+        <v-autocomplete
+          v-model="fields.country"
+          :items="countries"
+          label="País"
+          variant="outlined"
+          color="primary"
+          hide-details
+          density="compact"
+          v-model:search-input="countrySearch"
+          :item-title="'name'"
+          :item-value="'name'"
+          clearable
+          :return-object="false"
+          :filter="customCountryFilter"
+          :error-messages="addressError"
+        />
+        <!-- Mensaje de error justo debajo del campo País, pequeño y con un poco de separación -->
+        <div v-if="addressError" class="text-error" style="font-size: 0.78rem; margin-top: 6px; margin-bottom: 0">
+          {{ addressError }}
+        </div>
+      </div>
     </div>
 
     <!-- Mapa -->
@@ -78,7 +120,8 @@ import { ref, watch } from 'vue';
 const props = defineProps({
   placeholder: { type: String, default: '' },
   initialValue: { type: Object, default: () => ({}) },
-  mode: { type: String, default: 'edit' } // 'create' o 'edit'
+  mode: { type: String, default: 'edit' }, // 'create' o 'edit'
+  addressError: { type: String, default: '' }
 });
 const emit = defineEmits(['update:parsedAddress']);
 

@@ -3,7 +3,7 @@
     <!-- Search bar -->
     <v-text-field
       v-model="search"
-      :placeholder="`Buscar por nombre legal, alias, folio o dirección...`"
+      :placeholder="`Buscar por folio, nombre legal o alias...`"
       prepend-inner-icon="mdi-magnify"
       clearable
       class="flex-grow-1 search-bar"
@@ -116,7 +116,7 @@
               <template #activator="{ props }">
                 <v-text-field
                   :model-value="formatDateOnly(createdAtStart)"
-                  label="Creado desde"
+                  label="Fecha de Inicio"
                   readonly
                   v-bind="props"
                   clearable
@@ -140,7 +140,7 @@
               <template #activator="{ props }">
                 <v-text-field
                   :model-value="formatDateOnly(createdAtEnd)"
-                  label="Creado hasta"
+                  label="Fecha de Fin"
                   readonly
                   v-bind="props"
                   clearable
@@ -165,7 +165,7 @@
           <v-btn
             variant="text"
             style="width: 100%; color: #555; font-weight: 500; font-size: 13px; text-transform: none"
-            @click="clearFiltersAndClose"
+            @click="clearFilters"
           >
             Limpiar
           </v-btn>
@@ -193,7 +193,6 @@ const statusOptions = [
   { title: 'Inactivo', value: 'inactive' }
 ];
 
-// NUEVOS filtros de rango de fechas
 const createdAtStart = ref(null);
 const createdAtEnd = ref(null);
 const menuCreatedStart = ref(false);
@@ -201,7 +200,6 @@ const menuCreatedEnd = ref(false);
 
 const { mdAndDown } = useDisplay();
 
-// --- Organization select filter SOLO para superadmin ---
 const auth = useAuthStore();
 const user = computed(() => auth.user || { roles: [], permissions: [] });
 const roles = computed(() => user.value.roles || []);
@@ -222,6 +220,7 @@ const fetchOrganizations = async (searchText) => {
         limit: 10
       }
     });
+
     organizationOptions.value = (data.data || []).map((o) => ({
       ...o,
       display: `${o.folio}${o.legal_name ? ' - ' + o.legal_name : ''}`
@@ -233,7 +232,6 @@ const fetchOrganizations = async (searchText) => {
   }
 };
 
-// Fetch initial options when dialog opens
 watch(dialog, (val) => {
   if (val && isSuperadmin.value && organizationOptions.value.length === 0) {
     fetchOrganizations('');
@@ -289,11 +287,5 @@ function clearFilters() {
     createdAtStart: null,
     createdAtEnd: null
   });
-}
-
-// Nueva función para limpiar y cerrar el modal
-function clearFiltersAndClose() {
-  clearFilters();
-  dialog.value = false;
 }
 </script>

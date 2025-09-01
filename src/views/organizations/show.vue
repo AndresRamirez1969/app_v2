@@ -7,6 +7,7 @@ import { mdiArrowLeft, mdiPencil, mdiCancel, mdiCheckCircle, mdiChevronDown, mdi
 import StatusChip from '@/components/status/StatusChip.vue';
 import { useAuthStore } from '@/stores/auth';
 import { findCountryByCode } from '@/utils/constants/countries';
+import { timezones } from '@/utils/constants/timezones';
 
 const router = useRouter();
 const route = useRoute();
@@ -40,7 +41,6 @@ const canShow = computed(() => isSuperadmin.value || isAdmin.value || roles.valu
 
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || canEditPermission.value);
 
-// Solo superadmin puede activar/desactivar organización
 const canToggleStatus = computed(() => isSuperadmin.value);
 
 const canBusinessEdit = computed(() => permissions.value.includes('business.update'));
@@ -185,6 +185,13 @@ function formatPhone(person) {
 const getBusinessUnitsCount = (group) => {
   return group.business_units_count ?? group.businessUnits?.length ?? 0;
 };
+
+// Integración de zona horaria
+function getTimezoneLabel(value) {
+  if (!value) return 'No disponible';
+  const tz = timezones.find((t) => t.value === value);
+  return tz ? tz.label : value;
+}
 
 onMounted(async () => {
   try {
@@ -356,14 +363,14 @@ onMounted(async () => {
                   <template v-else> No disponible </template>
                 </td>
               </tr>
-              <tr>
-                <td class="font-weight-bold text-subtitle-1">Folio</td>
-                <td>
-                  <span v-if="organization?.folio">{{ organization.folio }}</span>
-                  <span v-else>No disponible</span>
-                </td>
-              </tr>
             </template>
+            <tr>
+              <td class="font-weight-bold text-subtitle-1">Folio</td>
+              <td>
+                <span v-if="organization?.folio">{{ organization.folio }}</span>
+                <span v-else>No disponible</span>
+              </td>
+            </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Nombre legal</td>
               <td>{{ organization?.legal_name || 'No disponible' }}</td>
@@ -379,7 +386,7 @@ onMounted(async () => {
             <tr>
               <td class="font-weight-bold text-subtitle-1">Zona horaria</td>
               <td>
-                <span v-if="organization?.timezone">{{ organization.timezone }}</span>
+                <span v-if="organization?.timezone">{{ getTimezoneLabel(organization.timezone) }}</span>
                 <span v-else>No disponible</span>
               </td>
             </tr>

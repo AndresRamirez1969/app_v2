@@ -38,6 +38,16 @@ td {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.alias-header,
+.alias-cell {
+  width: 100px;
+  min-width: 80px;
+  max-width: 120px;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .address-header,
 .address-cell {
   width: 240px;

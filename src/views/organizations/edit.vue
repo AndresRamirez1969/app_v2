@@ -143,7 +143,7 @@ const form = reactive({
 });
 
 const clearFieldError = (fieldName) => {
-  if (fieldErrors[fieldName]) fieldErrors[fieldName] = '';
+  fieldErrors[fieldName] = '';
 };
 
 const scrollToField = async (fieldName) => {
@@ -157,34 +157,41 @@ const scrollToField = async (fieldName) => {
   }
 };
 
+// Validación mejorada para mostrar mensajes correctamente
 const validateField = (fieldName, value) => {
   clearFieldError(fieldName);
   switch (fieldName) {
     case 'legal_name':
       if (!value || value.trim() === '') {
-        fieldErrors.legal_name = 'El nombre legal es obligatorio';
+        fieldErrors.legal_name = 'El nombre legal es obligatorio.';
         return false;
       }
       break;
     case 'timezone':
       if (!value || value.trim() === '') {
-        fieldErrors.timezone = 'La zona horaria es obligatoria';
+        fieldErrors.timezone = 'La zona horaria es obligatoria.';
         return false;
       }
       break;
     case 'address':
-      if (!parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
-        fieldErrors.address = 'La dirección es obligatoria';
+      // address es requerido y debe tener al menos la calle
+      if (
+        !parsedAddress.value ||
+        Object.keys(parsedAddress.value).length === 0 ||
+        !parsedAddress.value.street ||
+        parsedAddress.value.street.trim() === ''
+      ) {
+        fieldErrors.address = 'La dirección es obligatoria.';
         return false;
       }
       break;
-    case 'logo':
-      break;
     case 'phone_country':
+      // Solo mostrar error si hay teléfono pero no país
       if (form.contact.phone_number && !value) {
         fieldErrors.phone_country = 'Selecciona el país para el teléfono';
         return false;
       }
+      fieldErrors.phone_country = '';
       break;
   }
   return true;
@@ -239,19 +246,24 @@ const handleParsedAddress = (val) => {
 };
 
 watch(
-  () => [form.legal_name, form.timezone, parsedAddress.value, form.logo, form.contact.phone_country],
+  () => [form.legal_name, form.timezone, parsedAddress.value, form.logo, form.contact.phone_country, form.contact.phone_number],
   () => {
     errorMsg.value = '';
+    clearFieldError('legal_name');
+    clearFieldError('timezone');
+    clearFieldError('address');
+    clearFieldError('phone_country');
   }
 );
 
 onMounted(async () => {
   const user = auth.user;
 
-  const canEdit =
-    user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.permissions?.includes('organization.update');
+  const isSuperAdmin = user?.roles?.includes('admin') || user?.roles?.includes('superadmin');
+  const hasOrganizationUpdate = user?.permissions?.includes('organization.update');
+  const isOwnOrganization = String(user?.organization_id) === String(organizationId);
 
-  if (!canEdit) {
+  if (!(isSuperAdmin || (hasOrganizationUpdate && isOwnOrganization))) {
     router.replace('/403');
     return;
   }
@@ -463,7 +475,6 @@ const validate = async () => {
               density="compact"
               placeholder="Selecciona una zona horaria"
               clearable
-              hide-details
               :menu-props="{ maxHeight: '400px' }"
               required
               :error-messages="fieldErrors.timezone"
@@ -478,18 +489,11 @@ const validate = async () => {
               :initial-value="parsedAddress"
               :placeholder="fullAddress"
               @update:parsedAddress="handleParsedAddress"
+              :addressError="fieldErrors.address"
             />
-            <v-text-field
-              ref="fieldRefs.address"
-              v-if="fieldErrors.address"
-              :model-value="''"
-              variant="outlined"
-              color="error"
-              class="mt-2"
-              :error-messages="fieldErrors.address"
-              readonly
-              hide-details
-            />
+            <div v-if="fieldErrors.address" class="text-error" style="font-size: 0.78rem; margin-top: 6px; margin-bottom: 0">
+              {{ fieldErrors.address }}
+            </div>
           </v-col>
         </v-row>
 
@@ -518,45 +522,49 @@ const validate = async () => {
             <v-label>Teléfono</v-label>
             <div class="phone-group phone-group-responsive mt-2">
               <!-- País -->
-              <v-autocomplete
-                ref="fieldRefs.phone_country"
-                v-model="form.contact.phone_country"
-                :items="filteredCountries"
-                v-model:search-input="phoneCountrySearch"
-                item-title="title"
-                item-value="value"
-                variant="outlined"
-                color="primary"
-                class="phone-country-field"
-                placeholder="País"
-                clearable
-                hide-details
-                :menu-props="{ maxHeight: '400px', width: 320 }"
-                :error-messages="fieldErrors.phone_country"
-                @update:model-value="clearFieldError('phone_country')"
-              >
-                <template #selection="{ item }">
-                  <template v-if="item && item.value">
-                    <span>{{ findCountryByCode(item.value)?.flag }}</span>
-                    <span style="margin-left: 6px">{{ getDialPrefix(item.value, item.title) }}</span>
-                  </template>
-                </template>
-                <template #item="{ item, props }">
-                  <v-list-item v-bind="props">
-                    <template #title>
-                      <div class="d-flex align-center justify-space-between">
-                        <span>
-                          <span>{{ findCountryByCode(item.value)?.flag }}</span>
-                          <span style="margin-left: 8px">
-                            {{ item.title.replace(/^.*?\s/, '') }}
-                          </span>
-                        </span>
-                        <span class="text-medium-emphasis">{{ getDialPrefix(item.value, item.title) }}</span>
-                      </div>
+              <div style="display: flex; flex-direction: column">
+                <v-autocomplete
+                  ref="fieldRefs.phone_country"
+                  v-model="form.contact.phone_country"
+                  :items="filteredCountries"
+                  v-model:search-input="phoneCountrySearch"
+                  item-title="title"
+                  item-value="value"
+                  variant="outlined"
+                  color="primary"
+                  class="phone-country-field"
+                  placeholder="País"
+                  clearable
+                  :menu-props="{ maxHeight: '400px', width: 320 }"
+                  :error-messages="fieldErrors.phone_country"
+                  @update:model-value="clearFieldError('phone_country')"
+                >
+                  <template #selection="{ item }">
+                    <template v-if="item && item.value">
+                      <span>{{ findCountryByCode(item.value)?.flag }}</span>
+                      <span style="margin-left: 6px">{{ getDialPrefix(item.value, item.title) }}</span>
                     </template>
-                  </v-list-item>
-                </template>
-              </v-autocomplete>
+                  </template>
+                  <template #item="{ item, props }">
+                    <v-list-item v-bind="props">
+                      <template #title>
+                        <div class="d-flex align-center justify-space-between">
+                          <span>
+                            <span>{{ findCountryByCode(item.value)?.flag }}</span>
+                            <span style="margin-left: 8px">
+                              {{ item.title.replace(/^.*?\s/, '') }}
+                            </span>
+                          </span>
+                          <span class="text-medium-emphasis">{{ getDialPrefix(item.value, item.title) }}</span>
+                        </div>
+                      </template>
+                    </v-list-item>
+                  </template>
+                </v-autocomplete>
+                <div v-if="fieldErrors.phone_country" class="text-error" style="font-size: 0.78rem; margin-top: 6px; margin-bottom: 0">
+                  {{ fieldErrors.phone_country }}
+                </div>
+              </div>
               <v-text-field
                 v-model="form.contact.phone_number"
                 variant="outlined"

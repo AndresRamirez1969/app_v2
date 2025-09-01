@@ -19,8 +19,8 @@ const canCreate = ref(false);
 
 const timezoneSearch = ref('');
 const phoneCountrySearch = ref('');
+const organizationSearch = ref('');
 
-// Organización para superadmin
 const organizations = ref([]);
 const selectedOrganization = ref(null);
 
@@ -95,7 +95,8 @@ const fieldErrors = reactive({
   timezone: '',
   address: '',
   logo: '',
-  phone_country: ''
+  phone_country: '',
+  organization_id: ''
 });
 
 const fieldRefs = {
@@ -103,12 +104,20 @@ const fieldRefs = {
   timezone: ref(null),
   address: ref(null),
   logo: ref(null),
-  phone_country: ref(null)
+  phone_country: ref(null),
+  organization_id: ref(null)
 };
 
 onMounted(async () => {
   const user = auth.user;
   canCreate.value = user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.permissions?.includes('business.create');
+
+  // Redirecciona si no tiene permiso business.create
+  if (!canCreate.value) {
+    router.replace('/403');
+    return;
+  }
+
   if (
     user?.business_id &&
     !user?.roles?.includes('superadmin') &&
@@ -118,7 +127,6 @@ onMounted(async () => {
     router.replace(`/empresas/${user.business_id}`);
   }
 
-  // Si es superadmin, carga organizaciones
   if (user?.roles?.includes('superadmin')) {
     try {
       const res = await axiosInstance.get('/organizations');
@@ -139,7 +147,7 @@ const form = reactive({
   description: '',
   timezone: '',
   logo: null,
-  person: {
+  contact: {
     first_name: '',
     last_name: '',
     email: '',
@@ -199,7 +207,12 @@ const validateField = (fieldName, value) => {
       }
       break;
     case 'address':
-      if (!parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
+      if (
+        !parsedAddress.value ||
+        Object.keys(parsedAddress.value).length === 0 ||
+        !parsedAddress.value.street ||
+        parsedAddress.value.street.trim() === ''
+      ) {
         fieldErrors.address = 'La dirección es obligatoria';
         return false;
       }
@@ -207,8 +220,14 @@ const validateField = (fieldName, value) => {
     case 'logo':
       break;
     case 'phone_country':
-      if (form.person.phone_number && !value) {
+      if (form.contact.phone_number && !value) {
         fieldErrors.phone_country = 'Selecciona el país para el teléfono';
+        return false;
+      }
+      break;
+    case 'organization_id':
+      if (auth.user?.roles?.includes('superadmin') && !selectedOrganization.value) {
+        fieldErrors.organization_id = 'La organización es obligatoria';
         return false;
       }
       break;
@@ -231,9 +250,13 @@ const validateAllFields = async () => {
     isValid = false;
     if (!firstErrorField) firstErrorField = 'address';
   }
-  if (!validateField('phone_country', form.person.phone_country)) {
+  if (!validateField('phone_country', form.contact.phone_country)) {
     isValid = false;
     if (!firstErrorField) firstErrorField = 'phone_country';
+  }
+  if (auth.user?.roles?.includes('superadmin') && !validateField('organization_id', selectedOrganization.value)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'organization_id';
   }
   if (!isValid && firstErrorField) await scrollToField(firstErrorField);
   return isValid;
@@ -268,13 +291,14 @@ const validate = async () => {
     formData.append('description', form.description || '');
     formData.append('timezone', form.timezone);
 
-    // Organización para superadmin
     const user = auth.user;
     let organization_id = null;
     if (user?.roles?.includes('superadmin')) {
       if (!selectedOrganization.value) {
-        errorMsg.value = 'Selecciona una organización.';
+        fieldErrors.organization_id = 'La organización es obligatoria';
+        errorMsg.value = 'La organización es obligatoria';
         isLoading.value = false;
+        await scrollToField('organization_id');
         return;
       }
       organization_id = selectedOrganization.value;
@@ -287,9 +311,9 @@ const validate = async () => {
 
     for (const key in parsedAddress.value) formData.append(`address[${key}]`, parsedAddress.value[key] || '');
 
-    const hasPersonData = Object.values(form.person).some((val) => val?.trim?.() !== '');
-    if (hasPersonData) {
-      for (const key in form.person) formData.append(`person[${key}]`, form.person[key] || '');
+    const hasContactData = Object.values(form.contact).some((val) => val?.trim?.() !== '');
+    if (hasContactData) {
+      for (const key in form.contact) formData.append(`contact[${key}]`, form.contact[key] || '');
     }
     if (form.logo) {
       const logoFile = Array.isArray(form.logo) ? form.logo[0] : form.logo;
@@ -327,9 +351,15 @@ const validate = async () => {
         fieldErrors.phone_country = serverErrors.phone_country[0];
         firstServerErrorField = firstServerErrorField || 'phone_country';
       }
+      if (serverErrors.organization_id) {
+        fieldErrors.organization_id = serverErrors.organization_id[0];
+        firstServerErrorField = firstServerErrorField || 'organization_id';
+      }
       if (firstServerErrorField) await scrollToField(firstServerErrorField);
 
-      const unmapped = Object.keys(serverErrors).filter((k) => !['name', 'timezone', 'address', 'logo', 'phone_country'].includes(k));
+      const unmapped = Object.keys(serverErrors).filter(
+        (k) => !['name', 'timezone', 'address', 'logo', 'phone_country', 'organization_id'].includes(k)
+      );
       if (unmapped.length > 0)
         errorMsg.value = unmapped
           .map((k) => serverErrors[k])
@@ -406,19 +436,24 @@ const validate = async () => {
 
             <!-- Select de organización SOLO para superadmin -->
             <template v-if="auth.user?.roles?.includes('superadmin')">
-              <v-label>Organización</v-label>
-              <v-select
+              <v-label>Organización <span class="text-error">*</span></v-label>
+              <v-autocomplete
+                ref="fieldRefs.organization_id"
                 v-model="selectedOrganization"
                 :items="organizations"
+                v-model:search-input="organizationSearch"
                 item-title="display"
                 item-value="id"
                 variant="outlined"
                 color="primary"
-                class="mt-2 mb-4"
+                class="mt-2 mb-1"
                 density="compact"
-                :searchable="true"
                 placeholder="Buscar organización"
+                clearable
+                :menu-props="{ maxHeight: '400px' }"
                 required
+                :error-messages="fieldErrors.organization_id"
+                @update:model-value="clearFieldError('organization_id')"
               />
             </template>
 
@@ -454,7 +489,6 @@ const validate = async () => {
               density="compact"
               placeholder="Selecciona una zona horaria"
               clearable
-              hide-details
               :menu-props="{ maxHeight: '400px' }"
               required
               :error-messages="fieldErrors.timezone"
@@ -464,18 +498,13 @@ const validate = async () => {
 
           <v-col cols="12" class="mt-4">
             <v-label>Dirección <span class="text-error">*</span></v-label>
-            <AddressAutocomplete class="mt-2" @update:parsedAddress="handleParsedAddress" />
-            <v-text-field
-              ref="fieldRefs.address"
-              v-if="fieldErrors.address"
-              :model-value="''"
-              variant="outlined"
-              color="error"
+            <AddressAutocomplete
               class="mt-2"
-              :error-messages="fieldErrors.address"
-              readonly
-              hide-details
+              :initial-value="parsedAddress"
+              @update:parsedAddress="handleParsedAddress"
+              :addressError="fieldErrors.address"
             />
+            <!-- Mensaje de error de address ya lo muestra AddressAutocomplete -->
           </v-col>
         </v-row>
 
@@ -487,17 +516,17 @@ const validate = async () => {
 
           <v-col cols="12" sm="6">
             <v-label>Nombre</v-label>
-            <v-text-field v-model="form.person.first_name" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.first_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Apellido</v-label>
-            <v-text-field v-model="form.person.last_name" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.last_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Correo</v-label>
-            <v-text-field v-model="form.person.email" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.email" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
@@ -505,7 +534,7 @@ const validate = async () => {
             <div class="phone-group mt-2">
               <v-autocomplete
                 ref="fieldRefs.phone_country"
-                v-model="form.person.phone_country"
+                v-model="form.contact.phone_country"
                 :items="filteredCountries"
                 v-model:search-input="phoneCountrySearch"
                 item-title="title"
@@ -544,7 +573,7 @@ const validate = async () => {
                 </template>
               </v-autocomplete>
               <v-text-field
-                v-model="form.person.phone_number"
+                v-model="form.contact.phone_number"
                 variant="outlined"
                 color="primary"
                 density="compact"
