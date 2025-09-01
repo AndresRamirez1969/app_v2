@@ -9,12 +9,14 @@ import { useToast } from 'vue-toastification';
 import { groupUsersByRole } from '@/utils/helpers/groupUsers';
 
 const auth = useAuthStore();
-const user = auth.user;
+const user = computed(() => auth.user);
 const toast = useToast();
 const router = useRouter();
 const goBack = () => {
   router.push('/formularios');
 };
+
+const isSuperadmin = computed(() => user.value?.roles?.includes('superadmin'));
 
 const canViewAnyBusiness = computed(() => {
   return user?.permissions?.includes('business.viewAny');
@@ -60,6 +62,11 @@ const sameLogo = ref(false);
 const filteredUsers = ref([]);
 const allUsers = ref([]);
 
+// Select de organización para superadmin
+const selectedOrganization = ref(null);
+const organizationOptions = ref([]);
+const loadingOrganizations = ref(false);
+
 const allRoles = computed(() => {
   return groupUsersByRole(allUsers.value);
 });
@@ -84,7 +91,6 @@ const fetchAllUsers = async () => {
 
 const fetchUsersByScope = async () => {
   try {
-    // Validar que tengamos los parámetros necesarios antes de hacer la llamada
     if (scope.value === 'business_unit_group' && !groupId.value) {
       return;
     }
@@ -97,14 +103,28 @@ const fetchUsersByScope = async () => {
       return;
     }
 
+    if (scope.value === 'organization' && isSuperadmin.value && !selectedOrganization.value) {
+      return;
+    }
+
     const params = { scope: scope.value };
+
+    if (isSuperadmin.value) {
+      if (scope.value === 'organization' && selectedOrganization.value) {
+        params.organization_id = selectedOrganization.value;
+      } else {
+        params.organization_id = organizationId.value;
+      }
+    }
 
     if (scope.value === 'business' && businessId.value) {
       params.business_id = businessId.value;
     } else if (scope.value === 'business_unit' && businessUnitId.value) {
       params.business_unit_id = businessUnitId.value;
     } else if (scope.value === 'organization') {
-      params.organization_id = auth.user?.organization_id;
+      if (!isSuperadmin.value) {
+        params.organization_id = auth.user?.organization_id;
+      }
     } else if (scope.value === 'business_unit_group' && groupId.value) {
       params.business_unit_group_id = groupId.value;
     }
@@ -116,9 +136,7 @@ const fetchUsersByScope = async () => {
       customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
     }));
 
-    // Si es grupo, asignar automáticamente todos los roles disponibles
     if (scope.value === 'business_unit_group' && groupId.value) {
-      // Obtener todos los roles únicos de los usuarios filtrados
       const allRoles = new Set();
       filteredUsers.value.forEach((user) => {
         if (user.roles && user.roles.length > 0) {
@@ -128,7 +146,6 @@ const fetchUsersByScope = async () => {
         }
       });
 
-      // Asignar automáticamente todos los roles como auditados
       audited.value = Array.from(allRoles);
     }
   } catch (err) {
@@ -137,10 +154,8 @@ const fetchUsersByScope = async () => {
   }
 };
 
-// Modificar el watcher para que funcione correctamente
-watch([scope, businessId, businessUnitId, groupId], async () => {
+watch([scope, businessId, businessUnitId, groupId, selectedOrganization], async () => {
   if (scope.value) {
-    // Limpiar selecciones solo si no es grupo
     if (scope.value !== 'business_unit_group') {
       audited.value = [];
     }
@@ -148,40 +163,38 @@ watch([scope, businessId, businessUnitId, groupId], async () => {
 
     if ((scope.value === 'business' || scope.value === 'business_unit') && userBusinesses.value && !canViewAnyBusiness.value) {
       businessId.value = userBusinesses.value;
-      // Actualizar las unidades de negocio cuando se asigna automáticamente el negocio
       if (scope.value === 'business_unit') {
         await fetchBusinessUnits();
       }
     }
 
-    // Ejecutar fetchUsersByScope
     await fetchUsersByScope();
   }
 });
 
-// Agregar un watcher específico para businessId que actualice las unidades de negocio
+watch(selectedOrganization, async (newOrgId) => {
+  if (scope.value === 'organization' && isSuperadmin.value && newOrgId) {
+    await fetchUsersByScope();
+  }
+});
+
 watch(businessId, async (newBusinessId) => {
   if (newBusinessId && scope.value === 'business_unit') {
-    // Limpiar la unidad de negocio seleccionada
     businessUnitId.value = '';
-    // Actualizar las unidades de negocio disponibles
     await fetchBusinessUnits();
   }
 });
 
-// Watcher específico para cuando se selecciona un grupo
 watch(groupId, async (newGroupId) => {
   if (scope.value === 'business_unit_group' && newGroupId) {
     await fetchUsersByScope();
   }
 });
 
-// Modificar la función fetchBusinessUnits para que se ejecute cuando sea necesario
 const fetchBusinessUnits = async (searchText = '') => {
   try {
     const params = { q: searchText, limit: 10 };
 
-    // Solo hacer la llamada si tenemos un scope que requiere unidades de negocio
     if (scope.value === 'business_unit') {
       const res = await axiosInstance.get('/business-units', { params });
       businessUnits.value = res.data.data.map((businessUnit) => ({
@@ -195,6 +208,29 @@ const fetchBusinessUnits = async (searchText = '') => {
   }
 };
 
+const fetchOrganizations = async () => {
+  if (!isSuperadmin.value) return;
+  loadingOrganizations.value = true;
+  try {
+    const { data } = await axiosInstance.get('/organizations');
+    organizationOptions.value = (data.data || []).map((o) => ({
+      ...o,
+      title: `${o.folio} - ${o.legal_name}`,
+      value: o.id
+    }));
+  } catch (e) {
+    organizationOptions.value = [];
+  } finally {
+    loadingOrganizations.value = false;
+  }
+};
+
+watch(scope, (newScope) => {
+  if (newScope === 'organization' && isSuperadmin.value && organizationOptions.value.length === 0) {
+    fetchOrganizations();
+  }
+});
+
 onMounted(async () => {
   try {
     await fetchAllUsers();
@@ -202,7 +238,7 @@ onMounted(async () => {
     console.log(resBusiness.data.data);
     businesses.value = resBusiness.data.data.map((business) => ({
       ...business,
-      customLabel: `${business.legal_name}`
+      customLabel: `${business.folio} - ${business.name}`
     }));
 
     // No ejecutar fetchBusinessUnits aquí, se ejecutará cuando se seleccione el scope
@@ -379,17 +415,19 @@ const validate = async () => {
     }
 
     if (scope.value === 'organization') {
-      formData.append('organization_id', user?.organization_id);
+      // Si es superadmin, usar la organización seleccionada, sino la del usuario
+      const orgId = isSuperadmin.value && selectedOrganization.value ? selectedOrganization.value : user.value?.organization_id;
+      formData.append('organization_id', orgId);
     } else if (scope.value === 'business') {
       formData.append('business_id', businessId.value);
-      formData.append('organization_id', user?.organization_id);
+      formData.append('organization_id', user.value?.organization_id);
     } else if (scope.value === 'business_unit') {
       formData.append('business_id', businessId.value);
       formData.append('business_unit_id', businessUnitId.value);
-      formData.append('organization_id', user?.organization_id);
+      formData.append('organization_id', user.value?.organization_id);
     } else if (scope.value === 'business_unit_group') {
       formData.append('business_unit_group_id', groupId.value);
-      formData.append('organization_id', user?.organization_id);
+      formData.append('organization_id', user.value?.organization_id);
       formData.append('business_id', businessId.value);
     }
 
@@ -506,6 +544,32 @@ const validate = async () => {
                 readonly
                 hide-details
               />
+            </v-col>
+          </v-row>
+
+          <!-- Select de Organización SOLO para superadmin cuando scope es 'organization' -->
+          <v-row v-if="isSuperadmin && scope === 'organization'" class="my-0">
+            <v-col cols="12" sm="6" class="py-0">
+              <div class="mb-6">
+                <v-label>Organización <span class="text-error">*</span></v-label>
+                <v-select
+                  v-model="selectedOrganization"
+                  :items="organizationOptions"
+                  :loading="loadingOrganizations"
+                  item-title="title"
+                  item-value="value"
+                  label="Selecciona la organización"
+                  clearable
+                  hide-details
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2"
+                  required
+                />
+                <v-alert type="info" variant="tonal" class="mt-2" density="compact">
+                  <strong>Superadmin:</strong> Selecciona la organización para la cual crearás el formulario.
+                </v-alert>
+              </div>
             </v-col>
           </v-row>
 

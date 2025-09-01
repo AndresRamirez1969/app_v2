@@ -150,7 +150,7 @@ const archiveForm = async (form) => {
       </template>
 
       <!-- Modo escritorio (solo tabla) -->
-      <template v-if="!isMobile">
+      <template v-else>
         <FormTableMeta
           :items="sortedItems"
           :page="page"

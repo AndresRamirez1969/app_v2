@@ -63,7 +63,7 @@ onMounted(async () => {
 });
 
 const form = reactive({
-  legal_name: '',
+  name: '',
   alias: '',
   description: '',
   timezone: '',
@@ -165,7 +165,7 @@ const validate = async () => {
   errorMsg.value = '';
 
   // Validación mínima antes de enviar al backend
-  if (!form.legal_name || !form.timezone || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
+  if (!form.name || !form.timezone || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
     errorMsg.value = 'Completa los campos obligatorios.';
     return;
   }
@@ -182,7 +182,7 @@ const validate = async () => {
 
   try {
     const formData = new FormData();
-    formData.append('legal_name', form.legal_name);
+    formData.append('name', form.name);
     formData.append('alias', form.alias || '');
     formData.append('description', form.description || '');
     formData.append('timezone', form.timezone || '');
@@ -336,8 +336,8 @@ const validate = async () => {
               <div style="height: 16px"></div>
             </template>
 
-            <v-label>Nombre Legal <span class="text-error">*</span></v-label>
-            <v-text-field v-model="form.legal_name" variant="outlined" color="primary" class="mt-2 mb-4" required />
+            <v-label>Nombre<span class="text-error">*</span></v-label>
+            <v-text-field v-model="form.name" variant="outlined" color="primary" class="mt-2 mb-4" required />
 
             <v-label>Alias</v-label>
             <v-text-field v-model="form.alias" variant="outlined" color="primary" class="mt-2 mb-4" />

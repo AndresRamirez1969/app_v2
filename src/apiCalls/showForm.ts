@@ -12,9 +12,12 @@ export function showForm() {
     try {
       const response = await axiosInstance.get(`/forms/${id}`);
       form.value = response.data;
+      return response.data; // Retornar los datos para que el componente pueda usarlos
     } catch (err) {
-      error.value = null;
-      console.error('Error fetching organization:', err);
+      console.error('Error fetching form:', err);
+      // Aseguramos que el tipo de error sea 'any' para evitar problemas de tipo
+      error.value = err as any; // Guardar el error para que el componente pueda accederlo
+      throw err; // Re-lanzar para que el componente pueda manejarlo
     } finally {
       loading.value = false;
     }
