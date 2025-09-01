@@ -136,7 +136,7 @@ onMounted(async () => {
           </v-btn>
           <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="businessUnit">
             {{ businessUnit.folio ? `${businessUnit.folio}` : '' }}
-            {{ businessUnit.legal_name ? `- ${businessUnit.legal_name}` : '- Ubicación' }}
+            {{ businessUnit.name ? `- ${businessUnit.name}` : '- Ubicación' }}
           </h3>
           <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="businessUnit">
             {{ businessUnit.folio ? `${businessUnit.folio}` : '' }}
@@ -250,13 +250,13 @@ onMounted(async () => {
             <tr v-if="isSuperadmin && business">
               <td class="font-weight-bold text-subtitle-1">Empresa</td>
               <td>
-                <span v-if="business?.legal_name">{{ business.legal_name }}</span>
+                <span v-if="business?.name">{{ business.name }}</span>
                 <span v-else>No disponible</span>
               </td>
             </tr>
             <tr>
-              <td class="font-weight-bold text-subtitle-1">Nombre legal</td>
-              <td>{{ businessUnit?.legal_name || 'No disponible' }}</td>
+              <td class="font-weight-bold text-subtitle-1">Nombre</td>
+              <td>{{ businessUnit?.name || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Alias</td>
@@ -300,8 +300,8 @@ onMounted(async () => {
                 <tr>
                   <td class="font-weight-bold text-subtitle-1" style="width: 40%">Nombre</td>
                   <td>
-                    <span v-if="businessUnit?.person && (businessUnit.person.first_name || businessUnit.person.last_name)">
-                      {{ [businessUnit.person.first_name, businessUnit.person.last_name].filter(Boolean).join(' ') }}
+                    <span v-if="businessUnit?.contact && (businessUnit.contact.first_name || businessUnit.contact.last_name)">
+                      {{ [businessUnit.contact.first_name, businessUnit.contact.last_name].filter(Boolean).join(' ') }}
                     </span>
                     <span v-else>No disponible</span>
                   </td>
@@ -309,14 +309,14 @@ onMounted(async () => {
                 <tr>
                   <td class="font-weight-bold text-subtitle-1">Correo</td>
                   <td>
-                    <span v-if="businessUnit?.person?.email">{{ businessUnit.person.email }}</span>
+                    <span v-if="businessUnit?.contact?.email">{{ businessUnit.contact.email }}</span>
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
                 <tr>
                   <td class="font-weight-bold text-subtitle-1">Teléfono</td>
                   <td>
-                    <span v-if="businessUnit?.person?.phone_number">{{ businessUnit.person.phone_number }}</span>
+                    <span v-if="businessUnit?.contact?.phone_number">{{ businessUnit.contact.phone_number }}</span>
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
@@ -340,18 +340,18 @@ onMounted(async () => {
             <tbody>
               <tr>
                 <td>
-                  <span v-if="businessUnit?.person && (businessUnit.person.first_name || businessUnit.person.last_name)">
-                    {{ [businessUnit.person.first_name, businessUnit.person.last_name].filter(Boolean).join(' ') }}
+                  <span v-if="businessUnit?.contact && (businessUnit.contact.first_name || businessUnit.contact.last_name)">
+                    {{ [businessUnit.contact.first_name, businessUnit.contact.last_name].filter(Boolean).join(' ') }}
                   </span>
                   <span v-else>No disponible</span>
                 </td>
                 <td></td>
                 <td>
-                  <span v-if="businessUnit?.person?.email">{{ businessUnit.person.email }}</span>
+                  <span v-if="businessUnit?.contact?.email">{{ businessUnit.contact.email }}</span>
                   <span v-else>No disponible</span>
                 </td>
                 <td>
-                  <span v-if="businessUnit?.person?.phone_number">{{ businessUnit.person.phone_number }}</span>
+                  <span v-if="businessUnit?.contact?.phone_number">{{ businessUnit.contact.phone_number }}</span>
                   <span v-else>No disponible</span>
                 </td>
                 <td></td>

@@ -25,12 +25,12 @@ const loadingBusinesses = ref(false);
 const timezoneSearch = ref('');
 
 const form = reactive({
-  legal_name: '',
+  name: '',
   alias: '',
   description: '',
   timezone: '',
   logo: null,
-  person: {
+  contact: {
     first_name: '',
     last_name: '',
     email: '',
@@ -167,7 +167,7 @@ onMounted(async () => {
     const res = await axiosInstance.get(`/business-units/${business_unitId}`);
     const data = res.data;
 
-    form.legal_name = data.legal_name || '';
+    form.name = data.name || '';
     form.alias = data.alias || '';
     form.description = data.description || '';
     form.timezone = data.timezone || '';
@@ -188,11 +188,11 @@ onMounted(async () => {
       };
     }
 
-    if (data.person) {
-      form.person.first_name = data.person.first_name || '';
-      form.person.last_name = data.person.last_name || '';
-      form.person.email = data.person.email || '';
-      form.person.phone_number = data.person.phone_number || '';
+    if (data.contact) {
+      form.contact.first_name = data.contact.first_name || '';
+      form.contact.last_name = data.contact.last_name || '';
+      form.contact.email = data.contact.email || '';
+      form.contact.phone_number = data.contact.phone_number || '';
     }
 
     if (data.organization_id) {
@@ -234,7 +234,7 @@ const handleParsedAddress = (val) => {
 
 const validate = async () => {
   errorMsg.value = '';
-  if (!form.legal_name || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
+  if (!form.name || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
     errorMsg.value = 'Por favor completa el nombre legal y la dirección.';
     return;
   }
@@ -257,7 +257,7 @@ const validate = async () => {
 
   try {
     const formData = new FormData();
-    formData.append('legal_name', form.legal_name);
+    formData.append('name', form.name);
     formData.append('alias', form.alias || '');
     formData.append('description', form.description || '');
     formData.append('timezone', form.timezone || '');
@@ -268,11 +268,11 @@ const validate = async () => {
       formData.append(`address[${key}]`, parsedAddress.value[key] || '');
     }
 
-    const hasPersonData = Object.values(form.person).some((val) => val && val.trim() !== '');
+    const hasPersonData = Object.values(form.contact).some((val) => val && val.trim() !== '');
     if (hasPersonData) {
-      for (const key in form.person) {
-        const val = form.person[key];
-        formData.append(`person[${key}]`, typeof val === 'string' ? val : '');
+      for (const key in form.contact) {
+        const val = form.contact[key];
+        formData.append(`contact[${key}]`, typeof val === 'string' ? val : '');
       }
     }
 
@@ -392,8 +392,8 @@ const validate = async () => {
             <div style="height: 16px"></div>
           </template>
 
-          <v-label>Nombre Legal</v-label>
-          <v-text-field v-model="form.legal_name" variant="outlined" color="primary" class="mt-2 mb-4" required />
+          <v-label>Nombre</v-label>
+          <v-text-field v-model="form.name" variant="outlined" color="primary" class="mt-2 mb-4" required />
 
           <v-label>Alias</v-label>
           <v-text-field v-model="form.alias" variant="outlined" color="primary" class="mt-2 mb-4" />
@@ -438,22 +438,22 @@ const validate = async () => {
 
         <v-col cols="12" sm="6">
           <v-label>Nombre</v-label>
-          <v-text-field v-model="form.person.first_name" variant="outlined" color="primary" class="mt-2" />
+          <v-text-field v-model="form.contact.first_name" variant="outlined" color="primary" class="mt-2" />
         </v-col>
 
         <v-col cols="12" sm="6">
           <v-label>Apellido</v-label>
-          <v-text-field v-model="form.person.last_name" variant="outlined" color="primary" class="mt-2" />
+          <v-text-field v-model="form.contact.last_name" variant="outlined" color="primary" class="mt-2" />
         </v-col>
 
         <v-col cols="12" sm="6">
           <v-label>Correo</v-label>
-          <v-text-field v-model="form.person.email" variant="outlined" color="primary" class="mt-2" />
+          <v-text-field v-model="form.contact.email" variant="outlined" color="primary" class="mt-2" />
         </v-col>
 
         <v-col cols="12" sm="6">
           <v-label>Teléfono</v-label>
-          <v-text-field v-model="form.person.phone_number" variant="outlined" color="primary" class="mt-2" />
+          <v-text-field v-model="form.contact.phone_number" variant="outlined" color="primary" class="mt-2" />
         </v-col>
       </v-row>
 

@@ -155,7 +155,7 @@ const fetchBusinesses = async (searchText = '') => {
     const { data } = await axiosInstance.get('/businesses', { params });
     businessOptions.value = (data.data || []).map((b) => ({
       ...b,
-      display: `${b.folio}${b.legal_name ? ' - ' + b.legal_name : ''}`,
+      display: `${b.folio}${b.name ? ' - ' + b.name : ''}`,
       organization_id: b.organization_id
     }));
   } catch (e) {
@@ -180,7 +180,7 @@ const fetchBusinessUnits = async (searchText = '') => {
     const { data } = await axiosInstance.get('/business-units', { params });
     businessUnitOptions.value = (data.data || []).map((u) => ({
       ...u,
-      display: `${u.folio}${u.legal_name ? ' - ' + u.legal_name : ''}`,
+      display: `${u.folio}${u.name ? ' - ' + u.name : ''}`,
       organization_id: u.organization_id,
       business_id: u.business_id
     }));
