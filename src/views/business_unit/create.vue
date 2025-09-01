@@ -68,7 +68,7 @@ const form = reactive({
   description: '',
   timezone: '',
   logo: null,
-  person: {
+  contact: {
     first_name: '',
     last_name: '',
     email: '',
@@ -207,11 +207,11 @@ const validate = async () => {
       }
     }
 
-    const hasPersonData = Object.values(form.person).some((val) => val?.trim?.() !== '');
+    const hasPersonData = Object.values(form.contact).some((val) => val?.trim?.() !== '');
     if (hasPersonData) {
-      for (const key in form.person) {
-        if (form.person[key]) {
-          formData.append(`person[${key}]`, form.person[key]);
+      for (const key in form.contact) {
+        if (form.contact[key]) {
+          formData.append(`contact[${key}]`, form.contact[key]);
         }
       }
     }
@@ -378,22 +378,22 @@ const validate = async () => {
 
           <v-col cols="12" sm="6">
             <v-label>Nombre</v-label>
-            <v-text-field v-model="form.person.first_name" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.first_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Apellido</v-label>
-            <v-text-field v-model="form.person.last_name" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.last_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Correo</v-label>
-            <v-text-field v-model="form.person.email" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.email" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Teléfono</v-label>
-            <v-text-field v-model="form.person.phone_number" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.phone_number" variant="outlined" color="primary" class="mt-2" />
           </v-col>
         </v-row>
 
