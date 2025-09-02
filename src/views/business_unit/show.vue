@@ -15,6 +15,7 @@ const route = useRoute();
 const { mdAndDown } = useDisplay();
 const businessUnit = ref(null);
 const business = ref(null);
+const organization = ref(null); // INTEGRACIÓN: organización
 const users = ref([]);
 const auth = useAuthStore();
 
@@ -103,11 +104,29 @@ function getCountryFlagAndPrefix(code) {
   return `${country.flag ? country.flag + ' ' : ''}${country.dial_code}`;
 }
 
+// INTEGRACIÓN: Función para mostrar folio y legal_name de la organización
+function getOrganizationDisplay(org) {
+  if (!org) return 'No disponible';
+  return `${org.folio ? org.folio : ''}${org.legal_name ? ' - ' + org.legal_name : ''}`;
+}
+
 onMounted(async () => {
   try {
     const id = route.params.id;
     const res = await axiosInstance.get(`/business-units/${id}`);
     businessUnit.value = res.data.data || res.data.business_unit || res.data;
+
+    // INTEGRACIÓN: obtener la organización relacionada si existe en la respuesta
+    if (businessUnit.value?.organization) {
+      organization.value = businessUnit.value.organization;
+    } else if (isSuperadmin.value && businessUnit.value?.organization_id) {
+      try {
+        const orgRes = await axiosInstance.get(`/organizations/${businessUnit.value.organization_id}`);
+        organization.value = orgRes.data.data || orgRes.data.organization || orgRes.data;
+      } catch (err) {
+        organization.value = null;
+      }
+    }
 
     // Integración: obtener la empresa relacionada si existe en la respuesta
     if (businessUnit.value?.business) {
@@ -129,7 +148,7 @@ onMounted(async () => {
       users.value = allUsers.filter((u) => String(u.business_unit_id) === String(businessUnit.value.id));
     }
   } catch (err) {
-    console.error('Error al obtener la ubicación, empresa o usuarios:', err);
+    console.error('Error al obtener la ubicación, empresa, organización o usuarios:', err);
   }
 });
 </script>
@@ -261,7 +280,20 @@ onMounted(async () => {
               <td class="font-weight-bold text-subtitle-1">Folio</td>
               <td>{{ businessUnit?.folio || 'No disponible' }}</td>
             </tr>
-            <!-- INTEGRACIÓN: Empresa entre folio y nombre -->
+
+            <!-- INTEGRACIÓN: Organización arriba de Empresa -->
+            <tr v-if="organization">
+              <td class="font-weight-bold text-subtitle-1">Organización</td>
+              <td>
+                <span v-if="organization?.id">
+                  <router-link :to="`/organizaciones/${organization.id}`" style="text-decoration: underline; color: #1976d2 !important">
+                    {{ getOrganizationDisplay(organization) }}
+                  </router-link>
+                </span>
+                <span v-else>{{ getOrganizationDisplay(organization) }}</span>
+              </td>
+            </tr>
+
             <tr v-if="business">
               <td class="font-weight-bold text-subtitle-1">Empresa</td>
               <td>

@@ -91,7 +91,7 @@
               v-model:search-input="organizationSearch"
               item-title="display"
               item-value="id"
-              label="Buscar organización (folio o nombre)"
+              label="Buscar Organización"
               clearable
               hide-details
               variant="outlined"
@@ -112,7 +112,7 @@
               v-model:search-input="businessSearch"
               item-title="display"
               item-value="id"
-              label="Buscar empresa (folio o nombre)"
+              label="Buscar Empresa"
               clearable
               hide-details
               variant="outlined"
@@ -137,7 +137,7 @@
               <template #activator="{ props }">
                 <v-text-field
                   :model-value="formatDateOnly(createdAtStart)"
-                  label="Creado desde"
+                  label="Fecha de Inicio"
                   readonly
                   v-bind="props"
                   clearable
@@ -148,7 +148,9 @@
                   @click:clear="createdAtStart = null"
                 />
               </template>
-              <v-date-picker v-model="createdAtStart" @update:modelValue="menuCreatedStart = false" />
+              <v-date-picker v-model="createdAtStart" locale="es" @update:modelValue="menuCreatedStart = false">
+                <template #header></template>
+              </v-date-picker>
             </v-menu>
             <v-menu
               v-model="menuCreatedEnd"
@@ -161,7 +163,7 @@
               <template #activator="{ props }">
                 <v-text-field
                   :model-value="formatDateOnly(createdAtEnd)"
-                  label="Creado hasta"
+                  label="Fecha de Fin"
                   readonly
                   v-bind="props"
                   clearable
@@ -172,7 +174,9 @@
                   @click:clear="createdAtEnd = null"
                 />
               </template>
-              <v-date-picker v-model="createdAtEnd" @update:modelValue="menuCreatedEnd = false" />
+              <v-date-picker v-model="createdAtEnd" locale="es" @update:modelValue="menuCreatedEnd = false">
+                <template #header></template>
+              </v-date-picker>
             </v-menu>
           </div>
         </v-card-text>
@@ -251,7 +255,8 @@ const fetchOrganizations = async (searchText) => {
     });
     organizationOptions.value = (data.data || []).map((o) => ({
       ...o,
-      display: `${o.folio}${o.legal_name ? ' - ' + o.legal_name : ''}`
+      display: `${o.folio}${o.legal_name ? ' - ' + o.legal_name : ''}`,
+      id: o.id
     }));
   } catch (e) {
     organizationOptions.value = [];
@@ -262,7 +267,7 @@ const fetchOrganizations = async (searchText) => {
 
 function customOrgFilter(item, queryText, itemText) {
   if (!queryText) return true;
-  const text = (item.folio + ' ' + (item.name || '')).toLowerCase();
+  const text = (item.folio + ' ' + (item.legal_name || '')).toLowerCase();
   return text.includes(queryText.toLowerCase());
 }
 
@@ -284,7 +289,8 @@ const fetchBusinesses = async (searchText) => {
     });
     businessOptions.value = (data.data || []).map((b) => ({
       ...b,
-      display: `${b.folio}${b.name ? ' - ' + b.name : ''}`
+      display: `${b.folio}${b.name ? ' - ' + b.name : ''}`,
+      id: b.id
     }));
   } catch (e) {
     businessOptions.value = [];

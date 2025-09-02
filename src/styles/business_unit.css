@@ -56,6 +56,16 @@ td {
   text-overflow: ellipsis;
   text-align: left;
 }
+.business-id-header,
+.business-id-cell {
+  width: 180px;
+  min-width: 120px;
+  max-width: 220px;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .status-header,
 .status-cell {
   width: 120px;
