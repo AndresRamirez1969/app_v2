@@ -7,7 +7,6 @@ import { mdiArrowLeft, mdiPencil, mdiCancel, mdiCheckCircle, mdiChevronDown, mdi
 import StatusChip from '@/components/status/StatusChip.vue';
 import { useAuthStore } from '@/stores/auth';
 
-// INTEGRACIÓN: Importa países
 import countries from '@/utils/constants/countries';
 
 const router = useRouter();
@@ -15,7 +14,7 @@ const route = useRoute();
 const { mdAndDown } = useDisplay();
 const businessUnit = ref(null);
 const business = ref(null);
-const organization = ref(null); // INTEGRACIÓN: organización
+const organization = ref(null);
 const users = ref([]);
 const auth = useAuthStore();
 
@@ -29,7 +28,7 @@ const isSponsor = computed(() => roles.value.includes('sponsor'));
 const canView = computed(() => permissions.value.includes('businessUnit.view'));
 const canViewAny = computed(() => permissions.value.includes('businessUnit.viewAny'));
 const canEditPermission = computed(() => permissions.value.includes('businessUnit.update'));
-const canShow = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value || canView.value);
+const canShow = ref(false);
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || canEditPermission.value);
 const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value);
 
@@ -96,7 +95,6 @@ const formatAddress = (address) => {
 
 const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
-// INTEGRACIÓN: Función para mostrar solo bandera y prefijo del país
 function getCountryFlagAndPrefix(code) {
   if (!code) return '';
   const country = countries.find((c) => c.code === code || c.iso2 === code);
@@ -104,7 +102,6 @@ function getCountryFlagAndPrefix(code) {
   return `${country.flag ? country.flag + ' ' : ''}${country.dial_code}`;
 }
 
-// INTEGRACIÓN: Función para mostrar folio y legal_name de la organización
 function getOrganizationDisplay(org) {
   if (!org) return 'No disponible';
   return `${org.folio ? org.folio : ''}${org.legal_name ? ' - ' + org.legal_name : ''}`;
@@ -116,7 +113,6 @@ onMounted(async () => {
     const res = await axiosInstance.get(`/business-units/${id}`);
     businessUnit.value = res.data.data || res.data.business_unit || res.data;
 
-    // INTEGRACIÓN: obtener la organización relacionada si existe en la respuesta
     if (businessUnit.value?.organization) {
       organization.value = businessUnit.value.organization;
     } else if (isSuperadmin.value && businessUnit.value?.organization_id) {
@@ -128,7 +124,6 @@ onMounted(async () => {
       }
     }
 
-    // Integración: obtener la empresa relacionada si existe en la respuesta
     if (businessUnit.value?.business) {
       business.value = businessUnit.value.business;
     } else if (isSuperadmin.value && businessUnit.value?.business_id) {
@@ -147,6 +142,65 @@ onMounted(async () => {
       const allUsers = Array.isArray(userRes.data) ? userRes.data : userRes.data.users || userRes.data.data || [];
       users.value = allUsers.filter((u) => String(u.business_unit_id) === String(businessUnit.value.id));
     }
+
+    // --- ACCESS CONTROL LOGIC ---
+    if (isSuperadmin.value) {
+      canShow.value = true;
+      return;
+    }
+
+    if (isAdmin.value) {
+      const userOrgId = user.value.organization_id;
+      if (String(businessUnit.value.organization_id) === String(userOrgId)) {
+        canShow.value = true;
+        return;
+      } else {
+        router.replace('/403');
+        return;
+      }
+    }
+
+    if (isSponsor.value) {
+      const userOrgId = user.value.organization_id;
+      const userBusinessId = user.value.business_id;
+      if (
+        String(businessUnit.value.organization_id) === String(userOrgId) &&
+        String(businessUnit.value.business_id) === String(userBusinessId)
+      ) {
+        canShow.value = true;
+        return;
+      } else {
+        router.replace('/403');
+        return;
+      }
+    }
+
+    if (canViewAny.value && canView.value) {
+      const userOrgId = user.value.organization_id;
+      const userBusinessId = user.value.business_id;
+      if (
+        String(businessUnit.value.organization_id) === String(userOrgId) &&
+        String(businessUnit.value.business_id) === String(userBusinessId)
+      ) {
+        canShow.value = true;
+        return;
+      } else {
+        router.replace('/403');
+        return;
+      }
+    }
+
+    if (canView.value) {
+      if (String(user.value.business_unit_id) === String(businessUnit.value.id)) {
+        canShow.value = true;
+        return;
+      } else {
+        router.replace('/403');
+        return;
+      }
+    }
+
+    router.replace('/403');
   } catch (err) {
     console.error('Error al obtener la ubicación, empresa, organización o usuarios:', err);
   }
@@ -570,9 +624,6 @@ onMounted(async () => {
       </v-col>
     </v-row>
   </v-container>
-  <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso a esta ubicación. </v-alert>
-  </div>
 </template>
 
 <style scoped src="@/styles/business_unit.css"></style>

@@ -103,6 +103,10 @@ const businessSearch = ref('');
 const loadingBusinesses = ref(false);
 
 onMounted(async () => {
+  if (!user.value?.permissions?.includes('businessUnit.create') && !isAdmin.value && !isSuperadmin.value) {
+    router.replace('/403');
+    return;
+  }
   canCreate.value = isAdmin.value || isSuperadmin.value || user.value?.permissions?.includes('businessUnit.create');
   if (user.value?.business_id && !isSuperadmin.value && !isAdmin.value && !user.value?.permissions?.includes('businessUnit.viewAny')) {
     router.replace(`/ubicaciones/${user.value.business_unit_id}`);

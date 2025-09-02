@@ -676,9 +676,6 @@ onMounted(async () => {
       </v-col>
     </v-row>
   </v-container>
-  <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso a esta empresa. </v-alert>
-  </div>
 </template>
 
 <style scoped src="@/styles/business.css"></style>

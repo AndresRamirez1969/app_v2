@@ -241,13 +241,50 @@ watch(businessSearch, (val) => {
   if (selectedOrganization.value) fetchBusinesses(val, selectedOrganization.value);
 });
 
-// INTEGRACIÓN CORRECTA DE ORGANIZACIÓN Y EMPRESA USANDO OBJETOS DEL BACKEND
 onMounted(async () => {
   try {
     const res = await axiosInstance.get(`/business-units/${business_unitId}`);
     const data = res.data?.data || res.data?.business_unit || res.data;
 
-    // Asignar todos los campos principales
+    const orgId = data.organization_id ?? data.organization?.id;
+    const busId = data.business_id ?? data.business?.id;
+
+    const currentUser = auth.user || {};
+    const userOrgId = currentUser.organization_id;
+    const userBusId = currentUser.business_id;
+    const userRoles = Array.isArray(currentUser.roles) ? currentUser.roles : currentUser.roles?.map?.((r) => r.name) || [];
+    const userPerms = Array.isArray(currentUser.permissions)
+      ? currentUser.permissions
+      : currentUser.permissions?.map?.((p) => p.name) || [];
+
+    let canEditUnit = false;
+
+    if (userRoles.includes('superadmin')) {
+      canEditUnit = true;
+    } else if (userRoles.includes('admin')) {
+      if (orgId && busId && orgId === userOrgId) {
+        canEditUnit = true;
+      }
+    } else if (userRoles.includes('sponsor')) {
+      if (orgId && busId && orgId === userOrgId && busId === userBusId) {
+        canEditUnit = true;
+      }
+    } else if (userPerms.includes('business.viewAny') && userPerms.includes('business.view') && userPerms.includes('business.update')) {
+      if (orgId && busId && orgId === userOrgId && busId === userBusId) {
+        canEditUnit = true;
+      }
+    } else if (userPerms.includes('business.view') && userPerms.includes('business.update') && !userPerms.includes('business.viewAny')) {
+      if (busId && busId === userBusId) {
+        canEditUnit = true;
+      }
+    }
+
+    if (!canEditUnit) {
+      router.push('/403');
+      return;
+    }
+
+    // Rellenar formulario
     form.legal_name = data.legal_name || data.name || '';
     form.alias = data.alias || '';
     form.description = data.description || '';
@@ -298,10 +335,7 @@ onMounted(async () => {
     }
 
     // INTEGRACIÓN CORRECTA DE ORGANIZACIÓN Y EMPRESA
-    const orgId = data.organization_id ?? data.organization?.id;
-    const busId = data.business_id ?? data.business?.id;
-
-    if (isSuperadmin.value) {
+    if (userRoles.includes('superadmin')) {
       await fetchOrganizationById(orgId);
       await fetchOrganizations('');
       selectedOrganization.value = orgId;
@@ -309,7 +343,13 @@ onMounted(async () => {
       await fetchBusinessById(busId, orgId);
       await fetchBusinesses('', orgId);
       selectedBusiness.value = busId;
-    } else if (canSelectBusiness.value) {
+    } else if (
+      userRoles.includes('admin') ||
+      userRoles.includes('sponsor') ||
+      userPerms.includes('business.viewAny') ||
+      userPerms.includes('business.view') ||
+      userPerms.includes('business.update')
+    ) {
       await fetchBusinessById(busId, orgId);
       await fetchBusinesses('', orgId);
       selectedBusiness.value = busId;
@@ -620,9 +660,6 @@ const validate = async () => {
       </v-row>
     </v-form>
   </v-container>
-  <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso para editar esta ubicación. </v-alert>
-  </div>
 </template>
 
 <style scoped src="@/styles/business_unit.css"></style>

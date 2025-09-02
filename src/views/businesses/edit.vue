@@ -675,9 +675,6 @@ const validate = async () => {
       </v-alert>
     </v-form>
   </v-container>
-  <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso para editar esta empresa. </v-alert>
-  </div>
 </template>
 
 <style scoped src="@/styles/organization.css"></style>
