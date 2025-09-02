@@ -31,7 +31,7 @@
     "@tsconfig/node20": "20.1.4",
     "@typescript-eslint/parser": "^8.18.2",
     "ant-design-vue": "4.2.6",
-    "apexcharts": "4.3.0",
+    "apexcharts": "^5.3.4",
     "axios": "^1.10.0",
     "global": "^4.4.0",
     "lodash": "^4.17.21",

@@ -3,9 +3,10 @@ import { ref, onMounted, computed } from 'vue';
 import axiosInstance from '@/utils/axios';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
-import { mdiDownload, mdiRefresh, mdiArrowLeft, mdiMagnify } from '@mdi/js';
-import { DATE_FILTER_OPTIONS, getDateRange, formatDateForAPI } from '@/constants/constants';
+import { mdiDownload, mdiRefresh, mdiArrowLeft } from '@mdi/js';
+import { getDateRange, formatDateForAPI } from '@/constants/constants';
 import { formatDateForUI } from '@/constants/constants';
+import ResponsesFilters from './ResponsesFilters.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -31,21 +32,17 @@ const filters = ref({
   search: ''
 });
 
-const dateFilterOptions = ref(DATE_FILTER_OPTIONS);
-
-// Función helper para generar parámetros de filtro
+// Función helper para generar parametros de filtro
 const getFilterParams = (includePagination = true) => {
   const params = {
     search: filters.value.search
   };
 
-  // Agregar paginación solo si se necesita
   if (includePagination) {
     params.page = currentPage.value;
     params.per_page = itemsPerPage.value;
   }
 
-  // Agregar filtros de fecha
   if (filters.value.dateRange !== 'all') {
     const { start, end, hasValidDates } = getDateRange(filters.value.dateRange, filters.value.startDate, filters.value.endDate);
 
@@ -166,7 +163,8 @@ const handlePageChange = (page) => {
   getReports();
 };
 
-const handleFilterChange = () => {
+const handleFilterChange = (newFilters) => {
+  filters.value = { ...newFilters };
   currentPage.value = 1;
   getReports();
 };
@@ -179,33 +177,35 @@ onMounted(() => {
 <template>
   <v-container fluid>
     <!-- Header con información del formulario -->
-    <v-row class="mb-4">
-      <v-col cols="12">
-        <v-card>
-          <v-card-title class="d-flex align-center justify-space-between">
-            <v-btn icon variant="text" @click="goBack" class="mr-3">
-              <v-icon :icon="mdiArrowLeft" />
-            </v-btn>
-            <div>
-              <h2 class="text-h5 mb-1">{{ form.name }}</h2>
-              <p class="text-body-2 text-grey-darken-1 mb-0">
-                {{ form.description || 'Sin descripción' }}
-              </p>
-            </div>
-            <div class="d-flex gap-2">
-              <v-btn color="primary" variant="outlined" @click="exportExcel" :loading="isLoading" :prepend-icon="mdiDownload">
-                {{ filters.dateRange === 'all' && !filters.search ? 'Exportar Todos (Excel)' : 'Exportar Filtrados (Excel)' }}
-              </v-btn>
-              <v-btn color="secondary" variant="outlined" @click="getReports" :loading="isLoading" :prepend-icon="mdiRefresh">
-                Actualizar
-              </v-btn>
-            </div>
-          </v-card-title>
-        </v-card>
+    <v-row class="align-center justify-space-between mb-4">
+      <v-col cols="auto" class="d-flex align-center">
+        <v-card-title class="d-flex align-center justify-space-between">
+          <v-btn icon variant="text" @click="goBack" class="mr-3">
+            <v-icon :icon="mdiArrowLeft" />
+          </v-btn>
+          <div>
+            <h2 class="text-h5 mb-1">{{ form.name }}</h2>
+            <p class="text-body-2 text-grey-darken-1 mb-0">
+              {{ form.description || 'Sin descripción' }}
+            </p>
+          </div>
+        </v-card-title>
+      </v-col>
+      <v-col cols="auto" class="d-flex align-center justify-end">
+        <div class="d-flex gap-2">
+          <v-btn color="primary" variant="outlined" @click="exportExcel" :loading="isLoading" :prepend-icon="mdiDownload">
+            {{ filters.dateRange === 'all' && !filters.search ? 'Exportar Todos (Excel)' : 'Exportar Filtrados (Excel)' }}
+          </v-btn>
+          <v-btn color="secondary" variant="outlined" @click="getReports" :loading="isLoading" :prepend-icon="mdiRefresh">
+            Actualizar
+          </v-btn>
+        </div>
       </v-col>
     </v-row>
 
-    <!-- Card consolidado con filtros y tabla -->
+    <!-- Componente de filtros -->
+    <ResponsesFilters :filters="filters" @update:filters="handleFilterChange" />
+
     <v-row>
       <v-col cols="12">
         <v-card>
@@ -213,53 +213,6 @@ onMounted(() => {
             Respuestas de Usuarios
             <v-spacer />
           </v-card-title>
-
-          <!-- Filtros dentro del mismo card -->
-          <v-card-text class="pb-0">
-            <v-row>
-              <v-col cols="12">
-                <v-text-field
-                  v-model="filters.search"
-                  label="Buscar por usuario"
-                  variant="outlined"
-                  density="compact"
-                  :prepend-inner-icon="mdiMagnify"
-                  @keyup.enter="handleFilterChange"
-                  @update:model-value="handleFilterChange"
-                />
-              </v-col>
-              <v-col cols="12">
-                <v-select
-                  v-model="filters.dateRange"
-                  :items="dateFilterOptions"
-                  label="Rango de fechas"
-                  variant="outlined"
-                  density="compact"
-                  @update:model-value="handleFilterChange"
-                />
-              </v-col>
-              <v-col cols="12" md="6" v-if="filters.dateRange === 'custom'">
-                <v-text-field
-                  v-model="filters.startDate"
-                  type="date"
-                  label="Fecha inicial"
-                  variant="outlined"
-                  density="compact"
-                  @update:model-value="handleFilterChange"
-                />
-              </v-col>
-              <v-col cols="12" md="6" v-if="filters.dateRange === 'custom'">
-                <v-text-field
-                  v-model="filters.endDate"
-                  type="date"
-                  label="Fecha final"
-                  variant="outlined"
-                  density="compact"
-                  @update:model-value="handleFilterChange"
-                />
-              </v-col>
-            </v-row>
-          </v-card-text>
 
           <!-- Divider para separar filtros de contenido -->
           <v-divider class="mx-4" />

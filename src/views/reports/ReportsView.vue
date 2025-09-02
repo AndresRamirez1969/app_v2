@@ -3,10 +3,12 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import ReportsTableMeta from './ReportsTableMeta.vue';
 import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye } from '@mdi/js';
+import { SCOPES } from '@/constants/constants';
 
 const props = defineProps({
   items: Array,
-  isMobile: Boolean
+  isMobile: Boolean,
+  isLoading: Boolean
 });
 
 const router = useRouter();
@@ -51,13 +53,29 @@ const paginatedItems = computed(() => {
 const viewForm = (form) => {
   router.push({ name: 'Show Response', params: { id: form.id } });
 };
+
+const getScopeLabel = (scope) => {
+  if (!scope) return 'No definido';
+  const scopeLabel = SCOPES.find((s) => s.value === scope);
+  return scopeLabel ? scopeLabel.label : scope;
+};
 </script>
 
 <template>
   <div>
-    <!-- Modo móvil (solo cards) -->
-    <template v-if="isMobile">
-      <template v-if="paginatedItems.length">
+    <div v-if="isLoading" class="text-center py-8">
+      <v-progress-circular indeterminate color="primary" size="64" />
+      <p class="mt-4">Cargando reportes...</p>
+    </div>
+    <template v-else>
+      <div v-if="!paginatedItems.length" class="text-center py-8">
+        <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
+        <p class="mt-4 text-h6 text-grey-darken-1">No se han registrado respuestas</p>
+        <p class="text-body-2 text-grey">No se encontraron reportes con los filtros aplicados</p>
+      </div>
+
+      <!-- Modo móvil (solo cards) -->
+      <template v-else-if="isMobile">
         <v-card
           v-for="form in paginatedItems"
           :key="form.id"
@@ -80,70 +98,40 @@ const viewForm = (form) => {
           </v-row>
         </v-card>
       </template>
-      <template v-else>
-        <v-card class="mb-4 pa-4 elevation-1 rounded-lg text-center">
-          <div class="font-weight-bold mb-2" style="font-size: 1.5rem">Cargando formularios...</div>
-        </v-card>
-      </template>
-    </template>
 
-    <!-- Modo escritorio (solo tabla) -->
-    <template v-if="!isMobile">
-      <ReportsTableMeta
-        :items="sortedItems"
-        :page="page"
-        :itemsPerPage="itemsPerPage"
-        :sortBy="sortBy"
-        :sortDesc="sortDesc"
-        @update:page="page = $event"
-        @sort="toggleSort"
-      >
-        <template #sort-icon="{ column }">
-          <v-icon v-if="sortBy === column" size="16" class="ml-1">
-            {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
-          </v-icon>
-        </template>
-        <template #rows>
-          <template v-if="paginatedItems.length">
-            <tr v-for="form in paginatedItems" :key="form.id" @click="viewForm(form)" class="row-clickable" style="cursor: pointer">
-              <td class="folio-cell">
-                <router-link :to="`/formulario/${form.id}`" @click.stop style="text-decoration: underline">
-                  {{ form.folio }}
-                </router-link>
-              </td>
-              <td class="name-cell">{{ form.name }}</td>
-              <td class="answers-cell">
-                {{ form.responses.length }}
-              </td>
-              <td class="date-cell">{{ formatDate(form.created_at) }}</td>
-              <td class="actions-cell" @click.stop>
-                <v-menu location="bottom end">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
-                      <v-icon :icon="mdiDotsHorizontal" size="20" />
-                    </v-btn>
-                  </template>
-                  <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
-                    <v-list-item @click="viewForm(form)">
-                      <template #prepend>
-                        <v-icon :icon="mdiEye" size="18" />
-                      </template>
-                      <v-list-item-title>Ver</v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
-              </td>
-            </tr>
+      <!-- Modo escritorio (solo tabla) -->
+      <template v-else>
+        <ReportsTableMeta
+          :items="sortedItems"
+          :page="page"
+          :itemsPerPage="itemsPerPage"
+          :sortBy="sortBy"
+          :sortDesc="sortDesc"
+          @update:page="page = $event"
+          @sort="toggleSort"
+        >
+          <template #sort-icon="{ column }">
+            <v-icon v-if="sortBy === column" size="16" class="ml-1">
+              {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
+            </v-icon>
           </template>
-          <template v-else>
-            <tr>
-              <td :colspan="5" class="text-center py-8">
-                <div class="font-weight-bold mb-2" style="font-size: 1.5rem">Cargando formularios...</div>
-              </td>
-            </tr>
+          <template #rows>
+            <template v-if="paginatedItems.length">
+              <tr v-for="form in paginatedItems" :key="form.id" @click="viewForm(form)" class="row-clickable" style="cursor: pointer">
+                <td class="folio-cell">
+                  <router-link :to="`/formulario/${form.id}`" @click.stop style="text-decoration: underline">
+                    {{ form.folio }}
+                  </router-link>
+                </td>
+                <td class="name-cell">{{ form.name }}</td>
+                <td class="answers-cell">{{ form.responses?.length || 0 }}/{{ form.assignments?.length || 0 }}</td>
+                <td class="date-cell">{{ formatDate(form.created_at) }}</td>
+                <td class="scope-cell">{{ getScopeLabel(form.assignment_scope) }}</td>
+              </tr>
+            </template>
           </template>
-        </template>
-      </ReportsTableMeta>
+        </ReportsTableMeta>
+      </template>
     </template>
   </div>
 </template>
@@ -159,7 +147,7 @@ const viewForm = (form) => {
 .status-cell,
 .answers-cell,
 .date-cell,
-.actions-cell {
+.scope-cell {
   padding: 12px 16px;
   border-bottom: 1px solid #e0e0e0;
 }

@@ -33,7 +33,10 @@ const emit = defineEmits(['update:page', 'sort']);
             Fecha de Creación
             <slot name="sort-icon" :column="'created_at'" />
           </th>
-          <th class="actions-header">Acciones</th>
+          <th @click="emit('sort', 'scope')" class="cursor-pointer scope-header">
+            Alcance
+            <slot name="sort-icon" :column="'scope'" />
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -69,15 +72,10 @@ const emit = defineEmits(['update:page', 'sort']);
 .name-header,
 .answers-header,
 .date-header,
-.actions-header {
+.scope-header {
   padding: 12px 16px;
   font-weight: 600;
   text-align: left;
   border-bottom: 1px solid #e0e0e0;
-}
-
-.actions-header {
-  width: 80px;
-  text-align: center;
 }
 </style>

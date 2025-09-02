@@ -106,7 +106,7 @@ const MainRoutes = {
     {
       name: 'Show Response',
       path: '/reportes/:id',
-      component: () => import('@/views/reports/components/ShowResponse.vue')
+      component: () => import('@/views/reports/components/user-form-responses/ShowResponses.vue')
     },
     {
       name: 'Business Unit DW',
@@ -131,7 +131,7 @@ const MainRoutes = {
     {
       name: 'UserResponse',
       path: '/reportes/:formId/usuarios/:userId/:responseId',
-      component: () => import('@/views/reports/components/ShowUserResponse.vue'),
+      component: () => import('@/views/reports/components/user-form-responses/ShowUserResponse.vue'),
       meta: {
         requiresAuth: true,
         title: 'Respuesta de Usuario'
