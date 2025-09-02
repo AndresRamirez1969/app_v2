@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import axiosInstance from '@/utils/axios';
@@ -119,7 +119,7 @@ const filteredCountries = computed(() => {
 });
 
 const form = reactive({
-  legal_name: '',
+  name: '',
   alias: '',
   description: '',
   timezone: '',
@@ -132,6 +132,120 @@ const form = reactive({
     phone_number: ''
   }
 });
+
+const fieldErrors = reactive({
+  name: '',
+  timezone: '',
+  address: '',
+  logo: '',
+  phone_country: '',
+  organization_id: '',
+  business_id: ''
+});
+
+const fieldRefs = {
+  name: ref(null),
+  timezone: ref(null),
+  address: ref(null),
+  logo: ref(null),
+  phone_country: ref(null),
+  organization_id: ref(null),
+  business_id: ref(null)
+};
+
+const clearFieldError = (fieldName) => {
+  if (fieldErrors[fieldName]) fieldErrors[fieldName] = '';
+};
+
+const scrollToField = async (fieldName) => {
+  await nextTick();
+  const fieldRef = fieldRefs[fieldName];
+  if (fieldRef && fieldRef.value) {
+    const element = fieldRef.value.$el || fieldRef.value;
+    element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    if (element.focus) element.focus();
+    else if (element.$el && element.$el.focus) element.$el.focus();
+  }
+};
+
+const validateField = (fieldName, value) => {
+  clearFieldError(fieldName);
+  switch (fieldName) {
+    case 'name':
+      if (!value || value.trim() === '') {
+        fieldErrors.name = 'El nombre es obligatorio.';
+        return false;
+      }
+      break;
+    case 'timezone':
+      if (!value || value.trim() === '') {
+        fieldErrors.timezone = 'La zona horaria es obligatoria.';
+        return false;
+      }
+      break;
+    case 'address':
+      if (
+        !parsedAddress.value ||
+        Object.keys(parsedAddress.value).length === 0 ||
+        !parsedAddress.value.street ||
+        parsedAddress.value.street.trim() === ''
+      ) {
+        fieldErrors.address = 'La dirección es obligatoria.';
+        return false;
+      }
+      break;
+    case 'phone_country':
+      if (form.person.phone_number && !value) {
+        fieldErrors.phone_country = 'Selecciona el país para el teléfono.';
+        return false;
+      }
+      break;
+    case 'organization_id':
+      if (isSuperadmin.value && !selectedOrganization.value) {
+        fieldErrors.organization_id = 'La organización es obligatoria.';
+        return false;
+      }
+      break;
+    case 'business_id':
+      if ((isSuperadmin.value || canSelectBusiness.value) && !selectedBusiness.value) {
+        fieldErrors.business_id = 'La empresa es obligatoria.';
+        return false;
+      }
+      break;
+  }
+  return true;
+};
+
+const validateAllFields = async () => {
+  let isValid = true;
+  let firstErrorField = null;
+  if (!validateField('name', form.name)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'name';
+  }
+  if (!validateField('timezone', form.timezone)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'timezone';
+  }
+  if (!validateField('address', parsedAddress.value)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'address';
+  }
+  if (!validateField('phone_country', form.person.phone_country)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'phone_country';
+  }
+  if (!validateField('organization_id', selectedOrganization.value)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'organization_id';
+  }
+  if (!validateField('business_id', selectedBusiness.value)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'business_id';
+  }
+  if (!isValid && firstErrorField) await scrollToField(firstErrorField);
+  return isValid;
+};
 
 const fullAddress = computed(() => {
   if (parsedAddress.value?.street) {
@@ -241,14 +355,51 @@ watch(businessSearch, (val) => {
   if (selectedOrganization.value) fetchBusinesses(val, selectedOrganization.value);
 });
 
-// INTEGRACIÓN CORRECTA DE ORGANIZACIÓN Y EMPRESA USANDO OBJETOS DEL BACKEND
 onMounted(async () => {
   try {
     const res = await axiosInstance.get(`/business-units/${business_unitId}`);
     const data = res.data?.data || res.data?.business_unit || res.data;
 
-    // Asignar todos los campos principales
-    form.legal_name = data.legal_name || data.name || '';
+    const orgId = data.organization_id ?? data.organization?.id;
+    const busId = data.business_id ?? data.business?.id;
+
+    const currentUser = auth.user || {};
+    const userOrgId = currentUser.organization_id;
+    const userBusId = currentUser.business_id;
+    const userRoles = Array.isArray(currentUser.roles) ? currentUser.roles : currentUser.roles?.map?.((r) => r.name) || [];
+    const userPerms = Array.isArray(currentUser.permissions)
+      ? currentUser.permissions
+      : currentUser.permissions?.map?.((p) => p.name) || [];
+
+    let canEditUnit = false;
+
+    if (userRoles.includes('superadmin')) {
+      canEditUnit = true;
+    } else if (userRoles.includes('admin')) {
+      if (orgId && busId && orgId === userOrgId) {
+        canEditUnit = true;
+      }
+    } else if (userRoles.includes('sponsor')) {
+      if (orgId && busId && orgId === userOrgId && busId === userBusId) {
+        canEditUnit = true;
+      }
+    } else if (userPerms.includes('business.viewAny') && userPerms.includes('business.view') && userPerms.includes('business.update')) {
+      if (orgId && busId && orgId === userOrgId && busId === userBusId) {
+        canEditUnit = true;
+      }
+    } else if (userPerms.includes('business.view') && userPerms.includes('business.update') && !userPerms.includes('business.viewAny')) {
+      if (busId && busId === userBusId) {
+        canEditUnit = true;
+      }
+    }
+
+    if (!canEditUnit) {
+      router.push('/403');
+      return;
+    }
+
+    // Rellenar formulario
+    form.name = data.name || '';
     form.alias = data.alias || '';
     form.description = data.description || '';
     form.timezone = data.timezone || '';
@@ -298,10 +449,7 @@ onMounted(async () => {
     }
 
     // INTEGRACIÓN CORRECTA DE ORGANIZACIÓN Y EMPRESA
-    const orgId = data.organization_id ?? data.organization?.id;
-    const busId = data.business_id ?? data.business?.id;
-
-    if (isSuperadmin.value) {
+    if (userRoles.includes('superadmin')) {
       await fetchOrganizationById(orgId);
       await fetchOrganizations('');
       selectedOrganization.value = orgId;
@@ -309,7 +457,13 @@ onMounted(async () => {
       await fetchBusinessById(busId, orgId);
       await fetchBusinesses('', orgId);
       selectedBusiness.value = busId;
-    } else if (canSelectBusiness.value) {
+    } else if (
+      userRoles.includes('admin') ||
+      userRoles.includes('sponsor') ||
+      userPerms.includes('business.viewAny') ||
+      userPerms.includes('business.view') ||
+      userPerms.includes('business.update')
+    ) {
       await fetchBusinessById(busId, orgId);
       await fetchBusinesses('', orgId);
       selectedBusiness.value = busId;
@@ -334,21 +488,15 @@ watch(
 
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
+  if (val && Object.keys(val).length > 0) clearFieldError('address');
 };
 
 const validate = async () => {
   errorMsg.value = '';
-  if (!form.name || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
-    errorMsg.value = 'Por favor completa el nombre legal y la dirección.';
-    return;
-  }
+  if (!(await validateAllFields())) return;
 
   let organization_id = null;
   if (isSuperadmin.value) {
-    if (!selectedOrganization.value) {
-      errorMsg.value = 'Selecciona una organización.';
-      return;
-    }
     organization_id = selectedOrganization.value;
   } else if (canSelectBusiness.value) {
     organization_id = user.value.organization_id;
@@ -443,6 +591,7 @@ const validate = async () => {
         <v-col cols="12" md="6">
           <v-label>Logo</v-label>
           <v-file-input
+            ref="fieldRefs.logo"
             v-model="form.logo"
             variant="outlined"
             color="primary"
@@ -451,11 +600,14 @@ const validate = async () => {
             density="compact"
             show-size
             :multiple="false"
+            :error-messages="fieldErrors.logo"
+            @update:model-value="clearFieldError('logo')"
           />
 
           <template v-if="isSuperadmin">
-            <v-label>Organización</v-label>
+            <v-label>Organización <span class="text-error">*</span></v-label>
             <v-autocomplete
+              ref="fieldRefs.organization_id"
               v-model="selectedOrganization"
               :items="organizations"
               :loading="loadingOrganizations"
@@ -468,15 +620,17 @@ const validate = async () => {
               density="compact"
               placeholder="Buscar organización"
               clearable
-              hide-details
               :menu-props="{ maxHeight: '300px' }"
+              :error-messages="fieldErrors.organization_id"
+              @update:model-value="clearFieldError('organization_id')"
             />
-            <div style="height: 16px"></div>
+            <div style="height: 14px"></div>
           </template>
 
           <template v-if="selectedOrganization && (isSuperadmin || canSelectBusiness)">
-            <v-label>Empresa</v-label>
+            <v-label>Empresa <span class="text-error">*</span></v-label>
             <v-autocomplete
+              ref="fieldRefs.business_id"
               v-model="selectedBusiness"
               :items="businesses"
               :loading="loadingBusinesses"
@@ -489,14 +643,24 @@ const validate = async () => {
               density="compact"
               placeholder="Buscar empresa"
               clearable
-              hide-details
               :menu-props="{ maxHeight: '300px' }"
+              :error-messages="fieldErrors.business_id"
+              @update:model-value="clearFieldError('business_id')"
             />
-            <div style="height: 16px"></div>
+            <div style="height: 14px"></div>
           </template>
 
-          <v-label>Nombre</v-label>
-          <v-text-field v-model="form.name" variant="outlined" color="primary" class="mt-2 mb-4" required />
+          <v-label>Nombre<span class="text-error">*</span></v-label>
+          <v-text-field
+            ref="fieldRefs.name"
+            v-model="form.name"
+            variant="outlined"
+            color="primary"
+            class="mt-2 mb-4"
+            required
+            :error-messages="fieldErrors.name"
+            @update:model-value="clearFieldError('name')"
+          />
 
           <v-label>Alias</v-label>
           <v-text-field v-model="form.alias" variant="outlined" color="primary" class="mt-2 mb-4" />
@@ -504,8 +668,9 @@ const validate = async () => {
           <v-label>Descripción</v-label>
           <v-textarea v-model="form.description" variant="outlined" color="primary" auto-grow rows="3" class="mt-2" />
 
-          <v-label>Zona Horaria</v-label>
+          <v-label>Zona Horaria <span class="text-error">*</span></v-label>
           <v-autocomplete
+            ref="fieldRefs.timezone"
             v-model="form.timezone"
             :items="tzRaw"
             v-model:search-input="timezoneSearch"
@@ -517,18 +682,22 @@ const validate = async () => {
             density="compact"
             placeholder="Selecciona una zona horaria"
             clearable
-            hide-details
+            required
             :menu-props="{ maxHeight: '300px' }"
+            :error-messages="fieldErrors.timezone"
+            @update:model-value="clearFieldError('timezone')"
           />
         </v-col>
 
         <v-col cols="12" class="mt-4">
-          <v-label>Dirección</v-label>
+          <v-label>Dirección <span class="text-error">*</span></v-label>
           <AddressAutocomplete
+            ref="fieldRefs.address"
             class="mt-2"
             :initial-value="parsedAddress"
             :placeholder="fullAddress"
             @update:parsedAddress="handleParsedAddress"
+            :addressError="fieldErrors.address"
           />
         </v-col>
       </v-row>
@@ -559,6 +728,7 @@ const validate = async () => {
           <div class="phone-group phone-group-responsive mt-2">
             <div style="display: flex; flex-direction: column">
               <v-autocomplete
+                ref="fieldRefs.phone_country"
                 v-model="form.person.phone_country"
                 :items="filteredCountries"
                 v-model:search-input="phoneCountrySearch"
@@ -571,6 +741,8 @@ const validate = async () => {
                 clearable
                 :menu-props="{ maxHeight: '400px', width: 320 }"
                 hide-details
+                :error-messages="fieldErrors.phone_country"
+                @update:model-value="clearFieldError('phone_country')"
               >
                 <template #selection="{ item }">
                   <template v-if="item && item.value">
@@ -594,6 +766,9 @@ const validate = async () => {
                   </v-list-item>
                 </template>
               </v-autocomplete>
+              <div v-if="fieldErrors.phone_country" class="text-error" style="font-size: 0.78rem; margin-top: 6px; margin-bottom: 0">
+                {{ fieldErrors.phone_country }}
+              </div>
             </div>
             <v-text-field
               v-model="form.person.phone_number"
@@ -620,9 +795,6 @@ const validate = async () => {
       </v-row>
     </v-form>
   </v-container>
-  <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso para editar esta ubicación. </v-alert>
-  </div>
 </template>
 
 <style scoped src="@/styles/business_unit.css"></style>

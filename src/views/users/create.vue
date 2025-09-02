@@ -588,7 +588,4 @@ const validate = async () => {
       </v-form>
     </v-container>
   </div>
-  <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes permiso para crear usuarios. </v-alert>
-  </div>
 </template>

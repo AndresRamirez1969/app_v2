@@ -348,13 +348,6 @@ async function saveRole() {
         </v-col>
       </v-row>
     </template>
-    <template v-else>
-      <v-row>
-        <v-col>
-          <v-alert type="error" variant="outlined" class="mt-4"> No tienes permiso para crear roles. </v-alert>
-        </v-col>
-      </v-row>
-    </template>
   </v-container>
 </template>
 

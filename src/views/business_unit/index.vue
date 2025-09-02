@@ -27,26 +27,24 @@ function hasPermission(permission) {
 }
 
 onMounted(async () => {
-  if (auth.user?.roles?.includes('superadmin') || auth.user?.roles?.includes('admin') || hasPermission('businessUnit.viewAny')) {
-    canView.value = true;
-    canCreate.value = hasPermission('businessUnit.create');
-    canEditPermission.value = hasPermission('businessUnit.update');
-    try {
-      isLoading.value = true;
-      const { data } = await axios.get('/business-units');
-      // El backend ahora retorna los datos en data.data o data.business_unit según el Resource
-      business_units.value = data.data ?? data.business_units ?? [];
-      filteredBusinessUnits.value = data.data ?? data.business_units ?? [];
-    } catch (error) {
-      console.error('Error fetching business units:', error);
-    } finally {
-      isLoading.value = false;
-    }
-  } else {
-    canView.value = false;
-    if (hasPermission('businessUnit.view') && auth.user?.business_unit_id) {
-      router.replace(`/ubicaciones/${auth.user.business_unit_id}`);
-    }
+  if (!hasPermission('businessUnit.viewAny') && !auth.user?.roles?.includes('superadmin') && !auth.user?.roles?.includes('admin')) {
+    router.replace('/403');
+    return;
+  }
+
+  canView.value = true;
+  canCreate.value = hasPermission('businessUnit.create');
+  canEditPermission.value = hasPermission('businessUnit.update');
+  try {
+    isLoading.value = true;
+    const { data } = await axios.get('/business-units');
+    // El backend ahora retorna los datos en data.data o data.business_unit según el Resource
+    business_units.value = data.data ?? data.business_units ?? [];
+    filteredBusinessUnits.value = data.data ?? data.business_units ?? [];
+  } catch (error) {
+    console.error('Error fetching business units:', error);
+  } finally {
+    isLoading.value = false;
   }
 });
 

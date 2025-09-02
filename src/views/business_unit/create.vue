@@ -18,6 +18,8 @@ const canCreate = ref(false);
 
 const timezoneSearch = ref('');
 const phoneCountrySearch = ref('');
+const organizationSearch = ref('');
+const businessSearch = ref('');
 
 const user = computed(() => auth.user);
 
@@ -93,16 +95,18 @@ const canSelectBusiness = computed(() => isAdmin.value || isSponsor.value || use
 // ORGANIZATION SELECT (solo superadmin)
 const organizations = ref([]);
 const selectedOrganization = ref(null);
-const organizationSearch = ref('');
 const loadingOrganizations = ref(false);
 
 // BUSINESS SELECT (admin, sponsor, businessUnit.create)
 const businesses = ref([]);
 const selectedBusiness = ref(null);
-const businessSearch = ref('');
 const loadingBusinesses = ref(false);
 
 onMounted(async () => {
+  if (!user.value?.permissions?.includes('businessUnit.create') && !isAdmin.value && !isSuperadmin.value) {
+    router.replace('/403');
+    return;
+  }
   canCreate.value = isAdmin.value || isSuperadmin.value || user.value?.permissions?.includes('businessUnit.create');
   if (user.value?.business_id && !isSuperadmin.value && !isAdmin.value && !user.value?.permissions?.includes('businessUnit.viewAny')) {
     router.replace(`/ubicaciones/${user.value.business_unit_id}`);
@@ -133,6 +137,121 @@ const form = reactive({
     phone_number: ''
   }
 });
+
+/* --------- errores de campos --------- */
+const fieldErrors = reactive({
+  name: '',
+  timezone: '',
+  address: '',
+  logo: '',
+  phone_country: '',
+  organization_id: '',
+  business_id: ''
+});
+
+const fieldRefs = {
+  name: ref(null),
+  timezone: ref(null),
+  address: ref(null),
+  logo: ref(null),
+  phone_country: ref(null),
+  organization_id: ref(null),
+  business_id: ref(null)
+};
+
+const clearFieldError = (fieldName) => {
+  if (fieldErrors[fieldName]) fieldErrors[fieldName] = '';
+};
+
+const scrollToField = async (fieldName) => {
+  await nextTick();
+  const fieldRef = fieldRefs[fieldName];
+  if (fieldRef && fieldRef.value) {
+    const element = fieldRef.value.$el || fieldRef.value;
+    element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    if (element.focus) element.focus();
+    else if (element.$el && element.$el.focus) element.$el.focus();
+  }
+};
+
+const validateField = (fieldName, value) => {
+  clearFieldError(fieldName);
+  switch (fieldName) {
+    case 'name':
+      if (!value || value.trim() === '') {
+        fieldErrors.name = 'El nombre es obligatorio.';
+        return false;
+      }
+      break;
+    case 'timezone':
+      if (!value || value.trim() === '') {
+        fieldErrors.timezone = 'La zona horaria es obligatoria.';
+        return false;
+      }
+      break;
+    case 'address':
+      if (
+        !parsedAddress.value ||
+        Object.keys(parsedAddress.value).length === 0 ||
+        !parsedAddress.value.street ||
+        parsedAddress.value.street.trim() === ''
+      ) {
+        fieldErrors.address = 'La dirección es obligatoria.';
+        return false;
+      }
+      break;
+    case 'phone_country':
+      if (form.contact.phone_number && !value) {
+        fieldErrors.phone_country = 'Selecciona el país para el teléfono.';
+        return false;
+      }
+      break;
+    case 'organization_id':
+      if (isSuperadmin.value && !selectedOrganization.value) {
+        fieldErrors.organization_id = 'La organización es obligatoria.';
+        return false;
+      }
+      break;
+    case 'business_id':
+      if ((isSuperadmin.value || canSelectBusiness.value) && !selectedBusiness.value) {
+        fieldErrors.business_id = 'La empresa es obligatoria.';
+        return false;
+      }
+      break;
+  }
+  return true;
+};
+
+const validateAllFields = async () => {
+  let isValid = true;
+  let firstErrorField = null;
+  if (!validateField('name', form.name)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'name';
+  }
+  if (!validateField('timezone', form.timezone)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'timezone';
+  }
+  if (!validateField('address', parsedAddress.value)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'address';
+  }
+  if (!validateField('phone_country', form.contact.phone_country)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'phone_country';
+  }
+  if (!validateField('organization_id', selectedOrganization.value)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'organization_id';
+  }
+  if (!validateField('business_id', selectedBusiness.value)) {
+    isValid = false;
+    if (!firstErrorField) firstErrorField = 'business_id';
+  }
+  if (!isValid && firstErrorField) await scrollToField(firstErrorField);
+  return isValid;
+};
 
 watch(
   () => form.logo,
@@ -209,6 +328,7 @@ watch(businessSearch, (val) => {
 
 const handleParsedAddress = (val) => {
   parsedAddress.value = val;
+  if (val && Object.keys(val).length > 0) clearFieldError('address');
 };
 
 const filteredTimezones = computed(() => {
@@ -233,20 +353,7 @@ const isLoading = ref(false);
 
 const validate = async () => {
   errorMsg.value = '';
-
-  // Validación mínima antes de enviar al backend
-  if (!form.name || !form.timezone || !parsedAddress.value || Object.keys(parsedAddress.value).length === 0) {
-    errorMsg.value = 'Completa los campos obligatorios.';
-    return;
-  }
-  if (isSuperadmin.value && !selectedOrganization.value) {
-    errorMsg.value = 'Selecciona una organización.';
-    return;
-  }
-  if ((isSuperadmin.value || canSelectBusiness.value) && !selectedBusiness.value) {
-    errorMsg.value = 'Selecciona una empresa.';
-    return;
-  }
+  if (!(await validateAllFields())) return;
 
   isLoading.value = true;
 
@@ -303,8 +410,53 @@ const validate = async () => {
       errorMsg.value = 'No se pudo obtener el ID de la ubicación creada.';
     }
   } catch (err) {
-    errorMsg.value = err?.response?.data?.message || 'Error al crear la ubicación';
-    console.error('❌ Error al crear la ubicación:', err);
+    if (err?.response?.data?.errors) {
+      const serverErrors = err.response.data.errors;
+      let firstServerErrorField = null;
+      if (serverErrors.name) {
+        fieldErrors.name = serverErrors.name[0];
+        firstServerErrorField = firstServerErrorField || 'name';
+      }
+      if (serverErrors.timezone) {
+        fieldErrors.timezone = serverErrors.timezone[0];
+        firstServerErrorField = firstServerErrorField || 'timezone';
+      }
+      if (serverErrors.address) {
+        fieldErrors.address = serverErrors.address[0];
+        firstServerErrorField = firstServerErrorField || 'address';
+      }
+      if (serverErrors.logo) {
+        fieldErrors.logo = serverErrors.logo[0];
+        firstServerErrorField = firstServerErrorField || 'logo';
+      }
+      if (serverErrors.phone_country) {
+        fieldErrors.phone_country = serverErrors.phone_country[0];
+        firstServerErrorField = firstServerErrorField || 'phone_country';
+      }
+      if (serverErrors.organization_id) {
+        fieldErrors.organization_id = serverErrors.organization_id[0];
+        firstServerErrorField = firstServerErrorField || 'organization_id';
+      }
+      if (serverErrors.business_id) {
+        fieldErrors.business_id = serverErrors.business_id[0];
+        firstServerErrorField = firstServerErrorField || 'business_id';
+      }
+      if (firstServerErrorField) await scrollToField(firstServerErrorField);
+
+      const unmapped = Object.keys(serverErrors).filter(
+        (k) => !['name', 'timezone', 'address', 'logo', 'phone_country', 'organization_id', 'business_id'].includes(k)
+      );
+      if (unmapped.length > 0)
+        errorMsg.value = unmapped
+          .map((k) => serverErrors[k])
+          .flat()
+          .join(' ');
+    } else if (err?.response?.data?.message) {
+      errorMsg.value = err.response.data.message;
+    } else {
+      errorMsg.value = 'Error al crear ubicación';
+    }
+    console.error('❌ Error al crear ubicación:', err);
   } finally {
     isLoading.value = false;
   }
@@ -354,6 +506,7 @@ const validate = async () => {
           <v-col cols="12" md="6">
             <v-label>Logo</v-label>
             <v-file-input
+              ref="fieldRefs.logo"
               v-model="form.logo"
               variant="outlined"
               color="primary"
@@ -362,11 +515,14 @@ const validate = async () => {
               density="compact"
               show-size
               :multiple="false"
+              :error-messages="fieldErrors.logo"
+              @update:model-value="clearFieldError('logo')"
             />
 
             <template v-if="isSuperadmin">
               <v-label>Organización <span class="text-error">*</span></v-label>
               <v-autocomplete
+                ref="fieldRefs.organization_id"
                 v-model="selectedOrganization"
                 :items="organizations"
                 :loading="loadingOrganizations"
@@ -379,15 +535,17 @@ const validate = async () => {
                 density="compact"
                 placeholder="Buscar organización"
                 clearable
-                hide-details
                 :menu-props="{ maxHeight: '300px' }"
+                :error-messages="fieldErrors.organization_id"
+                @update:model-value="clearFieldError('organization_id')"
               />
-              <div style="height: 16px"></div>
+              <div style="height: 10px"></div>
             </template>
 
             <template v-if="selectedOrganization && (isSuperadmin || canSelectBusiness)">
               <v-label>Empresa <span class="text-error">*</span></v-label>
               <v-autocomplete
+                ref="fieldRefs.business_id"
                 v-model="selectedBusiness"
                 :items="businesses"
                 :loading="loadingBusinesses"
@@ -400,14 +558,24 @@ const validate = async () => {
                 density="compact"
                 placeholder="Buscar empresa"
                 clearable
-                hide-details
                 :menu-props="{ maxHeight: '300px' }"
+                :error-messages="fieldErrors.business_id"
+                @update:model-value="clearFieldError('business_id')"
               />
-              <div style="height: 16px"></div>
+              <div style="height: 10px"></div>
             </template>
 
             <v-label>Nombre<span class="text-error">*</span></v-label>
-            <v-text-field v-model="form.name" variant="outlined" color="primary" class="mt-2 mb-4" required />
+            <v-text-field
+              ref="fieldRefs.name"
+              v-model="form.name"
+              variant="outlined"
+              color="primary"
+              class="mt-2 mb-4"
+              required
+              :error-messages="fieldErrors.name"
+              @update:model-value="clearFieldError('name')"
+            />
 
             <v-label>Alias</v-label>
             <v-text-field v-model="form.alias" variant="outlined" color="primary" class="mt-2 mb-4" />
@@ -417,6 +585,7 @@ const validate = async () => {
 
             <v-label>Zona Horaria <span class="text-error">*</span></v-label>
             <v-autocomplete
+              ref="fieldRefs.timezone"
               v-model="form.timezone"
               :items="filteredTimezones"
               v-model:search-input="timezoneSearch"
@@ -428,15 +597,21 @@ const validate = async () => {
               density="compact"
               placeholder="Selecciona una zona horaria"
               clearable
-              hide-details
               :menu-props="{ maxHeight: '300px' }"
               required
+              :error-messages="fieldErrors.timezone"
+              @update:model-value="clearFieldError('timezone')"
             />
           </v-col>
 
           <v-col cols="12" class="mt-4">
             <v-label>Dirección <span class="text-error">*</span></v-label>
-            <AddressAutocomplete class="mt-2" @update:parsedAddress="handleParsedAddress" />
+            <AddressAutocomplete
+              ref="fieldRefs.address"
+              class="mt-2"
+              @update:parsedAddress="handleParsedAddress"
+              :addressError="fieldErrors.address"
+            />
           </v-col>
         </v-row>
 
@@ -449,24 +624,75 @@ const validate = async () => {
           <v-col cols="12" sm="6">
             <v-label>Nombre</v-label>
             <v-text-field v-model="form.contact.first_name" variant="outlined" color="primary" class="mt-2" />
-            <v-text-field v-model="form.contact.first_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Apellido</v-label>
-            <v-text-field v-model="form.contact.last_name" variant="outlined" color="primary" class="mt-2" />
             <v-text-field v-model="form.contact.last_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Correo</v-label>
             <v-text-field v-model="form.contact.email" variant="outlined" color="primary" class="mt-2" />
-            <v-text-field v-model="form.contact.email" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Teléfono</v-label>
-            <v-text-field v-model="form.contact.phone_number" variant="outlined" color="primary" class="mt-2" />
+            <div class="phone-group phone-group-responsive mt-2">
+              <!-- País -->
+              <div style="display: flex; flex-direction: column">
+                <v-autocomplete
+                  ref="fieldRefs.phone_country"
+                  v-model="form.contact.phone_country"
+                  :items="filteredCountries"
+                  v-model:search-input="phoneCountrySearch"
+                  item-title="title"
+                  item-value="value"
+                  variant="outlined"
+                  color="primary"
+                  class="phone-country-field"
+                  placeholder="País"
+                  clearable
+                  :menu-props="{ maxHeight: '400px', width: 320 }"
+                  hide-details
+                  @update:model-value="clearFieldError('phone_country')"
+                >
+                  <template #selection="{ item }">
+                    <template v-if="item && item.value">
+                      <span>{{ findCountryByCode(item.value)?.flag }}</span>
+                      <span style="margin-left: 6px">{{ getDialPrefix(item.value, item.title) }}</span>
+                    </template>
+                  </template>
+                  <template #item="{ item, props }">
+                    <v-list-item v-bind="props">
+                      <template #title>
+                        <div class="d-flex align-center justify-space-between">
+                          <span>
+                            <span>{{ findCountryByCode(item.value)?.flag }}</span>
+                            <span style="margin-left: 8px">
+                              {{ item.title.replace(/^.*?\s/, '') }}
+                            </span>
+                          </span>
+                          <span class="text-medium-emphasis">{{ getDialPrefix(item.value, item.title) }}</span>
+                        </div>
+                      </template>
+                    </v-list-item>
+                  </template>
+                </v-autocomplete>
+                <!-- Mensaje de error con pequeña separación -->
+                <div v-if="fieldErrors.phone_country" class="text-error" style="font-size: 0.78rem; margin-top: 6px; margin-bottom: 0">
+                  {{ fieldErrors.phone_country }}
+                </div>
+              </div>
+              <v-text-field
+                v-model="form.contact.phone_number"
+                variant="outlined"
+                color="primary"
+                class="phone-number-field"
+                placeholder="Número"
+                hide-details
+              />
+            </div>
           </v-col>
         </v-row>
 
