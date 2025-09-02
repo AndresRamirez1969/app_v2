@@ -179,13 +179,13 @@ const validateField = (fieldName, value) => {
   switch (fieldName) {
     case 'name':
       if (!value || value.trim() === '') {
-        fieldErrors.name = 'El nombre es obligatorio';
+        fieldErrors.name = 'El nombre es obligatorio.';
         return false;
       }
       break;
     case 'timezone':
       if (!value || value.trim() === '') {
-        fieldErrors.timezone = 'La zona horaria es obligatoria';
+        fieldErrors.timezone = 'La zona horaria es obligatoria.';
         return false;
       }
       break;
@@ -196,25 +196,25 @@ const validateField = (fieldName, value) => {
         !parsedAddress.value.street ||
         parsedAddress.value.street.trim() === ''
       ) {
-        fieldErrors.address = 'La dirección es obligatoria';
+        fieldErrors.address = 'La dirección es obligatoria.';
         return false;
       }
       break;
     case 'phone_country':
       if (form.contact.phone_number && !value) {
-        fieldErrors.phone_country = 'Selecciona el país para el teléfono';
+        fieldErrors.phone_country = 'Selecciona el país para el teléfono.';
         return false;
       }
       break;
     case 'organization_id':
       if (isSuperadmin.value && !selectedOrganization.value) {
-        fieldErrors.organization_id = 'La organización es obligatoria';
+        fieldErrors.organization_id = 'La organización es obligatoria.';
         return false;
       }
       break;
     case 'business_id':
       if ((isSuperadmin.value || canSelectBusiness.value) && !selectedBusiness.value) {
-        fieldErrors.business_id = 'La empresa es obligatoria';
+        fieldErrors.business_id = 'La empresa es obligatoria.';
         return false;
       }
       break;
@@ -535,12 +535,11 @@ const validate = async () => {
                 density="compact"
                 placeholder="Buscar organización"
                 clearable
-                hide-details
                 :menu-props="{ maxHeight: '300px' }"
                 :error-messages="fieldErrors.organization_id"
                 @update:model-value="clearFieldError('organization_id')"
               />
-              <div style="height: 16px"></div>
+              <div style="height: 10px"></div>
             </template>
 
             <template v-if="selectedOrganization && (isSuperadmin || canSelectBusiness)">
@@ -559,12 +558,11 @@ const validate = async () => {
                 density="compact"
                 placeholder="Buscar empresa"
                 clearable
-                hide-details
                 :menu-props="{ maxHeight: '300px' }"
                 :error-messages="fieldErrors.business_id"
                 @update:model-value="clearFieldError('business_id')"
               />
-              <div style="height: 16px"></div>
+              <div style="height: 10px"></div>
             </template>
 
             <v-label>Nombre<span class="text-error">*</span></v-label>
@@ -599,7 +597,6 @@ const validate = async () => {
               density="compact"
               placeholder="Selecciona una zona horaria"
               clearable
-              hide-details
               :menu-props="{ maxHeight: '300px' }"
               required
               :error-messages="fieldErrors.timezone"
