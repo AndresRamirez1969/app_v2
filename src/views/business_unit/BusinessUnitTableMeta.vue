@@ -7,7 +7,8 @@ const props = defineProps({
   page: Number,
   itemsPerPage: Number,
   sortBy: String,
-  sortDesc: Boolean
+  sortDesc: Boolean,
+  showBusinessIdColumn: Boolean
 });
 const emit = defineEmits(['update:page', 'sort']);
 </script>
@@ -22,13 +23,21 @@ const emit = defineEmits(['update:page', 'sort']);
             <slot name="sort-icon" :column="'folio'" />
           </th>
           <th class="logo-header">Logo</th>
-          <th @click="emit('sort', 'legal_name')" class="cursor-pointer legal-header">
-            Nombre Legal
-            <slot name="sort-icon" :column="'legal_name'" />
+          <th @click="emit('sort', 'name')" class="cursor-pointer legal-header">
+            Nombre
+            <slot name="sort-icon" :column="'name'" />
+          </th>
+          <th @click="emit('sort', 'alias')" class="cursor-pointer alias-header">
+            Alias
+            <slot name="sort-icon" :column="'alias'" />
           </th>
           <th @click="emit('sort', 'address')" class="cursor-pointer address-header">
             Dirección
             <slot name="sort-icon" :column="'address'" />
+          </th>
+          <th v-if="props.showBusinessIdColumn" @click="emit('sort', 'businessUnitParent')" class="cursor-pointer business-id-header">
+            Empresa
+            <slot name="sort-icon" :column="'businessUnitParent'" />
           </th>
           <th class="status-header">Estado</th>
           <th class="actions-header"></th>

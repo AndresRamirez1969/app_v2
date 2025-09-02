@@ -595,52 +595,55 @@ const validate = async () => {
 
         <v-col cols="12" sm="6">
           <v-label>Teléfono</v-label>
-          <div class="phone-group mt-2">
-            <v-autocomplete
-              ref="fieldRefs.phone_country"
-              v-model="form.contact.phone_country"
-              :items="filteredCountries"
-              v-model:search-input="phoneCountrySearch"
-              item-title="title"
-              item-value="value"
-              variant="outlined"
-              color="primary"
-              density="compact"
-              class="phone-country-field"
-              placeholder="País"
-              clearable
-              hide-details
-              :menu-props="{ maxHeight: '400px', width: 320 }"
-              :error-messages="fieldErrors.phone_country"
-              @update:model-value="clearFieldError('phone_country')"
-            >
-              <template #selection="{ item }">
-                <template v-if="item && item.value">
-                  <span>{{ findCountryByCode(item.value)?.flag }}</span>
-                  <span style="margin-left: 6px">{{ getDialPrefix(item.value, item.title) }}</span>
-                </template>
-              </template>
-              <template #item="{ item, props }">
-                <v-list-item v-bind="props">
-                  <template #title>
-                    <div class="d-flex align-center justify-space-between">
-                      <span>
-                        <span>{{ findCountryByCode(item.value)?.flag }}</span>
-                        <span style="margin-left: 8px">
-                          {{ item.title.replace(/^.*?\s/, '') }}
-                        </span>
-                      </span>
-                      <span class="text-medium-emphasis">{{ getDialPrefix(item.value, item.title) }}</span>
-                    </div>
+          <div class="phone-group phone-group-responsive mt-2">
+            <!-- País -->
+            <div style="display: flex; flex-direction: column">
+              <v-autocomplete
+                ref="fieldRefs.phone_country"
+                v-model="form.contact.phone_country"
+                :items="filteredCountries"
+                v-model:search-input="phoneCountrySearch"
+                item-title="title"
+                item-value="value"
+                variant="outlined"
+                color="primary"
+                class="phone-country-field"
+                placeholder="País"
+                clearable
+                :menu-props="{ maxHeight: '400px', width: 320 }"
+                :error-messages="fieldErrors.phone_country"
+                @update:model-value="clearFieldError('phone_country')"
+              >
+                <template #selection="{ item }">
+                  <template v-if="item && item.value">
+                    <span>{{ findCountryByCode(item.value)?.flag }}</span>
+                    <span style="margin-left: 6px">{{ getDialPrefix(item.value, item.title) }}</span>
                   </template>
-                </v-list-item>
-              </template>
-            </v-autocomplete>
+                </template>
+                <template #item="{ item, props }">
+                  <v-list-item v-bind="props">
+                    <template #title>
+                      <div class="d-flex align-center justify-space-between">
+                        <span>
+                          <span>{{ findCountryByCode(item.value)?.flag }}</span>
+                          <span style="margin-left: 8px">
+                            {{ item.title.replace(/^.*?\s/, '') }}
+                          </span>
+                        </span>
+                        <span class="text-medium-emphasis">{{ getDialPrefix(item.value, item.title) }}</span>
+                      </div>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-autocomplete>
+              <div v-if="fieldErrors.phone_country" class="text-error" style="font-size: 0.78rem; margin-top: 6px; margin-bottom: 0">
+                {{ fieldErrors.phone_country }}
+              </div>
+            </div>
             <v-text-field
               v-model="form.contact.phone_number"
               variant="outlined"
               color="primary"
-              density="compact"
               class="phone-number-field"
               placeholder="Número"
               hide-details

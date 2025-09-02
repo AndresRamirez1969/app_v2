@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
 import BusinessUnitTableMeta from './BusinessUnitTableMeta.vue';
@@ -27,6 +27,8 @@ const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value || is
 const canEdit = computed(() => permissions.value.includes('businessUnit.update') || props.canEditPermission);
 const canView = computed(() => permissions.value.includes('businessUnit.view'));
 const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatus.value);
+
+const showBusinessIdColumn = computed(() => isAdmin.value);
 
 const sortBy = ref('folio');
 const sortDesc = ref(false);
@@ -58,17 +60,46 @@ const fullAddress = (address) => {
 
 const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
+const getBusinessUnitParent = (uni) => {
+  // Asume que el objeto tiene business_unit_parent: { folio, name }
+  if (uni.business_unit_parent && uni.business_unit_parent.folio && uni.business_unit_parent.name) {
+    return `${uni.business_unit_parent.folio} - ${uni.business_unit_parent.name}`;
+  }
+  return 'No disponible';
+};
+
 const sortedItems = computed(() => {
-  return [...props.items].sort((a, b) => {
-    const aVal = sortBy.value === 'address' ? fullAddress(a.address).toLowerCase() : (a[sortBy.value]?.toString().toLowerCase() ?? '');
-    const bVal = sortBy.value === 'address' ? fullAddress(b.address).toLowerCase() : (b[sortBy.value]?.toString().toLowerCase() ?? '');
-    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
-  });
+  return [...props.items]
+    .map((item) => ({
+      ...item,
+      name: item.name,
+      alias: item.alias,
+      logo: item.logo_url ?? item.logo,
+      businessUnitParent: getBusinessUnitParent(item)
+    }))
+    .sort((a, b) => {
+      let aVal, bVal;
+      if (sortBy.value === 'address') {
+        aVal = fullAddress(a.address).toLowerCase();
+        bVal = fullAddress(b.address).toLowerCase();
+      } else if (sortBy.value === 'alias') {
+        aVal = (a.alias ?? '').toString().toLowerCase();
+        bVal = (b.alias ?? '').toString().toLowerCase();
+      } else if (sortBy.value === 'businessUnitParent') {
+        aVal = (a.businessUnitParent ?? '').toString().toLowerCase();
+        bVal = (b.businessUnitParent ?? '').toString().toLowerCase();
+      } else {
+        aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
+        bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
+      }
+      return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
+    });
 });
 
 const paginatedItems = computed(() => {
   const start = (page.value - 1) * itemsPerPage.value;
-  return sortedItems.value.slice(start, start + itemsPerPage.value);
+  const end = start + itemsPerPage.value;
+  return sortedItems.value.slice(start, end);
 });
 
 const goToEdit = (uni) => router.push({ path: `/ubicaciones/editar/${uni.id}` });
@@ -79,11 +110,10 @@ const toggleStatus = async (uni) => {
   const isActive = uni.status === 'activa' || uni.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
-    // Solo cambia el status, el backend se encarga de la lógica
     const res = await axiosInstance.put(`/business-units/${uni.id}`, {
       status: newStatus
     });
-    uni.status = res.data.status || newStatus;
+    uni.status = res.data.business_unit?.status || newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
   }
@@ -105,7 +135,6 @@ const toggleStatus = async (uni) => {
         <p class="text-body-2 text-grey">No se encontraron ubicaciones con los filtros aplicados</p>
       </div>
 
-      <!-- Modo móvil (solo cards) -->
       <template v-else-if="isMobile">
         <v-card
           v-for="uni in paginatedItems"
@@ -129,24 +158,30 @@ const toggleStatus = async (uni) => {
             <v-col cols="8">
               <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <router-link v-if="canView" :to="`/ubicaciones/${uni.id}`" @click.stop style="text-decoration: underline">
+                  <router-link :to="`/ubicaciones/${uni.id}`" @click.stop style="text-decoration: underline; color: #1976d2">
                     {{ uni.folio }}
                   </router-link>
-                  <span v-else>{{ uni.folio }}</span>
                 </div>
                 <StatusChip :status="uni.status" />
               </div>
-              <div class="font-weight-medium mb-1">{{ uni.legal_name }}</div>
-              <div class="text-caption">
+              <div class="font-weight-medium mb-1">{{ uni.name }}</div>
+              <div class="text-caption mb-1">
+                <strong>Alias:</strong>
+                {{ truncate(uni.alias, 40) }}
+              </div>
+              <div class="text-caption mb-1">
                 <strong>Dirección:</strong>
                 {{ truncate(fullAddress(uni.address), 60) }}
+              </div>
+              <div v-if="showBusinessIdColumn" class="text-caption">
+                <strong>Unidad de Negocio:</strong>
+                {{ truncate(uni.businessUnitParent, 60) }}
               </div>
             </v-col>
           </v-row>
         </v-card>
       </template>
 
-      <!-- Modo desktop (tabla) -->
       <template v-else>
         <BusinessUnitTableMeta
           :items="sortedItems.value"
@@ -154,6 +189,7 @@ const toggleStatus = async (uni) => {
           :itemsPerPage="itemsPerPage"
           :sortBy="sortBy"
           :sortDesc="sortDesc"
+          :showBusinessIdColumn="showBusinessIdColumn"
           @update:page="page = $event"
           @sort="toggleSort"
         >
@@ -172,10 +208,9 @@ const toggleStatus = async (uni) => {
                 :style="{ cursor: canView ? 'pointer' : 'default' }"
               >
                 <td class="folio-cell">
-                  <router-link v-if="canView" :to="`/ubicaciones/${uni.id}`" @click.stop style="text-decoration: underline">
+                  <router-link :to="`/ubicaciones/${uni.id}`" @click.stop style="text-decoration: underline; color: #1976d2">
                     {{ uni.folio }}
                   </router-link>
-                  <span v-else>{{ uni.folio }}</span>
                 </td>
                 <td class="logo-cell">
                   <v-avatar v-if="uni.logo" size="48" class="logo-avatar">
@@ -185,8 +220,12 @@ const toggleStatus = async (uni) => {
                     <span style="font-size: 12px; color: #888">Sin logo</span>
                   </v-avatar>
                 </td>
-                <td class="legal-cell">{{ uni.legal_name }}</td>
+                <td class="legal-cell">{{ uni.name }}</td>
+                <td class="alias-cell">{{ truncate(uni.alias, 40) }}</td>
                 <td class="address-cell">{{ truncate(fullAddress(uni.address), 60) }}</td>
+                <td v-if="showBusinessIdColumn" class="business-id-cell">
+                  {{ truncate(uni.businessUnitParent, 60) }}
+                </td>
                 <td class="status-cell">
                   <StatusChip :status="uni.status" />
                 </td>

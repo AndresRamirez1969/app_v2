@@ -6,6 +6,7 @@ import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue'
 import axiosInstance from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
 import { timezones as tzRaw } from '@/utils/constants/timezones';
+import { toVuetifyItems, findCountryByCode } from '@/utils/constants/countries';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -16,6 +17,7 @@ const errorMsg = ref('');
 const canCreate = ref(false);
 
 const timezoneSearch = ref('');
+const phoneCountrySearch = ref('');
 
 const user = computed(() => auth.user);
 
@@ -26,6 +28,61 @@ function normalizeString(str) {
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
     : '';
+}
+
+function baseCountryTitle(title = '') {
+  return normalizeString(
+    String(title)
+      .replace(/\s*\(\+\d+\)\s*$/, '')
+      .trim()
+  );
+}
+
+function getDialPrefix(value, titleFallback = '') {
+  const c = findCountryByCode(value);
+  const fromModel = c?.dial_code ?? c?.calling_code ?? c?.callingCode ?? c?.phoneCode ?? null;
+  if (fromModel) return String(fromModel).startsWith('+') ? fromModel : `+${fromModel}`;
+  const m = String(titleFallback).match(/\(\+[\d]+\)/);
+  if (m && m[0]) return m[0].replace(/[()]/g, '');
+  return '';
+}
+
+function betterCountryItem(a, b) {
+  const score = (it) => {
+    const dial = getDialPrefix(it.value, it.title);
+    let s = 0;
+    if (dial) s += 2;
+    if (it.value) s += 1;
+    if (String(it.value || '').length <= 3) s += 1;
+    return s;
+  };
+  return score(a) >= score(b) ? a : b;
+}
+
+function buildUniqueCountries() {
+  const raw = toVuetifyItems();
+  const seen = new Set();
+  const filtered = raw.filter((item) => {
+    if (seen.has(item.value)) return false;
+    seen.add(item.value);
+    return true;
+  });
+  const byName = new Map();
+  for (const item of filtered) {
+    const key = baseCountryTitle(item.title);
+    const existing = byName.get(key);
+    if (!existing) {
+      byName.set(key, item);
+    } else {
+      byName.set(key, betterCountryItem(existing, item));
+    }
+  }
+  const result = Array.from(byName.values()).map((it) => ({
+    ...it,
+    title: it.title.replace(/\s*\(\+\d+\)\s*$/, '').trim()
+  }));
+  result.sort((a, b) => baseCountryTitle(a.title).localeCompare(baseCountryTitle(b.title)));
+  return result;
 }
 
 const isSuperadmin = computed(() => user.value?.roles?.includes('superadmin'));
@@ -72,6 +129,7 @@ const form = reactive({
     first_name: '',
     last_name: '',
     email: '',
+    phone_country: '',
     phone_number: ''
   }
 });
@@ -159,6 +217,18 @@ const filteredTimezones = computed(() => {
   return tzRaw.filter((tz) => normalizeString(tz.label).includes(search) || normalizeString(tz.value).includes(search));
 });
 
+const UNIQUE_COUNTRIES = buildUniqueCountries();
+
+const filteredCountries = computed(() => {
+  const q = normalizeString(phoneCountrySearch.value);
+  if (!q) return UNIQUE_COUNTRIES;
+  return UNIQUE_COUNTRIES.filter((item) => {
+    const name = baseCountryTitle(item.title);
+    const dial = normalizeString(getDialPrefix(item.value, item.title));
+    return name.includes(q) || dial.includes(q);
+  });
+});
+
 const isLoading = ref(false);
 
 const validate = async () => {
@@ -207,6 +277,11 @@ const validate = async () => {
       }
     }
 
+    const hasContactData = Object.values(form.contact).some((val) => val?.trim?.() !== '');
+    if (hasContactData) {
+      for (const key in form.contact) {
+        if (form.contact[key]) {
+          formData.append(`contact[${key}]`, form.contact[key]);
     const hasPersonData = Object.values(form.contact).some((val) => val?.trim?.() !== '');
     if (hasPersonData) {
       for (const key in form.contact) {
@@ -223,7 +298,7 @@ const validate = async () => {
 
     const res = await axiosInstance.post('/business-units', formData);
 
-    const newId = res?.data?.id || res?.data?.business_unit?.id || res?.data?.data?.id;
+    const newId = res?.data?.business_unit?.id || res?.data?.data?.id || res?.data?.id;
 
     if (newId) {
       auth.user.business_unit_id = newId;
@@ -379,15 +454,18 @@ const validate = async () => {
           <v-col cols="12" sm="6">
             <v-label>Nombre</v-label>
             <v-text-field v-model="form.contact.first_name" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.first_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Apellido</v-label>
             <v-text-field v-model="form.contact.last_name" variant="outlined" color="primary" class="mt-2" />
+            <v-text-field v-model="form.contact.last_name" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
           <v-col cols="12" sm="6">
             <v-label>Correo</v-label>
+            <v-text-field v-model="form.contact.email" variant="outlined" color="primary" class="mt-2" />
             <v-text-field v-model="form.contact.email" variant="outlined" color="primary" class="mt-2" />
           </v-col>
 
