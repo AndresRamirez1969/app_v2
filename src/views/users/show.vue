@@ -433,7 +433,9 @@ onMounted(async () => {
                         </div>
                         <StatusChip v-if="item.status" :status="item.status" />
                       </div>
-                      <div class="font-weight-medium mb-1">{{ item.legal_name || 'No disponible' }}</div>
+                      <div class="font-weight-medium mb-1">
+                        {{ item.tipo === 'Organización' ? item.legal_name || 'No disponible' : item.name || 'No disponible' }}
+                      </div>
                       <div class="text-caption">
                         <strong>Dirección:</strong>
                         {{ formatAddress(item.address || item.direccion) }}
@@ -455,7 +457,7 @@ onMounted(async () => {
                 <th class="font-weight-bold text-subtitle-1">Tipo</th>
                 <th class="font-weight-bold text-subtitle-1">Folio</th>
                 <th class="font-weight-bold text-subtitle-1">Logo</th>
-                <th class="font-weight-bold text-subtitle-1">Nombre legal</th>
+                <th class="font-weight-bold text-subtitle-1">Nombre</th>
                 <th class="font-weight-bold text-subtitle-1">Dirección</th>
                 <th class="font-weight-bold text-subtitle-1">Estado</th>
                 <th style="width: 60px"></th>
@@ -514,7 +516,9 @@ onMounted(async () => {
                     <span style="font-size: 12px; color: #888">Sin logo</span>
                   </v-avatar>
                 </td>
-                <td>{{ item.legal_name || 'No disponible' }}</td>
+                <td>
+                  {{ item.tipo === 'Organización' ? item.legal_name || 'No disponible' : item.name || 'No disponible' }}
+                </td>
                 <td>
                   <span v-if="item.address || item.direccion">
                     {{ formatAddress(item.address || item.direccion) }}

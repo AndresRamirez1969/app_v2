@@ -282,11 +282,6 @@ const validate = async () => {
       for (const key in form.contact) {
         if (form.contact[key]) {
           formData.append(`contact[${key}]`, form.contact[key]);
-    const hasPersonData = Object.values(form.contact).some((val) => val?.trim?.() !== '');
-    if (hasPersonData) {
-      for (const key in form.contact) {
-        if (form.contact[key]) {
-          formData.append(`contact[${key}]`, form.contact[key]);
         }
       }
     }
