@@ -7,6 +7,9 @@ import { mdiArrowLeft, mdiPencil, mdiCancel, mdiCheckCircle, mdiChevronDown, mdi
 import StatusChip from '@/components/status/StatusChip.vue';
 import { useAuthStore } from '@/stores/auth';
 
+// INTEGRACIÓN: Importa países
+import countries from '@/utils/constants/countries';
+
 const router = useRouter();
 const route = useRoute();
 const { mdAndDown } = useDisplay();
@@ -54,10 +57,8 @@ const toggleStatus = async () => {
   if (!businessUnit.value) return;
   const newStatus = isActive.value ? 'inactive' : 'active';
   try {
-    const res = await axiosInstance.put(`/business-units/${businessUnit.value.id}`, {
-      status: newStatus
-    });
-    businessUnit.value.status = res.data.status || newStatus;
+    const res = await axiosInstance.put(`/business-units/${businessUnit.value.id}/toggle-status`);
+    businessUnit.value.status = res.data.status?.status || newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
     console.error('Detalle del error:', err?.response?.data || err);
@@ -94,26 +95,39 @@ const formatAddress = (address) => {
 
 const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
+// INTEGRACIÓN: Función para mostrar solo bandera y prefijo del país
+function getCountryFlagAndPrefix(code) {
+  if (!code) return '';
+  const country = countries.find((c) => c.code === code || c.iso2 === code);
+  if (!country) return code;
+  return `${country.flag ? country.flag + ' ' : ''}${country.dial_code}`;
+}
+
 onMounted(async () => {
   try {
     const id = route.params.id;
     const res = await axiosInstance.get(`/business-units/${id}`);
-    businessUnit.value = res.data.business_unit || res.data.data || res.data;
+    businessUnit.value = res.data.data || res.data.business_unit || res.data;
 
-    // Obtener la empresa relacionada (solo para superadmin)
-    if (isSuperadmin.value && businessUnit.value?.business_id) {
+    // Integración: obtener la empresa relacionada si existe en la respuesta
+    if (businessUnit.value?.business) {
+      business.value = businessUnit.value.business;
+    } else if (isSuperadmin.value && businessUnit.value?.business_id) {
       try {
         const busRes = await axiosInstance.get(`/businesses/${businessUnit.value.business_id}`);
-        business.value = busRes.data.business || busRes.data.data || busRes.data;
+        business.value = busRes.data.data || busRes.data.business || busRes.data;
       } catch (err) {
         business.value = null;
       }
     }
 
-    // Obtener todos los usuarios y filtrar por business_unit_id
-    const userRes = await axiosInstance.get(`/users`);
-    const allUsers = Array.isArray(userRes.data) ? userRes.data : userRes.data.users || userRes.data.data || [];
-    users.value = allUsers.filter((u) => String(u.business_unit_id) === String(businessUnit.value.id));
+    if (Array.isArray(businessUnit.value?.users)) {
+      users.value = businessUnit.value.users;
+    } else {
+      const userRes = await axiosInstance.get(`/users`);
+      const allUsers = Array.isArray(userRes.data) ? userRes.data : userRes.data.users || userRes.data.data || [];
+      users.value = allUsers.filter((u) => String(u.business_unit_id) === String(businessUnit.value.id));
+    }
   } catch (err) {
     console.error('Error al obtener la ubicación, empresa o usuarios:', err);
   }
@@ -136,7 +150,7 @@ onMounted(async () => {
           </v-btn>
           <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="businessUnit">
             {{ businessUnit.folio ? `${businessUnit.folio}` : '' }}
-            {{ businessUnit.legal_name ? `- ${businessUnit.legal_name}` : '- Ubicación' }}
+            {{ businessUnit.name ? `- ${businessUnit.name}` : '- Ubicación' }}
           </h3>
           <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="businessUnit">
             {{ businessUnit.folio ? `${businessUnit.folio}` : '' }}
@@ -247,16 +261,26 @@ onMounted(async () => {
               <td class="font-weight-bold text-subtitle-1">Folio</td>
               <td>{{ businessUnit?.folio || 'No disponible' }}</td>
             </tr>
-            <tr v-if="isSuperadmin && business">
+            <!-- INTEGRACIÓN: Empresa entre folio y nombre -->
+            <tr v-if="business">
               <td class="font-weight-bold text-subtitle-1">Empresa</td>
               <td>
-                <span v-if="business?.legal_name">{{ business.legal_name }}</span>
+                <span v-if="business?.name">
+                  <router-link
+                    v-if="business?.name"
+                    :to="`/empresas/${business.id}`"
+                    style="text-decoration: underline; color: #1976d2 !important"
+                  >
+                    {{ business.folio ? business.folio + ' - ' : '' }}{{ business.name }}
+                  </router-link>
+                  <span v-else>{{ business.folio ? business.folio + ' - ' : '' }}{{ business.name }}</span>
+                </span>
                 <span v-else>No disponible</span>
               </td>
             </tr>
             <tr>
-              <td class="font-weight-bold text-subtitle-1">Nombre legal</td>
-              <td>{{ businessUnit?.legal_name || 'No disponible' }}</td>
+              <td class="font-weight-bold text-subtitle-1">Nombre</td>
+              <td>{{ businessUnit?.name || 'No disponible' }}</td>
             </tr>
             <tr>
               <td class="font-weight-bold text-subtitle-1">Alias</td>
@@ -300,8 +324,17 @@ onMounted(async () => {
                 <tr>
                   <td class="font-weight-bold text-subtitle-1" style="width: 40%">Nombre</td>
                   <td>
-                    <span v-if="businessUnit?.person && (businessUnit.person.first_name || businessUnit.person.last_name)">
-                      {{ [businessUnit.person.first_name, businessUnit.person.last_name].filter(Boolean).join(' ') }}
+                    <span v-if="businessUnit?.contact?.first_name">
+                      {{ businessUnit.contact.first_name }}
+                    </span>
+                    <span v-else>No disponible</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="font-weight-bold text-subtitle-1">Apellido</td>
+                  <td>
+                    <span v-if="businessUnit?.contact?.last_name">
+                      {{ businessUnit.contact.last_name }}
                     </span>
                     <span v-else>No disponible</span>
                   </td>
@@ -309,14 +342,20 @@ onMounted(async () => {
                 <tr>
                   <td class="font-weight-bold text-subtitle-1">Correo</td>
                   <td>
-                    <span v-if="businessUnit?.person?.email">{{ businessUnit.person.email }}</span>
+                    <span v-if="businessUnit?.contact?.email">{{ businessUnit.contact.email }}</span>
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
                 <tr>
                   <td class="font-weight-bold text-subtitle-1">Teléfono</td>
                   <td>
-                    <span v-if="businessUnit?.person?.phone_number">{{ businessUnit.person.phone_number }}</span>
+                    <span v-if="businessUnit?.contact?.phone_country && businessUnit?.contact?.phone_number">
+                      <span>
+                        {{ getCountryFlagAndPrefix(businessUnit.contact.phone_country) }}
+                      </span>
+                      <span style="margin-left: 8px">{{ businessUnit.contact.phone_number }}</span>
+                    </span>
+                    <span v-else-if="businessUnit?.contact?.phone_number">{{ businessUnit.contact.phone_number }}</span>
                     <span v-else>No disponible</span>
                   </td>
                 </tr>
@@ -329,7 +368,7 @@ onMounted(async () => {
             <thead>
               <tr>
                 <th class="font-weight-bold text-subtitle-1" style="width: 15%">Nombre</th>
-                <th class="font-weight-bold text-subtitle-1" style="width: 5%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 15%">Apellido</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 20%">Correo</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 25%">Teléfono</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 15%"></th>
@@ -340,18 +379,29 @@ onMounted(async () => {
             <tbody>
               <tr>
                 <td>
-                  <span v-if="businessUnit?.person && (businessUnit.person.first_name || businessUnit.person.last_name)">
-                    {{ [businessUnit.person.first_name, businessUnit.person.last_name].filter(Boolean).join(' ') }}
+                  <span v-if="businessUnit?.contact?.first_name">
+                    {{ businessUnit.contact.first_name }}
                   </span>
                   <span v-else>No disponible</span>
                 </td>
-                <td></td>
                 <td>
-                  <span v-if="businessUnit?.person?.email">{{ businessUnit.person.email }}</span>
+                  <span v-if="businessUnit?.contact?.last_name">
+                    {{ businessUnit.contact.last_name }}
+                  </span>
                   <span v-else>No disponible</span>
                 </td>
                 <td>
-                  <span v-if="businessUnit?.person?.phone_number">{{ businessUnit.person.phone_number }}</span>
+                  <span v-if="businessUnit?.contact?.email">{{ businessUnit.contact.email }}</span>
+                  <span v-else>No disponible</span>
+                </td>
+                <td>
+                  <span v-if="businessUnit?.contact?.phone_country && businessUnit?.contact?.phone_number">
+                    <span>
+                      {{ getCountryFlagAndPrefix(businessUnit.contact.phone_country) }}
+                    </span>
+                    <span style="margin-left: 8px">{{ businessUnit.contact.phone_number }}</span>
+                  </span>
+                  <span v-else-if="businessUnit?.contact?.phone_number">{{ businessUnit.contact.phone_number }}</span>
                   <span v-else>No disponible</span>
                 </td>
                 <td></td>
@@ -376,8 +426,8 @@ onMounted(async () => {
         <v-table class="rounded-lg elevation-1 fixed-table">
           <thead>
             <tr>
-              <th class="font-weight-bold text-subtitle-1" style="width: 10%">ID</th>
-              <th class="font-weight-bold text-subtitle-1" style="width: 10%">Foto</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 15%">ID</th>
+              <th class="font-weight-bold text-subtitle-1" style="width: 15%">Foto</th>
               <th class="font-weight-bold text-subtitle-1" style="width: 20%">Nombre</th>
               <th class="font-weight-bold text-subtitle-1" style="width: 25%">Correo</th>
               <th class="font-weight-bold text-subtitle-1" style="width: 15%">Rol</th>

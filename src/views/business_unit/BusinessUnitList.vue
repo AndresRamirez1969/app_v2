@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
 import BusinessUnitTableMeta from './BusinessUnitTableMeta.vue';
@@ -59,16 +59,33 @@ const fullAddress = (address) => {
 const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 const sortedItems = computed(() => {
-  return [...props.items].sort((a, b) => {
-    const aVal = sortBy.value === 'address' ? fullAddress(a.address).toLowerCase() : (a[sortBy.value]?.toString().toLowerCase() ?? '');
-    const bVal = sortBy.value === 'address' ? fullAddress(b.address).toLowerCase() : (b[sortBy.value]?.toString().toLowerCase() ?? '');
-    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
-  });
+  return [...props.items]
+    .map((item) => ({
+      ...item,
+      name: item.name,
+      alias: item.alias,
+      logo: item.logo_url ?? item.logo
+    }))
+    .sort((a, b) => {
+      let aVal, bVal;
+      if (sortBy.value === 'address') {
+        aVal = fullAddress(a.address).toLowerCase();
+        bVal = fullAddress(b.address).toLowerCase();
+      } else if (sortBy.value === 'alias') {
+        aVal = (a.alias ?? '').toString().toLowerCase();
+        bVal = (b.alias ?? '').toString().toLowerCase();
+      } else {
+        aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
+        bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
+      }
+      return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
+    });
 });
 
 const paginatedItems = computed(() => {
   const start = (page.value - 1) * itemsPerPage.value;
-  return sortedItems.value.slice(start, start + itemsPerPage.value);
+  const end = start + itemsPerPage.value;
+  return sortedItems.value.slice(start, end);
 });
 
 const goToEdit = (uni) => router.push({ path: `/ubicaciones/editar/${uni.id}` });
@@ -79,11 +96,10 @@ const toggleStatus = async (uni) => {
   const isActive = uni.status === 'activa' || uni.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
-    // Solo cambia el status, el backend se encarga de la lógica
     const res = await axiosInstance.put(`/business-units/${uni.id}`, {
       status: newStatus
     });
-    uni.status = res.data.status || newStatus;
+    uni.status = res.data.business_unit?.status || newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
   }
@@ -105,7 +121,6 @@ const toggleStatus = async (uni) => {
         <p class="text-body-2 text-grey">No se encontraron ubicaciones con los filtros aplicados</p>
       </div>
 
-      <!-- Modo móvil (solo cards) -->
       <template v-else-if="isMobile">
         <v-card
           v-for="uni in paginatedItems"
@@ -136,7 +151,11 @@ const toggleStatus = async (uni) => {
                 </div>
                 <StatusChip :status="uni.status" />
               </div>
-              <div class="font-weight-medium mb-1">{{ uni.legal_name }}</div>
+              <div class="font-weight-medium mb-1">{{ uni.name }}</div>
+              <div class="text-caption mb-1">
+                <strong>Alias:</strong>
+                {{ truncate(uni.alias, 40) }}
+              </div>
               <div class="text-caption">
                 <strong>Dirección:</strong>
                 {{ truncate(fullAddress(uni.address), 60) }}
@@ -146,7 +165,6 @@ const toggleStatus = async (uni) => {
         </v-card>
       </template>
 
-      <!-- Modo desktop (tabla) -->
       <template v-else>
         <BusinessUnitTableMeta
           :items="sortedItems.value"
@@ -185,7 +203,8 @@ const toggleStatus = async (uni) => {
                     <span style="font-size: 12px; color: #888">Sin logo</span>
                   </v-avatar>
                 </td>
-                <td class="legal-cell">{{ uni.legal_name }}</td>
+                <td class="legal-cell">{{ uni.name }}</td>
+                <td class="alias-cell">{{ truncate(uni.alias, 40) }}</td>
                 <td class="address-cell">{{ truncate(fullAddress(uni.address), 60) }}</td>
                 <td class="status-cell">
                   <StatusChip :status="uni.status" />

@@ -59,11 +59,44 @@ const fullAddress = (address) => {
 const truncate = (text, max = 45) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 const sortedItems = computed(() => {
-  return props.items ?? [];
+  if (!props.items) return [];
+  const itemsCopy = [...props.items];
+  const column = sortBy.value;
+  const desc = sortDesc.value;
+
+  return itemsCopy.sort((a, b) => {
+    let aVal, bVal;
+
+    if (column === 'folio') {
+      aVal = a.folio ?? '';
+      bVal = b.folio ?? '';
+    } else if (column === 'legal_name' || column === 'name') {
+      aVal = a.name ?? '';
+      bVal = b.name ?? '';
+    } else if (column === 'alias') {
+      aVal = a.alias ?? '';
+      bVal = b.alias ?? '';
+    } else if (column === 'address') {
+      aVal = fullAddress(a.address);
+      bVal = fullAddress(b.address);
+    } else {
+      aVal = a[column] ?? '';
+      bVal = b[column] ?? '';
+    }
+
+    if (typeof aVal === 'string' && typeof bVal === 'string') {
+      if (desc) return bVal.localeCompare(aVal);
+      return aVal.localeCompare(bVal);
+    }
+    if (desc) return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
+    return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+  });
 });
 
 const paginatedItems = computed(() => {
-  return props.items ?? [];
+  const start = (page.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return sortedItems.value.slice(start, end);
 });
 
 const goToEdit = (bus) => router.push({ path: `/empresas/editar/${bus.id}` });

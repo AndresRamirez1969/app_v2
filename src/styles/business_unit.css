@@ -38,6 +38,16 @@ td {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.alias-header,
+.alias-cell {
+  width: 100px;
+  min-width: 80px;
+  max-width: 120px;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .address-header,
 .address-cell {
   width: 240px;
@@ -158,4 +168,44 @@ td {
 /* --- MOBILE GAP --- */
 .gap-mobile > span {
   margin-bottom: 0.5rem;
+}
+
+/* --- PHONE FIELDS HEIGHT & WIDTH --- */
+.phone-country-field,
+.phone-number-field {
+  min-height: 40px !important; /* igual que los v-text-field por defecto */
+  height: 40px !important;
+  max-height: 40px !important;
+}
+
+.phone-country-field {
+  min-width: 120px !important;
+  max-width: 180px !important;
+}
+
+.phone-number-field {
+  min-width: 190px !important;
+  max-width: 100% !important;
+}
+
+/* --- PHONE GROUP RESPONSIVE --- */
+.phone-group-responsive {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .phone-group-responsive {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+  .phone-country-field,
+  .phone-number-field {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin-bottom: 8px;
+  }
 }

@@ -34,8 +34,9 @@ onMounted(async () => {
     try {
       isLoading.value = true;
       const { data } = await axios.get('/business-units');
-      business_units.value = data.data;
-      filteredBusinessUnits.value = data.data;
+      // El backend ahora retorna los datos en data.data o data.business_unit según el Resource
+      business_units.value = data.data ?? data.business_units ?? [];
+      filteredBusinessUnits.value = data.data ?? data.business_units ?? [];
     } catch (error) {
       console.error('Error fetching business units:', error);
     } finally {
@@ -76,8 +77,12 @@ async function handleSearch(text) {
     if (filterOptions.value.status) {
       params.status = filterOptions.value.status;
     }
+    // El backend soporta paginación y ordenamiento
+    params.per_page = 50;
+    params.sort_by = 'folio';
+    params.sort_desc = true;
     const { data } = await axios.get('/business-units', { params });
-    filteredBusinessUnits.value = data.data;
+    filteredBusinessUnits.value = data.data ?? data.business_units ?? [];
   } catch (error) {
     filteredBusinessUnits.value = [];
     console.error('Error searching business units:', error);
@@ -112,9 +117,12 @@ async function handleFilter(filters) {
     if (searchText.value) {
       params.search = searchText.value;
     }
+    params.per_page = 50;
+    params.sort_by = 'folio';
+    params.sort_desc = true;
     isLoading.value = true;
     const { data } = await axios.get('/business-units', { params });
-    filteredBusinessUnits.value = data.data;
+    filteredBusinessUnits.value = data.data ?? data.business_units ?? [];
   } catch (error) {
     console.error('Error fetching filtered business units:', error);
     filteredBusinessUnits.value = [];

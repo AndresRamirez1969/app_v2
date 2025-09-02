@@ -5,7 +5,8 @@ import { mdiArrowLeft } from '@mdi/js';
 import axiosInstance from '@/utils/axios';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 import { useAuthStore } from '@/stores/auth';
-import { timezones } from '@/utils/constants/timezones';
+import { timezones as tzRaw } from '@/utils/constants/timezones';
+import { toVuetifyItems, findCountryByCode } from '@/utils/constants/countries';
 
 const router = useRouter();
 const route = useRoute();
@@ -23,20 +24,7 @@ const businessSearch = ref('');
 const loadingBusinesses = ref(false);
 
 const timezoneSearch = ref('');
-
-const form = reactive({
-  legal_name: '',
-  alias: '',
-  description: '',
-  timezone: '',
-  logo: null,
-  person: {
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone_number: ''
-  }
-});
+const phoneCountrySearch = ref('');
 
 const parsedAddress = ref({});
 const logoPreview = ref(null);
@@ -53,6 +41,97 @@ const isAdmin = computed(() => roles.value.includes('admin'));
 const isSponsor = computed(() => roles.value.includes('sponsor'));
 const canSelectBusiness = computed(() => isAdmin.value || isSponsor.value || permissions.value.includes('businessUnit.create'));
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || permissions.value.includes('businessUnit.update'));
+
+function normalizeString(str) {
+  return str
+    ? str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+    : '';
+}
+
+function baseCountryTitle(title = '') {
+  return normalizeString(
+    String(title)
+      .replace(/\s*\(\+\d+\)\s*$/, '')
+      .trim()
+  );
+}
+
+function getDialPrefix(value, titleFallback = '') {
+  const c = findCountryByCode(value);
+  const fromModel = c?.dial_code ?? c?.calling_code ?? c?.callingCode ?? c?.phoneCode ?? null;
+  if (fromModel) return String(fromModel).startsWith('+') ? fromModel : `+${fromModel}`;
+  const m = String(titleFallback).match(/\(\+[\d]+\)/);
+  if (m && m[0]) return m[0].replace(/[()]/g, '');
+  return '';
+}
+
+function betterCountryItem(a, b) {
+  const score = (it) => {
+    const dial = getDialPrefix(it.value, it.title);
+    let s = 0;
+    if (dial) s += 2;
+    if (it.value) s += 1;
+    if (String(it.value || '').length <= 3) s += 1;
+    return s;
+  };
+  return score(a) >= score(b) ? a : b;
+}
+
+function buildUniqueCountries() {
+  const raw = toVuetifyItems();
+  const seen = new Set();
+  const filtered = raw.filter((item) => {
+    if (seen.has(item.value)) return false;
+    seen.add(item.value);
+    return true;
+  });
+  const byName = new Map();
+  for (const item of filtered) {
+    const key = baseCountryTitle(item.title);
+    const existing = byName.get(key);
+    if (!existing) {
+      byName.set(key, item);
+    } else {
+      byName.set(key, betterCountryItem(existing, item));
+    }
+  }
+  const result = Array.from(byName.values()).map((it) => ({
+    ...it,
+    title: it.title.replace(/\s*\(\+\d+\)\s*$/, '').trim()
+  }));
+  result.sort((a, b) => baseCountryTitle(a.title).localeCompare(baseCountryTitle(b.title)));
+  return result;
+}
+
+const UNIQUE_COUNTRIES = buildUniqueCountries();
+
+const filteredCountries = computed(() => {
+  const q = normalizeString(phoneCountrySearch.value);
+  if (!q) return UNIQUE_COUNTRIES;
+  return UNIQUE_COUNTRIES.filter((item) => {
+    const name = baseCountryTitle(item.title);
+    const dial = normalizeString(getDialPrefix(item.value, item.title));
+    return name.includes(q) || dial.includes(q);
+  });
+});
+
+const form = reactive({
+  legal_name: '',
+  alias: '',
+  description: '',
+  timezone: '',
+  logo: null,
+  person: {
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone_country: '',
+    phone_number: ''
+  }
+});
 
 const fullAddress = computed(() => {
   if (parsedAddress.value?.street) {
@@ -91,7 +170,7 @@ const fetchBusinessById = async (id, orgId) => {
     businesses.value = [
       {
         ...data,
-        display: `${data.folio}${data.legal_name ? ' - ' + data.legal_name : ''}`,
+        display: `${data.folio}${data.name ? ' - ' + data.name : ''}`,
         id: data.id
       }
     ];
@@ -148,7 +227,7 @@ const fetchBusinesses = async (searchText, orgId) => {
     });
     businesses.value = (data.data || []).map((b) => ({
       ...b,
-      display: `${b.folio}${b.legal_name ? ' - ' + b.legal_name : ''}`,
+      display: `${b.folio}${b.name ? ' - ' + b.name : ''}`,
       id: b.id
     }));
   } catch (e) {
@@ -162,56 +241,81 @@ watch(businessSearch, (val) => {
   if (selectedOrganization.value) fetchBusinesses(val, selectedOrganization.value);
 });
 
+// INTEGRACIÓN CORRECTA DE ORGANIZACIÓN Y EMPRESA USANDO OBJETOS DEL BACKEND
 onMounted(async () => {
   try {
     const res = await axiosInstance.get(`/business-units/${business_unitId}`);
-    const data = res.data;
+    const data = res.data?.data || res.data?.business_unit || res.data;
 
-    form.legal_name = data.legal_name || '';
+    // Asignar todos los campos principales
+    form.legal_name = data.legal_name || data.name || '';
     form.alias = data.alias || '';
     form.description = data.description || '';
     form.timezone = data.timezone || '';
+    form.logo = null;
 
+    // Logo preview
     if (data.logo) {
       logoPreview.value = data.logo.startsWith('http') ? data.logo : `/storage/${data.logo}`;
+    } else if (data.logo_url) {
+      logoPreview.value = data.logo_url;
+    } else {
+      logoPreview.value = null;
     }
 
+    // Address
     if (data.address) {
       parsedAddress.value = {
         street: data.address.street || '',
         outdoor_number: data.address.outdoor_number || '',
+        indoor_number: data.address.indoor_number || '',
         neighborhood: data.address.neighborhood || '',
         postal_code: data.address.postal_code || '',
         city: data.address.city || '',
         state: data.address.state || '',
-        country: data.address.country || ''
+        country: data.address.country || '',
+        latitude: data.address.latitude || '',
+        longitude: data.address.longitude || '',
+        geofence_radius: data.address.geofence_radius || ''
       };
+    } else {
+      parsedAddress.value = {};
     }
 
-    if (data.person) {
-      form.person.first_name = data.person.first_name || '';
-      form.person.last_name = data.person.last_name || '';
-      form.person.email = data.person.email || '';
-      form.person.phone_number = data.person.phone_number || '';
+    // Contact
+    if (data.contact) {
+      form.person.first_name = data.contact.first_name || '';
+      form.person.last_name = data.contact.last_name || '';
+      form.person.email = data.contact.email || '';
+      form.person.phone_country = data.contact.phone_country || '';
+      form.person.phone_number = data.contact.phone_number || '';
+    } else {
+      form.person.first_name = '';
+      form.person.last_name = '';
+      form.person.email = '';
+      form.person.phone_country = '';
+      form.person.phone_number = '';
     }
 
-    if (data.organization_id) {
-      await fetchOrganizationById(data.organization_id);
-      selectedOrganization.value = data.organization_id;
-    }
-    if (data.business_id && data.organization_id) {
-      await fetchBusinessById(data.business_id, data.organization_id);
-      selectedBusiness.value = data.business_id;
-    }
+    // INTEGRACIÓN CORRECTA DE ORGANIZACIÓN Y EMPRESA
+    const orgId = data.organization_id ?? data.organization?.id;
+    const busId = data.business_id ?? data.business?.id;
 
     if (isSuperadmin.value) {
+      await fetchOrganizationById(orgId);
       await fetchOrganizations('');
-    }
-    if ((isSuperadmin.value || canSelectBusiness.value) && data.organization_id) {
-      await fetchBusinesses('', data.organization_id);
+      selectedOrganization.value = orgId;
+
+      await fetchBusinessById(busId, orgId);
+      await fetchBusinesses('', orgId);
+      selectedBusiness.value = busId;
+    } else if (canSelectBusiness.value) {
+      await fetchBusinessById(busId, orgId);
+      await fetchBusinesses('', orgId);
+      selectedBusiness.value = busId;
     }
   } catch (err) {
-    console.error('❌ Error al cargar datos de ubicación', err);
+    // Error al cargar datos de ubicación
   }
 });
 
@@ -293,7 +397,6 @@ const validate = async () => {
     router.push(`/ubicaciones/${business_unitId}`);
   } catch (err) {
     errorMsg.value = 'Error al actualizar ubicación';
-    console.error('❌ Error al actualizar ubicación', err.response?.data || err);
   }
 };
 </script>
@@ -404,7 +507,7 @@ const validate = async () => {
           <v-label>Zona Horaria</v-label>
           <v-autocomplete
             v-model="form.timezone"
-            :items="timezones.map((tz) => ({ label: tz, value: tz }))"
+            :items="tzRaw"
             v-model:search-input="timezoneSearch"
             item-title="label"
             item-value="value"
@@ -453,7 +556,54 @@ const validate = async () => {
 
         <v-col cols="12" sm="6">
           <v-label>Teléfono</v-label>
-          <v-text-field v-model="form.person.phone_number" variant="outlined" color="primary" class="mt-2" />
+          <div class="phone-group phone-group-responsive mt-2">
+            <div style="display: flex; flex-direction: column">
+              <v-autocomplete
+                v-model="form.person.phone_country"
+                :items="filteredCountries"
+                v-model:search-input="phoneCountrySearch"
+                item-title="title"
+                item-value="value"
+                variant="outlined"
+                color="primary"
+                class="phone-country-field"
+                placeholder="País"
+                clearable
+                :menu-props="{ maxHeight: '400px', width: 320 }"
+                hide-details
+              >
+                <template #selection="{ item }">
+                  <template v-if="item && item.value">
+                    <span>{{ findCountryByCode(item.value)?.flag }}</span>
+                    <span style="margin-left: 6px">{{ getDialPrefix(item.value, item.title) }}</span>
+                  </template>
+                </template>
+                <template #item="{ item, props }">
+                  <v-list-item v-bind="props">
+                    <template #title>
+                      <div class="d-flex align-center justify-space-between">
+                        <span>
+                          <span>{{ findCountryByCode(item.value)?.flag }}</span>
+                          <span style="margin-left: 8px">
+                            {{ item.title.replace(/^.*?\s/, '') }}
+                          </span>
+                        </span>
+                        <span class="text-medium-emphasis">{{ getDialPrefix(item.value, item.title) }}</span>
+                      </div>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-autocomplete>
+            </div>
+            <v-text-field
+              v-model="form.person.phone_number"
+              variant="outlined"
+              color="primary"
+              class="phone-number-field"
+              placeholder="Número"
+              hide-details
+            />
+          </div>
         </v-col>
       </v-row>
 

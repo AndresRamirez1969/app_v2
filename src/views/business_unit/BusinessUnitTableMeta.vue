@@ -22,9 +22,13 @@ const emit = defineEmits(['update:page', 'sort']);
             <slot name="sort-icon" :column="'folio'" />
           </th>
           <th class="logo-header">Logo</th>
-          <th @click="emit('sort', 'legal_name')" class="cursor-pointer legal-header">
-            Nombre Legal
-            <slot name="sort-icon" :column="'legal_name'" />
+          <th @click="emit('sort', 'name')" class="cursor-pointer legal-header">
+            Nombre
+            <slot name="sort-icon" :column="'name'" />
+          </th>
+          <th @click="emit('sort', 'alias')" class="cursor-pointer alias-header">
+            Alias
+            <slot name="sort-icon" :column="'alias'" />
           </th>
           <th @click="emit('sort', 'address')" class="cursor-pointer address-header">
             Dirección
