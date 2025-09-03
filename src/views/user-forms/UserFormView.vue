@@ -62,7 +62,19 @@ const getResponseStatus = (form) => {
 
 // Filtrar formularios según la lógica del backend
 const filteredItems = computed(() => {
-  return props.items.filter((form) => {
+  return props.items.filter((form, index) => {
+    // Validar que form existe
+    if (!form) {
+      console.warn(`Formulario ${index} es undefined`);
+      return false;
+    }
+
+    // Validar que form es un objeto
+    if (typeof form !== 'object') {
+      console.warn(`Formulario ${index} no es un objeto:`, typeof form);
+      return false;
+    }
+
     // Solo mostrar formularios que pueden ser respondidos
     return form.can_respond !== false;
   });

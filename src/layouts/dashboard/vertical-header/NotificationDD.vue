@@ -1,20 +1,9 @@
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from 'vue';
-// icons
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { CheckCircleOutlined, GiftOutlined, MessageOutlined, SettingOutlined, BellOutlined } from '@ant-design/icons-vue';
-import { useAuthStore } from '@/stores/auth';
-import axiosInstance from '@/utils/axios';
+import { useNotifications } from '@/utils/notifications';
 
-const notifications = ref([]);
-const auth = useAuthStore();
-
-const fetchNotifications = async () => {
-  const response = await axiosInstance.get('/notifications');
-  notifications.value = response.data.data;
-  console.log('notifications', notifications.value);
-};
-
-// ELIMINAR toda la función setupEchoListener()
+const { notifications, unreadCount, isLoading, fetchNotifications, setupEchoNotifications, cleanupEcho } = useNotifications();
 
 const isActive = ref(true);
 
@@ -59,20 +48,33 @@ const formatTime = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-// Actualizar el badge con el número real de notificaciones no leídas
-const unreadCount = computed(() => {
-  return notifications.value.filter((n) => !n.read_at).length;
+watch(
+  notifications,
+  (newNotifications) => {
+    console.log('📋 Notificaciones actualizadas:', newNotifications);
+  },
+  { deep: true }
+);
+
+// Debug: Observar cambios en el contador
+watch(unreadCount, (newCount) => {
+  console.log('🔢 Contador actualizado:', newCount);
 });
 
-function deactivateItem() {
-  isActive.value = false;
-}
+onMounted(async () => {
+  await fetchNotifications();
+  setTimeout(() => {
+    setupEchoNotifications();
+  }, 100);
+});
+
+onUnmounted(() => {
+  console.log('🛑 Componente desmontado');
+  cleanupEcho();
+});
 </script>
 
 <template>
-  <!-- ---------------------------------------------- -->
-  <!-- notifications DD -->
-  <!-- ---------------------------------------------- -->
   <v-menu :close-on-content-click="false" offset="6, 0">
     <template v-slot:activator="{ props }">
       <v-btn icon class="text-secondary ml-sm-2 ml-1" color="darkText" rounded="sm" size="small" v-bind="props">
@@ -85,31 +87,24 @@ function deactivateItem() {
       <div class="pa-4">
         <div class="d-flex align-center justify-space-between">
           <h6 class="text-subtitle-1 mb-0">Notificaciones</h6>
-          <v-btn
-            variant="text"
-            color="success"
-            icon
-            rounded
-            size="small"
-            @click="deactivateItem()"
-            :class="isActive ? 'd-block' : 'd-none'"
-          >
-            <CheckCircleOutlined :style="{ fontSize: '16px' }" />
-            <v-tooltip aria-label="tooltip" activator="parent" location="bottom" :content-class="isActive ? 'custom-tooltip' : 'd-none'">
-              <span class="text-caption">Marcar como leído</span>
-            </v-tooltip>
-          </v-btn>
         </div>
       </div>
       <v-divider></v-divider>
       <perfect-scrollbar style="height: calc(100vh - 300px); max-height: 265px">
-        <v-list class="py-0" lines="two" aria-label="notification list" aria-busy="true">
+        <v-list class="py-0" lines="two" aria-label="notification list">
+          <div v-if="isLoading" class="text-center py-4">
+            <v-progress-circular indeterminate color="primary" size="24" />
+            <p class="text-caption mt-2">Cargando notificaciones...</p>
+          </div>
+
           <v-list-item
+            v-else
             v-for="notification in notifications"
             :key="notification.id"
             :value="notification.id"
             color="secondary"
             class="no-spacer py-1"
+            :class="{ unread: !notification.read_at }"
           >
             <template v-slot:prepend>
               <v-avatar size="36" variant="flat" :color="getNotificationColor(notification.type)" class="mr-3 py-2">
@@ -118,12 +113,12 @@ function deactivateItem() {
             </template>
             <div class="d-inline-flex justify-space-between w-100">
               <span class="text-caption">{{ formatTime(notification.created_at) }}</span>
+              <v-icon v-if="!notification.read_at" size="12" color="primary">mdi-circle</v-icon>
             </div>
             <p class="text-caption text-medium-emphasis my-0">{{ notification.data.message }}</p>
           </v-list-item>
 
-          <!-- Mostrar mensaje si no hay notificaciones -->
-          <div v-if="notifications.length === 0" class="text-center pa-4">
+          <div v-if="!isLoading && notifications.length === 0" class="text-center pa-4">
             <p class="text-caption text-grey">No hay notificaciones</p>
           </div>
         </v-list>
@@ -137,5 +132,13 @@ function deactivateItem() {
   > .v-overlay__content.custom-tooltip {
     padding: 2px 6px;
   }
+}
+
+.unread {
+  background-color: rgba(var(--v-theme-primary), 0.05);
+}
+
+.unread:hover {
+  background-color: rgba(var(--v-theme-primary), 0.1);
 }
 </style>
