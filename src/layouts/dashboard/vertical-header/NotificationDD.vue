@@ -1,10 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { CheckCircleOutlined, GiftOutlined, MessageOutlined, SettingOutlined, BellOutlined } from '@ant-design/icons-vue';
 import { useNotifications } from '@/utils/notifications';
 
-const { notifications, unreadCount, isLoading, fetchNotifications, markAsRead, markAllAsRead, setupEchoNotifications, cleanupEcho } =
-  useNotifications();
+const { notifications, unreadCount, isLoading, fetchNotifications, setupEchoNotifications, cleanupEcho } = useNotifications();
 
 const isActive = ref(true);
 
@@ -49,25 +48,28 @@ const formatTime = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-// Marcar como leída al hacer clic
-const handleNotificationClick = async (notification) => {
-  if (!notification.read_at) {
-    await markAsRead(notification.id);
-  }
-};
+watch(
+  notifications,
+  (newNotifications) => {
+    console.log('📋 Notificaciones actualizadas:', newNotifications);
+  },
+  { deep: true }
+);
 
-// Marcar todas como leídas
-const handleMarkAllAsRead = async () => {
-  await markAllAsRead();
-  isActive.value = false;
-};
+// Debug: Observar cambios en el contador
+watch(unreadCount, (newCount) => {
+  console.log('🔢 Contador actualizado:', newCount);
+});
 
 onMounted(async () => {
   await fetchNotifications();
-  setupEchoNotifications();
+  setTimeout(() => {
+    setupEchoNotifications();
+  }, 100);
 });
 
 onUnmounted(() => {
+  console.log('🛑 Componente desmontado');
   cleanupEcho();
 });
 </script>
@@ -85,12 +87,6 @@ onUnmounted(() => {
       <div class="pa-4">
         <div class="d-flex align-center justify-space-between">
           <h6 class="text-subtitle-1 mb-0">Notificaciones</h6>
-          <v-btn v-if="unreadCount > 0" variant="text" color="success" icon rounded size="small" @click="handleMarkAllAsRead">
-            <CheckCircleOutlined :style="{ fontSize: '16px' }" />
-            <v-tooltip activator="parent" location="bottom">
-              <span class="text-caption">Marcar todas como leídas</span>
-            </v-tooltip>
-          </v-btn>
         </div>
       </div>
       <v-divider></v-divider>
@@ -109,7 +105,6 @@ onUnmounted(() => {
             color="secondary"
             class="no-spacer py-1"
             :class="{ unread: !notification.read_at }"
-            @click="handleNotificationClick(notification)"
           >
             <template v-slot:prepend>
               <v-avatar size="36" variant="flat" :color="getNotificationColor(notification.type)" class="mr-3 py-2">
