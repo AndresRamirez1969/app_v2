@@ -11,8 +11,15 @@ const props = defineProps({
   items: Array,
   isMobile: Boolean,
   canEditPermission: Boolean,
-  isLoading: Boolean
+  isLoading: Boolean,
+  page: Number,
+  itemsPerPage: Number,
+  sortBy: String,
+  sortDesc: Boolean,
+  total: Number
 });
+
+const emit = defineEmits(['update:page', 'sort']);
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -23,7 +30,6 @@ const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
 
-// Solo puede ver empresa si es superadmin, admin o tiene el permiso y la empresa pertenece a su organización
 const canViewBusiness = (group) => {
   if (isSuperadmin.value || isAdmin.value) return true;
   if (permissions.value.includes('business.view')) {
@@ -32,7 +38,6 @@ const canViewBusiness = (group) => {
   return false;
 };
 
-// Para mostrar la columna empresa solo si el usuario es superadmin, admin o tiene el permiso y hay al menos una empresa de su organización
 const showBusiness = computed(() => {
   if (isSuperadmin.value || isAdmin.value) return true;
   if (permissions.value.includes('business.view')) {
@@ -46,10 +51,10 @@ const canEdit = computed(() => permissions.value.includes('businessUnitGroup.upd
 const canView = computed(() => permissions.value.includes('businessUnitGroup.view'));
 const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatus.value);
 
-const sortBy = ref('id');
-const sortDesc = ref(false);
-const page = ref(1);
-const itemsPerPage = ref(10);
+const sortBy = ref(props.sortBy || 'id');
+const sortDesc = ref(props.sortDesc || false);
+const page = ref(props.page || 1);
+const itemsPerPage = ref(props.itemsPerPage || 10);
 
 const toggleSort = (column) => {
   if (sortBy.value === column) {
@@ -58,6 +63,7 @@ const toggleSort = (column) => {
     sortBy.value = column;
     sortDesc.value = false;
   }
+  emit('sort', column);
 };
 
 const getOrganization = (group) => {
@@ -65,15 +71,20 @@ const getOrganization = (group) => {
 };
 
 const getBusiness = (group) => {
-  return group.business ? { text: `${group.business.folio} - ${group.business.legal_name}`, id: group.business.id } : null;
+  return group.business ? { text: `${group.business.folio} - ${group.business.name}`, id: group.business.id } : null;
+};
+
+// INTEGRACIÓN: contar ubicaciones con todos los posibles campos
+const getBusinessUnitsCount = (group) => {
+  return group.business_units_count ?? group.businessUnits?.length ?? group.business_units?.length ?? 0;
 };
 
 const sortedItems = computed(() => {
   return [...props.items].sort((a, b) => {
     let aVal, bVal;
     if (sortBy.value === 'business_units_count') {
-      aVal = a.business_units_count ?? a.businessUnits?.length ?? 0;
-      bVal = b.business_units_count ?? b.businessUnits?.length ?? 0;
+      aVal = getBusinessUnitsCount(a);
+      bVal = getBusinessUnitsCount(b);
       return (aVal - bVal) * (sortDesc.value ? -1 : 1);
     } else if (sortBy.value === 'organization') {
       aVal = getOrganization(a)?.text?.toLowerCase() ?? '';
@@ -107,11 +118,16 @@ const toggleStatus = async (group) => {
     const res = await axiosInstance.put(`/business-unit-groups/${group.id}`, {
       status: newStatus
     });
-    group.status = res.data.status || newStatus;
+    group.status = res.data.group?.status || res.data.status || newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
   }
 };
+
+function handlePageChange(newPage) {
+  page.value = newPage;
+  emit('update:page', newPage);
+}
 </script>
 
 <template>
@@ -136,7 +152,13 @@ const toggleStatus = async (group) => {
         <div class="d-flex flex-column gap-2">
           <div class="d-flex align-center justify-space-between mb-1">
             <div class="text-caption" style="margin-right: 8px">
-              <router-link v-if="canView" :to="`/grupos-de-ubicaciones/${group.id}`" @click.stop style="text-decoration: underline">
+              <router-link
+                v-if="canView"
+                :to="`/grupos-de-ubicaciones/${group.id}`"
+                @click.stop
+                class="blue-link"
+                style="text-decoration: underline"
+              >
                 {{ group.id }}
               </router-link>
               <span v-else>{{ group.id }}</span>
@@ -150,6 +172,7 @@ const toggleStatus = async (group) => {
               v-if="getOrganization(group)"
               :to="`/organizaciones/${getOrganization(group).id}`"
               @click.stop
+              class="blue-link"
               style="text-decoration: underline"
             >
               {{ getOrganization(group).text }}
@@ -162,6 +185,7 @@ const toggleStatus = async (group) => {
               v-if="getBusiness(group)"
               :to="`/empresas/${getBusiness(group).id}`"
               @click.stop
+              class="blue-link"
               style="text-decoration: underline"
             >
               {{ getBusiness(group).text }}
@@ -170,10 +194,20 @@ const toggleStatus = async (group) => {
           </div>
           <div class="text-caption mb-1">
             <strong>Ubicaciones:</strong>
-            {{ group.business_units_count ?? group.businessUnits?.length ?? 0 }}
+            {{ getBusinessUnitsCount(group) }}
           </div>
         </div>
       </v-card>
+      <v-row v-if="props.total > itemsPerPage">
+        <v-col class="d-flex justify-center">
+          <v-pagination
+            v-model="page"
+            :length="Math.ceil(props.total / itemsPerPage)"
+            @update:model-value="handlePageChange"
+            color="primary"
+          />
+        </v-col>
+      </v-row>
     </template>
 
     <template v-else>
@@ -197,7 +231,7 @@ const toggleStatus = async (group) => {
           :sortDesc="sortDesc"
           :showOrganization="isSuperadmin"
           :showBusiness="showBusiness"
-          @update:page="page = $event"
+          @update:page="handlePageChange"
           @sort="toggleSort"
         >
           <template #sort-icon="{ column }">
@@ -213,14 +247,14 @@ const toggleStatus = async (group) => {
               :class="['row-clickable', { 'row-disabled': !canView }]"
               :style="{ cursor: canView ? 'pointer' : 'default' }"
             >
-              <td>
+              <td class="folio-cell">
                 <router-link v-if="canView" :to="`/grupos-de-ubicaciones/${group.id}`" @click.stop class="blue-link">
                   {{ group.id }}
                 </router-link>
                 <span v-else>{{ group.id }}</span>
               </td>
-              <td>{{ group.name }}</td>
-              <td v-if="showOrganization">
+              <td class="legal-cell">{{ group.name }}</td>
+              <td v-if="showOrganization" class="organization-cell">
                 <router-link
                   v-if="getOrganization(group)"
                   :to="`/organizaciones/${getOrganization(group).id}`"
@@ -231,14 +265,14 @@ const toggleStatus = async (group) => {
                 </router-link>
                 <span v-else>No disponible</span>
               </td>
-              <td v-if="showBusiness">
+              <td v-if="showBusiness" class="company-cell">
                 <router-link v-if="getBusiness(group)" :to="`/empresas/${getBusiness(group).id}`" @click.stop class="blue-link">
                   {{ getBusiness(group).text }}
                 </router-link>
                 <span v-else>No disponible</span>
               </td>
-              <td>{{ group.business_units_count ?? group.businessUnits?.length ?? 0 }}</td>
-              <td>
+              <td class="address-cell">{{ getBusinessUnitsCount(group) }}</td>
+              <td class="status-cell">
                 <StatusChip :status="group.status" />
               </td>
               <td class="actions-cell" @click.stop>
@@ -277,6 +311,16 @@ const toggleStatus = async (group) => {
             </tr>
           </template>
         </BusinessUnitGroupsTableMeta>
+        <v-row v-if="props.total > itemsPerPage">
+          <v-col class="d-flex justify-center">
+            <v-pagination
+              v-model="page"
+              :length="Math.ceil(props.total / itemsPerPage)"
+              @update:model-value="handlePageChange"
+              color="primary"
+            />
+          </v-col>
+        </v-row>
       </template>
     </template>
   </div>

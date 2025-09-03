@@ -24,16 +24,6 @@ td {
   text-overflow: ellipsis;
 }
 
-.logo-header,
-.logo-cell {
-  width: 60px !important;
-  min-width: 60px !important;
-  max-width: 60px !important;
-  text-align: center;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-}
-
 .legal-header,
 .legal-cell {
   width: 180px;
@@ -43,13 +33,37 @@ td {
   text-overflow: ellipsis;
 }
 
-.address-header,
-.address-cell {
-  width: 240px;
+.organization-header,
+.organization-cell {
+  width: 200px;
+  min-width: 120px;
+  max-width: 240px;
+  text-align: left;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.company-header,
+.company-cell {
+  width: 180px;
+  min-width: 120px;
+  max-width: 220px;
   text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.address-header,
+.address-cell {
+  width: 120px;
+  min-width: 80px;
+  max-width: 140px;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .status-header,
@@ -142,19 +156,13 @@ td {
 }
 
 /* Enlaces azules para IDs */
-.link-blue,
+.blue-link,
 .folio-cell a,
 .folio-cell a:visited,
 .folio-cell a:active {
   color: #1976d2 !important;
   text-decoration: underline;
   font-weight: 500;
-}
-
-.blue-link {
-  color: #1976d2 !important;
-  text-decoration: underline !important;
-  cursor: pointer;
 }
 
 /* Sombra para cards y tablas */

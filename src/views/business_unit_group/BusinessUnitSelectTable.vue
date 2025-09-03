@@ -23,14 +23,11 @@ const props = defineProps({
 });
 const emit = defineEmits(['update:page', 'sort', 'toggle']);
 
-// Saber si está seleccionada
 function isSelected(id) {
   return props.selectedBusinessUnits?.includes(id);
 }
 
-// Handler para seleccionar al hacer click en la fila
 function handleRowClick(unit, event) {
-  // Evita el toggle si el click fue sobre el checkbox
   if (event && (event.target.closest('.checkbox-compact') || event.target.tagName === 'INPUT' || event.target.tagName === 'LABEL')) {
     return;
   }
@@ -59,7 +56,6 @@ function handlePageChange(val) {
         :style="{ cursor: 'pointer', border: isSelected(unit.id) ? '2px solid #1976d2' : '1px solid #eee' }"
       >
         <v-row no-gutters align="center" class="mb-1">
-          <!-- Checkbox on the left -->
           <v-col cols="2" class="d-flex justify-center align-center">
             <v-checkbox
               :model-value="isSelected(unit.id)"
@@ -72,8 +68,8 @@ function handlePageChange(val) {
               @click.stop
             />
           </v-col>
-          <v-col cols="3" class="d-flex justify-start align-center">
-            <div class="logo-container-mobile">
+          <v-col cols="3" class="d-flex justify-center align-center">
+            <div class="logo-container-mobile d-flex align-center justify-center" style="height: 48px">
               <v-avatar v-if="unit.logo" class="logo-avatar-mobile" color="grey lighten-2">
                 <img :src="unit.logo" alt="Logo" class="logo-img-cover" />
               </v-avatar>
@@ -89,7 +85,7 @@ function handlePageChange(val) {
               </div>
               <StatusChip :status="unit.status" />
             </div>
-            <div class="font-weight-medium mb-1">{{ unit.legal_name }}</div>
+            <div class="font-weight-medium mb-1">{{ unit.name }}</div>
             <div class="text-caption">
               <strong>Dirección:</strong>
               {{ unit.addressFormatted }}
@@ -117,9 +113,7 @@ function handlePageChange(val) {
             <th class="font-weight-bold text-center uniform-col" style="width: 80px"></th>
             <th class="font-weight-bold text-center uniform-col cursor-pointer" style="width: 80px" @click="handleSort('folio')">Folio</th>
             <th class="font-weight-bold text-center uniform-col" style="width: 72px">Logo</th>
-            <th class="font-weight-bold text-center uniform-col cursor-pointer" style="width: 180px" @click="handleSort('legal_name')">
-              Nombre Legal
-            </th>
+            <th class="font-weight-bold text-center uniform-col cursor-pointer" style="width: 180px" @click="handleSort('name')">Nombre</th>
             <th class="font-weight-bold text-center uniform-col cursor-pointer" style="width: 120px" @click="handleSort('alias')">Alias</th>
             <th class="font-weight-bold text-center uniform-col cursor-pointer" style="width: 240px" @click="handleSort('address')">
               Dirección
@@ -151,15 +145,17 @@ function handlePageChange(val) {
               </div>
             </td>
             <td class="text-center uniform-col">{{ unit.folio }}</td>
-            <td class="text-center uniform-col">
-              <v-avatar v-if="unit.logo" size="48" class="logo-avatar">
-                <img :src="unit.logo" alt="Logo" />
-              </v-avatar>
-              <v-avatar v-else size="48" color="grey lighten-2" class="logo-avatar">
-                <span style="font-size: 12px; color: #888">Sin logo</span>
-              </v-avatar>
+            <td class="text-center uniform-col" style="padding: 0">
+              <div class="d-flex align-center justify-center" style="height: 56px">
+                <v-avatar v-if="unit.logo" size="48" class="logo-avatar">
+                  <img :src="unit.logo" alt="Logo" />
+                </v-avatar>
+                <v-avatar v-else size="48" color="grey lighten-2" class="logo-avatar">
+                  <span style="font-size: 12px; color: #888">Sin logo</span>
+                </v-avatar>
+              </div>
             </td>
-            <td class="text-center uniform-col">{{ unit.legal_name }}</td>
+            <td class="text-center uniform-col">{{ unit.name }}</td>
             <td class="text-center uniform-col">{{ unit.alias }}</td>
             <td class="text-center uniform-col">{{ unit.addressFormatted }}</td>
             <td class="text-center uniform-col">

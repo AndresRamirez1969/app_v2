@@ -10,6 +10,11 @@ import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const business_unit_groups = ref([]);
+const total = ref(0);
+const page = ref(1);
+const itemsPerPage = ref(10);
+const sortBy = ref('id');
+const sortDesc = ref(true);
 const { mdAndDown } = useDisplay();
 
 const searchText = ref('');
@@ -54,9 +59,18 @@ onMounted(async () => {
 
 // Llama a la API con los parámetros actuales de búsqueda y filtros
 const fetchBusinessUnitGroups = async (params = {}) => {
+  isLoading.value = true;
   try {
-    const { data } = await axios.get('/business-unit-groups', { params });
+    const mergedParams = {
+      page: page.value,
+      per_page: itemsPerPage.value,
+      sort_by: sortBy.value,
+      sort_desc: sortDesc.value,
+      ...params
+    };
+    const { data } = await axios.get('/business-unit-groups', { params: mergedParams });
     business_unit_groups.value = data.data;
+    total.value = data.meta?.total ?? 0;
   } catch (error) {
     console.error('Error fetching business unit groups:', error);
   } finally {
@@ -69,25 +83,44 @@ const goToCreate = () => {
 };
 
 // Aplica búsqueda y filtros combinados
-function applyFilters() {
-  const params = {};
-  if (searchText.value) params.search = searchText.value;
-  if (filterOptions.value.organizationId) params.organization_id = filterOptions.value.organizationId;
-  if (filterOptions.value.businessId) params.business_id = filterOptions.value.businessId;
-  if (filterOptions.value.status) params.status = filterOptions.value.status;
-  if (filterOptions.value.createdAtStart) params.created_at_start = filterOptions.value.createdAtStart;
-  if (filterOptions.value.createdAtEnd) params.created_at_end = filterOptions.value.createdAtEnd;
-
+function applyFilters(extra = {}) {
+  const params = {
+    search: searchText.value || undefined,
+    organization_id: filterOptions.value.organizationId || undefined,
+    business_id: filterOptions.value.businessId || undefined,
+    status: filterOptions.value.status || undefined,
+    created_at_start: filterOptions.value.createdAtStart || undefined,
+    created_at_end: filterOptions.value.createdAtEnd || undefined,
+    ...extra
+  };
   fetchBusinessUnitGroups(params);
 }
 
 function handleSearch(text) {
   searchText.value = text;
+  page.value = 1;
   applyFilters();
 }
 
 function handleFilter(options) {
   filterOptions.value = options;
+  page.value = 1;
+  applyFilters();
+}
+
+function handlePageChange(newPage) {
+  page.value = newPage;
+  applyFilters({ page: newPage });
+}
+
+function handleSort(column) {
+  if (sortBy.value === column) {
+    sortDesc.value = !sortDesc.value;
+  } else {
+    sortBy.value = column;
+    sortDesc.value = false;
+  }
+  page.value = 1;
   applyFilters();
 }
 </script>
@@ -122,6 +155,13 @@ function handleFilter(options) {
             :isMobile="mdAndDown"
             :can-edit-permission="canEditPermission"
             :isLoading="isLoading"
+            :page="page"
+            :itemsPerPage="itemsPerPage"
+            :total="total"
+            :sortBy="sortBy"
+            :sortDesc="sortDesc"
+            @update:page="handlePageChange"
+            @sort="handleSort"
           />
         </v-col>
       </v-row>

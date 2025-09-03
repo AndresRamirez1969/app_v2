@@ -1,15 +1,14 @@
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import axios from '@/utils/axios';
 import BusinessUnitFilter from '../business_unit/BusinessUnitFilter.vue';
 import BusinessUnitSelectTable from './BusinessUnitSelectTable.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
-const route = useRoute();
-
-const groupId = route.params.id;
+const auth = useAuthStore();
 
 const name = ref('');
 const organizationId = ref(null);
@@ -24,9 +23,78 @@ const total = ref(0);
 const sortBy = ref('folio');
 const sortDesc = ref(false);
 const search = ref('');
-const status = ref(null);
+const status = ref('active');
 
 const showWarning = ref(false);
+const errorMsg = ref('');
+
+// SUPERADMIN/ADMIN SELECTS
+const roles = computed(() => auth.user?.roles || []);
+const isSuperadmin = computed(() => roles.value.includes('superadmin'));
+const isAdmin = computed(() => roles.value.includes('admin'));
+
+const organizationOptions = ref([]);
+const organizationSearch = ref('');
+const loadingOrganizations = ref(false);
+
+const businessOptions = ref([]);
+const businessSearch = ref('');
+const loadingBusinesses = ref(false);
+
+const fetchOrganizations = async (searchText = '') => {
+  loadingOrganizations.value = true;
+  try {
+    const { data } = await axios.get('/organizations', {
+      params: { q: searchText, limit: 10 }
+    });
+    organizationOptions.value = (data.data || []).map((o) => ({
+      ...o,
+      display: `${o.folio}${o.legal_name ? ' - ' + o.legal_name : ''}`,
+      id: o.id
+    }));
+  } catch {
+    organizationOptions.value = [];
+  } finally {
+    loadingOrganizations.value = false;
+  }
+};
+
+const fetchBusinesses = async (searchText = '', orgId = null) => {
+  loadingBusinesses.value = true;
+  try {
+    const params = { q: searchText, limit: 10 };
+    if (orgId) params.organization_id = orgId;
+    const { data } = await axios.get('/businesses', { params });
+    businessOptions.value = (data.data || []).map((b) => ({
+      ...b,
+      display: `${b.folio}${b.name ? ' - ' + b.name : ''}`,
+      id: b.id
+    }));
+  } catch {
+    businessOptions.value = [];
+  } finally {
+    loadingBusinesses.value = false;
+  }
+};
+
+// Watchers for superadmin
+watch(organizationSearch, (val) => {
+  if (isSuperadmin.value) fetchOrganizations(val);
+});
+watch(businessSearch, (val) => {
+  if ((isSuperadmin.value && organizationId.value) || (isAdmin.value && organizationId.value)) fetchBusinesses(val, organizationId.value);
+});
+watch(organizationId, (val) => {
+  if (isSuperadmin.value && val) {
+    businessId.value = null;
+    fetchBusinesses('', val);
+  }
+  // For admin, fetch businesses when orgId changes (should only happen on mount)
+  if (isAdmin.value && val) {
+    businessId.value = null;
+    fetchBusinesses('', val);
+  }
+});
 
 const fullAddress = (address) => {
   if (!address) return 'No disponible';
@@ -59,26 +127,13 @@ const fetchBusinessUnits = async () => {
     };
     const { data } = await axios.get('/business-units', { params });
     businessUnits.value = data.data;
-    total.value = data.total;
+    total.value = data.meta?.total ?? data.total ?? 0;
   } catch (e) {
     businessUnits.value = [];
     total.value = 0;
     console.error('Error fetching business units:', e);
   } finally {
     loading.value = false;
-  }
-};
-
-const fetchGroup = async () => {
-  try {
-    const { data } = await axios.get(`/business-unit-groups/${groupId}`);
-    name.value = data.name;
-    organizationId.value = data.organization_id;
-    businessId.value = data.business_id;
-    selectedBusinessUnits.value = data.business_units.map((bu) => bu.id);
-    status.value = data.status;
-  } catch (e) {
-    console.error('Error fetching group:', e);
   }
 };
 
@@ -93,9 +148,14 @@ watch(search, () => {
   fetchBusinessUnits();
 });
 
-onMounted(async () => {
-  await fetchGroup();
+onMounted(() => {
+  // If admin, set organizationId automatically
+  if (isAdmin.value && auth.user?.organization_id) {
+    organizationId.value = auth.user.organization_id;
+    fetchBusinesses('', organizationId.value);
+  }
   fetchBusinessUnits();
+  if (isSuperadmin.value) fetchOrganizations('');
 });
 
 function handleFilter(newFilters) {
@@ -137,22 +197,30 @@ function toggleBusinessUnit(id) {
 const saving = ref(false);
 async function saveGroup() {
   showWarning.value = false;
-  if (!name.value || !selectedBusinessUnits.value.length) {
+  errorMsg.value = '';
+  if (!name.value || !organizationId.value || !businessId.value || !selectedBusinessUnits.value.length) {
     showWarning.value = true;
     return;
   }
   saving.value = true;
   try {
-    await axios.put(`/business-unit-groups/${groupId}`, {
+    await axios.post('/business-unit-groups', {
       name: name.value,
       organization_id: organizationId.value,
       business_id: businessId.value,
       business_units: selectedBusinessUnits.value,
       status: status.value
     });
-    router.push(`/grupos-de-ubicaciones/${groupId}`);
+    router.push('/grupos-de-ubicaciones');
   } catch (e) {
-    console.error('Error updating group:', e);
+    if (e.response?.data?.error) {
+      errorMsg.value = e.response.data.error;
+    } else if (e.response?.data?.message) {
+      errorMsg.value = e.response.data.message;
+    } else {
+      errorMsg.value = 'Error al crear el grupo';
+    }
+    console.error('Error creating group:', e);
   } finally {
     saving.value = false;
   }
@@ -169,18 +237,16 @@ function toggleSort(column) {
 </script>
 
 <template>
-  <v-container>
-    <!-- Header -->
+  <v-container fluid>
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
         <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
           <v-icon :icon="mdiArrowLeft"></v-icon>
         </v-btn>
-        <h3 class="font-weight-medium ml-3 mb-0">Editar Grupo de Ubicaciones</h3>
+        <h3 class="font-weight-medium ml-3 mb-0">Crear Grupo de Ubicaciones</h3>
       </v-col>
     </v-row>
 
-    <!-- Información General -->
     <v-row>
       <v-col cols="12">
         <h4 class="font-weight-bold mb-3">Información General</h4>
@@ -188,39 +254,87 @@ function toggleSort(column) {
       </v-col>
     </v-row>
 
-    <!-- Nombre del grupo -->
-    <v-row>
-      <v-col>
-        <v-text-field
-          v-model="name"
-          label="Nombre del grupo"
-          variant="outlined"
-          color="primary"
-          required
-          class="mb-4"
-          :error="showWarning && !name"
-          :error-messages="showWarning && !name ? 'Este campo es obligatorio.' : ''"
-          hint="Este campo es requerido."
-          persistent-hint
-        />
-      </v-col>
-    </v-row>
-
-    <!-- Divider entre nombre y filtro -->
+    <!-- Nombre, Organización y Empresa con separación uniforme -->
     <v-row>
       <v-col cols="12">
-        <v-divider class="mb-5" />
+        <v-label class="mb-1">Nombre <span class="text-error">*</span></v-label>
+        <v-text-field v-model="name" variant="outlined" color="primary" required density="compact" class="mb-2" />
+
+        <!-- SUPERADMIN: muestra organización y empresa solo si ya seleccionó organización -->
+        <template v-if="isSuperadmin">
+          <v-label class="mb-1">Organización <span class="text-error">*</span></v-label>
+          <v-autocomplete
+            v-model="organizationId"
+            :items="organizationOptions"
+            :loading="loadingOrganizations"
+            v-model:search-input="organizationSearch"
+            item-title="display"
+            item-value="id"
+            variant="outlined"
+            color="primary"
+            density="compact"
+            placeholder="Buscar organización"
+            clearable
+            hide-details
+            class="mb-2"
+            :menu-props="{ maxHeight: '300px' }"
+          />
+          <div style="height: 10px"></div>
+          <template v-if="organizationId">
+            <v-label class="mb-1">Empresa <span class="text-error">*</span></v-label>
+            <v-autocomplete
+              v-model="businessId"
+              :items="businessOptions"
+              :loading="loadingBusinesses"
+              v-model:search-input="businessSearch"
+              item-title="display"
+              item-value="id"
+              variant="outlined"
+              color="primary"
+              density="compact"
+              placeholder="Buscar empresa"
+              clearable
+              hide-details
+              class="mb-2"
+              :menu-props="{ maxHeight: '300px' }"
+            />
+            <div style="height: 10px"></div>
+          </template>
+        </template>
+
+        <!-- ADMIN: solo muestra empresa, organizationId ya está seteado -->
+        <template v-else-if="isAdmin && organizationId">
+          <v-label class="mb-1">Empresa <span class="text-error">*</span></v-label>
+          <v-autocomplete
+            v-model="businessId"
+            :items="businessOptions"
+            :loading="loadingBusinesses"
+            v-model:search-input="businessSearch"
+            item-title="display"
+            item-value="id"
+            variant="outlined"
+            color="primary"
+            density="compact"
+            placeholder="Buscar empresa"
+            clearable
+            hide-details
+            class="mb-2"
+            :menu-props="{ maxHeight: '300px' }"
+          />
+          <div style="height: 10px"></div>
+        </template>
+
+        <!-- Si no es superadmin ni admin, no muestra nada extra -->
       </v-col>
     </v-row>
 
-    <!-- Filtros de organización y empresa y búsqueda -->
     <v-row>
-      <v-col>
+      <v-col cols="12">
         <BusinessUnitFilter
           @filter="handleFilter"
           @org-biz-change="handleOrgBizChange"
           @search="handleSearch"
-          :showOrganization="true"
+          :showOrganization="isSuperadmin"
           :showBusiness="true"
           :organization-id="organizationId"
           :business-id="businessId"
@@ -228,7 +342,6 @@ function toggleSort(column) {
       </v-col>
     </v-row>
 
-    <!-- Tabla de business units con selección y paginación o mensaje si no hay -->
     <v-row>
       <v-col>
         <template v-if="loading">
@@ -275,10 +388,15 @@ function toggleSort(column) {
       </v-col>
     </v-row>
 
-    <!-- Botón guardar -->
+    <v-row v-if="errorMsg">
+      <v-col>
+        <v-alert type="error" dense>{{ errorMsg }}</v-alert>
+      </v-col>
+    </v-row>
+
     <v-row>
       <v-col class="d-flex justify-end">
-        <v-btn color="primary" :loading="saving" @click="saveGroup"> Guardar Cambios </v-btn>
+        <v-btn color="primary" :loading="saving" @click="saveGroup"> Guardar Grupo </v-btn>
       </v-col>
     </v-row>
   </v-container>

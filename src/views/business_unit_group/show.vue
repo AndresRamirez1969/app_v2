@@ -21,16 +21,17 @@ const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
 const isSponsor = computed(() => roles.value.includes('sponsor'));
-const canView = computed(() => permissions.value.includes('businessUnitGroup.view'));
+const canView = computed(
+  () => permissions.value.includes('businessUnitGroup.view') || permissions.value.includes('businessUnitGroup.viewAny')
+);
 const canViewAny = computed(() => permissions.value.includes('businessUnitGroup.viewAny'));
 const canEdit = computed(() => permissions.value.includes('businessUnitGroup.update'));
 const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value);
 
-const isActive = computed(() => group.value?.status === 'activa' || group.value?.status === 'active');
+const isActive = computed(() => group.value?.status === 'active');
 
-// Permisos para ver empresa
 const canViewBusiness = (groupObj) => {
-  if (!groupObj) return false; // <-- integración para evitar error
+  if (!groupObj) return false;
   if (isSuperadmin.value || isAdmin.value) return true;
   if (permissions.value.includes('business.view')) {
     return groupObj.business && groupObj.business.organization_id === user.value.organization_id;
@@ -75,7 +76,7 @@ const formatAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
-const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
+const truncate = (text, max = 45) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 const toggleStatus = async () => {
   if (!group.value) return;
@@ -84,7 +85,7 @@ const toggleStatus = async () => {
     const res = await axiosInstance.put(`/business-unit-groups/${group.value.id}`, {
       status: newStatus
     });
-    group.value.status = res.data.status || newStatus;
+    group.value.status = res.data.group?.status || res.data.status || newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
   }
@@ -94,9 +95,8 @@ onMounted(async () => {
   if (!canView.value) return;
   try {
     const id = route.params.id;
-    // El backend ya regresa las ubicaciones con address incluido
     const res = await axiosInstance.get(`/business-unit-groups/${id}`);
-    group.value = res.data || res.data.group || res.data.data;
+    group.value = res.data.group || res.data.data || res.data;
     businessUnits.value = group.value.business_units || group.value.businessUnits || [];
   } catch (err) {
     console.error('Error al obtener el grupo o las ubicaciones:', err);
@@ -239,7 +239,7 @@ onMounted(async () => {
                 <td class="font-weight-bold text-subtitle-1">Empresa</td>
                 <td>
                   <router-link v-if="group?.business" :to="`/empresas/${group.business.id}`" class="blue-link">
-                    {{ group.business.folio }} - {{ group.business.legal_name }}
+                    {{ group.business.folio }} - {{ group.business.name }}
                   </router-link>
                   <span v-else>No disponible</span>
                 </td>
@@ -263,8 +263,8 @@ onMounted(async () => {
           <thead>
             <tr>
               <th class="folio-header font-weight-bold text-subtitle-1">Folio</th>
-              <th class="logo-header font-weight-bold text-subtitle-1">Logo</th>
-              <th class="legal-header font-weight-bold text-subtitle-1">Nombre</th>
+              <th class="logo-header font-weight-bold text-subtitle-1 text-center" style="width: 90px; padding-left: 32px">Logo</th>
+              <th class="legal-header font-weight-bold text-subtitle-1" style="padding-left: 48px">Nombre</th>
               <th class="address-header font-weight-bold text-subtitle-1">Dirección</th>
               <th style="width: 15%"></th>
               <th class="status-header font-weight-bold text-subtitle-1">Estatus</th>
@@ -283,17 +283,19 @@ onMounted(async () => {
                   {{ unit.folio || 'No disponible' }}
                 </router-link>
               </td>
-              <td class="logo-cell">
-                <v-avatar v-if="unit.logo" size="48" class="logo-avatar">
-                  <img :src="unit.logo" alt="Logo" class="logo-img-cover" />
-                </v-avatar>
-                <v-avatar v-else size="48" color="grey lighten-2" class="d-flex align-center justify-center">
-                  <span style="font-size: 12px; color: #888">Sin logo</span>
-                </v-avatar>
+              <td class="logo-cell text-center" style="width: 90px; padding-left: 32px">
+                <div class="d-flex align-center justify-center" style="height: 56px">
+                  <v-avatar v-if="unit.logo" size="48" class="logo-avatar">
+                    <img :src="unit.logo" alt="Logo" class="logo-img-cover" />
+                  </v-avatar>
+                  <v-avatar v-else size="48" color="grey lighten-2" class="d-flex align-center justify-center">
+                    <span style="font-size: 12px; color: #888">Sin logo</span>
+                  </v-avatar>
+                </div>
               </td>
-              <td class="legal-cell">{{ unit.legal_name || 'No disponible' }}</td>
+              <td class="legal-cell" style="padding-left: 48px">{{ unit.name || 'No disponible' }}</td>
               <td class="address-cell">
-                {{ unit.address ? truncate(formatAddress(unit.address), 80) : 'No disponible' }}
+                {{ unit.address ? truncate(formatAddress(unit.address), 45) : 'No disponible' }}
               </td>
               <td></td>
               <td class="status-cell">
@@ -316,8 +318,8 @@ onMounted(async () => {
             style="cursor: pointer"
           >
             <v-row no-gutters align="center" class="mb-1">
-              <v-col cols="3" class="d-flex justify-start align-center">
-                <div class="logo-container-mobile">
+              <v-col cols="3" class="d-flex justify-center align-center">
+                <div class="logo-container-mobile d-flex align-center justify-center" style="height: 48px">
                   <v-avatar v-if="unit.logo" class="logo-avatar-mobile" color="grey lighten-2">
                     <img :src="unit.logo" alt="Logo" class="logo-img-cover" />
                   </v-avatar>
@@ -336,10 +338,10 @@ onMounted(async () => {
                   </div>
                   <StatusChip :status="unit.status" />
                 </div>
-                <div class="font-weight-medium mb-1">{{ unit.legal_name }}</div>
+                <div class="font-weight-medium mb-1">{{ unit.name }}</div>
                 <div class="text-caption">
                   <strong>Dirección:</strong>
-                  {{ unit.address ? truncate(formatAddress(unit.address), 80) : 'No disponible' }}
+                  {{ unit.address ? truncate(formatAddress(unit.address), 45) : 'No disponible' }}
                 </div>
               </v-col>
             </v-row>
@@ -351,9 +353,6 @@ onMounted(async () => {
       </v-col>
     </v-row>
   </v-container>
-  <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso a este grupo de ubicaciones. </v-alert>
-  </div>
 </template>
 
 <style scoped src="@/styles/business_unit_group.css"></style>

@@ -20,7 +20,7 @@ const emit = defineEmits(['update:page', 'sort']);
       <thead>
         <tr>
           <th @click="emit('sort', 'id')" class="cursor-pointer folio-header">
-            Identificador
+            ID
             <slot name="sort-icon" :column="'id'" />
           </th>
           <th @click="emit('sort', 'name')" class="cursor-pointer legal-header">
@@ -58,3 +58,5 @@ const emit = defineEmits(['update:page', 'sort']);
     </div>
   </div>
 </template>
+
+<style scoped src="@/styles/business_unit_group.css"></style>
