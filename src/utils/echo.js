@@ -1,6 +1,5 @@
 import Pusher from 'pusher-js';
 import Echo from 'laravel-echo';
-Pusher.logToConsole = true;
 
 window.Pusher = Pusher;
 
@@ -21,7 +20,7 @@ const echo = new Echo({
   key: import.meta.env.VITE_PUSHER_KEY,
   cluster: import.meta.env.VITE_PUSHER_CLUSTER,
   forceTLS: true,
-  authEndpoint: import.meta.env.VITE_REVERB_DEV,
+  authEndpoint: import.meta.env.VITE_PUSHER_ENDPOINT,
   auth: {
     headers: {
       Authorization: `Bearer ${getAuthToken()}`
