@@ -20,7 +20,7 @@ const echo = new Echo({
   key: import.meta.env.VITE_PUSHER_KEY,
   cluster: import.meta.env.VITE_PUSHER_CLUSTER,
   forceTLS: true,
-  authEndpoint: import.meta.env.VITE_PUSHER_ENDPOINT,
+  authEndpoint: import.meta.env.VITE_PUSHER_DEV,
   auth: {
     headers: {
       Authorization: `Bearer ${getAuthToken()}`

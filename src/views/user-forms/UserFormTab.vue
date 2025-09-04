@@ -40,28 +40,8 @@ const fetchForms = async () => {
       }
     });
 
-    const formResponseStatus = await Promise.all(
-      res.data.data.map(async (form) => {
-        try {
-          const responseRes = await axiosInstance.get(`/forms/${form.id}/check-response`);
-          return {
-            ...form,
-            has_responded: responseRes.data.has_responded,
-            frequency: responseRes.data.frequency,
-            can_respond: responseRes.data.can_respond
-          };
-        } catch (err) {
-          console.error('Failed to fetch form response status', err);
-          isLoading.value = false;
-        }
-      })
-    );
-
-    forms.value = {
-      ...res.data,
-      data: formResponseStatus
-    };
-    console.log(formResponseStatus);
+    forms.value = res.data;
+    console.log(forms.value.data);
   } catch (err) {
     console.error('Failed to fetch forms', err);
   } finally {
