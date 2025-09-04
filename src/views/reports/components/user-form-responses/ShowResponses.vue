@@ -232,24 +232,24 @@ onMounted(() => {
 
             <div v-else>
               <!-- Tabla de respuestas -->
-              <v-table>
+              <v-table class="responses-table">
                 <thead>
                   <tr>
-                    <th>Usuario</th>
-                    <th>Fecha de respuesta</th>
-                    <th>Puntaje</th>
-                    <th v-if="form.has_rating">Acciones</th>
+                    <th class="user-column">Usuario</th>
+                    <th class="date-column">Fecha de respuesta</th>
+                    <th v-if="form.has_rating" class="score-column">Puntaje</th>
+                    <th class="actions-column">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="response in responses" :key="response.id" @click="viewUserResponse(response)" style="cursor: pointer">
-                    <td>{{ response.user?.name || 'Usuario desconocido' }}</td>
-                    <td>{{ formatDateForUI(response.submitted_at) }}</td>
-                    <td v-if="form.has_rating">{{ response?.score || '—' }}</td>
-                    <td @click.stop>
+                  <tr v-for="response in responses" :key="response.id" @click="viewUserResponse(response)" class="clickable-row">
+                    <td class="user-column">{{ response.user?.name || 'Usuario desconocido' }}</td>
+                    <td class="date-column">{{ formatDateForUI(response.submitted_at) }}</td>
+                    <td v-if="form.has_rating" class="score-column">{{ response?.score || '—' }}</td>
+                    <td class="actions-cell" @click.stop>
                       <div class="d-flex gap-2">
                         <v-btn color="primary" variant="outlined" @click="exportResponse(response.id)"> Exportar PDF </v-btn>
-                        <v-btn color="info" variant="outlined" @click="viewUserResponse(response.id)"> Ver Respuestas </v-btn>
+                        <v-btn color="info" variant="outlined" @click="viewUserResponse(response)"> Ver Respuestas </v-btn>
                       </div>
                     </td>
                   </tr>
@@ -273,21 +273,82 @@ onMounted(() => {
   gap: 8px;
 }
 
+/* Estilos para la tabla */
+.responses-table {
+  width: 100%;
+}
+
+/* Distribución equitativa de columnas */
+.user-column {
+  width: 25%;
+  min-width: 200px;
+}
+
+.date-column {
+  width: 25%;
+  min-width: 150px;
+}
+
+.score-column {
+  width: 15%;
+  min-width: 100px;
+  text-align: center;
+}
+
+.actions-column {
+  width: 35%;
+  min-width: 250px;
+}
+
 /* Estilos para filas clickeables */
 .clickable-row {
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .clickable-row:hover {
   background-color: rgba(var(--v-theme-primary), 0.05) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .clickable-row:active {
   background-color: rgba(var(--v-theme-primary), 0.1) !important;
+  transform: translateY(0);
 }
 
 /* Evitar que el hover afecte las celdas de acciones */
-.clickable-row td:last-child:hover {
+.actions-cell {
   background-color: transparent !important;
+}
+
+.actions-cell:hover {
+  background-color: transparent !important;
+}
+
+/* Estilos para los botones en las acciones */
+.actions-cell .v-btn {
+  transition: all 0.2s ease;
+}
+
+.actions-cell .v-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive para móviles */
+@media (max-width: 768px) {
+  .user-column,
+  .date-column,
+  .score-column,
+  .actions-column {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .clickable-row:hover {
+    transform: none;
+    box-shadow: none;
+  }
 }
 </style>
