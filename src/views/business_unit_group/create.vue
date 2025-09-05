@@ -201,6 +201,7 @@ watch(search, () => {
 });
 
 onMounted(() => {
+  const user = auth.user;
   if (!user.value?.permissions?.includes('businessUnitGroup.create') && !isSponsor.value && !isAdmin.value && !isSuperadmin.value) {
     router.replace('/403');
     return;
