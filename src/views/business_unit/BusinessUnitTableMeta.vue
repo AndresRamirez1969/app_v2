@@ -50,7 +50,7 @@ const emit = defineEmits(['update:page', 'sort']);
     <div class="d-flex justify-center mt-4">
       <v-pagination
         v-model="props.page"
-        :length="Math.ceil((props.items?.length || 1) / props.itemsPerPage)"
+        :length="Math.max(1, Math.ceil((props.items?.length || 1) / props.itemsPerPage))"
         total-visible="7"
         color="primary"
         @update:modelValue="emit('update:page', $event)"

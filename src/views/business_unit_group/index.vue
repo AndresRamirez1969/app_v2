@@ -49,6 +49,8 @@ onMounted(async () => {
     } finally {
       isLoading.value = false;
     }
+  } else if (!canViewAnyGroup) {
+    router.replace('/403');
   } else {
     canView.value = false;
     if (hasPermission('businessUnitGroup.view') && auth.user?.business_unit_group_id) {

@@ -5,6 +5,7 @@ import { useDisplay } from 'vuetify';
 import axiosInstance from '@/utils/axios';
 import { mdiArrowLeft, mdiPencil, mdiCancel, mdiCheckCircle, mdiChevronDown, mdiDotsHorizontal } from '@mdi/js';
 import StatusChip from '@/components/status/StatusChip.vue';
+import BusinessUnitFilter from '@/views/business_unit/BusinessUnitFilter.vue';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
@@ -12,9 +13,17 @@ const route = useRoute();
 const { mdAndDown } = useDisplay();
 const group = ref(null);
 const businessUnits = ref([]);
+const pagination = ref({
+  current_page: 1,
+  per_page: 10,
+  total: 0,
+  last_page: 1
+});
+const filters = ref({});
+const search = ref('');
 const auth = useAuthStore();
 
-const user = computed(() => auth.user || { roles: [], permissions: [], organization_id: null });
+const user = computed(() => auth.user || { roles: [], permissions: [], organization_id: null, business_id: null, business_unit_id: null });
 const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
 
@@ -91,21 +100,91 @@ const toggleStatus = async () => {
   }
 };
 
-onMounted(async () => {
-  if (!canView.value) return;
+// PAGINATION
+const page = ref(1);
+
+const fetchBusinessUnits = async (pageNumber = 1, searchValue = '', filterValues = {}) => {
   try {
     const id = route.params.id;
-    const res = await axiosInstance.get(`/business-unit-groups/${id}`);
+    const params = {
+      per_page: pagination.value.per_page,
+      page: pageNumber,
+      search: searchValue,
+      ...filterValues
+    };
+    const res = await axiosInstance.get(`/business-unit-groups/${id}`, { params });
     group.value = res.data.group || res.data.data || res.data;
-    businessUnits.value = group.value.business_units || group.value.businessUnits || [];
+    businessUnits.value = res.data.business_units?.data || [];
+    pagination.value.current_page = res.data.business_units?.current_page || 1;
+    pagination.value.per_page = res.data.business_units?.per_page || 10;
+    pagination.value.total = res.data.business_units?.total || 0;
+    pagination.value.last_page = res.data.business_units?.last_page || 1;
+    page.value = pagination.value.current_page;
   } catch (err) {
     console.error('Error al obtener el grupo o las ubicaciones:', err);
   }
+};
+
+// CONTROL DE ACCESO
+const checkAccess = (groupObj) => {
+  if (!groupObj) return false;
+
+  // Superadmin: acceso total
+  if (isSuperadmin.value) return true;
+
+  // Admin: solo si organización coincide
+  if (isAdmin.value) {
+    return groupObj.organization?.id === user.value.organization_id;
+  }
+
+  // Sponsor: organización y empresa deben coincidir
+  if (isSponsor.value) {
+    return groupObj.organization?.id === user.value.organization_id && groupObj.business?.id === user.value.business_id;
+  }
+
+  // Permisos canViewAny y canView: verifica organización y empresa
+  if (canViewAny.value && canView.value) {
+    return groupObj.organization?.id === user.value.organization_id && groupObj.business?.id === user.value.business_id;
+  }
+
+  // Solo canView: verifica que la unidad de negocio coincida
+  if (canView.value) {
+    // Si el usuario tiene business_unit_id, verifica que coincida
+    if (user.value.business_unit_id && groupObj.business_units) {
+      return groupObj.business_units.some((unit) => unit.id === user.value.business_unit_id);
+    }
+    // Si no tiene business_unit_id, verifica empresa
+    return groupObj.business?.id === user.value.business_id;
+  }
+
+  // Si no cumple ninguna condición
+  return false;
+};
+
+onMounted(async () => {
+  await fetchBusinessUnits(1, search.value, filters.value);
+  if (!checkAccess(group.value)) {
+    router.replace('/403');
+  }
 });
+
+const handlePageChange = async (newPage) => {
+  await fetchBusinessUnits(newPage, search.value, filters.value);
+};
+
+const handleSearch = async (searchValue) => {
+  search.value = searchValue;
+  await fetchBusinessUnits(1, search.value, filters.value);
+};
+
+const handleFilter = async (filterValues) => {
+  filters.value = filterValues;
+  await fetchBusinessUnits(1, search.value, filters.value);
+};
 </script>
 
 <template>
-  <v-container fluid v-if="canView">
+  <v-container fluid v-if="group">
     <!-- Header -->
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
@@ -256,58 +335,78 @@ onMounted(async () => {
         <div class="font-weight-bold text-h6">Ubicaciones vinculadas</div>
       </v-col>
     </v-row>
+    <!-- Filtros entre título y tabla -->
     <v-row>
       <v-col cols="12">
-        <!-- Desktop Table -->
-        <v-table class="rounded-lg elevation-1 fixed-table d-none d-md-table" style="width: 100%">
-          <thead>
-            <tr>
-              <th class="folio-header font-weight-bold text-subtitle-1">Folio</th>
-              <th class="logo-header font-weight-bold text-subtitle-1 text-center" style="width: 90px; padding-left: 32px">Logo</th>
-              <th class="legal-header font-weight-bold text-subtitle-1" style="padding-left: 48px">Nombre</th>
-              <th class="address-header font-weight-bold text-subtitle-1">Dirección</th>
-              <th style="width: 15%"></th>
-              <th class="status-header font-weight-bold text-subtitle-1">Estatus</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(unit, idx) in businessUnits"
-              :key="unit.id || idx"
-              class="row-clickable"
-              @click="goToBusinessUnitShow(unit)"
-              style="cursor: pointer"
-            >
-              <td class="folio-cell">
-                <router-link :to="`/ubicaciones/${unit.id}`" class="blue-link" @click.stop>
-                  {{ unit.folio || 'No disponible' }}
-                </router-link>
-              </td>
-              <td class="logo-cell text-center" style="width: 90px; padding-left: 32px">
-                <div class="d-flex align-center justify-center" style="height: 56px">
-                  <v-avatar v-if="unit.logo" size="48" class="logo-avatar">
-                    <img :src="unit.logo" alt="Logo" class="logo-img-cover" />
-                  </v-avatar>
-                  <v-avatar v-else size="48" color="grey lighten-2" class="d-flex align-center justify-center">
-                    <span style="font-size: 12px; color: #888">Sin logo</span>
-                  </v-avatar>
-                </div>
-              </td>
-              <td class="legal-cell" style="padding-left: 48px">{{ unit.name || 'No disponible' }}</td>
-              <td class="address-cell">
-                {{ unit.address ? truncate(formatAddress(unit.address), 45) : 'No disponible' }}
-              </td>
-              <td></td>
-              <td class="status-cell">
-                <StatusChip :status="unit.status" v-if="unit.status" />
-                <span v-else>No disponible</span>
-              </td>
-            </tr>
-            <tr v-if="businessUnits.length === 0">
-              <td colspan="6" class="text-center text-medium-emphasis">No hay ubicaciones vinculadas.</td>
-            </tr>
-          </tbody>
-        </v-table>
+        <!-- Solo searchbar y filtros de fecha/estado, sin selects de organización/empresa -->
+        <BusinessUnitFilter @search="handleSearch" @filter="handleFilter" :hide-org-biz-filters="true" :hide-filter-button="false" />
+      </v-col>
+    </v-row>
+    <v-row>
+      <v-col cols="12">
+        <!-- Desktop Table with Pagination -->
+        <div class="d-none d-md-block">
+          <v-table class="rounded-lg elevation-1 fixed-table" style="width: 100%">
+            <thead>
+              <tr>
+                <th class="folio-header font-weight-bold text-subtitle-1">Folio</th>
+                <th class="logo-header font-weight-bold text-subtitle-1 text-center" style="width: 90px; padding-left: 32px">Logo</th>
+                <th class="legal-header font-weight-bold text-subtitle-1" style="padding-left: 48px">Nombre</th>
+                <th class="address-header font-weight-bold text-subtitle-1">Dirección</th>
+                <th style="width: 15%"></th>
+                <th class="status-header font-weight-bold text-subtitle-1">Estatus</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(unit, idx) in businessUnits"
+                :key="unit.id || idx"
+                class="row-clickable"
+                @click="goToBusinessUnitShow(unit)"
+                style="cursor: pointer"
+              >
+                <td class="folio-cell">
+                  <router-link :to="`/ubicaciones/${unit.id}`" class="blue-link" @click.stop>
+                    {{ unit.folio || 'No disponible' }}
+                  </router-link>
+                </td>
+                <td class="logo-cell text-center" style="width: 90px; padding-left: 32px">
+                  <div class="d-flex align-center justify-center" style="height: 56px">
+                    <v-avatar v-if="unit.logo" size="48" class="logo-avatar">
+                      <img :src="unit.logo" alt="Logo" class="logo-img-cover" />
+                    </v-avatar>
+                    <v-avatar v-else size="48" color="grey lighten-2" class="d-flex align-center justify-center">
+                      <span style="font-size: 12px; color: #888">Sin logo</span>
+                    </v-avatar>
+                  </div>
+                </td>
+                <td class="legal-cell" style="padding-left: 48px">{{ unit.name || 'No disponible' }}</td>
+                <td class="address-cell">
+                  {{ unit.address ? truncate(formatAddress(unit.address), 45) : 'No disponible' }}
+                </td>
+                <td></td>
+                <td class="status-cell">
+                  <StatusChip :status="unit.status" v-if="unit.status" />
+                  <span v-else>No disponible</span>
+                </td>
+              </tr>
+              <tr v-if="businessUnits.length === 0">
+                <td colspan="6" class="text-center text-medium-emphasis">No hay ubicaciones vinculadas.</td>
+              </tr>
+            </tbody>
+          </v-table>
+          <!-- Pagination Controls Desktop SOLO EN DESKTOP -->
+          <div class="justify-end mt-2">
+            <v-pagination
+              v-model="page"
+              :length="pagination.last_page"
+              :total-visible="5"
+              color="primary"
+              size="small"
+              @update:modelValue="handlePageChange"
+            />
+          </div>
+        </div>
         <!-- Mobile Cards -->
         <div class="d-md-none">
           <v-card
@@ -349,6 +448,17 @@ onMounted(async () => {
           <v-card v-if="businessUnits.length === 0" class="mb-4 pa-4 elevation-1 rounded-lg text-center">
             <div class="font-weight-bold mb-2" style="font-size: 1.5rem">No hay ubicaciones vinculadas</div>
           </v-card>
+          <!-- Pagination Controls Mobile SOLO EN MOBILE -->
+          <div class="justify-end mt-2">
+            <v-pagination
+              v-model="page"
+              :length="pagination.last_page"
+              :total-visible="5"
+              color="primary"
+              size="small"
+              @update:modelValue="handlePageChange"
+            />
+          </div>
         </div>
       </v-col>
     </v-row>

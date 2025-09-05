@@ -198,16 +198,15 @@ function handlePageChange(newPage) {
           </div>
         </div>
       </v-card>
-      <v-row v-if="props.total > itemsPerPage">
-        <v-col class="d-flex justify-center">
-          <v-pagination
-            v-model="page"
-            :length="Math.ceil(props.total / itemsPerPage)"
-            @update:model-value="handlePageChange"
-            color="primary"
-          />
-        </v-col>
-      </v-row>
+      <div class="d-flex justify-center mt-4">
+        <v-pagination
+          v-model="page"
+          :length="Math.ceil(props.total / itemsPerPage)"
+          total-visible="7"
+          color="primary"
+          @update:modelValue="handlePageChange"
+        />
+      </div>
     </template>
 
     <template v-else>
@@ -311,16 +310,6 @@ function handlePageChange(newPage) {
             </tr>
           </template>
         </BusinessUnitGroupsTableMeta>
-        <v-row v-if="props.total > itemsPerPage">
-          <v-col class="d-flex justify-center">
-            <v-pagination
-              v-model="page"
-              :length="Math.ceil(props.total / itemsPerPage)"
-              @update:model-value="handlePageChange"
-              color="primary"
-            />
-          </v-col>
-        </v-row>
       </template>
     </template>
   </div>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
 import BusinessUnitTableMeta from './BusinessUnitTableMeta.vue';
@@ -9,10 +9,17 @@ import { useAuthStore } from '@/stores/auth';
 
 const props = defineProps({
   items: Array,
+  total: Number,
+  page: Number,
+  itemsPerPage: Number,
+  sortBy: String,
+  sortDesc: Boolean,
   isMobile: Boolean,
   canEditPermission: Boolean,
   isLoading: Boolean
 });
+
+const emit = defineEmits(['update:page', 'sort']);
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -30,10 +37,27 @@ const canShowDropdown = computed(() => canView.value || canEdit.value || canTogg
 
 const showBusinessIdColumn = computed(() => isAdmin.value);
 
-const sortBy = ref('folio');
-const sortDesc = ref(false);
-const page = ref(1);
-const itemsPerPage = ref(10);
+const sortBy = ref(props.sortBy || 'id');
+const sortDesc = ref(props.sortDesc || false);
+const page = ref(props.page || 1);
+const itemsPerPage = ref(props.itemsPerPage || 10);
+
+// --- COPIA LOCAL REACTIVA ---
+const localItems = ref([]);
+watch(
+  () => props.items,
+  (val) => {
+    localItems.value = val ? val.map((item) => ({ ...item })) : [];
+  },
+  { immediate: true }
+);
+
+const pageCount = computed(() => {
+  const total = Number(props.total || 0);
+  const perPage = Number(itemsPerPage.value || 10);
+  const len = Math.ceil(total / perPage);
+  return Math.max(1, len || 1);
+});
 
 const toggleSort = (column) => {
   if (sortBy.value === column) {
@@ -42,6 +66,7 @@ const toggleSort = (column) => {
     sortBy.value = column;
     sortDesc.value = false;
   }
+  emit('sort', column);
 };
 
 const fullAddress = (address) => {
@@ -58,139 +83,167 @@ const fullAddress = (address) => {
   return parts.length ? parts.join(', ') : 'No disponible';
 };
 
-const truncate = (text, max = 60) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
+const truncate = (text, max = 45) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 const getBusinessUnitParent = (uni) => {
-  // Asume que el objeto tiene business_unit_parent: { folio, name }
   if (uni.business_unit_parent && uni.business_unit_parent.folio && uni.business_unit_parent.name) {
     return `${uni.business_unit_parent.folio} - ${uni.business_unit_parent.name}`;
   }
   return 'No disponible';
 };
 
+// OJO: aquí mapeamos a nuevos objetos para agregar campos derivados
 const sortedItems = computed(() => {
-  return [...props.items]
-    .map((item) => ({
-      ...item,
-      name: item.name,
-      alias: item.alias,
-      logo: item.logo_url ?? item.logo,
-      businessUnitParent: getBusinessUnitParent(item)
-    }))
-    .sort((a, b) => {
-      let aVal, bVal;
-      if (sortBy.value === 'address') {
-        aVal = fullAddress(a.address).toLowerCase();
-        bVal = fullAddress(b.address).toLowerCase();
-      } else if (sortBy.value === 'alias') {
-        aVal = (a.alias ?? '').toString().toLowerCase();
-        bVal = (b.alias ?? '').toString().toLowerCase();
-      } else if (sortBy.value === 'businessUnitParent') {
-        aVal = (a.businessUnitParent ?? '').toString().toLowerCase();
-        bVal = (b.businessUnitParent ?? '').toString().toLowerCase();
-      } else {
-        aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
-        bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
-      }
-      return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
-    });
+  const items = Array.isArray(localItems.value) ? localItems.value : [];
+  return items.length
+    ? items.map((item) => ({
+        ...item,
+        name: item.name,
+        alias: item.alias,
+        logo: item.logo_url ?? item.logo,
+        businessUnitParent: getBusinessUnitParent(item)
+      }))
+    : [];
 });
 
 const paginatedItems = computed(() => {
   const start = (page.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return sortedItems.value.slice(start, end);
+  return sortedItems.value.slice(start, start + itemsPerPage.value);
 });
 
 const goToEdit = (uni) => router.push({ path: `/ubicaciones/editar/${uni.id}` });
 const goToShow = (uni) => router.push({ path: `/ubicaciones/${uni.id}` });
 
+// FIX: actualizar el origen (localItems) para que el mapeo refleje el cambio
 const toggleStatus = async (uni) => {
   if (!canToggleStatus.value) return;
   const isActive = uni.status === 'activa' || uni.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
+
+  // Optimistic UI sobre el origen
+  const idx = localItems.value.findIndex((it) => String(it.id) === String(uni.id));
+  const prev = idx !== -1 ? localItems.value[idx].status : null;
+  if (idx !== -1) localItems.value[idx].status = newStatus;
+
   try {
-    const res = await axiosInstance.put(`/business-units/${uni.id}`, {
-      status: newStatus
-    });
-    uni.status = res.data.business_unit?.status || newStatus;
+    const res = await axiosInstance.put(`/business-units/${uni.id}`, { status: newStatus });
+    const confirmed = res?.data?.business_unit?.status ?? newStatus;
+
+    // Asegura que el origen queda con el confirmado
+    if (idx !== -1) localItems.value[idx].status = confirmed;
+
+    // Por consistencia, también actualiza el objeto mapeado actual (no imprescindible)
+    uni.status = confirmed;
   } catch (err) {
+    // Rollback si falla
+    if (idx !== -1 && prev !== null) localItems.value[idx].status = prev;
     alert('No se pudo cambiar el estatus');
   }
 };
+
+function handlePageChange(newPage) {
+  page.value = newPage;
+  emit('update:page', newPage);
+}
 </script>
 
 <template>
   <div>
-    <!-- Loading global -->
-    <div v-if="isLoading" class="text-center py-8">
-      <v-progress-circular indeterminate color="primary" size="64" />
-      <p class="mt-4">Cargando ubicaciones...</p>
-    </div>
+    <!-- MOBILE -->
+    <template v-if="isMobile">
+      <div v-if="isLoading" class="text-center py-8">
+        <v-progress-circular indeterminate color="primary" size="64" />
+        <p class="mt-4">Cargando ubicaciones...</p>
+      </div>
 
-    <template v-else>
-      <div v-if="!paginatedItems.length" class="text-center py-8">
+      <div v-else-if="!paginatedItems.length" class="text-center py-8">
         <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
         <p class="mt-4 text-h6 text-grey-darken-1">No existen ubicaciones</p>
         <p class="text-body-2 text-grey">No se encontraron ubicaciones con los filtros aplicados</p>
       </div>
 
-      <template v-else-if="isMobile">
-        <v-card
-          v-for="uni in paginatedItems"
-          :key="uni.id"
-          class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
-          @click="canView ? goToShow(uni) : undefined"
-          :style="{ cursor: canView ? 'pointer' : 'default' }"
-        >
-          <v-row no-gutters align="center" class="mb-1">
-            <v-col cols="3" class="d-flex justify-start align-center">
-              <div class="logo-container-mobile">
-                <v-avatar v-if="uni.logo" class="logo-avatar-mobile" color="grey lighten-2">
-                  <img :src="uni.logo" alt="Logo" class="logo-img-cover" />
-                </v-avatar>
-                <v-avatar v-else class="logo-avatar-mobile" color="grey lighten-2">
-                  <span style="font-size: 12px; color: #888">Sin logo</span>
-                </v-avatar>
+      <v-card
+        v-for="uni in paginatedItems"
+        :key="uni.id"
+        class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
+        @click="canView ? goToShow(uni) : undefined"
+        :style="{ cursor: canView ? 'pointer' : 'default' }"
+      >
+        <v-row no-gutters align="center" class="mb-1">
+          <v-col cols="3" class="d-flex justify-start align-center">
+            <div class="logo-container-mobile">
+              <v-avatar v-if="uni.logo" class="logo-avatar-mobile" color="grey lighten-2">
+                <img :src="uni.logo" alt="Logo" class="logo-img-cover" />
+              </v-avatar>
+              <v-avatar v-else class="logo-avatar-mobile" color="grey lighten-2">
+                <span style="font-size: 12px; color: #888">Sin logo</span>
+              </v-avatar>
+            </div>
+          </v-col>
+          <v-col cols="1" />
+          <v-col cols="8">
+            <div class="d-flex align-center mb-1" style="justify-content: space-between">
+              <div class="text-caption" style="margin-right: 8px">
+                <router-link v-if="canView" :to="`/ubicaciones/${uni.id}`" @click.stop class="blue-link" style="text-decoration: underline">
+                  {{ uni.folio }}
+                </router-link>
+                <span v-else>{{ uni.folio }}</span>
               </div>
-            </v-col>
-            <v-col cols="1" />
-            <v-col cols="8">
-              <div class="d-flex align-center mb-1" style="justify-content: space-between">
-                <div class="text-caption" style="margin-right: 8px">
-                  <router-link :to="`/ubicaciones/${uni.id}`" @click.stop style="text-decoration: underline; color: #1976d2">
-                    {{ uni.folio }}
-                  </router-link>
-                </div>
-                <StatusChip :status="uni.status" />
-              </div>
-              <div class="font-weight-medium mb-1">{{ uni.name }}</div>
-              <div class="text-caption mb-1">
-                <strong>Alias:</strong>
-                {{ truncate(uni.alias, 40) }}
-              </div>
-              <div class="text-caption mb-1">
-                <strong>Dirección:</strong>
-                {{ truncate(fullAddress(uni.address), 60) }}
-              </div>
-              <div v-if="showBusinessIdColumn" class="text-caption">
-                <strong>Unidad de Negocio:</strong>
-                {{ truncate(uni.businessUnitParent, 60) }}
-              </div>
-            </v-col>
-          </v-row>
-        </v-card>
+              <StatusChip :status="uni.status" />
+            </div>
+            <div class="font-weight-medium mb-1">{{ uni.name }}</div>
+            <div class="text-caption mb-1">
+              <strong>Alias:</strong>
+              {{ truncate(uni.alias, 40) }}
+            </div>
+            <div class="text-caption mb-1">
+              <strong>Dirección:</strong>
+              {{ truncate(fullAddress(uni.address), 45) }}
+            </div>
+            <div v-if="showBusinessIdColumn" class="text-caption">
+              <strong>Unidad de Negocio:</strong>
+              {{ truncate(uni.businessUnitParent, 60) }}
+            </div>
+          </v-col>
+        </v-row>
+      </v-card>
+
+      <div class="d-flex flex-column align-center mt-4">
+        <v-pagination
+          v-model="page"
+          :length="pageCount"
+          :total-visible="1"
+          color="primary"
+          @update:modelValue="handlePageChange"
+          class="mobile-pagination"
+        />
+      </div>
+    </template>
+
+    <!-- DESKTOP -->
+    <template v-else>
+      <div v-if="isLoading" class="text-center py-8">
+        <v-progress-circular indeterminate color="primary" size="64" />
+        <p class="mt-4">Cargando ubicaciones...</p>
+      </div>
+
+      <template v-else-if="!paginatedItems.length">
+        <div class="text-center py-8">
+          <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
+          <p class="mt-4 text-h6 text-grey-darken-1">No existen ubicaciones</p>
+          <p class="text-body-2 text-grey">No se encontraron ubicaciones con los filtros aplicados</p>
+        </div>
       </template>
 
       <template v-else>
         <BusinessUnitTableMeta
-          :items="sortedItems.value"
+          :items="paginatedItems"
           :page="page"
           :itemsPerPage="itemsPerPage"
           :sortBy="sortBy"
           :sortDesc="sortDesc"
           :showBusinessIdColumn="showBusinessIdColumn"
-          @update:page="page = $event"
+          @update:page="handlePageChange"
           @sort="toggleSort"
         >
           <template #sort-icon="{ column }">
@@ -198,6 +251,7 @@ const toggleStatus = async (uni) => {
               {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
             </v-icon>
           </template>
+
           <template #rows>
             <template v-if="paginatedItems.length">
               <tr
@@ -208,10 +262,18 @@ const toggleStatus = async (uni) => {
                 :style="{ cursor: canView ? 'pointer' : 'default' }"
               >
                 <td class="folio-cell">
-                  <router-link :to="`/ubicaciones/${uni.id}`" @click.stop style="text-decoration: underline; color: #1976d2">
+                  <router-link
+                    v-if="canView"
+                    :to="`/ubicaciones/${uni.id}`"
+                    @click.stop
+                    class="blue-link"
+                    style="text-decoration: underline"
+                  >
                     {{ uni.folio }}
                   </router-link>
+                  <span v-else>{{ uni.folio }}</span>
                 </td>
+
                 <td class="logo-cell">
                   <v-avatar v-if="uni.logo" size="48" class="logo-avatar">
                     <img :src="uni.logo" alt="Logo" class="logo-img-cover" />
@@ -220,15 +282,19 @@ const toggleStatus = async (uni) => {
                     <span style="font-size: 12px; color: #888">Sin logo</span>
                   </v-avatar>
                 </td>
+
                 <td class="legal-cell">{{ uni.name }}</td>
                 <td class="alias-cell">{{ truncate(uni.alias, 40) }}</td>
-                <td class="address-cell">{{ truncate(fullAddress(uni.address), 60) }}</td>
+                <td class="address-cell">{{ truncate(fullAddress(uni.address), 45) }}</td>
+
                 <td v-if="showBusinessIdColumn" class="business-id-cell">
                   {{ truncate(uni.businessUnitParent, 60) }}
                 </td>
+
                 <td class="status-cell">
                   <StatusChip :status="uni.status" />
                 </td>
+
                 <td class="actions-cell" @click.stop>
                   <v-menu v-if="canShowDropdown" location="bottom end">
                     <template #activator="{ props }">
@@ -236,6 +302,7 @@ const toggleStatus = async (uni) => {
                         <v-icon :icon="mdiDotsHorizontal" size="20" />
                       </v-btn>
                     </template>
+
                     <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
                       <v-list-item v-if="canView" @click="goToShow(uni)">
                         <template #prepend>
@@ -243,14 +310,18 @@ const toggleStatus = async (uni) => {
                         </template>
                         <v-list-item-title>Ver</v-list-item-title>
                       </v-list-item>
+
                       <v-divider class="my-1" v-if="canEdit && canView" />
+
                       <v-list-item v-if="canEdit" @click="goToEdit(uni)">
                         <template #prepend>
                           <v-icon :icon="mdiPencil" size="18" />
                         </template>
                         <v-list-item-title>Editar</v-list-item-title>
                       </v-list-item>
+
                       <v-divider class="my-1" v-if="canToggleStatus" />
+
                       <v-list-item v-if="canToggleStatus" @click="toggleStatus(uni)">
                         <template #prepend>
                           <v-icon :icon="uni.status === 'activa' || uni.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />

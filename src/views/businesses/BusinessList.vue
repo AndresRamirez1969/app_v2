@@ -8,10 +8,10 @@ import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiPencil, mdiEye, mdi
 import { useAuthStore } from '@/stores/auth';
 
 const props = defineProps({
-  items: Array,
+  items: Array, // registros ya cargados (de la página o todos, según tu flujo)
   isMobile: Boolean,
   isLoading: Boolean,
-  totalItems: Number
+  totalItems: Number // total real en BD/endpoint
 });
 
 const router = useRouter();
@@ -32,6 +32,14 @@ const sortBy = ref('folio');
 const sortDesc = ref(false);
 const page = ref(1);
 const itemsPerPage = ref(10);
+
+/** páginas totales (>=1) usando el total real */
+const pageCount = computed(() => {
+  const total = Number(props.totalItems || 0);
+  const perPage = Number(itemsPerPage.value || 10);
+  const len = Math.ceil(total / perPage);
+  return Math.max(1, len || 1);
+});
 
 const toggleSort = (column) => {
   if (sortBy.value === column) {
@@ -59,18 +67,16 @@ const fullAddress = (address) => {
 const truncate = (text, max = 45) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 const sortedItems = computed(() => {
-  if (!props.items) return [];
-  const itemsCopy = [...props.items];
+  const list = Array.isArray(props.items) ? [...props.items] : [];
   const column = sortBy.value;
   const desc = sortDesc.value;
 
-  return itemsCopy.sort((a, b) => {
+  return list.sort((a, b) => {
     let aVal, bVal;
-
     if (column === 'folio') {
       aVal = a.folio ?? '';
       bVal = b.folio ?? '';
-    } else if (column === 'legal_name' || column === 'name') {
+    } else if (column === 'name' || column === 'legal_name') {
       aVal = a.name ?? '';
       bVal = b.name ?? '';
     } else if (column === 'alias') {
@@ -85,8 +91,7 @@ const sortedItems = computed(() => {
     }
 
     if (typeof aVal === 'string' && typeof bVal === 'string') {
-      if (desc) return bVal.localeCompare(aVal);
-      return aVal.localeCompare(bVal);
+      return desc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
     }
     if (desc) return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
     return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
@@ -107,10 +112,9 @@ const toggleStatus = async (bus) => {
   const isActive = bus.status === 'activa' || bus.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
-    const res = await axiosInstance.put(`/businesses/${bus.id}`, {
-      status: newStatus
-    });
-    bus.status = res.data.status || newStatus;
+    const res = await axiosInstance.put(`/businesses/${bus.id}`, { status: newStatus });
+    // Opción B: el backend devuelve { business: { ... } }
+    bus.status = res?.data?.business?.status ?? newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
   }
@@ -132,7 +136,7 @@ const toggleStatus = async (bus) => {
         <p class="text-body-2 text-grey">No se encontraron empresas con los filtros aplicados</p>
       </div>
 
-      <!-- Modo móvil (solo cards) -->
+      <!-- MODO MÓVIL -->
       <template v-else-if="isMobile">
         <v-card
           v-for="bus in paginatedItems"
@@ -156,7 +160,6 @@ const toggleStatus = async (bus) => {
             <v-col cols="8">
               <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <!-- Siempre mostrar el folio como link azul -->
                   <router-link :to="`/empresas/${bus.id}`" @click.stop style="text-decoration: underline; color: #1976d2">
                     {{ bus.folio }}
                   </router-link>
@@ -175,17 +178,21 @@ const toggleStatus = async (bus) => {
             </v-col>
           </v-row>
         </v-card>
+
+        <div class="d-flex flex-column align-center mt-4">
+          <v-pagination v-model="page" :length="pageCount" :total-visible="1" color="primary" />
+        </div>
       </template>
 
-      <!-- Modo escritorio (solo tabla) -->
+      <!-- MODO DESKTOP -->
       <template v-else>
         <BusinessTableMeta
-          :items="sortedItems"
+          :items="paginatedItems"
+          :totalItems="totalItems"
           :page="page"
           :itemsPerPage="itemsPerPage"
           :sortBy="sortBy"
           :sortDesc="sortDesc"
-          :totalItems="totalItems"
           @update:page="page = $event"
           @sort="toggleSort"
         >
@@ -194,6 +201,7 @@ const toggleStatus = async (bus) => {
               {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
             </v-icon>
           </template>
+
           <template #rows>
             <template v-if="paginatedItems.length">
               <tr
@@ -209,6 +217,7 @@ const toggleStatus = async (bus) => {
                   </router-link>
                   <span v-else>{{ bus.folio }}</span>
                 </td>
+
                 <td class="logo-cell">
                   <v-avatar v-if="bus.logo" size="48" class="logo-avatar">
                     <img :src="bus.logo" alt="Logo" class="logo-img-cover" />
@@ -217,12 +226,15 @@ const toggleStatus = async (bus) => {
                     <span style="font-size: 12px; color: #888">Sin logo</span>
                   </v-avatar>
                 </td>
+
                 <td class="legal-cell">{{ bus.name }}</td>
                 <td class="alias-cell">{{ bus.alias || 'Sin alias' }}</td>
                 <td class="address-cell">{{ truncate(fullAddress(bus.address), 45) }}</td>
+
                 <td class="status-cell">
                   <StatusChip :status="bus.status" />
                 </td>
+
                 <td class="actions-cell" @click.stop>
                   <v-menu v-if="canShowDropdown" location="bottom end">
                     <template #activator="{ props }">
@@ -230,6 +242,7 @@ const toggleStatus = async (bus) => {
                         <v-icon :icon="mdiDotsHorizontal" size="20" />
                       </v-btn>
                     </template>
+
                     <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
                       <v-list-item v-if="canView" @click="goToShow(bus)">
                         <template #prepend>
@@ -237,16 +250,21 @@ const toggleStatus = async (bus) => {
                         </template>
                         <v-list-item-title>Ver</v-list-item-title>
                       </v-list-item>
+
                       <v-divider class="my-1" v-if="canEdit && canView" />
+
                       <v-list-item v-if="canEdit" @click="goToEdit(bus)">
                         <template #prepend>
                           <v-icon :icon="mdiPencil" size="18" />
                         </template>
                         <v-list-item-title>Editar</v-list-item-title>
                       </v-list-item>
+
                       <v-divider class="my-1" v-if="canToggleStatus" />
+
                       <v-list-item v-if="canToggleStatus" @click="toggleStatus(bus)">
                         <template #prepend>
+                          <!-- FIX ternario -->
                           <v-icon :icon="bus.status === 'activa' || bus.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
                         </template>
                         <v-list-item-title>

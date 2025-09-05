@@ -288,7 +288,7 @@ const fetchBusinesses = async (searchText) => {
     });
     businessOptions.value = (data.data || []).map((b) => ({
       ...b,
-      display: `${b.folio}${b.legal_name ? ' - ' + b.legal_name : ''}`
+      display: `${b.folio}${b.name ? ' - ' + b.name : ''}`
     }));
   } catch (e) {
     businessOptions.value = [];
@@ -299,7 +299,7 @@ const fetchBusinesses = async (searchText) => {
 
 function customBizFilter(item, queryText, itemText) {
   if (!queryText) return true;
-  const text = (item.folio + ' ' + (item.legal_name || '')).toLowerCase();
+  const text = (item.folio + ' ' + (item.name || '')).toLowerCase();
   return text.includes(queryText.toLowerCase());
 }
 
