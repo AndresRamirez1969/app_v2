@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDisplay } from 'vuetify';
 import axiosInstance from '@/utils/axios';
-import { mdiArrowLeft, mdiPencil, mdiCancel, mdiCheckCircle, mdiChevronDown, mdiDotsHorizontal, mdiEye } from '@mdi/js';
+import { mdiArrowLeft, mdiPencil, mdiCancel, mdiCheckCircle, mdiChevronDown, mdiDotsHorizontal } from '@mdi/js';
 import StatusChip from '@/components/status/StatusChip.vue';
 import { useAuthStore } from '@/stores/auth';
 
@@ -12,12 +12,12 @@ import countries from '@/utils/constants/countries';
 const router = useRouter();
 const route = useRoute();
 const { mdAndDown } = useDisplay();
+
 const businessUnit = ref(null);
 const business = ref(null);
 const organization = ref(null);
-const users = ref([]);
-const auth = useAuthStore();
 
+const auth = useAuthStore();
 const user = computed(() => auth.user || { roles: [], permissions: [] });
 const roles = computed(() => user.value.roles || []);
 const permissions = computed(() => user.value.permissions || []);
@@ -25,18 +25,13 @@ const permissions = computed(() => user.value.permissions || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 const isAdmin = computed(() => roles.value.includes('admin'));
 const isSponsor = computed(() => roles.value.includes('sponsor'));
+
 const canView = computed(() => permissions.value.includes('businessUnit.view'));
 const canViewAny = computed(() => permissions.value.includes('businessUnit.viewAny'));
 const canEditPermission = computed(() => permissions.value.includes('businessUnit.update'));
 const canShow = ref(false);
 const canEdit = computed(() => isSuperadmin.value || isAdmin.value || canEditPermission.value);
 const canToggleStatus = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value);
-
-const canUserEdit = computed(() => permissions.value.includes('user.update'));
-const canUserView = computed(() => permissions.value.includes('user.view'));
-const canUserActions = computed(() => canUserView.value || canUserEdit.value || canToggleStatus.value);
-
-const showUserTable = computed(() => (isSuperadmin.value || isAdmin.value) && !mdAndDown.value);
 
 const isActive = computed(() => businessUnit.value?.status === 'activa' || businessUnit.value?.status === 'active');
 
@@ -50,32 +45,22 @@ const goToIndex = () => {
   router.push('/ubicaciones');
 };
 
-const goToUserEdit = (user) => router.push({ path: `/usuarios/editar/${user.id}` });
-const goToUserShow = (user) => router.push({ path: `/usuarios/${user.id}` });
-
 const toggleStatus = async () => {
-  if (!businessUnit.value) return;
+  if (!businessUnit.value || !canToggleStatus.value) return;
+
   const newStatus = isActive.value ? 'inactive' : 'active';
+
+  const prev = businessUnit.value.status;
+  businessUnit.value.status = newStatus;
+
   try {
-    const res = await axiosInstance.put(`/business-units/${businessUnit.value.id}/toggle-status`);
-    businessUnit.value.status = res.data.status?.status || newStatus;
+    const res = await axiosInstance.put(`/business-units/${businessUnit.value.id}`, { status: newStatus });
+    const confirmed = res?.data?.business_unit?.status ?? newStatus;
+    businessUnit.value.status = confirmed;
   } catch (err) {
+    businessUnit.value.status = prev;
     alert('No se pudo cambiar el estatus');
     console.error('Detalle del error:', err?.response?.data || err);
-  }
-};
-
-const toggleUserStatus = async (user) => {
-  if (!canToggleStatus.value) return;
-  const isActive = user.status === 'activo' || user.status === 'active';
-  const newStatus = isActive ? 'inactive' : 'active';
-  try {
-    const res = await axiosInstance.put(`/users/${user.id}`, {
-      status: newStatus
-    });
-    user.status = res.data.status || newStatus;
-  } catch (err) {
-    alert('No se pudo cambiar el estatus del usuario');
   }
 };
 
@@ -92,8 +77,6 @@ const formatAddress = (address) => {
   ].filter(Boolean);
   return parts.length ? parts.join(', ') : 'No disponible';
 };
-
-const truncate = (text, max = 80) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
 function getCountryFlagAndPrefix(code) {
   if (!code) return '';
@@ -133,14 +116,6 @@ onMounted(async () => {
       } catch (err) {
         business.value = null;
       }
-    }
-
-    if (Array.isArray(businessUnit.value?.users)) {
-      users.value = businessUnit.value.users;
-    } else {
-      const userRes = await axiosInstance.get(`/users`);
-      const allUsers = Array.isArray(userRes.data) ? userRes.data : userRes.data.users || userRes.data.data || [];
-      users.value = allUsers.filter((u) => String(u.business_unit_id) === String(businessUnit.value.id));
     }
 
     // --- ACCESS CONTROL LOGIC ---
@@ -202,7 +177,7 @@ onMounted(async () => {
 
     router.replace('/403');
   } catch (err) {
-    console.error('Error al obtener la ubicación, empresa, organización o usuarios:', err);
+    console.error('Error al obtener la ubicación, empresa, organización:', err);
   }
 });
 </script>
@@ -454,11 +429,11 @@ onMounted(async () => {
             <thead>
               <tr>
                 <th class="font-weight-bold text-subtitle-1" style="width: 15%">Nombre</th>
-                <th class="font-weight-bold text-subtitle-1" style="width: 15%">Apellido</th>
-                <th class="font-weight-bold text-subtitle-1" style="width: 20%">Correo</th>
-                <th class="font-weight-bold text-subtitle-1" style="width: 25%">Teléfono</th>
-                <th class="font-weight-bold text-subtitle-1" style="width: 15%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 7%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 18%">Apellido</th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 25%">Correo</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
+                <th class="font-weight-bold text-subtitle-1" style="width: 20%">Teléfono</th>
                 <th class="font-weight-bold text-subtitle-1" style="width: 10%"></th>
               </tr>
             </thead>
@@ -470,6 +445,7 @@ onMounted(async () => {
                   </span>
                   <span v-else>No disponible</span>
                 </td>
+                <td></td>
                 <td>
                   <span v-if="businessUnit?.contact?.last_name">
                     {{ businessUnit.contact.last_name }}
@@ -480,6 +456,7 @@ onMounted(async () => {
                   <span v-if="businessUnit?.contact?.email">{{ businessUnit.contact.email }}</span>
                   <span v-else>No disponible</span>
                 </td>
+                <td></td>
                 <td>
                   <span v-if="businessUnit?.contact?.phone_country && businessUnit?.contact?.phone_number">
                     <span>
@@ -491,136 +468,10 @@ onMounted(async () => {
                   <span v-else>No disponible</span>
                 </td>
                 <td></td>
-                <td></td>
-                <td></td>
               </tr>
             </tbody>
           </v-table>
         </template>
-      </v-col>
-    </v-row>
-
-    <v-row>
-      <v-col cols="12">
-        <div style="height: 32px"></div>
-      </v-col>
-    </v-row>
-
-    <v-row v-if="showUserTable">
-      <v-col cols="12">
-        <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Usuarios</div>
-        <v-table class="rounded-lg elevation-1 fixed-table">
-          <thead>
-            <tr>
-              <th class="font-weight-bold text-subtitle-1" style="width: 15%">ID</th>
-              <th class="font-weight-bold text-subtitle-1" style="width: 15%">Foto</th>
-              <th class="font-weight-bold text-subtitle-1" style="width: 20%">Nombre</th>
-              <th class="font-weight-bold text-subtitle-1" style="width: 25%">Correo</th>
-              <th class="font-weight-bold text-subtitle-1" style="width: 15%">Rol</th>
-              <th class="font-weight-bold text-subtitle-1" style="width: 10%">Estatus</th>
-              <th class="font-weight-bold text-subtitle-1 actions-header" style="width: 10%"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="user in users"
-              :key="user.id"
-              :class="['row-clickable', { 'cursor-pointer': canUserView }]"
-              @click="canUserView ? goToUserShow(user) : undefined"
-              :style="{ cursor: canUserView ? 'pointer' : 'default' }"
-            >
-              <td>
-                <router-link
-                  v-if="canUserView"
-                  :to="`/usuarios/${user.id}`"
-                  style="text-decoration: underline; color: #1976d2 !important"
-                  @click.stop
-                >
-                  {{ user.id }}
-                </router-link>
-                <span v-else>{{ user.id }}</span>
-              </td>
-              <td style="text-align: center; vertical-align: middle">
-                <div style="display: flex; align-items: center; justify-content: left">
-                  <img
-                    v-if="user.profile_picture"
-                    :src="user.profile_picture"
-                    alt="Foto de perfil"
-                    style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #f5f5f5"
-                  />
-                  <span v-else style="font-size: 12px; color: #888">Sin foto</span>
-                </div>
-              </td>
-              <td>
-                <span>
-                  {{ user.name || [user.first_name, user.last_name].filter(Boolean).join(' ') || 'No disponible' }}
-                </span>
-              </td>
-              <td>{{ user.email || 'No disponible' }}</td>
-              <td>
-                {{
-                  Array.isArray(user.roles) && user.roles.length
-                    ? typeof user.roles[0] === 'object'
-                      ? user.roles[0].name === 'superadmin'
-                        ? 'Super Administrador'
-                        : user.roles[0].name === 'admin'
-                          ? 'Administrador'
-                          : user.roles[0].name === 'sponsor'
-                            ? 'Sponsor'
-                            : user.roles[0].name || 'No disponible'
-                      : user.roles[0] === 'superadmin'
-                        ? 'Super Administrador'
-                        : user.roles[0] === 'admin'
-                          ? 'Administrador'
-                          : user.roles[0] === 'sponsor'
-                            ? 'Sponsor'
-                            : user.roles[0] || 'No disponible'
-                    : 'No disponible'
-                }}
-              </td>
-              <td>
-                <StatusChip :status="user.status" v-if="user.status" />
-                <span v-else>No disponible</span>
-              </td>
-              <td class="actions-cell">
-                <v-menu v-if="canUserActions" location="bottom end">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
-                      <v-icon :icon="mdiDotsHorizontal" size="20" />
-                    </v-btn>
-                  </template>
-                  <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
-                    <v-list-item v-if="canUserView" @click="goToUserShow(user)">
-                      <template #prepend>
-                        <v-icon :icon="mdiEye" size="18" />
-                      </template>
-                      <v-list-item-title>Ver</v-list-item-title>
-                    </v-list-item>
-                    <v-divider class="my-1" v-if="canUserEdit && canUserView" />
-                    <v-list-item v-if="canUserEdit" @click="goToUserEdit(user)">
-                      <template #prepend>
-                        <v-icon :icon="mdiPencil" size="18" />
-                      </template>
-                      <v-list-item-title>Editar</v-list-item-title>
-                    </v-list-item>
-                    <v-divider class="my-1" v-if="canToggleStatus" />
-                    <v-list-item v-if="canToggleStatus" @click="toggleUserStatus(user)">
-                      <template #prepend>
-                        <v-icon :icon="user.status === 'activo' || user.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
-                      </template>
-                      <v-list-item-title>
-                        {{ user.status === 'activo' || user.status === 'active' ? 'Desactivar' : 'Activar' }}
-                      </v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
-              </td>
-            </tr>
-            <tr v-if="users.length === 0">
-              <td colspan="7" class="text-center text-medium-emphasis">No hay usuarios relacionados.</td>
-            </tr>
-          </tbody>
-        </v-table>
       </v-col>
     </v-row>
   </v-container>

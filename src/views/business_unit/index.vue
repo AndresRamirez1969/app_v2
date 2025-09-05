@@ -9,8 +9,12 @@ import axios from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
-const business_units = ref([]);
 const filteredBusinessUnits = ref([]);
+const total = ref(0);
+const page = ref(1);
+const itemsPerPage = ref(10);
+const sortBy = ref('folio');
+const sortDesc = ref(true);
 const { mdAndDown } = useDisplay();
 
 const searchText = ref('');
@@ -26,26 +30,38 @@ function hasPermission(permission) {
   return auth.user?.permissions?.includes(permission);
 }
 
+const fetchBusinessUnits = async () => {
+  try {
+    isLoading.value = true;
+    const params = {
+      page: page.value,
+      per_page: itemsPerPage.value,
+      sort_by: sortBy.value,
+      sort_desc: sortDesc.value,
+      ...filterOptions.value
+    };
+    if (searchText.value) params.search = searchText.value;
+    const { data } = await axios.get('/business-units', { params });
+    filteredBusinessUnits.value = data.data ?? data.business_units ?? [];
+    total.value = data.meta?.total ?? filteredBusinessUnits.value.length;
+  } catch (error) {
+    filteredBusinessUnits.value = [];
+    total.value = 0;
+    console.error('Error fetching business units:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 onMounted(async () => {
   if (!hasPermission('businessUnit.viewAny') && !auth.user?.roles?.includes('superadmin') && !auth.user?.roles?.includes('admin')) {
     router.replace('/403');
     return;
   }
-
   canView.value = true;
   canCreate.value = hasPermission('businessUnit.create');
   canEditPermission.value = hasPermission('businessUnit.update');
-  try {
-    isLoading.value = true;
-    const { data } = await axios.get('/business-units');
-    // El backend ahora retorna los datos en data.data o data.business_unit según el Resource
-    business_units.value = data.data ?? data.business_units ?? [];
-    filteredBusinessUnits.value = data.data ?? data.business_units ?? [];
-  } catch (error) {
-    console.error('Error fetching business units:', error);
-  } finally {
-    isLoading.value = false;
-  }
+  await fetchBusinessUnits();
 });
 
 const goToCreate = () => {
@@ -54,79 +70,30 @@ const goToCreate = () => {
 
 async function handleSearch(text) {
   searchText.value = text;
-  try {
-    isLoading.value = true;
-    const params = {};
-    if (text) {
-      params.search = text;
-    }
-    if (filterOptions.value.organizationId) {
-      params.organization_id = filterOptions.value.organizationId;
-    }
-    if (filterOptions.value.businessId) {
-      params.business_id = filterOptions.value.businessId;
-    }
-    if (filterOptions.value.createdAtStart) {
-      params.created_at_start = filterOptions.value.createdAtStart;
-    }
-    if (filterOptions.value.createdAtEnd) {
-      params.created_at_end = filterOptions.value.createdAtEnd;
-    }
-    if (filterOptions.value.status) {
-      params.status = filterOptions.value.status;
-    }
-    // El backend soporta paginación y ordenamiento
-    params.per_page = 50;
-    params.sort_by = 'folio';
-    params.sort_desc = true;
-    const { data } = await axios.get('/business-units', { params });
-    filteredBusinessUnits.value = data.data ?? data.business_units ?? [];
-  } catch (error) {
-    filteredBusinessUnits.value = [];
-    console.error('Error searching business units:', error);
-  } finally {
-    isLoading.value = false;
-  }
+  page.value = 1;
+  await fetchBusinessUnits();
 }
 
 async function handleFilter(filters) {
   filterOptions.value = filters;
-  try {
-    const params = { ...filters };
-    if (filters.organizationId) {
-      params.organization_id = filters.organizationId;
-      delete params.organizationId;
-    }
-    if (filters.businessId) {
-      params.business_id = filters.businessId;
-      delete params.businessId;
-    }
-    if (filters.createdAtStart) {
-      params.created_at_start = filters.createdAtStart;
-      delete params.createdAtStart;
-    }
-    if (filters.createdAtEnd) {
-      params.created_at_end = filters.createdAtEnd;
-      delete params.createdAtEnd;
-    }
-    if (filters.status) {
-      params.status = filters.status;
-    }
-    if (searchText.value) {
-      params.search = searchText.value;
-    }
-    params.per_page = 50;
-    params.sort_by = 'folio';
-    params.sort_desc = true;
-    isLoading.value = true;
-    const { data } = await axios.get('/business-units', { params });
-    filteredBusinessUnits.value = data.data ?? data.business_units ?? [];
-  } catch (error) {
-    console.error('Error fetching filtered business units:', error);
-    filteredBusinessUnits.value = [];
-  } finally {
-    isLoading.value = false;
+  page.value = 1;
+  await fetchBusinessUnits();
+}
+
+async function handlePageChange(newPage) {
+  page.value = newPage;
+  await fetchBusinessUnits();
+}
+
+async function handleSort(column) {
+  if (sortBy.value === column) {
+    sortDesc.value = !sortDesc.value;
+  } else {
+    sortBy.value = column;
+    sortDesc.value = false;
   }
+  page.value = 1;
+  await fetchBusinessUnits();
 }
 </script>
 
@@ -157,9 +124,16 @@ async function handleFilter(filters) {
         <v-col>
           <BusinessUnitList
             :items="filteredBusinessUnits"
+            :total="total"
+            :page="page"
+            :itemsPerPage="itemsPerPage"
+            :sortBy="sortBy"
+            :sortDesc="sortDesc"
             :isMobile="mdAndDown"
-            :can-edit-permission="canEditPermission"
+            :canEditPermission="canEditPermission"
             :isLoading="isLoading"
+            @update:page="handlePageChange"
+            @sort="handleSort"
           />
         </v-col>
       </v-row>

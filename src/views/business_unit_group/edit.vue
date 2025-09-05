@@ -1,10 +1,11 @@
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { mdiArrowLeft, mdiDomainOff } from '@mdi/js';
+import { mdiArrowLeft, mdiDomainOff, mdiInformationSlabCircleOutline } from '@mdi/js';
 import axios from '@/utils/axios';
 import BusinessUnitFilter from '../business_unit/BusinessUnitFilter.vue';
 import BusinessUnitSelectTable from './BusinessUnitSelectTable.vue';
+import InfoBusinessUnitGroupModal from '@/components/modals/InfoBusinessUnitGroupModal.vue';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
@@ -29,12 +30,7 @@ const search = ref('');
 const status = ref('active');
 
 const showWarning = ref(false);
-const errorMsg = ref('');
-
-const roles = computed(() => auth.user?.roles || []);
-const isSuperadmin = computed(() => roles.value.includes('superadmin'));
-const isAdmin = computed(() => roles.value.includes('admin'));
-const isSponsorOrOther = computed(() => !isSuperadmin.value && !isAdmin.value);
+const showInfoModal = ref(false);
 
 const organizationOptions = ref([]);
 const organizationSearch = ref('');
@@ -46,6 +42,67 @@ const loadingBusinesses = ref(false);
 
 const groupFields = ref({});
 const selectedBusinessUnitsFull = ref([]);
+
+const errorMsg = ref('');
+
+// --- INTEGRACIÓN DE ROLES Y PERMISOS ---
+const user = computed(() => auth.user || { roles: [], permissions: [] });
+const userRoles = computed(() => (Array.isArray(user.value.roles) ? user.value.roles : user.value.roles?.map?.((r) => r.name) || []));
+const userPerms = computed(() =>
+  Array.isArray(user.value.permissions) ? user.value.permissions : user.value.permissions?.map?.((p) => p.name) || []
+);
+
+const isSuperadmin = computed(() => userRoles.value.includes('superadmin'));
+const isAdmin = computed(() => userRoles.value.includes('admin'));
+const isSponsor = computed(() => userRoles.value.includes('sponsor'));
+const isSponsorOrOther = computed(() => !isSuperadmin.value && !isAdmin.value);
+
+let canEditUnitGroup = ref(false);
+
+function checkCanEditUnitGroup(group) {
+  const orgId = group.organization_id ?? group.organization?.id;
+  const busId = group.business_id ?? group.business?.id;
+
+  const userOrgId = user.value.organization_id;
+  const userBusId = user.value.business_id;
+
+  canEditUnitGroup.value = false;
+
+  if (userRoles.value.includes('superadmin')) {
+    canEditUnitGroup.value = true;
+  } else if (userRoles.value.includes('admin')) {
+    if (orgId && busId && orgId === userOrgId) {
+      canEditUnitGroup.value = true;
+    }
+  } else if (userRoles.value.includes('sponsor')) {
+    if (orgId && busId && orgId === userOrgId && busId === userBusId) {
+      canEditUnitGroup.value = true;
+    }
+  } else if (
+    userPerms.value.includes('businessUnitGroup.viewAny') &&
+    userPerms.value.includes('businessUnitGroup.view') &&
+    userPerms.value.includes('businessUnitGroup.update')
+  ) {
+    if (orgId && busId && orgId === userOrgId && busId === userBusId) {
+      canEditUnitGroup.value = true;
+    }
+  } else if (
+    userPerms.value.includes('businessUnitGroup.view') &&
+    userPerms.value.includes('businessUnitGroup.update') &&
+    !userPerms.value.includes('businessUnitGroup.viewAny')
+  ) {
+    if (busId && busId === userBusId) {
+      canEditUnitGroup.value = true;
+    }
+  }
+}
+
+function normalizeUnits(units) {
+  return (units || []).map((bu) => ({
+    ...bu,
+    id: Number(bu.id)
+  }));
+}
 
 const fetchOrganizations = async (searchText = '') => {
   loadingOrganizations.value = true;
@@ -140,7 +197,13 @@ const fullAddress = (address) => {
 
 const truncate = (text, max = 50) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
+// SIEMPRE muestra las vinculadas al grupo, combinadas con las filtradas y seleccionadas correctamente
 const fetchBusinessUnits = async () => {
+  if (!canShowBusinessUnits.value) {
+    businessUnits.value = [];
+    total.value = 0;
+    return;
+  }
   loading.value = true;
   try {
     const params = {
@@ -154,11 +217,34 @@ const fetchBusinessUnits = async () => {
       search: search.value
     };
     const { data } = await axios.get('/business-units', { params });
-    businessUnits.value = data.data;
-    total.value = data.meta?.total ?? data.total ?? 0;
+
+    const filtered = normalizeUnits(data.data || []);
+    const linked = normalizeUnits(selectedBusinessUnitsFull.value || []);
+    const linkedIds = new Set(linked.map((bu) => bu.id));
+
+    const filteredLinked = search.value
+      ? linked.filter((bu) => {
+          const text = `${bu.folio ?? ''} ${bu.name ?? ''} ${bu.alias ?? ''}`.toLowerCase();
+          return text.includes(search.value.toLowerCase());
+        })
+      : linked;
+
+    const combined = [...filteredLinked, ...filtered.filter((bu) => !linkedIds.has(bu.id))];
+    businessUnits.value = combined;
+    total.value = combined.length;
+
+    console.log('Business units vinculadas al grupo:', linked);
   } catch (e) {
-    businessUnits.value = [];
-    total.value = 0;
+    const linked = normalizeUnits(selectedBusinessUnitsFull.value || []);
+    const filteredLinked = search.value
+      ? linked.filter((bu) => {
+          const text = `${bu.folio ?? ''} ${bu.name ?? ''} ${bu.alias ?? ''}`.toLowerCase();
+          return text.includes(search.value.toLowerCase());
+        })
+      : linked;
+    businessUnits.value = filteredLinked;
+    total.value = businessUnits.value.length;
+    console.log('Business units vinculadas al grupo:', linked);
   } finally {
     loading.value = false;
   }
@@ -172,6 +258,13 @@ const fetchGroup = async () => {
 
     groupFields.value = group;
 
+    // --- INTEGRACIÓN DE VERIFICACIÓN DE PERMISOS ---
+    checkCanEditUnitGroup(group);
+    if (!canEditUnitGroup.value) {
+      router.push('/403');
+      return;
+    }
+
     name.value = group.name ?? '';
     organizationId.value = group.organization_id ?? group.organization?.id ?? null;
     businessId.value =
@@ -183,8 +276,18 @@ const fetchGroup = async () => {
 
     status.value = group.status ?? 'active';
 
-    selectedBusinessUnitsFull.value = group.business_units ?? group.businessUnits ?? [];
-    selectedBusinessUnits.value = selectedBusinessUnitsFull.value.map((bu) => bu.id);
+    let units = [];
+    if (Array.isArray(data.business_units?.data) && data.business_units?.data.length > 0) {
+      units = data.business_units.data;
+    } else if (Array.isArray(data.business_units) && data.business_units.length > 0) {
+      units = data.business_units;
+    } else if (Array.isArray(group.businessUnits) && group.businessUnits.length > 0) {
+      units = group.businessUnits;
+    } else if (Array.isArray(group.business_units) && group.business_units.length > 0) {
+      units = group.business_units;
+    }
+    selectedBusinessUnitsFull.value = units;
+    selectedBusinessUnits.value = normalizeUnits(units).map((bu) => Number(bu.id));
 
     if (isSuperadmin.value) {
       await fetchOrganizations('');
@@ -212,13 +315,44 @@ const fetchGroup = async () => {
     if (isSponsorOrOther.value) {
       if (auth.user?.organization_id) organizationId.value = auth.user.organization_id;
       if (auth.user?.business_id) businessId.value = auth.user.business_id;
+      if (auth.user?.organization_id && !auth.user?.business_id) {
+        await fetchBusinesses('', auth.user.organization_id);
+      }
     }
   } catch (e) {
     errorMsg.value = 'Error al obtener el grupo';
   }
 };
 
-const sortedItems = computed(() => businessUnits.value);
+const canShowBusinessUnits = computed(() => {
+  if (isSuperadmin.value) {
+    return !!organizationId.value && !!businessId.value;
+  }
+  if (isAdmin.value) {
+    return !!businessId.value;
+  }
+  if (auth.user?.organization_id && auth.user?.business_id) {
+    return true;
+  }
+  if (auth.user?.organization_id && !auth.user?.business_id) {
+    return !!businessId.value;
+  }
+  return false;
+});
+
+const sortedItems = computed(() => {
+  if (!selectedBusinessUnits.value.length) return businessUnits.value;
+  const selected = [];
+  const unselected = [];
+  for (const unit of businessUnits.value) {
+    if (selectedBusinessUnits.value.map(Number).includes(Number(unit.id))) {
+      selected.push(unit);
+    } else {
+      unselected.push(unit);
+    }
+  }
+  return [...selected, ...unselected];
+});
 
 watch([organizationId, businessId, filters, page, itemsPerPage, sortBy, sortDesc], () => {
   fetchBusinessUnits();
@@ -231,7 +365,9 @@ watch(search, () => {
 
 onMounted(async () => {
   await fetchGroup();
-  fetchBusinessUnits();
+  if (canEditUnitGroup.value) {
+    fetchBusinessUnits();
+  }
 });
 
 function handleFilter(newFilters) {
@@ -263,17 +399,32 @@ function handleSearch(val) {
 }
 
 function toggleBusinessUnit(id) {
-  if (selectedBusinessUnits.value.includes(id)) {
-    selectedBusinessUnits.value = selectedBusinessUnits.value.filter((buId) => buId !== id);
+  const numId = Number(id);
+  if (selectedBusinessUnits.value.map(Number).includes(numId)) {
+    selectedBusinessUnits.value = selectedBusinessUnits.value.filter((buId) => Number(buId) !== numId);
   } else {
-    selectedBusinessUnits.value.push(id);
+    selectedBusinessUnits.value.push(numId);
   }
+}
+
+function hasInvalidBusinessUnits() {
+  return selectedBusinessUnits.value.some((buId) => {
+    const bu = businessUnits.value.find((b) => Number(b.id) === Number(buId));
+    if (!bu) return false;
+    const orgMatch = String(bu.organization_id) === String(organizationId.value);
+    const bizMatch = String(bu.business_id) === String(businessId.value);
+    return !(orgMatch && bizMatch);
+  });
 }
 
 const saving = ref(false);
 async function saveGroup() {
   showWarning.value = false;
   errorMsg.value = '';
+  if (hasInvalidBusinessUnits()) {
+    showInfoModal.value = true;
+    return;
+  }
   if (!name.value || !organizationId.value || !businessId.value || !selectedBusinessUnits.value.length) {
     showWarning.value = true;
     return;
@@ -312,13 +463,14 @@ function toggleSort(column) {
 </script>
 
 <template>
-  <v-container fluid>
+  <v-container fluid v-if="canEditUnitGroup">
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
         <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
           <v-icon :icon="mdiArrowLeft"></v-icon>
         </v-btn>
         <h3 class="font-weight-medium ml-3 mb-0">Editar Grupo de Ubicaciones</h3>
+        <v-icon :icon="mdiInformationSlabCircleOutline" color="primary" size="20" class="ml-2" @click="showInfoModal = true" />
       </v-col>
     </v-row>
 
@@ -334,7 +486,6 @@ function toggleSort(column) {
         <v-label class="mb-1">Nombre <span class="text-error">*</span></v-label>
         <v-text-field v-model="name" variant="outlined" color="primary" required density="compact" class="mb-2" />
 
-        <!-- SUPERADMIN: muestra organización y empresa solo si ya seleccionó organización -->
         <template v-if="isSuperadmin">
           <v-label class="mb-1">Organización <span class="text-error">*</span></v-label>
           <v-autocomplete
@@ -376,8 +527,28 @@ function toggleSort(column) {
           </template>
         </template>
 
-        <!-- ADMIN: solo muestra empresa, organizationId ya está seteado -->
         <template v-else-if="isAdmin && organizationId">
+          <v-label class="mb-1">Empresa <span class="text-error">*</span></v-label>
+          <v-autocomplete
+            v-model="businessId"
+            :items="businessOptions"
+            :loading="loadingBusinesses"
+            v-model:search-input="businessSearch"
+            item-title="display"
+            item-value="id"
+            variant="outlined"
+            color="primary"
+            density="compact"
+            placeholder="Buscar empresa"
+            clearable
+            hide-details
+            class="mb-2"
+            :menu-props="{ maxHeight: '300px' }"
+          />
+          <div style="height: 10px"></div>
+        </template>
+
+        <template v-else-if="isSponsorOrOther && auth.user?.organization_id && !auth.user?.business_id">
           <v-label class="mb-1">Empresa <span class="text-error">*</span></v-label>
           <v-autocomplete
             v-model="businessId"
@@ -402,67 +573,71 @@ function toggleSort(column) {
 
     <v-row>
       <v-col cols="12">
-        <BusinessUnitFilter
-          @filter="handleFilter"
-          @org-biz-change="handleOrgBizChange"
-          @search="handleSearch"
-          :showOrganization="isSuperadmin"
-          :showBusiness="true"
-          :organization-id="organizationId"
-          :business-id="businessId"
-        />
+        <h4 class="font-weight-bold mb-3">Vincular Ubicaciones</h4>
+        <v-divider class="mb-6" />
+      </v-col>
+    </v-row>
+
+    <v-row>
+      <v-col cols="12">
+        <BusinessUnitFilter @filter="handleFilter" @org-biz-change="handleOrgBizChange" @search="handleSearch" :hide-filter-button="true" />
       </v-col>
     </v-row>
 
     <v-row>
       <v-col>
-        <template v-if="loading">
+        <template v-if="!canShowBusinessUnits">
           <div class="text-center py-8">
-            <v-progress-circular indeterminate color="primary" size="64" />
-            <p class="mt-4">Cargando ubicaciones...</p>
-          </div>
-        </template>
-        <template v-else-if="total === 0">
-          <div class="text-center py-8">
-            <v-icon :icon="mdiDomainOff" size="64" color="grey lighten-1"></v-icon>
-            <p class="mt-4 text-h6 text-grey-darken-1">No existen ubicaciones</p>
-            <p class="text-body-2 text-grey">No se encontraron ubicaciones con los filtros aplicados</p>
+            <p class="mt-4 text-h6 text-grey-darken-1">Selecciona organización y empresa para ver ubicaciones.</p>
+            <p class="text-body-2 text-grey">Debes seleccionar los filtros requeridos para mostrar las ubicaciones disponibles.</p>
           </div>
         </template>
         <template v-else>
-          <BusinessUnitSelectTable
-            :items="sortedItems.map((unit) => ({ ...unit, addressFormatted: truncate(fullAddress(unit.address), 50) }))"
-            :total="total"
-            :page="page"
-            :items-per-page="itemsPerPage"
-            :sort-by="sortBy"
-            :sort-desc="sortDesc"
-            :selected-business-units="selectedBusinessUnits"
-            @update:page="page = $event"
-            @sort="toggleSort"
-            @toggle="toggleBusinessUnit"
-            :error="showWarning && !selectedBusinessUnits.length"
-            :is-mobile="$vuetify.display.smAndDown"
-          />
-          <div class="v-messages v-messages__wrapper" style="min-height: 24px; padding-top: 10px">
-            <div
-              class="v-messages__message"
-              :style="
-                showWarning && !selectedBusinessUnits.length
-                  ? 'color: #ff2800; font-size: 0.8125rem; font-weight: 400;'
-                  : 'color: #424242; font-size: 0.8125rem; font-weight: 400;'
-              "
-            >
-              Debes seleccionar al menos una ubicación.
+          <template v-if="loading">
+            <div class="text-center py-8">
+              <v-progress-circular indeterminate color="primary" size="64" />
+              <p class="mt-4">Cargando ubicaciones...</p>
             </div>
-          </div>
+          </template>
+          <template v-else-if="total === 0">
+            <div class="text-center py-8">
+              <p class="mt-4 text-h6 text-grey-darken-1">No existen ubicaciones</p>
+              <p class="text-body-2 text-grey">No se encontraron ubicaciones con los filtros aplicados</p>
+            </div>
+          </template>
+          <template v-else>
+            <BusinessUnitSelectTable
+              :items="sortedItems.map((unit) => ({ ...unit, addressFormatted: truncate(fullAddress(unit.address), 50) }))"
+              :total="total"
+              :page="page"
+              :items-per-page="itemsPerPage"
+              :sort-by="sortBy"
+              :sort-desc="sortDesc"
+              :selected-business-units="selectedBusinessUnits.map(Number)"
+              @update:page="page = $event"
+              @sort="toggleSort"
+              @toggle="toggleBusinessUnit"
+              :error="showWarning && !selectedBusinessUnits.length"
+              :is-mobile="$vuetify.display.smAndDown"
+            />
+            <div class="v-messages v-messages__wrapper" style="min-height: 24px; padding-top: 10px">
+              <div
+                class="v-messages__message"
+                :style="
+                  showWarning && !selectedBusinessUnits.length
+                    ? 'color: #ff2800; font-size: 0.8125rem; font-weight: 400;'
+                    : 'color: #424242; font-size: 0.8125rem; font-weight: 400;'
+                "
+              >
+                Debes seleccionar al menos una ubicación.
+                <strong
+                  >Si deseas cambiar las ubicaciones de otra empresa, primero desvincula las ubicaciones de la empresa actual, para poder
+                  seleccionar las de la nueva</strong
+                >.
+              </div>
+            </div>
+          </template>
         </template>
-      </v-col>
-    </v-row>
-
-    <v-row v-if="errorMsg">
-      <v-col>
-        <v-alert type="error" dense>{{ errorMsg }}</v-alert>
       </v-col>
     </v-row>
 
@@ -471,6 +646,8 @@ function toggleSort(column) {
         <v-btn color="primary" :loading="saving" @click="saveGroup"> Guardar Cambios </v-btn>
       </v-col>
     </v-row>
+
+    <InfoBusinessUnitGroupModal v-model="showInfoModal" />
   </v-container>
 </template>
 

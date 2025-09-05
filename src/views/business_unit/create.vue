@@ -92,18 +92,16 @@ const isAdmin = computed(() => user.value?.roles?.includes('admin'));
 const isSponsor = computed(() => user.value?.roles?.includes('sponsor'));
 const canSelectBusiness = computed(() => isAdmin.value || isSponsor.value || user.value?.permissions?.includes('businessUnit.create'));
 
-// ORGANIZATION SELECT (solo superadmin)
 const organizations = ref([]);
 const selectedOrganization = ref(null);
 const loadingOrganizations = ref(false);
 
-// BUSINESS SELECT (admin, sponsor, businessUnit.create)
 const businesses = ref([]);
 const selectedBusiness = ref(null);
 const loadingBusinesses = ref(false);
 
 onMounted(async () => {
-  if (!user.value?.permissions?.includes('businessUnit.create') && !isAdmin.value && !isSuperadmin.value) {
+  if (!user.value?.permissions?.includes('businessUnit.create') && !isSponsor.value && !isAdmin.value && !isSuperadmin.value) {
     router.replace('/403');
     return;
   }
@@ -112,11 +110,10 @@ onMounted(async () => {
     router.replace(`/ubicaciones/${user.value.business_unit_id}`);
   }
 
-  // Si es superadmin, carga organizaciones
   if (isSuperadmin.value) {
     await fetchOrganizations('');
   }
-  // Si puede seleccionar business, carga businesses de su organización
+
   if (canSelectBusiness.value && user.value?.organization_id) {
     selectedOrganization.value = user.value.organization_id;
     await fetchBusinesses('', user.value.organization_id);

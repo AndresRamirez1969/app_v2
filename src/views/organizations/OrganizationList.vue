@@ -15,6 +15,7 @@ const props = defineProps({
   itemsPerPage: Number,
   sortBy: String,
   sortDesc: Boolean,
+  /** meta: se espera meta.total o meta.totalItems */
   meta: Object
 });
 
@@ -31,6 +32,19 @@ const canToggleStatus = computed(() => isSuperadmin.value);
 const canEdit = computed(() => permissions.value.includes('organization.update'));
 const canView = computed(() => permissions.value.includes('organization.view'));
 const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatus.value);
+
+/** total real, compatible con diferentes backends */
+const totalItems = computed(() => {
+  const m = props.meta || {};
+  return Number(m.total ?? m.totalItems ?? props.items?.length ?? 0);
+});
+
+/** páginas totales (>=1) con el total real */
+const pageCount = computed(() => {
+  const perPage = Number(props.itemsPerPage || 10);
+  const len = Math.ceil(totalItems.value / perPage);
+  return Math.max(1, len || 1);
+});
 
 const fullAddress = (address) => {
   if (!address) return 'No disponible';
@@ -57,9 +71,7 @@ const toggleStatus = async (org) => {
   const isActive = org.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
-    const res = await axiosInstance.put(`/organizations/${org.id}`, {
-      status: newStatus
-    });
+    const res = await axiosInstance.put(`/organizations/${org.id}`, { status: newStatus });
     org.status = res.data.status || newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
@@ -133,9 +145,21 @@ const handleSort = (column) => {
             </v-col>
           </v-row>
         </v-card>
+
+        <!-- Paginación MOBILE: SIEMPRE visible (chip centrado; flechas off si pageCount=1) -->
+        <div class="d-flex flex-column align-center mt-4">
+          <v-pagination
+            :model-value="page"
+            :length="pageCount"
+            :total-visible="1"
+            color="primary"
+            @update:modelValue="emit('update:page', $event)"
+            class="mobile-pagination"
+          />
+        </div>
       </template>
 
-      <!-- Modo escritorio (solo tabla) -->
+      <!-- Modo escritorio (tabla) -->
       <template v-else>
         <OrganizationTableMeta
           :items="items"
@@ -143,6 +167,7 @@ const handleSort = (column) => {
           :itemsPerPage="itemsPerPage"
           :sortBy="sortBy"
           :sortDesc="sortDesc"
+          :totalItems="totalItems"
           @update:page="emit('update:page', $event)"
           @sort="handleSort"
         >
@@ -151,6 +176,7 @@ const handleSort = (column) => {
               {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
             </v-icon>
           </template>
+
           <template #rows>
             <template v-if="items.length">
               <tr
@@ -165,6 +191,7 @@ const handleSort = (column) => {
                     {{ org.folio }}
                   </router-link>
                 </td>
+
                 <td class="logo-cell">
                   <v-avatar v-if="org.logo" size="48" class="logo-avatar">
                     <img :src="org.logo" alt="Logo" class="logo-img-cover" />
@@ -173,12 +200,15 @@ const handleSort = (column) => {
                     <span style="font-size: 12px; color: #888">Sin logo</span>
                   </v-avatar>
                 </td>
+
                 <td class="legal-cell">{{ org.legal_name }}</td>
                 <td class="alias-cell">{{ org.alias || 'Sin alias' }}</td>
                 <td class="address-cell">{{ truncate(fullAddress(org.address), 50) }}</td>
+
                 <td class="status-cell">
                   <StatusChip :status="org.status" />
                 </td>
+
                 <td class="actions-cell" @click.stop>
                   <v-menu v-if="canShowDropdown" location="bottom end">
                     <template #activator="{ props }">
@@ -186,6 +216,7 @@ const handleSort = (column) => {
                         <v-icon :icon="mdiDotsHorizontal" size="20" />
                       </v-btn>
                     </template>
+
                     <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
                       <v-list-item v-if="canView" @click="goToShow(org)">
                         <template #prepend>
@@ -193,14 +224,18 @@ const handleSort = (column) => {
                         </template>
                         <v-list-item-title>Ver</v-list-item-title>
                       </v-list-item>
+
                       <v-divider class="my-1" v-if="canEdit && canView" />
+
                       <v-list-item v-if="canEdit" @click="goToEdit(org)">
                         <template #prepend>
                           <v-icon :icon="mdiPencil" size="18" />
                         </template>
                         <v-list-item-title>Editar</v-list-item-title>
                       </v-list-item>
+
                       <v-divider class="my-1" v-if="canToggleStatus" />
+
                       <v-list-item v-if="canToggleStatus" @click="toggleStatus(org)">
                         <template #prepend>
                           <v-icon :icon="org.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />

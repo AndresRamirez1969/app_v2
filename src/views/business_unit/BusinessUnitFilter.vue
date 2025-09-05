@@ -3,7 +3,7 @@
     <!-- Search bar -->
     <v-text-field
       v-model="search"
-      :placeholder="`Buscar por nombre, alias, folio o dirección...`"
+      :placeholder="`Buscar por folio, nombre o alias...`"
       prepend-inner-icon="mdi-magnify"
       clearable
       class="flex-grow-1 search-bar"
@@ -17,7 +17,7 @@
     />
 
     <!-- Filtros button con indicador -->
-    <div class="filter-btn-wrapper ml-2 flex-shrink-0" style="min-width: 44px; position: relative">
+    <div v-if="!hideFilterButton" class="filter-btn-wrapper ml-2 flex-shrink-0" style="min-width: 44px; position: relative">
       <v-btn
         :icon="mdAndDown"
         variant="text"
@@ -49,7 +49,7 @@
     </div>
 
     <!-- Modal de filtros -->
-    <v-dialog v-model="dialog" max-width="420">
+    <v-dialog v-model="dialog" max-width="420" v-if="!hideFilterButton">
       <v-card class="modal-padding" style="position: relative">
         <!-- Botón de cerrar (tachita) -->
         <v-btn
@@ -83,7 +83,7 @@
           />
 
           <!-- Organization select filter SOLO para superadmin -->
-          <div v-if="isSuperadmin" class="mb-3">
+          <div v-if="isSuperadmin && !hideOrgBizFilters" class="mb-3">
             <v-autocomplete
               v-model="selectedOrganization"
               :items="organizationOptions"
@@ -104,7 +104,7 @@
           </div>
 
           <!-- Business select filter SOLO para superadmin, admin, sponsor o con businessUnit.viewAny -->
-          <div v-if="canShowBusinessFilter" class="mb-3">
+          <div v-if="canShowBusinessFilter && !hideOrgBizFilters" class="mb-3">
             <v-autocomplete
               v-model="selectedBusiness"
               :items="businessOptions"
@@ -206,6 +206,12 @@ import { useDisplay } from 'vuetify';
 import axios from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
 import '@/styles/filters.css';
+
+// NUEVO: Props para ocultar filtros de organización/empresa y botón de filtros
+const props = defineProps({
+  hideOrgBizFilters: { type: Boolean, default: false },
+  hideFilterButton: { type: Boolean, default: false }
+});
 
 const emit = defineEmits(['search', 'filter']);
 

@@ -383,11 +383,19 @@ onMounted(async () => {
       if (orgId && busId && orgId === userOrgId && busId === userBusId) {
         canEditUnit = true;
       }
-    } else if (userPerms.includes('business.viewAny') && userPerms.includes('business.view') && userPerms.includes('business.update')) {
+    } else if (
+      userPerms.includes('businessUnit.viewAny') &&
+      userPerms.includes('businessUnit.view') &&
+      userPerms.includes('businessUnit.update')
+    ) {
       if (orgId && busId && orgId === userOrgId && busId === userBusId) {
         canEditUnit = true;
       }
-    } else if (userPerms.includes('business.view') && userPerms.includes('business.update') && !userPerms.includes('business.viewAny')) {
+    } else if (
+      userPerms.includes('businessUnit.view') &&
+      userPerms.includes('businessUnit.update') &&
+      !userPerms.includes('businessUnit.viewAny')
+    ) {
       if (busId && busId === userBusId) {
         canEditUnit = true;
       }
