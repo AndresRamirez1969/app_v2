@@ -1,6 +1,6 @@
 <script setup>
 import { reactive, ref, watch, onMounted, computed } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { mdiArrowLeft } from '@mdi/js';
 import axiosInstance from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
@@ -23,6 +23,7 @@ const orgRoleSearch = ref('');
 const organizationOptions = ref([]);
 const businessOptions = ref([]);
 const businessUnitOptions = ref([]);
+const roleOptions = ref([]);
 const allRoleOptions = ref([]);
 const orgRoleOptions = ref([]);
 
@@ -34,7 +35,70 @@ const loadingOrgRoles = ref(false);
 
 const selectedOrgForRoles = ref(null);
 
-const userId = route.params.id;
+const fieldErrors = reactive({
+  name: '',
+  email: '',
+  orgRole: '',
+  role: '',
+  organization_id: '',
+  business_id: '',
+  business_unit_id: ''
+});
+
+const fieldRefs = {
+  name: ref(null),
+  email: ref(null),
+  orgRole: ref(null),
+  role: ref(null),
+  organization_id: ref(null),
+  business_id: ref(null),
+  business_unit_id: ref(null)
+};
+
+const clearFieldError = (fieldName) => {
+  if (fieldErrors[fieldName]) {
+    fieldErrors[fieldName] = '';
+  }
+};
+
+const validateField = (fieldName, value) => {
+  clearFieldError(fieldName);
+  switch (fieldName) {
+    case 'name':
+      if (!value || value.trim() === '') {
+        fieldErrors.name = 'El campo nombre es obligatorio.';
+        return false;
+      }
+      break;
+    case 'email':
+      if (!value || value.trim() === '') {
+        fieldErrors.email = 'El campo correo es obligatorio.';
+        return false;
+      }
+      break;
+    case 'orgRole':
+      if (!value) {
+        fieldErrors.orgRole = 'El campo es obligatorio.';
+        return false;
+      }
+      break;
+    case 'role':
+      if (!value || value.trim() === '') {
+        fieldErrors.role = 'El campo rol es obligatorio.';
+        return false;
+      }
+      break;
+    case 'organization_id':
+    case 'business_id':
+    case 'business_unit_id':
+      if (!value) {
+        fieldErrors[fieldName] = 'Es obligatorio escoger un alcance.';
+        return false;
+      }
+      break;
+  }
+  return true;
+};
 
 const form = reactive({
   profile_picture: null,
@@ -53,60 +117,18 @@ const form = reactive({
 });
 
 const isSuperadmin = computed(() => auth.user?.roles?.includes('superadmin'));
+const isAdmin = computed(() => auth.user?.roles?.includes('admin'));
 const isSponsor = computed(() => auth.user?.roles?.includes('sponsor'));
 const userOrgId = computed(() => auth.user?.organization_id);
-
-const fetchUser = async () => {
-  try {
-    const { data } = await axiosInstance.get(`/users/${userId}`);
-    const user = data.user || data.data || data;
-    form.name = user.name || '';
-    form.email = user.email || '';
-    // Soporte para roles como array o string
-    if (Array.isArray(user.roles) && user.roles.length > 0) {
-      form.role = user.roles[0].name; // Toma el primer rol
-    } else if (typeof user.role === 'string') {
-      form.role = user.role;
-    } else if (user.role && typeof user.role === 'object' && user.role.name) {
-      form.role = user.role.name;
-    } else {
-      form.role = '';
-    }
-    form.organization_id = user.organization_id || null;
-    form.business_id = user.business_id || null;
-    form.business_unit_id = user.business_unit_id || null;
-    form.contact.first_name = user.contact?.first_name || '';
-    form.contact.last_name = user.contact?.last_name || '';
-    form.contact.email = user.contact?.email || '';
-    form.contact.phone_number = user.contact?.phone_number || '';
-    if (user.profile_picture) {
-      profilePreview.value = user.profile_picture;
-    } else if (user.profile_picture_url) {
-      profilePreview.value = user.profile_picture_url;
-    } else {
-      profilePreview.value = null;
-    }
-  } catch (e) {
-    errorMsg.value = 'No se pudo cargar el usuario';
-  }
-};
-
-onMounted(async () => {
-  const user = auth.user;
-  canEdit.value = user?.permissions?.includes('user.update');
-  await fetchUser();
-  fetchAllRoles();
-  fetchOrganizations('');
-});
+const userBusinessId = computed(() => auth.user?.business_id);
 
 // --- ORGANIZATION AUTOCOMPLETE ---
 const fetchOrganizations = async (searchText = '') => {
   loadingOrganizations.value = true;
   try {
-    const { data } = await axiosInstance.get('/organizations', {
-      params: { q: searchText, limit: 10 }
-    });
-    organizationOptions.value = (data.data || []).map((o) => ({
+    const params = searchText ? { q: searchText } : {};
+    const { data } = await axiosInstance.get('/users/available-organizations', { params });
+    organizationOptions.value = (data || []).map((o) => ({
       ...o,
       display: `${o.folio}${o.legal_name ? ' - ' + o.legal_name : ''}`
     }));
@@ -120,17 +142,17 @@ const fetchOrganizations = async (searchText = '') => {
 watch(organizationSearch, (val) => {
   fetchOrganizations(val);
 });
+onMounted(() => fetchOrganizations(''));
 
 // --- BUSINESS AUTOCOMPLETE ---
 const fetchBusinesses = async (searchText = '') => {
   loadingBusinesses.value = true;
   try {
-    const params = { q: searchText, limit: 10 };
-    if (form.organization_id) params.organization_id = form.organization_id;
-    const { data } = await axiosInstance.get('/businesses', { params });
-    businessOptions.value = (data.data || []).map((b) => ({
+    const params = searchText ? { q: searchText } : {};
+    const { data } = await axiosInstance.get('/users/available-businesses', { params });
+    businessOptions.value = (data || []).map((b) => ({
       ...b,
-      display: `${b.folio}${b.legal_name ? ' - ' + b.legal_name : ''}`,
+      display: `${b.folio}${b.name ? ' - ' + b.name : ''}`,
       organization_id: b.organization_id
     }));
   } catch (e) {
@@ -140,7 +162,7 @@ const fetchBusinesses = async (searchText = '') => {
   }
 };
 
-watch([businessSearch, () => form.organization_id], ([val]) => {
+watch(businessSearch, (val) => {
   fetchBusinesses(val);
 });
 onMounted(() => fetchBusinesses(''));
@@ -149,13 +171,11 @@ onMounted(() => fetchBusinesses(''));
 const fetchBusinessUnits = async (searchText = '') => {
   loadingBusinessUnits.value = true;
   try {
-    const params = { q: searchText, limit: 10 };
-    if (form.organization_id) params.organization_id = form.organization_id;
-    if (form.business_id) params.business_id = form.business_id;
-    const { data } = await axiosInstance.get('/business-units', { params });
-    businessUnitOptions.value = (data.data || []).map((u) => ({
+    const params = searchText ? { q: searchText } : {};
+    const { data } = await axiosInstance.get('/users/available-business-units', { params });
+    businessUnitOptions.value = (data || []).map((u) => ({
       ...u,
-      display: `${u.folio}${u.legal_name ? ' - ' + u.legal_name : ''}`,
+      display: `${u.folio}${u.name ? ' - ' + u.name : ''}`,
       organization_id: u.organization_id,
       business_id: u.business_id
     }));
@@ -166,10 +186,27 @@ const fetchBusinessUnits = async (searchText = '') => {
   }
 };
 
-watch([businessUnitSearch, () => form.organization_id, () => form.business_id], ([val]) => {
+watch(businessUnitSearch, (val) => {
   fetchBusinessUnits(val);
 });
 onMounted(() => fetchBusinessUnits(''));
+
+// --- FOTO DE PERFIL PREVIEW ---
+watch(
+  () => form.profile_picture,
+  (file) => {
+    if (file && typeof file === 'object') {
+      const imgFile = Array.isArray(file) ? file[0] : file;
+      profilePreview.value = URL.createObjectURL(imgFile);
+    } else if (typeof file === 'string' && file) {
+      profilePreview.value = file;
+      // Evita pasar la URL al input, solo úsala para el preview
+      form.profile_picture = null;
+    } else {
+      profilePreview.value = null;
+    }
+  }
+);
 
 // --- ROLES AUTOCOMPLETE ---
 const fetchAllRoles = async () => {
@@ -189,6 +226,25 @@ const fetchOrgRoles = async (orgId) => {
   try {
     const { data } = await axiosInstance.get('/roles', { params: { organization_id: orgId } });
     orgRoleOptions.value = (data.data || []).filter((r) => r.name !== 'superadmin');
+    // Diagnóstico: ¿el rol actual está en las opciones?
+    if (form.role) {
+      const found = orgRoleOptions.value.find((r) => r.name === form.role);
+      console.log(
+        '[Superadmin] fetchOrgRoles: orgId',
+        orgId,
+        'orgRoleOptions',
+        orgRoleOptions.value,
+        'form.role',
+        form.role,
+        '¿Rol actual en opciones?',
+        !!found
+      );
+      if (!found) {
+        form.role = null;
+      }
+    } else {
+      console.log('[Superadmin] fetchOrgRoles: orgId', orgId, 'orgRoleOptions', orgRoleOptions.value, 'form.role está vacío');
+    }
   } catch (e) {
     orgRoleOptions.value = [];
   } finally {
@@ -196,26 +252,42 @@ const fetchOrgRoles = async (orgId) => {
   }
 };
 
-// --- ROLES PARA EL SELECT PRINCIPAL ---
 const filteredRoleOptions = computed(() => {
-  // Superadmin: filtra por organización seleccionada
   if (isSuperadmin.value) {
     if (!selectedOrgForRoles.value) return [];
-    return orgRoleOptions.value.map((r) => ({
-      ...r,
-      display: r.name === 'admin' ? 'Administrador' : r.name === 'sponsor' ? 'Sponsor' : r.name
-    }));
+    const orgRoles = orgRoleOptions.value.filter((r) => r.organization_id === selectedOrgForRoles.value);
+    return [
+      { name: 'admin', display: 'Administrador' },
+      { name: 'sponsor', display: 'Sponsor' },
+      ...orgRoles
+        .filter((r) => r.name !== 'admin' && r.name !== 'sponsor')
+        .map((r) => ({
+          ...r,
+          display: r.name
+        }))
+    ];
   }
-  // Sponsor: solo roles de su organización, excluyendo admin
+  if (isAdmin.value) {
+    const orgRoles = allRoleOptions.value.filter((r) => r.organization_id === userOrgId.value);
+    return [
+      { name: 'admin', display: 'Administrador' },
+      { name: 'sponsor', display: 'Sponsor' },
+      ...orgRoles
+        .filter((r) => r.name !== 'admin' && r.name !== 'sponsor')
+        .map((r) => ({
+          ...r,
+          display: r.name
+        }))
+    ];
+  }
   if (isSponsor.value) {
     return allRoleOptions.value
-      .filter((r) => (r.organization_id === userOrgId.value || r.name === 'sponsor') && r.name !== 'admin')
+      .filter((r) => r.organization_id === userOrgId.value && r.name !== 'admin' && r.name !== 'sponsor')
       .map((r) => ({
         ...r,
-        display: r.name === 'sponsor' ? 'Sponsor' : r.name
+        display: r.name
       }));
   }
-  // Otros: roles de su organización + admin + sponsor
   return allRoleOptions.value
     .filter((r) => r.organization_id === userOrgId.value || r.name === 'admin' || r.name === 'sponsor')
     .map((r) => ({
@@ -224,22 +296,45 @@ const filteredRoleOptions = computed(() => {
     }));
 });
 
-// --- WATCHERS PARA ROLES ---
+// --- INTEGRACIÓN PARA SUPERADMIN: CARGA AUTOMÁTICA DE ROLES AL ENTRAR ---
+onMounted(() => {
+  fetchUser();
+  fetchOrganizations('');
+  fetchAllRoles();
+  // Si el usuario es superadmin y tiene organización, carga los roles de esa organización
+  if (isSuperadmin.value && auth.user?.organization_id) {
+    selectedOrgForRoles.value = auth.user.organization_id;
+    fetchOrgRoles(auth.user.organization_id);
+    console.log('[Superadmin] onMounted: auth.user.organization_id', auth.user.organization_id);
+  }
+});
+
 watch(roleSearch, () => {
   if (isSuperadmin.value) {
-    if (selectedOrgForRoles.value) fetchOrgRoles(selectedOrgForRoles.value);
+    if (selectedOrgForRoles.value) {
+      console.log('[Superadmin] roleSearch watcher: selectedOrgForRoles', selectedOrgForRoles.value);
+      fetchOrgRoles(selectedOrgForRoles.value);
+    }
   } else {
     fetchAllRoles();
   }
 });
-watch(selectedOrgForRoles, (orgId) => {
+
+// --- INTEGRACIÓN CORRECTA PARA QUE EL ROL SE MANTENGA AL EDITAR ---
+watch(selectedOrgForRoles, async (orgId, oldOrgId) => {
   if (isSuperadmin.value && orgId) {
-    fetchOrgRoles(orgId);
-    form.role = null;
+    console.log('[Superadmin] selectedOrgForRoles watcher: orgId', orgId);
+    await fetchOrgRoles(orgId);
+    // Si el rol actual existe en las opciones, lo dejamos, si no lo limpiamos
+    if (form.role) {
+      const found = orgRoleOptions.value.find((r) => r.name === form.role);
+      if (!found) {
+        form.role = null;
+      }
+    }
   }
 });
 
-// --- SOLO UNO DE LOS 3 SELECTS ---
 watch(
   () => form.organization_id,
   (val) => {
@@ -268,64 +363,187 @@ watch(
   }
 );
 
-// --- VALIDATION & SUBMIT ---
+const isLoading = ref(false);
+
+const fetchUser = async () => {
+  isLoading.value = true;
+  try {
+    const { data } = await axiosInstance.get(`/users/${route.params.id}`);
+    const user = data.data || data.user || data;
+    form.name = user.name || '';
+    form.email = user.email || '';
+    form.role = user.roles?.[0]?.name || '';
+    form.organization_id = user.organization_id || null;
+    form.business_id = user.business_id || null;
+    form.business_unit_id = user.business_unit_id || null;
+    profilePreview.value = user.profile_picture || null;
+    form.profile_picture = null;
+    form.contact = {
+      first_name: user.contact?.first_name || '',
+      last_name: user.contact?.last_name || '',
+      email: user.contact?.email || '',
+      phone_number: user.contact?.phone_number || ''
+    };
+    // Si es superadmin, setea la organización para roles y carga roles
+    if (isSuperadmin.value && user.organization_id) {
+      selectedOrgForRoles.value = user.organization_id;
+      console.log('[Superadmin] fetchUser: user.organization_id', user.organization_id, 'user.roles', user.roles, 'form.role', form.role);
+      await fetchOrgRoles(user.organization_id);
+      // Si el rol actual existe en las opciones, lo dejamos, si no lo limpiamos
+      if (form.role) {
+        const found = orgRoleOptions.value.find((r) => r.name === form.role);
+        if (!found) {
+          form.role = null;
+        }
+      }
+    }
+    // Diagnóstico: ¿el rol está en las opciones después de asignar?
+    watch(orgRoleOptions, (opts) => {
+      if (form.role) {
+        const found = opts.find((r) => r.name === form.role);
+        console.log('[Superadmin] (watch orgRoleOptions) ¿Rol actual en opciones?', form.role, !!found);
+      }
+    });
+    canEdit.value = true;
+  } catch (err) {
+    errorMsg.value = 'No se pudo cargar el usuario';
+    canEdit.value = false;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 const validate = async () => {
   errorMsg.value = '';
+  let valid = true;
 
-  if (!form.name || !form.email || !form.role || (!form.organization_id && !form.business_id && !form.business_unit_id)) {
-    errorMsg.value = 'Por favor completa el nombre, correo, rol y selecciona organización, empresa o ubicación.';
+  if (!validateField('name', form.name)) valid = false;
+  if (!validateField('email', form.email)) valid = false;
+  if (isSuperadmin.value && !validateField('orgRole', selectedOrgForRoles.value)) valid = false;
+  if (!validateField('role', form.role)) valid = false;
+
+  if (!form.organization_id && !form.business_id && !form.business_unit_id) {
+    fieldErrors.organization_id = 'Es obligatorio escoger un alcance.';
+    fieldErrors.business_id = 'Es obligatorio escoger un alcance.';
+    fieldErrors.business_unit_id = 'Es obligatorio escoger un alcance.';
+    valid = false;
+  } else {
+    clearFieldError('organization_id');
+    clearFieldError('business_id');
+    clearFieldError('business_unit_id');
+  }
+
+  if (!valid) {
+    isLoading.value = false;
     return;
   }
 
-  // Si eligió business, setea organization_id
-  if (form.business_id && !form.organization_id) {
-    const business = businessOptions.value.find((b) => b.id === form.business_id);
-    if (business) form.organization_id = business.organization_id;
-  }
+  isLoading.value = true;
 
-  // Si eligió business_unit, setea business_id y organization_id
-  if (form.business_unit_id && (!form.business_id || !form.organization_id)) {
+  if (form.business_unit_id) {
     const unit = businessUnitOptions.value.find((u) => u.id === form.business_unit_id);
     if (unit) {
       form.business_id = unit.business_id;
       form.organization_id = unit.organization_id;
     }
+  } else if (form.business_id) {
+    const business = businessOptions.value.find((b) => b.id === form.business_id);
+    if (business) {
+      form.organization_id = business.organization_id;
+    }
   }
 
+  await updateUser();
+};
+
+// INTEGRACIÓN: ENVÍA JSON SI NO HAY FOTO, FORM DATA SI HAY FOTO
+const updateUser = async () => {
   try {
-    const formData = new FormData();
-    formData.append('name', form.name);
-    formData.append('email', form.email);
-    formData.append('role', form.role);
+    // Construye el payload como objeto
+    const payload = {
+      name: form.name,
+      email: form.email,
+      role: form.role,
+      organization_id: form.organization_id,
+      business_id: form.business_id,
+      business_unit_id: form.business_unit_id,
+      contact: { ...form.contact }
+    };
 
-    if (form.organization_id) formData.append('organization_id', form.organization_id);
-    if (form.business_id) formData.append('business_id', form.business_id);
-    if (form.business_unit_id) formData.append('business_unit_id', form.business_unit_id);
+    let config = {};
+    let dataToSend = payload;
 
-    if (form.profile_picture) {
+    if (form.profile_picture && typeof form.profile_picture === 'object') {
+      const formData = new FormData();
+      Object.entries(payload).forEach(([key, value]) => {
+        if (key === 'contact') {
+          Object.entries(value).forEach(([cKey, cValue]) => {
+            formData.append(`contact[${cKey}]`, cValue);
+          });
+        } else if (value !== null && value !== undefined) {
+          formData.append(key, value);
+        }
+      });
       const file = Array.isArray(form.profile_picture) ? form.profile_picture[0] : form.profile_picture;
       formData.append('profile_picture', file);
+      dataToSend = formData;
+      config = { headers: { 'Content-Type': 'multipart/form-data' } };
     }
 
-    // Contacto
-    for (const key in form.contact) {
-      if (form.contact[key]) {
-        formData.append(`contact[${key}]`, form.contact[key]);
+    // LOG DE LOS DATOS ENVIADOS
+    if (dataToSend instanceof FormData) {
+      for (let pair of dataToSend.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
       }
+    } else {
+      console.log('Payload JSON:', dataToSend);
     }
 
-    await axiosInstance.post(`/users/${userId}?_method=PUT`, formData);
+    const res = await axiosInstance.put(`/users/${route.params.id}`, dataToSend, config);
 
-    router.replace(`/usuarios/${userId}`);
+    const user = res.data.user || res.data.data || res.data;
+    if (user?.id) {
+      router.replace(`/usuarios/${user.id}`);
+    }
   } catch (err) {
     if (err?.response?.data?.errors) {
-      errorMsg.value = Object.values(err.response.data.errors).flat().join(' ');
+      const serverErrors = err.response.data.errors;
+      console.log('Errores de validación del backend:', serverErrors);
+      let firstServerErrorField = null;
+
+      if (serverErrors.name) {
+        fieldErrors.name = serverErrors.name[0];
+        if (!firstServerErrorField) firstServerErrorField = 'name';
+      }
+      if (serverErrors.email) {
+        fieldErrors.email = serverErrors.email[0];
+        if (!firstServerErrorField) firstServerErrorField = 'email';
+      }
+      if (serverErrors.role) {
+        fieldErrors.role = serverErrors.role[0];
+        if (!firstServerErrorField) firstServerErrorField = 'role';
+      }
+      if (serverErrors.organization_id) {
+        fieldErrors.organization_id = serverErrors.organization_id[0];
+        if (!firstServerErrorField) firstServerErrorField = 'organization_id';
+      }
+      if (serverErrors.business_id) {
+        fieldErrors.business_id = serverErrors.business_id[0];
+        if (!firstServerErrorField) firstServerErrorField = 'business_id';
+      }
+      if (serverErrors.business_unit_id) {
+        fieldErrors.business_unit_id = serverErrors.business_unit_id[0];
+        if (!firstServerErrorField) firstServerErrorField = 'business_unit_id';
+      }
+      errorMsg.value = Object.values(serverErrors).flat().join(' | ');
     } else if (err?.response?.data?.message) {
       errorMsg.value = err.response.data.message;
     } else {
       errorMsg.value = 'Error al actualizar usuario';
     }
     console.error('❌ Error al actualizar usuario:', err);
+  } finally {
+    isLoading.value = false;
   }
 };
 </script>
@@ -351,16 +569,24 @@ const validate = async () => {
           </v-col>
 
           <v-col cols="12" md="6" class="d-flex flex-column align-center justify-center" style="min-height: 300px">
-            <div class="profile-img-container">
-              <template v-if="profilePreview">
-                <img :src="profilePreview" alt="Foto de perfil" class="profile-img" />
-              </template>
-              <template v-else>
-                <div class="profile-img-empty">
-                  <span class="text-medium-emphasis">Sin foto</span>
-                </div>
-              </template>
-            </div>
+            <template v-if="profilePreview">
+              <img :src="profilePreview" alt="Profile Preview" style="max-width: 300px; max-height: 300px; border-radius: 12px" />
+            </template>
+            <template v-else>
+              <div
+                style="
+                  width: 300px;
+                  height: 300px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  background: #f5f5f5;
+                  border-radius: 12px;
+                "
+              >
+                <span style="color: #bbb">Sin foto</span>
+              </div>
+            </template>
           </v-col>
 
           <v-col cols="12" md="6">
@@ -376,15 +602,31 @@ const validate = async () => {
               :multiple="false"
             />
 
-            <v-label>Nombre</v-label>
-            <v-text-field v-model="form.name" variant="outlined" color="primary" class="mt-2 mb-4" required />
+            <v-label>Nombre <span class="text-error">*</span></v-label>
+            <v-text-field
+              v-model="form.name"
+              variant="outlined"
+              color="primary"
+              class="mt-2 mb-4"
+              required
+              :error="!!fieldErrors.name"
+              :error-messages="fieldErrors.name"
+            />
 
-            <v-label>Correo</v-label>
-            <v-text-field v-model="form.email" variant="outlined" color="primary" class="mt-2 mb-4" required />
+            <v-label>Correo <span class="text-error">*</span></v-label>
+            <v-text-field
+              v-model="form.email"
+              variant="outlined"
+              color="primary"
+              class="mt-2 mb-4"
+              required
+              :error="!!fieldErrors.email"
+              :error-messages="fieldErrors.email"
+            />
 
-            <!-- Select de organización para filtrar roles (solo superadmin) -->
+            <!-- Select de organización para filtrar roles SOLO para superadmin -->
             <template v-if="isSuperadmin">
-              <v-label>Organización para filtrar roles</v-label>
+              <v-label>Organización para filtrar roles <span class="text-error">*</span></v-label>
               <v-autocomplete
                 v-model="selectedOrgForRoles"
                 :items="organizationOptions"
@@ -398,15 +640,15 @@ const validate = async () => {
                 density="compact"
                 placeholder="Selecciona una organización"
                 clearable
-                hide-details
                 :menu-props="{ maxHeight: '300px' }"
+                :rules="[(v) => !!v || 'Selecciona una organización']"
                 required
+                :error="!!fieldErrors.orgRole"
+                :error-messages="fieldErrors.orgRole"
               />
             </template>
 
-            <div style="height: 22px"></div>
-
-            <v-label>Rol</v-label>
+            <v-label>Rol <span class="text-error">*</span></v-label>
             <v-autocomplete
               v-model="form.role"
               :items="filteredRoleOptions"
@@ -420,9 +662,10 @@ const validate = async () => {
               density="compact"
               placeholder="Selecciona un rol"
               clearable
-              hide-details
               :menu-props="{ maxHeight: '300px' }"
               required
+              :error="!!fieldErrors.role"
+              :error-messages="fieldErrors.role"
             />
           </v-col>
         </v-row>
@@ -437,71 +680,82 @@ const validate = async () => {
 
         <v-row>
           <v-col cols="12" md="12">
-            <v-label>Organización</v-label>
-            <v-autocomplete
-              v-model="form.organization_id"
-              :items="organizationOptions"
-              :loading="loadingOrganizations"
-              v-model:search-input="organizationSearch"
-              item-title="display"
-              item-value="id"
-              variant="outlined"
-              color="primary"
-              class="mt-2 mb-4"
-              density="compact"
-              placeholder="Selecciona una organización"
-              clearable
-              hide-details
-              :menu-props="{ maxHeight: '300px' }"
-              :disabled="!!form.business_id || !!form.business_unit_id"
-              :required="!form.business_id && !form.business_unit_id"
-            />
+            <!-- Mostrar los 3 selects solo para superadmin y admin -->
+            <template v-if="isSuperadmin || isAdmin">
+              <v-label>Organización</v-label>
+              <v-autocomplete
+                v-model="form.organization_id"
+                :items="organizationOptions"
+                :loading="loadingOrganizations"
+                v-model:search-input="organizationSearch"
+                item-title="display"
+                item-value="id"
+                variant="outlined"
+                color="primary"
+                class="mt-2 mb-4"
+                density="compact"
+                placeholder="Selecciona una organización"
+                clearable
+                :menu-props="{ maxHeight: '300px' }"
+                :disabled="!!form.business_id || !!form.business_unit_id"
+                :error="!!fieldErrors.organization_id"
+                :error-messages="fieldErrors.organization_id"
+              />
 
-            <v-label>Empresa</v-label>
-            <v-autocomplete
-              v-model="form.business_id"
-              :items="businessOptions"
-              :loading="loadingBusinesses"
-              v-model:search-input="businessSearch"
-              item-title="display"
-              item-value="id"
-              variant="outlined"
-              color="primary"
-              class="mt-2 mb-6"
-              density="compact"
-              placeholder="Selecciona una empresa"
-              clearable
-              hide-details
-              :menu-props="{ maxHeight: '300px' }"
-              :disabled="!!form.organization_id || !!form.business_unit_id"
-              :required="!form.organization_id && !form.business_unit_id"
-            />
+              <v-label>Empresa</v-label>
+              <v-autocomplete
+                v-model="form.business_id"
+                :items="businessOptions"
+                :loading="loadingBusinesses"
+                v-model:search-input="businessSearch"
+                item-title="display"
+                item-value="id"
+                variant="outlined"
+                color="primary"
+                class="mt-2 mb-6"
+                density="compact"
+                placeholder="Selecciona una empresa"
+                clearable
+                :menu-props="{ maxHeight: '300px' }"
+                :disabled="!!form.organization_id || !!form.business_unit_id"
+                :error="!!fieldErrors.business_id"
+                :error-messages="fieldErrors.business_id"
+              />
+            </template>
 
-            <v-label>Ubicación</v-label>
-            <v-autocomplete
-              v-model="form.business_unit_id"
-              :items="businessUnitOptions"
-              :loading="loadingBusinessUnits"
-              v-model:search-input="businessUnitSearch"
-              item-title="display"
-              item-value="id"
-              variant="outlined"
-              color="primary"
-              class="mt-2"
-              density="compact"
-              placeholder="Selecciona una ubicación"
-              clearable
-              hide-details
-              :menu-props="{ maxHeight: '300px' }"
-              :disabled="!!form.organization_id || !!form.business_id"
-              :required="!form.organization_id && !form.business_id"
-            />
+            <!-- Mostrar solo el select de business unit para sponsor -->
+            <template v-if="isSuperadmin || isAdmin || isSponsor">
+              <v-label>Ubicación</v-label>
+              <v-autocomplete
+                v-model="form.business_unit_id"
+                :items="businessUnitOptions"
+                :loading="loadingBusinessUnits"
+                v-model:search-input="businessUnitSearch"
+                item-title="display"
+                item-value="id"
+                variant="outlined"
+                color="primary"
+                class="mt-2"
+                density="compact"
+                placeholder="Selecciona una ubicación"
+                clearable
+                :menu-props="{ maxHeight: '300px' }"
+                :disabled="!!form.organization_id || !!form.business_id"
+                :error="!!fieldErrors.business_unit_id"
+                :error-messages="fieldErrors.business_unit_id"
+              />
+            </template>
           </v-col>
         </v-row>
 
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
-            <v-btn color="primary" class="mt-6" @click="validate">Guardar cambios</v-btn>
+            <v-btn color="primary" class="mt-6" :loading="isLoading" :disabled="isLoading" @click="validate">
+              <template v-slot:loader>
+                <v-progress-circular indeterminate color="white" size="20" />
+              </template>
+              {{ isLoading ? 'Guardando Cambios...' : 'Guardar Cambios' }}
+            </v-btn>
           </v-col>
         </v-row>
 
