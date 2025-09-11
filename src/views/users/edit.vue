@@ -586,6 +586,9 @@ const updateUser = async () => {
     }
 
     await axiosInstance.put(`/users/${route.params.id}`, dataToSend, config);
+
+    // Redirige al show del usuario después de guardar
+    router.push(`/usuarios/${route.params.id}`);
   } catch (err) {
     if (err?.response?.data?.errors) {
       const serverErrors = err.response.data.errors;
