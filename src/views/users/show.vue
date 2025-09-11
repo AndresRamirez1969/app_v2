@@ -29,7 +29,7 @@ const canView = computed(() => permissions.value.includes('user.view'));
 const canEditPermission = computed(() => permissions.value.includes('user.update'));
 const canViewAny = computed(() => permissions.value.includes('user.viewAny'));
 
-const canShow = computed(() => isSuperadmin.value || isAdmin.value || canView.value);
+const canShow = ref(false);
 const canEdit = computed(() => canEditPermission.value);
 const canShowArrow = computed(() => canViewAny.value);
 
@@ -175,26 +175,69 @@ const formatAddress = (address) => {
 // Trunca texto si es mayor a max caracteres
 const truncate = (text, max = 50) => (!text ? '' : text.length > max ? text.slice(0, max) + '...' : text);
 
+// --- INTEGRACIÓN DE POLÍTICA DE ACCESO ---
 onMounted(async () => {
   try {
     const id = route.params.id;
     const res = await axiosInstance.get(`/users/${id}`);
     userData.value = res.data.user || res.data.data || res.data;
 
-    // Cargar organización, empresa y unidad de negocio relacionadas si existen
+    // Superadmin: acceso total
+    if (roles.value.includes('superadmin')) {
+      canShow.value = true;
+    }
+    // Admin: solo usuarios de su organización
+    else if (roles.value.includes('admin')) {
+      if (user.value.organization_id === userData.value.organization_id) {
+        canShow.value = true;
+      } else {
+        canShow.value = false;
+        router.replace('/403');
+        return;
+      }
+    }
+    // Sponsor: solo usuarios de su empresa y sus ubicaciones
+    else if (roles.value.includes('sponsor')) {
+      const sponsorEmpresaId = user.value.business_id;
+      if (userData.value.business_id === sponsorEmpresaId) {
+        canShow.value = true;
+      } else if (userData.value.business_unit && userData.value.business_unit.empresa_id === sponsorEmpresaId) {
+        canShow.value = true;
+      } else {
+        canShow.value = false;
+        router.replace('/403');
+        return;
+      }
+    }
+    // Otros roles: sin acceso
+    else {
+      canShow.value = false;
+      router.replace('/403');
+      return;
+    }
+
+    // Cargar organización, empresa y unidad de negocio relacionadas si existen y tienes permiso
     if (userData.value.organization_id) {
       const orgRes = await axiosInstance.get(`/organizations/${userData.value.organization_id}`);
       organizations.value = [orgRes.data.organization || orgRes.data.data || orgRes.data];
     }
-    if (userData.value.business_id) {
+    if (userData.value.business_id && (permissions.value.includes('business.view') || permissions.value.includes('business.viewAny'))) {
       const busRes = await axiosInstance.get(`/businesses/${userData.value.business_id}`);
       businesses.value = [busRes.data.business || busRes.data.data || busRes.data];
     }
-    if (userData.value.business_unit_id) {
+    if (
+      userData.value.business_unit_id &&
+      (permissions.value.includes('businessUnit.view') || permissions.value.includes('businessUnit.viewAny'))
+    ) {
       const unitRes = await axiosInstance.get(`/business-units/${userData.value.business_unit_id}`);
       businessUnits.value = [unitRes.data.businessUnit || unitRes.data.data || unitRes.data];
     }
   } catch (err) {
+    canShow.value = false;
+    // Redirección si el backend responde 403
+    if (err.response && err.response.status === 403) {
+      router.replace('/403');
+    }
     console.error('Error al obtener el usuario o sus relaciones:', err);
   }
 });
@@ -634,9 +677,6 @@ onMounted(async () => {
       </v-col>
     </v-row>
   </v-container>
-  <div v-else>
-    <v-alert type="error" class="mt-10" variant="outlined" density="comfortable"> No tienes acceso a este usuario. </v-alert>
-  </div>
 </template>
 
 <style scoped src="@/styles/users.css"></style>

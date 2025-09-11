@@ -34,12 +34,10 @@ const canViewAnyUser = computed(() => permissions.value.includes('user.viewAny')
 const canViewAnyBusiness = computed(() => permissions.value.includes('business.viewAny'));
 const canViewAnyBusinessUnit = computed(() => permissions.value.includes('businessUnit.viewAny'));
 
-// Filtros de visibilidad para cada campo
 const canShowOrganizationFilter = computed(() => isSuperadmin.value);
 const canShowBusinessFilter = computed(() => isSuperadmin.value || isAdmin.value || canViewAnyBusiness.value);
 const canShowBusinessUnitFilter = computed(() => isSuperadmin.value || isAdmin.value || isSponsor.value || canViewAnyBusinessUnit.value);
 
-// ORGANIZATION
 const selectedOrganization = ref(null);
 const organizationOptions = ref([]);
 const organizationSearch = ref('');
@@ -71,7 +69,6 @@ function customOrgFilter(item, queryText, itemText) {
   return text.includes(queryText.toLowerCase());
 }
 
-// BUSINESS
 const selectedBusiness = ref(null);
 const businessOptions = ref([]);
 const businessSearch = ref('');
@@ -103,7 +100,6 @@ function customBizFilter(item, queryText, itemText) {
   return text.includes(queryText.toLowerCase());
 }
 
-// BUSINESS UNIT
 const selectedBusinessUnit = ref(null);
 const businessUnitOptions = ref([]);
 const businessUnitSearch = ref('');
@@ -135,7 +131,6 @@ function customBusinessUnitFilter(item, queryText, itemText) {
   return text.includes(queryText.toLowerCase());
 }
 
-// Watchers para cargar datos dinámicamente
 watch(dialog, (val) => {
   if (val && canShowOrganizationFilter.value && organizationOptions.value.length === 0) {
     fetchOrganizations('');
@@ -312,7 +307,7 @@ function clearFilters() {
               v-model:search-input="organizationSearch"
               item-title="display"
               item-value="id"
-              label="Buscar organización (folio o nombre legal)"
+              label="Buscar Organización"
               clearable
               hide-details
               variant="outlined"
@@ -332,7 +327,7 @@ function clearFilters() {
               v-model:search-input="businessSearch"
               item-title="display"
               item-value="id"
-              label="Buscar empresa (folio o nombre legal)"
+              label="Buscar Empresa"
               clearable
               hide-details
               variant="outlined"
@@ -352,7 +347,7 @@ function clearFilters() {
               v-model:search-input="businessUnitSearch"
               item-title="display"
               item-value="id"
-              label="Buscar ubicación (folio o nombre legal)"
+              label="Buscar Ubicación"
               clearable
               hide-details
               variant="outlined"
@@ -364,6 +359,7 @@ function clearFilters() {
             />
           </div>
 
+          <!-- Calendarios con estilo igual a BusinessUnitFilter -->
           <div class="mb-3">
             <v-menu
               v-model="menuCreatedStart"
@@ -376,7 +372,7 @@ function clearFilters() {
               <template #activator="{ props }">
                 <v-text-field
                   :model-value="formatDateOnly(createdAtStart)"
-                  label="Creado desde"
+                  label="Fecha de Inicio"
                   readonly
                   v-bind="props"
                   clearable
@@ -387,7 +383,9 @@ function clearFilters() {
                   @click:clear="createdAtStart = null"
                 />
               </template>
-              <v-date-picker v-model="createdAtStart" @update:modelValue="menuCreatedStart = false" />
+              <v-date-picker v-model="createdAtStart" locale="es" @update:modelValue="menuCreatedStart = false">
+                <template #header></template>
+              </v-date-picker>
             </v-menu>
             <v-menu
               v-model="menuCreatedEnd"
@@ -400,7 +398,7 @@ function clearFilters() {
               <template #activator="{ props }">
                 <v-text-field
                   :model-value="formatDateOnly(createdAtEnd)"
-                  label="Creado hasta"
+                  label="Fecha de Fin"
                   readonly
                   v-bind="props"
                   clearable
@@ -411,7 +409,9 @@ function clearFilters() {
                   @click:clear="createdAtEnd = null"
                 />
               </template>
-              <v-date-picker v-model="createdAtEnd" @update:modelValue="menuCreatedEnd = false" />
+              <v-date-picker v-model="createdAtEnd" locale="es" @update:modelValue="menuCreatedEnd = false">
+                <template #header></template>
+              </v-date-picker>
             </v-menu>
           </div>
         </v-card-text>

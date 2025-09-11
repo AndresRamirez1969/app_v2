@@ -28,6 +28,7 @@ function hasPermission(permission) {
 onMounted(async () => {
   if (!hasPermission('user.viewAny')) {
     canView.value = false;
+    router.replace('/403');
     return;
   }
   canView.value = true;
