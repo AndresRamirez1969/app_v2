@@ -93,6 +93,8 @@
   .scrollnavbar .v-list .v-list-group__items,
   .hide-menu {
     opacity: 0;
+    height: 0;
+    overflow: hidden;
   }
   .scrollnavbar {
     .v-list-item {
@@ -150,6 +152,8 @@
       .v-list .v-list-group__items,
       .hide-menu {
         opacity: 1;
+        height: auto;
+        overflow: visible;
       }
     }
   }

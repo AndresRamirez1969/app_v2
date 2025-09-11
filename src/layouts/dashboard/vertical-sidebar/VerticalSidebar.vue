@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useCustomizerStore } from '../../../stores/customizer';
 import sidebarItems from './sidebarItem';
 import { useAuthStore } from '@/stores/auth';
@@ -10,6 +10,8 @@ import NavCollapse from './NavCollapse/NavCollapse.vue';
 
 const customizer = useCustomizerStore();
 const auth = useAuthStore();
+
+const isHovered = ref(false);
 
 const userRoles = computed(() => auth.user?.roles || []);
 const permissions = computed(() => auth.user?.permissions || []);
@@ -22,6 +24,12 @@ const hasResponseViewAny = computed(() => permissions.value.includes('form_respo
 const hasBusinessUnitGroupViewAny = computed(() => permissions.value.includes('businessUnitGroup.viewAny'));
 const hasUserViewAny = computed(() => permissions.value.includes('user.viewAny'));
 const hasRoleViewAny = computed(() => permissions.value.includes('role.viewAny'));
+
+const shouldShowLogo = computed(() => {
+  if (!customizer.mini_sidebar) return true;
+  if (customizer.mini_sidebar && isHovered.value) return true;
+  return false;
+});
 
 function getOrgRoute() {
   return '/organizaciones';
@@ -120,21 +128,18 @@ const sidebarMenu = computed(() => {
     class="leftSidebar"
     :rail="customizer.mini_sidebar"
     expand-on-hover
+    @mouseenter="isHovered = true"
+    @mouseleave="isHovered = false"
   >
     <div class="pa-5 text-center">
-      <v-img
-        :src="'https://tasker-v2-bucket.s3.us-east-2.amazonaws.com/public/Logotipo+1.svg'"
-        alt="Tasker Logo"
-        max-height="40"
-        contain
-        class="mx-auto"
-      />
+      <v-img v-if="shouldShowLogo" :src="'/Logotipo1.svg'" alt="Tasker Logo" max-height="40" contain class="mx-auto" />
+      <v-img v-else :src="'/favicon.svg'" alt="Tasker Logo" max-height="40" contain class="mx-auto" />
     </div>
     <perfect-scrollbar class="scrollnavbar">
       <v-list aria-busy="true" aria-label="menu list">
         <template v-for="(item, i) in sidebarMenu.filter((item) => item !== null)" :key="i">
           <NavGroup :item="item" v-if="item.header" :key="item.title" />
-          <v-divider class="my-3" v-else-if="item.divider" />
+          <v-divider class="my-1" v-else-if="item.divider" />
           <NavCollapse class="leftPadding" :item="item" :level="0" v-else-if="item.children" />
           <NavItem :item="item" v-else />
         </template>

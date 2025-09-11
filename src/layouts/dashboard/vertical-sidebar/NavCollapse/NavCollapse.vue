@@ -17,6 +17,7 @@ const props = defineProps({ item: Object, level: Number });
         <!---Icon  -->
         <template v-slot:prepend>
           <component :is="item.icon" class="iconClass" :level="level"></component>
+          <span style="display: inline-block; width: 8px"></span>
         </template>
         <!---Title  -->
         <v-list-item-title class="mr-auto">{{ item.title }}</v-list-item-title>
