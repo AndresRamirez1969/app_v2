@@ -57,8 +57,13 @@ const handleImageChange = async (event) => {
     return;
   }
 
+  // Asegúrate de enviar los campos requeridos por el backend
   const formData = new FormData();
   formData.append('profile_picture', file);
+  formData.append('name', user.value.name || '');
+  formData.append('email', user.value.email || '');
+  // El backend espera el rol como 'role'
+  formData.append('role', user.value.roles?.[0] || 'user');
   formData.append('_method', 'PUT');
 
   try {
@@ -67,15 +72,18 @@ const handleImageChange = async (event) => {
     });
     await auth.fetchUser();
     toast.success('Foto de perfil actualizada.');
+    await fetchUser();
   } catch {
     toast.error('Error al actualizar la foto de perfil.');
   }
 };
 
 const updateUser = async (data) => {
+  // También envía el rol actual
   const payload = {
     name: data.name,
     email: data.email,
+    role: user.value.roles?.[0] || 'user',
     _method: 'PUT'
   };
 
@@ -83,6 +91,7 @@ const updateUser = async (data) => {
     await axiosInstance.post(`/users/${auth.user.id}`, payload);
     await auth.fetchUser();
     toast.success('Perfil actualizado correctamente.');
+    await fetchUser();
   } catch {
     toast.error('Error al actualizar el perfil.');
   }
