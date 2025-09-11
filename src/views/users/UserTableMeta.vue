@@ -21,6 +21,10 @@ const emit = defineEmits(['update:page', 'sort']);
             Identificador
             <slot name="sort-icon" :column="'id'" />
           </th>
+          <th @click="emit('sort', 'profile_picture')" class="cursor-pointer profile-picture-header">
+            Foto
+            <slot name="sort-icon" :column="'profile_picture'" />
+          </th>
           <th @click="emit('sort', 'name')" class="cursor-pointer name-header">
             Nombre
             <slot name="sort-icon" :column="'name'" />

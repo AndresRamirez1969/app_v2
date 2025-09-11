@@ -16,7 +16,6 @@ const isLoading = ref(false);
 const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
-const rememberMe = ref(false);
 
 const emailRules = [(v: string) => !!v || 'El correo es obligatorio', (v: string) => /.+@.+\..+/.test(v) || 'Correo no válido'];
 const passwordRules = [(v: string) => !!v || 'La contraseña es obligatoria'];
@@ -24,7 +23,7 @@ const passwordRules = [(v: string) => !!v || 'La contraseña es obligatoria'];
 const login = async () => {
   try {
     isLoading.value = true;
-    await auth.login(email.value, password.value, rememberMe.value);
+    await auth.login(email.value, password.value);
     const roles = auth.user?.roles || [];
     const isAdmin = roles.includes('admin');
     const hasOrg = !!auth.user?.organization_id;
@@ -74,7 +73,6 @@ const login = async () => {
 
     <div class="d-flex justify-space-between align-center mt-4 mb-7">
       <router-link to="/forgot_password" class="text-darkText link-hover"> ¿Olvidaste tu contraseña? </router-link>
-      <v-checkbox v-model="rememberMe" label="Recuérdame" density="compact" hide-details class="ma-0 pa-0" />
     </div>
 
     <v-btn color="primary" block variant="flat" size="large" type="submit" :loading="isLoading"> Iniciar Sesión </v-btn>

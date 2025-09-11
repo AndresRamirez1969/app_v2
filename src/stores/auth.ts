@@ -1,4 +1,4 @@
-// Metodos de autenticacion de usuario, extracion de permisos, etc.
+// Métodos de autenticación de usuario, extracción de permisos, etc.
 // NO MODIFICAR!!! Al menos que sea necesario.
 
 import { defineStore } from 'pinia';
@@ -6,12 +6,11 @@ import axiosInstance from '@/utils/axios';
 
 export const useAuthStore = defineStore('auth', {
   state: () => {
-    const storage = localStorage.getItem('authToken') ? localStorage : sessionStorage.getItem('authToken') ? sessionStorage : localStorage;
     return {
-      token: storage.getItem('authToken') || '',
+      token: localStorage.getItem('authToken') || '',
       user: (() => {
         try {
-          const u = JSON.parse(storage.getItem('authUser') || 'null');
+          const u = JSON.parse(localStorage.getItem('authUser') || 'null');
           if (u && u.organization_id) u.organizationDwId = u.organization_id;
           return u;
         } catch {
@@ -20,7 +19,7 @@ export const useAuthStore = defineStore('auth', {
       })(),
       permissions: (() => {
         try {
-          return JSON.parse(storage.getItem('authUser') || 'null')?.permissions || [];
+          return JSON.parse(localStorage.getItem('authUser') || 'null')?.permissions || [];
         } catch {
           return [];
         }
@@ -46,12 +45,11 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-    async login(email: string, password: string, rememberMe: boolean) {
+    async login(email: string, password: string) {
       try {
         const response = await axiosInstance.post('/login', {
           email,
-          password,
-          remember: rememberMe
+          password
         });
 
         // Validar que la respuesta tenga la estructura esperada
@@ -74,9 +72,8 @@ export const useAuthStore = defineStore('auth', {
         };
         this.permissions = permissions;
 
-        const storage = rememberMe ? localStorage : sessionStorage;
-        storage.setItem('authToken', this.token);
-        storage.setItem('authUser', JSON.stringify(this.user));
+        localStorage.setItem('authToken', this.token);
+        localStorage.setItem('authUser', JSON.stringify(this.user));
 
         console.log('✅ Login exitoso:', {
           user: this.user,
@@ -106,10 +103,8 @@ export const useAuthStore = defineStore('auth', {
       this.user = null;
       this.permissions = [];
       this.returnUrl = null;
-      sessionStorage.removeItem('authToken');
-      sessionStorage.removeItem('authUser');
-      sessionStorage.removeItem('authPermissions');
       localStorage.removeItem('authToken');
+      localStorage.removeItem('authUser');
       localStorage.removeItem('authPermissions');
       axiosInstance.post('/logout').catch(() => {});
     },
@@ -124,7 +119,6 @@ export const useAuthStore = defineStore('auth', {
       this.user = user;
       this.permissions = response.data.permissions || [];
       localStorage.setItem('authUser', JSON.stringify(this.user));
-      sessionStorage.setItem('authUser', JSON.stringify(this.user));
     },
 
     setUser(user: any) {
@@ -135,9 +129,7 @@ export const useAuthStore = defineStore('auth', {
       };
       this.permissions = user.permissions || [];
       localStorage.setItem('authUser', JSON.stringify(this.user));
-      sessionStorage.setItem('authUser', JSON.stringify(this.user));
       localStorage.setItem('authPermissions', JSON.stringify(this.permissions));
-      sessionStorage.setItem('authPermissions', JSON.stringify(this.permissions));
     }
   }
 });

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
 import UserTableMeta from './UserTableMeta.vue';
@@ -9,9 +9,17 @@ import { useAuthStore } from '@/stores/auth';
 
 const props = defineProps({
   items: Array,
-  isMobile: Boolean,
-  isLoading: Boolean
+  isLoading: Boolean,
+  totalItems: Number
 });
+
+// Cambia el breakpoint a 1024px (iPad y abajo)
+const isMobile = ref(window.innerWidth < 1024);
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 1024;
+};
+onMounted(() => window.addEventListener('resize', handleResize));
+onUnmounted(() => window.removeEventListener('resize', handleResize));
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -27,46 +35,33 @@ const canView = computed(() => permissions.value.includes('user.view'));
 const canCreate = computed(() => permissions.value.includes('user.create'));
 const canShowDropdown = computed(() => canView.value || canEdit.value || canToggleStatusAny.value);
 
-// Filtro: solo superadmin puede ver registros de superadmin
 const filteredItems = computed(() => {
   return (props.items || []).filter((u) => {
     const isUserSuperadmin = u.roles && u.roles.some((r) => r.name === 'superadmin');
     if (isUserSuperadmin) {
-      // Solo el superadmin puede ver registros de superadmin
       return isSuperadmin.value;
     }
     return true;
   });
 });
 
-// Permite activar/desactivar usuarios según reglas de negocio
 const canToggleStatus = (targetUser) => {
   if (!canEdit.value) return false;
   if (!targetUser || !targetUser.id) return false;
-  // No puede desactivarse a sí mismo
   if (targetUser.id === user.value.id) return false;
-
   const targetRoles = (targetUser.roles || []).map((r) => r.name);
-
-  // Superadmin puede activar/desactivar a cualquiera menos a sí mismo
   if (isSuperadmin.value) return true;
-
-  // Admin puede activar/desactivar a cualquiera menos a sí mismo y superadmin
   if (isAdmin.value) {
     if (targetRoles.includes('superadmin')) return false;
     return true;
   }
-
-  // Sponsor puede activar/desactivar a usuarios que no sean admin, superadmin, ni a sí mismo
   if (isSponsor.value) {
     if (targetRoles.includes('superadmin') || targetRoles.includes('admin')) return false;
     return true;
   }
-
   return false;
 };
 
-// Para mostrar el botón de activar/desactivar en el dropdown
 const canToggleStatusAny = computed(() => {
   return (isSuperadmin.value || isAdmin.value || isSponsor.value) && canEdit.value;
 });
@@ -75,6 +70,13 @@ const sortBy = ref('id');
 const sortDesc = ref(false);
 const page = ref(1);
 const itemsPerPage = ref(10);
+
+const pageCount = computed(() => {
+  const total = Number(props.totalItems || filteredItems.value.length || 0);
+  const perPage = Number(itemsPerPage.value || 10);
+  const len = Math.ceil(total / perPage);
+  return Math.max(1, len || 1);
+});
 
 const toggleSort = (column) => {
   if (sortBy.value === column) {
@@ -94,6 +96,9 @@ const sortedItems = computed(() => {
     } else if (sortBy.value === 'status') {
       aVal = (a.status || '').toLowerCase();
       bVal = (b.status || '').toLowerCase();
+    } else if (sortBy.value === 'profile_picture') {
+      aVal = a.profile_picture || '';
+      bVal = b.profile_picture || '';
     } else {
       aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
       bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
@@ -104,7 +109,8 @@ const sortedItems = computed(() => {
 
 const paginatedItems = computed(() => {
   const start = (page.value - 1) * itemsPerPage.value;
-  return sortedItems.value.slice(start, start + itemsPerPage.value);
+  const end = start + itemsPerPage.value;
+  return sortedItems.value.slice(start, end);
 });
 
 const goToEdit = (user) => router.push({ path: `/usuarios/editar/${user.id}` });
@@ -127,6 +133,7 @@ const toggleStatus = async (targetUser) => {
 
 <template>
   <div>
+    <!-- Loading global -->
     <div v-if="isLoading" class="text-center py-8">
       <v-progress-circular indeterminate color="primary" size="64" />
       <p class="mt-4">Cargando usuarios...</p>
@@ -138,11 +145,8 @@ const toggleStatus = async (targetUser) => {
         <p class="mt-4 text-h6 text-grey-darken-1">No existen usuarios</p>
         <p class="text-body-2 text-grey">No se encontraron usuarios con los filtros aplicados</p>
       </div>
-      <div v-if="canCreate" class="mb-4 d-flex justify-end">
-        <slot name="add-btn" />
-      </div>
 
-      <!-- Modo móvil (cards) -->
+      <!-- MODO MÓVIL (iPad y abajo) -->
       <template v-else-if="isMobile">
         <v-card
           v-for="user in paginatedItems"
@@ -152,22 +156,29 @@ const toggleStatus = async (targetUser) => {
           :style="{ cursor: canView ? 'pointer' : 'default' }"
         >
           <v-row no-gutters align="center" class="mb-1">
-            <v-col cols="12">
+            <v-col cols="4" class="d-flex justify-center align-center">
+              <img
+                v-if="user.profile_picture"
+                :src="user.profile_picture"
+                alt="Foto"
+                style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 1px solid #eee"
+              />
+              <span v-else class="text-caption text-grey">Sin foto</span>
+            </v-col>
+            <v-col cols="8">
               <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <router-link
-                    :to="`/usuarios/${user.id}`"
-                    @click.stop
-                    class="blue--text text--darken-2"
-                    style="text-decoration: underline; color: #1976d2 !important"
-                  >
+                  <router-link :to="`/usuarios/${user.id}`" @click.stop style="text-decoration: underline; color: #1976d2">
                     {{ user.id }}
                   </router-link>
                 </div>
                 <StatusChip :status="user.status" />
               </div>
               <div class="font-weight-medium mb-1">{{ user.name }}</div>
-              <div class="text-caption"><strong>Correo:</strong> {{ user.email }}</div>
+              <div class="text-caption mb-1">
+                <strong>Correo:</strong>
+                {{ user.email }}
+              </div>
               <div class="text-caption">
                 <strong>Rol:</strong>
                 <span v-if="user.roles && user.roles.length">
@@ -188,12 +199,17 @@ const toggleStatus = async (targetUser) => {
             </v-col>
           </v-row>
         </v-card>
+
+        <div class="d-flex flex-column align-center mt-4">
+          <v-pagination v-model="page" :length="pageCount" :total-visible="1" color="primary" />
+        </div>
       </template>
 
-      <!-- Modo escritorio (tabla) -->
-      <template v-if="!isMobile">
+      <!-- MODO DESKTOP -->
+      <template v-else>
         <UserTableMeta
-          :items="sortedItems.value"
+          :items="paginatedItems"
+          :totalItems="props.totalItems"
           :page="page"
           :itemsPerPage="itemsPerPage"
           :sortBy="sortBy"
@@ -224,6 +240,15 @@ const toggleStatus = async (targetUser) => {
                   >
                     {{ user.id }}
                   </router-link>
+                </td>
+                <td class="profile-picture-cell">
+                  <img
+                    v-if="user.profile_picture"
+                    :src="user.profile_picture"
+                    alt="Foto"
+                    style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #eee"
+                  />
+                  <span v-else class="text-caption text-grey">Sin foto</span>
                 </td>
                 <td class="name-cell">{{ user.name }}</td>
                 <td class="email-cell">{{ user.email }}</td>
