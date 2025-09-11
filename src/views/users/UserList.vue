@@ -116,17 +116,23 @@ const paginatedItems = computed(() => {
 const goToEdit = (user) => router.push({ path: `/usuarios/editar/${user.id}` });
 const goToShow = (user) => router.push({ path: `/usuarios/${user.id}` });
 
+// --- Integración de cambio de status igual que en show.vue ---
+const loadingUserStatus = ref({});
 const toggleStatus = async (targetUser) => {
   if (!canToggleStatus(targetUser)) return;
+  loadingUserStatus.value[targetUser.id] = true;
   const isActive = targetUser.status === 'activa' || targetUser.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
-    const res = await axiosInstance.put(`/users/${targetUser.id}/status`, {
+    // Igual que en show.vue: PUT /users/:id con { status }
+    const res = await axiosInstance.put(`/users/${targetUser.id}`, {
       status: newStatus
     });
-    targetUser.status = res.data.user.status || newStatus;
+    targetUser.status = res.data.status || newStatus;
   } catch (err) {
     alert('No se pudo cambiar el estatus');
+  } finally {
+    loadingUserStatus.value[targetUser.id] = false;
   }
 };
 </script>
@@ -198,6 +204,43 @@ const toggleStatus = async (targetUser) => {
               </div>
             </v-col>
           </v-row>
+          <div class="d-flex justify-end mt-2">
+            <v-menu v-if="canShowDropdown" location="bottom end">
+              <template #activator="{ props }">
+                <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
+                  <v-icon :icon="mdiDotsHorizontal" size="20" />
+                </v-btn>
+              </template>
+              <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
+                <v-list-item v-if="canView" @click="goToShow(user)">
+                  <template #prepend>
+                    <v-icon :icon="mdiEye" size="18" />
+                  </template>
+                  <v-list-item-title>Ver</v-list-item-title>
+                </v-list-item>
+                <v-divider class="my-1" v-if="canEdit && canView" />
+                <v-list-item v-if="canEdit" @click="goToEdit(user)">
+                  <template #prepend>
+                    <v-icon :icon="mdiPencil" size="18" />
+                  </template>
+                  <v-list-item-title>Editar</v-list-item-title>
+                </v-list-item>
+                <v-divider class="my-1" v-if="canEdit && canToggleStatusAny && canToggleStatus(user)" />
+                <v-list-item
+                  v-if="canEdit && canToggleStatusAny && canToggleStatus(user)"
+                  :loading="loadingUserStatus[user.id]"
+                  @click="toggleStatus(user)"
+                >
+                  <template #prepend>
+                    <v-icon :icon="user.status === 'activa' || user.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
+                  </template>
+                  <v-list-item-title>
+                    {{ user.status === 'activa' || user.status === 'active' ? 'Desactivar' : 'Activar' }}
+                  </v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+          </div>
         </v-card>
 
         <div class="d-flex flex-column align-center mt-4">
@@ -293,7 +336,11 @@ const toggleStatus = async (targetUser) => {
                         <v-list-item-title>Editar</v-list-item-title>
                       </v-list-item>
                       <v-divider class="my-1" v-if="canEdit && canToggleStatusAny && canToggleStatus(user)" />
-                      <v-list-item v-if="canEdit && canToggleStatusAny && canToggleStatus(user)" @click="toggleStatus(user)">
+                      <v-list-item
+                        v-if="canEdit && canToggleStatusAny && canToggleStatus(user)"
+                        :loading="loadingUserStatus[user.id]"
+                        @click="toggleStatus(user)"
+                      >
                         <template #prepend>
                           <v-icon :icon="user.status === 'activa' || user.status === 'active' ? mdiCancel : mdiCheckCircle" size="18" />
                         </template>
