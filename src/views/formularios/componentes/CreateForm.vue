@@ -209,7 +209,7 @@ const fetchBusinessUnits = async (searchText = '') => {
       const res = await axiosInstance.get('/business-units', { params });
       businessUnits.value = res.data.data.map((businessUnit) => ({
         ...businessUnit,
-        customLabel: `${businessUnit.legal_name}`
+        customLabel: `${businessUnit.folio} - ${businessUnit.name}`
       }));
     }
   } catch (err) {
