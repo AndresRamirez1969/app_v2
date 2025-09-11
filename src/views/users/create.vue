@@ -99,7 +99,6 @@ const validateField = (fieldName, value) => {
   return true;
 };
 
-// --- INTEGRACIÓN DE POLÍTICA DE ACCESO ---
 function hasPermission(permission) {
   return Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission);
 }
@@ -298,7 +297,7 @@ const filteredRoleOptions = computed(() => {
     .map((r) => ({ ...r, display: r.name === 'admin' ? 'Administrador' : r.name === 'sponsor' ? 'Sponsor' : r.name }));
 });
 
-// --- WATCHERS DE ALCANCE (igual que edit.vue) ---
+// --- WATCHERS DE ALCANCE ---
 watch(
   () => form.organization_id,
   (val, oldVal) => {
@@ -394,7 +393,8 @@ watch(selectedOrgForRoles, async (orgId) => {
 });
 
 const isLoading = ref(false);
-// --- VALIDATION & SUBMIT --- (igual que antes)
+
+// --- VALIDATION & SUBMIT ---
 const validate = async () => {
   errorMsg.value = '';
   let valid = true;
@@ -407,13 +407,11 @@ const validate = async () => {
 
   // Validar "Pertenece a"
   if (!form.organization_id && !form.business_id && !form.business_unit_id) {
-    // Marcar los 3 como error
     fieldErrors.organization_id = 'Es obligatorio escoger un alcance.';
     fieldErrors.business_id = 'Es obligatorio escoger un alcance.';
     fieldErrors.business_unit_id = 'Es obligatorio escoger un alcance.';
     valid = false;
   } else {
-    // Limpiar errores si alguno está seleccionado
     clearFieldError('organization_id');
     clearFieldError('business_id');
     clearFieldError('business_unit_id');
@@ -441,6 +439,17 @@ const validate = async () => {
       form.organization_id = business.organization_id;
     }
   }
+
+  // --- DEBUG: Mostrar datos enviados ---
+  console.log('Datos enviados al backend:', {
+    name: form.name,
+    email: form.email,
+    role: form.role,
+    organization_id: form.organization_id,
+    business_id: form.business_id,
+    business_unit_id: form.business_unit_id,
+    contact: form.contact
+  });
 
   try {
     const formData = new FormData();
@@ -470,6 +479,11 @@ const validate = async () => {
       router.replace(`/usuarios/${user.id}`);
     }
   } catch (err) {
+    // --- LOG COMPLETO DE ERROR DEL BACKEND ---
+    console.error('❌ Error al crear usuario:', err);
+    if (err?.response?.data) {
+      console.error('Error backend:', err.response.data);
+    }
     if (err?.response?.data?.errors) {
       const serverErrors = err.response.data.errors;
       let firstServerErrorField = null;
@@ -495,7 +509,6 @@ const validate = async () => {
     } else {
       errorMsg.value = 'Error al crear usuario';
     }
-    console.error('❌ Error al crear usuario:', err);
   } finally {
     isLoading.value = false;
   }
