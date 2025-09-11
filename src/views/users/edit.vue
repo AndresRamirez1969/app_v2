@@ -37,6 +37,7 @@ const selectedOrgForRoles = ref(null);
 const fieldErrors = reactive({
   name: '',
   email: '',
+  profile_picture: '',
   orgRole: '',
   role: '',
   organization_id: '',
@@ -47,6 +48,7 @@ const fieldErrors = reactive({
 const fieldRefs = {
   name: ref(null),
   email: ref(null),
+  profile_picture: ref(null),
   orgRole: ref(null),
   role: ref(null),
   organization_id: ref(null),
@@ -541,6 +543,7 @@ const validate = async () => {
 
   isLoading.value = true;
 
+  // Lógica de alcance (mantener esta parte)
   if (form.business_unit_id) {
     const unit = businessUnitOptions.value.find((u) => u.id === form.business_unit_id);
     if (unit) {
@@ -552,40 +555,35 @@ const validate = async () => {
     if (business) form.organization_id = business.organization_id;
   }
 
-  await updateUser();
-};
-
-const updateUser = async () => {
+  // Enviar datos directamente aquí (como en organizations)
   try {
-    const payload = {
-      name: form.name,
-      email: form.email,
-      role: form.role,
-      organization_id: form.organization_id,
-      business_id: form.business_id,
-      business_unit_id: form.business_unit_id,
-      contact: { ...form.contact }
-    };
+    const formData = new FormData();
 
-    let config = {};
-    let dataToSend = payload;
+    // Agregar campos principales
+    formData.append('name', form.name);
+    formData.append('email', form.email);
+    formData.append('role', form.role);
 
-    if (form.profile_picture && typeof form.profile_picture === 'object') {
-      const formData = new FormData();
-      Object.entries(payload).forEach(([key, value]) => {
-        if (key === 'contact') {
-          Object.entries(value).forEach(([cKey, cValue]) => formData.append(`contact[${cKey}]`, cValue));
-        } else if (value !== null && value !== undefined) {
-          formData.append(key, value);
-        }
-      });
-      const file = Array.isArray(form.profile_picture) ? form.profile_picture[0] : form.profile_picture;
-      formData.append('profile_picture', file);
-      dataToSend = formData;
-      config = { headers: { 'Content-Type': 'multipart/form-data' } };
+    // Agregar campos de alcance solo si tienen valor
+    if (form.organization_id) formData.append('organization_id', form.organization_id);
+    if (form.business_id) formData.append('business_id', form.business_id);
+    if (form.business_unit_id) formData.append('business_unit_id', form.business_unit_id);
+
+    // Agregar campos de contacto solo si tienen valor
+    const hasContactData = Object.values(form.contact).some((val) => val && val.trim() !== '');
+    if (hasContactData) {
+      for (const key in form.contact) {
+        formData.append(`contact[${key}]`, form.contact[key] || '');
+      }
     }
 
-    await axiosInstance.put(`/users/${route.params.id}`, dataToSend, config);
+    // Agregar la foto de perfil si existe
+    if (form.profile_picture && typeof form.profile_picture === 'object') {
+      const file = Array.isArray(form.profile_picture) ? form.profile_picture[0] : form.profile_picture;
+      formData.append('profile_picture', file);
+    }
+
+    await axiosInstance.post(`/users/${route.params.id}?_method=PUT`, formData);
 
     // Redirige al show del usuario después de guardar
     router.push(`/usuarios/${route.params.id}`);

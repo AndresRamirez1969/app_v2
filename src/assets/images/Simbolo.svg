@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Capa_2" data-name="Capa 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 424.13 414.95">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #1a92ef;
+      }
+
+      .cls-2 {
+        fill: #87f5e7;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1" data-name="Layer 1">
+    <g>
+      <circle class="cls-2" cx="132.86" cy="44.24" r="40.37" transform="translate(4.99 101.32) rotate(-42.47)"/>
+      <circle class="cls-1" cx="64.46" cy="107.88" r="38.83" transform="translate(-55.93 71.84) rotate(-42.47)"/>
+      <circle class="cls-1" cx="37.31" cy="196.93" r="37.3" transform="translate(-123.18 76.86) rotate(-42.47)"/>
+      <circle class="cls-1" cx="59.13" cy="288.77" r="35.76" transform="translate(-179.48 115.7) rotate(-42.47)"/>
+      <circle class="cls-1" cx="123.2" cy="356.02" r="34.22" transform="translate(-208.07 176.61) rotate(-42.47)"/>
+      <circle class="cls-1" cx="212.31" cy="382.26" r="32.68" transform="translate(-202.41 243.67) rotate(-42.47)"/>
+      <circle class="cls-1" cx="298.91" cy="359.38" r="31.14" transform="translate(-164.24 296.14) rotate(-42.47)"/>
+      <circle class="cls-1" cx="371" cy="294.27" r="29.6" transform="translate(-101.35 327.74) rotate(-42.47)"/>
+      <circle class="cls-1" cx="396.06" cy="204.7" r="28.06" transform="translate(-34.3 321.15) rotate(-42.47)"/>
+      <circle class="cls-1" cx="372.36" cy="113.79" r="26.52" transform="translate(20.87 281.3) rotate(-42.47)"/>
+      <circle class="cls-1" cx="306.55" cy="47.65" r="24.98" transform="translate(48.26 219.5) rotate(-42.47)"/>
+      <circle class="cls-1" cx="216.39" cy="23.45" r="23.44" transform="translate(40.95 152.27) rotate(-42.47)"/>
+    </g>
+  </g>
+</svg>

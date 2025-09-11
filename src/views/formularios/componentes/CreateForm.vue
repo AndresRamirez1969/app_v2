@@ -109,24 +109,33 @@ const fetchUsersByScope = async () => {
 
     const params = { scope: scope.value };
 
-    if (isSuperadmin.value) {
-      if (scope.value === 'organization' && selectedOrganization.value) {
+    if (scope.value === 'organization') {
+      if (isSuperadmin.value && selectedOrganization.value) {
         params.organization_id = selectedOrganization.value;
       } else {
-        params.organization_id = organizationId.value;
+        params.organization_id = auth.user?.organization_id;
       }
-    }
-
-    if (scope.value === 'business' && businessId.value) {
+    } else if (scope.value === 'business' && businessId.value) {
       params.business_id = businessId.value;
+      // Obtener el organization_id del negocio seleccionado
+      const selectedBusiness = businesses.value.find((b) => b.id === businessId.value);
+      if (selectedBusiness?.organization?.id) {
+        params.organization_id = selectedBusiness.organization.id;
+      }
     } else if (scope.value === 'business_unit' && businessUnitId.value) {
       params.business_unit_id = businessUnitId.value;
-    } else if (scope.value === 'organization') {
-      if (!isSuperadmin.value) {
-        params.organization_id = auth.user?.organization_id;
+      // Obtener el organization_id de la unidad de negocio seleccionada
+      const selectedBusinessUnit = businessUnits.value.find((u) => u.id === businessUnitId.value);
+      if (selectedBusinessUnit?.organization?.id) {
+        params.organization_id = selectedBusinessUnit.organization.id;
       }
     } else if (scope.value === 'business_unit_group' && groupId.value) {
       params.business_unit_group_id = groupId.value;
+      // Para grupos, necesitas obtener el organization_id del grupo
+      const selectedGroup = groups.value.find((g) => g.id === groupId.value);
+      if (selectedGroup?.organization?.id) {
+        params.organization_id = selectedGroup.organization.id;
+      }
     }
 
     const res = await axiosInstance.get('/users-by-scope', { params });
@@ -240,6 +249,7 @@ onMounted(async () => {
       ...business,
       customLabel: `${business.folio} - ${business.name}`
     }));
+    console.log('businesses', businesses.value);
 
     // No ejecutar fetchBusinessUnits aquí, se ejecutará cuando se seleccione el scope
     // await fetchBusinessUnits();
@@ -616,6 +626,7 @@ const validate = async () => {
                   color="primary"
                   class="mt-2"
                   label="Selecciona el Negocio"
+                  clearable
                   required
                   :disabled="userBusinesses && !canViewAnyBusiness"
                   :error-messages="fieldErrors.businessId"
@@ -642,6 +653,7 @@ const validate = async () => {
                   color="primary"
                   class="mt-2"
                   label="Selecciona la Unidad de Negocio"
+                  clearable
                   required
                   :error-messages="fieldErrors.businessUnitId"
                   @update:model-value="clearFieldError('businessUnitId')"
@@ -664,6 +676,7 @@ const validate = async () => {
                   color="primary"
                   class="mt-2"
                   label="Selecciona el Grupo"
+                  clearable
                   required
                   :error-messages="fieldErrors.groupId"
                   @update:model-value="clearFieldError('groupId')"
