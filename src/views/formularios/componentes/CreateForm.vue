@@ -424,20 +424,40 @@ const validate = async () => {
       }
     }
 
+    // CORRECCIÓN: Obtener organization_id según el scope
+    let orgId = null;
+
     if (scope.value === 'organization') {
       // Si es superadmin, usar la organización seleccionada, sino la del usuario
-      const orgId = isSuperadmin.value && selectedOrganization.value ? selectedOrganization.value : user.value?.organization_id;
+      orgId = isSuperadmin.value && selectedOrganization.value ? selectedOrganization.value : user.value?.organization_id;
+    } else if (scope.value === 'business' && businessId.value) {
+      // Obtener organization_id del negocio seleccionado
+      const selectedBusiness = businesses.value.find((b) => b.id === businessId.value);
+      orgId = selectedBusiness?.organization?.id;
+    } else if (scope.value === 'business_unit' && businessId.value) {
+      // Obtener organization_id del negocio de la unidad seleccionada
+      const selectedBusiness = businesses.value.find((b) => b.id === businessId.value);
+      orgId = selectedBusiness?.organization?.id;
+    } else if (scope.value === 'business_unit_group' && businessId.value) {
+      // Obtener organization_id del negocio del grupo seleccionado
+      const selectedBusiness = businesses.value.find((b) => b.id === businessId.value);
+      orgId = selectedBusiness?.organization?.id;
+    }
+
+    // Solo agregar organization_id si tiene valor
+    if (orgId) {
       formData.append('organization_id', orgId);
+    }
+
+    if (scope.value === 'organization') {
+      // Ya se manejó arriba
     } else if (scope.value === 'business') {
       formData.append('business_id', businessId.value);
-      formData.append('organization_id', user.value?.organization_id);
     } else if (scope.value === 'business_unit') {
       formData.append('business_id', businessId.value);
       formData.append('business_unit_id', businessUnitId.value);
-      formData.append('organization_id', user.value?.organization_id);
     } else if (scope.value === 'business_unit_group') {
       formData.append('business_unit_group_id', groupId.value);
-      formData.append('organization_id', user.value?.organization_id);
       formData.append('business_id', businessId.value);
     }
 
