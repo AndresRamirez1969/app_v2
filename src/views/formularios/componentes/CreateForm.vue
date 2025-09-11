@@ -17,6 +17,7 @@ const goBack = () => {
 };
 
 const isSuperadmin = computed(() => user.value?.roles?.includes('superadmin'));
+const isSponsor = computed(() => user.value?.roles?.includes('sponsor'));
 
 const canViewAnyBusiness = computed(() => {
   return user?.permissions?.includes('business.viewAny');
