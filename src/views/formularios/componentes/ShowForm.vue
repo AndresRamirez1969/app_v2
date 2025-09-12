@@ -166,7 +166,7 @@
           <v-select
             v-else
             v-model="formData.auditado_role_ids"
-            :items="filteredRoles"
+            :items="allRoles"
             multiple
             item-title="customLabel"
             item-value="id"
