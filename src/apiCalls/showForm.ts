@@ -12,6 +12,7 @@ export function showForm() {
     try {
       const response = await axiosInstance.get(`/forms/${id}`);
       form.value = response.data;
+      console.log(response.data);
       return response.data; // Retornar los datos para que el componente pueda usarlos
     } catch (err) {
       console.error('Error fetching form:', err);

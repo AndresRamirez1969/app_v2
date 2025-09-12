@@ -110,6 +110,18 @@
             </div>
             <div v-else class="text-grey">No asignado</div>
           </div>
+          <v-select
+            v-else
+            v-model="formData.supervisor_role_id"
+            :items="allRoles"
+            item-title="customLabel"
+            item-value="id"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="mt-1"
+            label="Selecciona al Supervisor"
+          />
         </div>
       </v-col>
 
@@ -124,6 +136,19 @@
             </div>
             <div v-else class="text-grey">No asignados</div>
           </div>
+          <v-select
+            v-else
+            v-model="formData.auditor_role_ids"
+            :items="allRoles"
+            multiple
+            item-title="customLabel"
+            item-value="id"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="mt-1"
+            label="Selecciona a los Auditores"
+          />
         </div>
       </v-col>
 
@@ -141,7 +166,7 @@
           <v-select
             v-else
             v-model="formData.auditado_role_ids"
-            :items="filteredUsers"
+            :items="filteredRoles"
             multiple
             item-title="customLabel"
             item-value="id"
@@ -208,6 +233,7 @@ import { FREQUENCY, SCOPES } from '@/constants/constants';
 import { mdiPencil, mdiCancel, mdiCheck, mdiArrowLeft, mdiPlus } from '@mdi/js';
 import { useRoute, useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
+import { groupUsersByRole } from '@/utils/helpers/groupUsers';
 
 const route = useRoute();
 const router = useRouter();
@@ -238,6 +264,16 @@ const isSponsor = computed(() => {
 const canView = computed(() => auth.user?.permissions?.includes('form.view'));
 
 const { form, loading, error, fetchForm } = showForm();
+
+// Computed para obtener todos los roles disponibles
+const allRoles = computed(() => {
+  return groupUsersByRole(users.value);
+});
+
+// Computed para obtener roles filtrados según el scope
+const filteredRoles = computed(() => {
+  return groupUsersByRole(filteredUsers.value);
+});
 
 // Función para manejar errores de permisos
 const handlePermissionError = (error) => {
@@ -304,22 +340,13 @@ const formData = ref({});
 
 watch(form, async (newForm) => {
   if (newForm) {
-    const supervisorUser = users.value.find((user) => user.roles?.some((role) => role.id === newForm.supervisor_role?.id));
-
-    const auditorUsers = users.value.filter((user) =>
-      user.roles?.some((role) => newForm.auditor_roles?.some((auditorRole) => auditorRole.id === role.id))
-    );
-
-    const auditadoUsers = users.value.filter((user) =>
-      user.roles?.some((role) => newForm.auditado_roles?.some((auditadoRole) => auditadoRole.id === role.id))
-    );
-
+    // Configurar los datos del formulario para edición
     formData.value = {
       name: newForm.name || '',
       frequency: newForm.frequency || '',
-      supervisor_role_id: supervisorUser?.id || '',
-      auditor_role_ids: auditorUsers.map((user) => user.id) || [],
-      auditado_role_ids: auditadoUsers.map((user) => user.id) || [],
+      supervisor_role_id: newForm.supervisor_role?.id || '',
+      auditor_role_ids: newForm.auditor_roles?.map((role) => role.id) || [],
+      auditado_role_ids: newForm.auditado_roles?.map((role) => role.id) || [],
       assignment_scope: newForm.assignment_scope || '',
       status: newForm.status || 'draft'
     };
@@ -378,59 +405,62 @@ const cancelEdit = () => {
 
 const saveChanges = async () => {
   try {
-    const formDataToSend = new FormData();
-    formDataToSend.append('name', formData.value.name);
+    // Preparar los datos para enviar
+    const dataToSend = {
+      name: formData.value.name,
+      frequency: formData.value.frequency,
+      assignment_scope: formData.value.assignment_scope,
+      status: formData.value.status
+    };
 
-    // Obtener el ID del rol del supervisor (como en CreateForm)
-    const supervisorUser = users.value.find((user) => user.id === formData.value.supervisor_role_id);
-    formDataToSend.append('supervisor_role_id', supervisorUser?.roles?.[0]?.id || '');
-
-    // Obtener los IDs de roles de los auditores (como en CreateForm)
-    if (formData.value.auditor_role_ids && formData.value.auditor_role_ids.length > 0) {
-      formData.value.auditor_role_ids.forEach((auditorUserId, index) => {
-        const auditorUser = filteredUsers.value.find((user) => user.id === auditorUserId);
-        const roleId = auditorUser?.roles?.[0]?.id;
-        if (roleId) {
-          formDataToSend.append(`auditor_role_ids[${index}]`, roleId);
-        }
-      });
+    // Obtener el ID del rol del supervisor
+    const supervisorRole = allRoles.value.find((role) => role.id === formData.value.supervisor_role_id);
+    if (supervisorRole) {
+      dataToSend.supervisor_role_id = supervisorRole.id;
     }
 
-    // Obtener los IDs de roles de los auditados (como en CreateForm)
-    if (formData.value.auditado_role_ids && formData.value.auditado_role_ids.length > 0) {
-      formData.value.auditado_role_ids.forEach((auditadoUserId, index) => {
-        const auditadoUser = filteredUsers.value.find((user) => user.id === auditadoUserId);
-        const roleId = auditadoUser?.roles?.[0]?.id;
-        if (roleId) {
-          formDataToSend.append(`auditado_role_ids[${index}]`, roleId);
-        }
-      });
+    // Obtener los IDs de roles de los auditores
+    const auditorRoleIds = formData.value.auditor_role_ids || [];
+    if (auditorRoleIds.length > 0) {
+      dataToSend.auditor_role_ids = auditorRoleIds;
     }
 
-    formDataToSend.append('frequency', formData.value.frequency);
-    formDataToSend.append('assignment_scope', formData.value.assignment_scope);
-    formDataToSend.append('status', formData.value.status);
+    // Obtener los IDs de roles de los auditados
+    const auditadoRoleIds = formData.value.auditado_role_ids || [];
+    if (auditadoRoleIds.length > 0) {
+      dataToSend.auditado_role_ids = auditadoRoleIds;
+    }
 
     // Agregar los IDs correspondientes según el scope
     if (formData.value.assignment_scope === 'organization') {
-      formDataToSend.append('organization_id', auth.user?.organization_id);
+      dataToSend.organization_id = auth.user?.organization_id;
     } else if (formData.value.assignment_scope === 'business') {
-      formDataToSend.append('business_id', form.value.business_id);
-      formDataToSend.append('organization_id', auth.user?.organization_id);
+      dataToSend.business_id = form.value.business_id;
+      dataToSend.organization_id = auth.user?.organization_id;
     } else if (formData.value.assignment_scope === 'business_unit') {
-      formDataToSend.append('business_id', form.value.business_id);
-      formDataToSend.append('business_unit_id', form.value.business_unit_id);
-      formDataToSend.append('organization_id', auth.user?.organization_id);
+      dataToSend.business_id = form.value.business_id;
+      dataToSend.business_unit_id = form.value.business_unit_id;
+      dataToSend.organization_id = auth.user?.organization_id;
     }
 
-    const response = await axiosInstance.put(`/forms/${formId.value}`, formDataToSend, {
+    const response = await axiosInstance.put(`/forms/${formId.value}`, dataToSend, {
       headers: {
-        'Content-Type': 'multipart/form-data'
+        'Content-Type': 'application/json'
       }
     });
 
     form.value = response.data;
-    formData.value = JSON.parse(JSON.stringify(response.data));
+
+    formData.value = {
+      name: response.data.name || '',
+      frequency: response.data.frequency || '',
+      supervisor_role_id: response.data.supervisor_role?.id || '',
+      auditor_role_ids: response.data.auditor_roles?.map((role) => role.id) || [],
+      auditado_role_ids: response.data.auditado_roles?.map((role) => role.id) || [],
+      assignment_scope: response.data.assignment_scope || '',
+      status: response.data.status || 'draft'
+    };
+
     editMode.value = false;
   } catch (err) {
     console.error('Error updating form:', err);
