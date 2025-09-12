@@ -106,6 +106,10 @@ const sidebarMenu = computed(() => {
         const show = userRoles.value.includes('superadmin') || hasFormViewAny.value;
         return show ? { ...item, to: '/formularios' } : null;
       }
+      // if (item.title === 'Formularios DW') {
+      //   const show = userRoles.value.includes('superadmin') || hasFormViewAny.value;
+      //   return show ? { ...item, to: '/formularios-dw' } : null;
+      // }
       if (item.title === 'Reportes') {
         const show = userRoles.value.includes('superadmin') || userRoles.value.includes('admin') || hasResponseViewAny.value;
         return show ? { ...item, to: '/reportes' } : null;

@@ -63,6 +63,11 @@ const sidebarItem: menu[] = [
     icon: FileAddOutlined,
     to: '/formularios'
   },
+  // {
+  //   title: 'Formularios DW',
+  //   icon: FileAddOutlined,
+  //   to: '/formularios-dw'
+  // },
   {
     title: 'Mis Formularios',
     icon: FileTextOutlined,

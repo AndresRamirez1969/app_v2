@@ -39,17 +39,30 @@
         </div>
 
         <!-- Title -->
-        <h2 class="mw-title" id="mw-title">Información de <span>Filtro de Organización</span></h2>
+        <h2 class="mw-title" id="mw-title">Información de <span>Formularios</span></h2>
 
         <!-- Texto informativo -->
         <div class="mw-info-text">
           <div>
-            <p class="mw-intro">Toma en cuenta lo siguiente:</p>
+            <p class="mw-intro">Al crear y/o editar el alcance de un usuario, toma en cuenta lo siguiente:</p>
             <ul class="mw-list">
-              <li>Primero selecciona una organización en el campo “Organización para filtrar roles”.</li>
-              <li>Una vez elegida la organización, el campo de Rol mostrará únicamente los roles que pertenecen a esa organización.</li>
-              <li>Después de este paso podrás asignar el rol correcto al usuario.</li>
+              <li>
+                Debes elegir un alcance:
+                <template v-if="isSuperadmin || isAdmin"> <strong>Organización</strong>, </template>
+                <strong>Empresa</strong> o <strong>Ubicación</strong>.
+              </li>
+              <li>
+                Si cambias de opinión al crear o editar, <strong>primero debes desvincular el alcance actual</strong> para poder seleccionar
+                otro.
+                <ul>
+                  <li style="margin-left: 24px">
+                    En el campo de selección, al final encontrarás una <strong>tachita</strong> (<strong>✕</strong>).
+                  </li>
+                  <li style="margin-left: 24px">Da clic en la tachita para <strong>quitar la vinculación</strong>.</li>
+                </ul>
+              </li>
             </ul>
+            Una vez desvinculado, podrás elegir libremente un nuevo alcance.
             <div style="height: 18px"></div>
           </div>
         </div>

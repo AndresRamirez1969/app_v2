@@ -37,6 +37,7 @@ const emit = defineEmits(['update:page', 'sort']);
             Rol
             <slot name="sort-icon" :column="'role'" />
           </th>
+          <th class="belongs-header">Pertenece A</th>
           <th @click="emit('sort', 'status')" class="cursor-pointer status-header">
             Estatus
             <slot name="sort-icon" :column="'status'" />

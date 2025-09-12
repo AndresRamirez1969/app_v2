@@ -1,9 +1,11 @@
 <script setup>
 import { reactive, ref, watch, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { mdiArrowLeft } from '@mdi/js';
+import { mdiArrowLeft, mdiInformationSlabCircleOutline } from '@mdi/js';
 import axiosInstance from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
+import InfoUserBelongsModal from '@/components/modals/InfoUserBelongsModal.vue';
+import InfoUserOrgSelectModal from '@/components/modals/InfoUserOrgSelectModal.vue';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -12,6 +14,8 @@ const Regform = ref(null);
 const profilePreview = ref(null);
 const errorMsg = ref('');
 const canCreate = ref(false);
+
+const showInfoBelongsModal = ref(false);
 
 const organizationSearch = ref('');
 const businessSearch = ref('');
@@ -33,6 +37,7 @@ const loadingRoles = ref(false);
 const loadingOrgRoles = ref(false);
 
 const selectedOrgForRoles = ref(null);
+const showInfoOrgSelectModal = ref(false);
 
 const fieldErrors = reactive({
   name: '',
@@ -562,12 +567,15 @@ const validate = async () => {
               v-model="form.profile_picture"
               variant="outlined"
               color="primary"
-              class="mt-2 mb-4"
+              class="mt-2"
               accept="image/*"
               density="compact"
               show-size
               :multiple="false"
+              :messages="['Solo se permiten imágenes JPEG, PNG o JPG. Tamaño máximo: 2MB.']"
             />
+
+            <div style="padding-top: 25px"></div>
 
             <v-label>Nombre <span class="text-error">*</span></v-label>
             <v-text-field
@@ -593,7 +601,19 @@ const validate = async () => {
 
             <!-- Select de organización para filtrar roles SOLO para superadmin -->
             <template v-if="isSuperadmin">
-              <v-label>Organización para filtrar roles <span class="text-error">*</span></v-label>
+              <div class="d-flex align-center justify-between">
+                <v-label>Organización para filtrar roles <span class="text-error">*</span></v-label>
+                <v-icon
+                  :icon="mdiInformationSlabCircleOutline"
+                  color="primary"
+                  size="22"
+                  class="ml-2"
+                  style="cursor: pointer"
+                  @click="showInfoOrgSelectModal = true"
+                />
+              </div>
+              <InfoUserOrgSelectModal v-model="showInfoOrgSelectModal" />
+              <!-- 4. Modal -->
               <v-autocomplete
                 v-model="selectedOrgForRoles"
                 :items="organizationOptions"
@@ -640,7 +660,20 @@ const validate = async () => {
         <!-- Pertenece a -->
         <v-row>
           <v-col cols="12">
-            <h4 class="font-weight-bold mb-3">Pertenece a</h4>
+            <div class="d-flex align-center justify-start" style="position: relative">
+              <h4 class="font-weight-bold mb-3" style="margin-bottom: 0; display: inline-flex; align-items: center">
+                Pertenece a
+                <v-icon
+                  :icon="mdiInformationSlabCircleOutline"
+                  color="primary"
+                  size="22"
+                  class="ml-2"
+                  style="cursor: pointer; margin-bottom: 3px"
+                  @click="showInfoBelongsModal = true"
+                />
+              </h4>
+              <InfoUserBelongsModal v-model="showInfoBelongsModal" />
+            </div>
             <v-divider class="mb-6" />
           </v-col>
         </v-row>

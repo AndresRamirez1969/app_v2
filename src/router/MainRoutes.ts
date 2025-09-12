@@ -197,6 +197,16 @@ const MainRoutes = {
       path: '/roles/:id',
       component: () => import('@/views/roles/show.vue')
     }
+    // {
+    //   name: 'Forms DW',
+    //   path: '/formularios-dw',
+    //   component: () => import('@/views/forms/index.vue')
+    // },
+    // {
+    //   name: 'Forms',
+    //   path: '/formularios-dw/crear',
+    //   component: () => import('@/views/forms/create.vue')
+    // }
   ]
 };
 

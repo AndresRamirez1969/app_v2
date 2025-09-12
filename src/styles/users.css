@@ -217,3 +217,9 @@ td {
   font-size: 1rem;
   font-weight: normal;
 }
+
+.belongs-cell {
+  white-space: normal;
+  word-break: break-word;
+  max-width: 220px; /* Ajusta el ancho según tu diseño */
+}

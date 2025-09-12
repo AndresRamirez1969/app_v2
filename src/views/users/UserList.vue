@@ -135,6 +135,29 @@ const toggleStatus = async (targetUser) => {
     loadingUserStatus.value[targetUser.id] = false;
   }
 };
+
+// Función para obtener el valor de "Pertenece A" y el link
+function getBelongsTo(user) {
+  if (user.business_unit) {
+    return {
+      text: `${user.business_unit.folio} - ${user.business_unit.name}`,
+      url: `/business-units/${user.business_unit.id}`
+    };
+  }
+  if (user.business) {
+    return {
+      text: `${user.business.folio} - ${user.business.name}`,
+      url: `/business/${user.business.id}`
+    };
+  }
+  if (user.organization) {
+    return {
+      text: `${user.organization.folio} - ${user.organization.legal_name}`,
+      url: `/organizations/${user.organization.id}`
+    };
+  }
+  return { text: 'Sin asignación', url: null };
+}
 </script>
 
 <template>
@@ -201,6 +224,17 @@ const toggleStatus = async (targetUser) => {
                   </span>
                 </span>
                 <span v-else>Sin rol</span>
+              </div>
+              <div class="text-caption">
+                <strong>Pertenece A:</strong>
+                <template v-if="getBelongsTo(user).url">
+                  <router-link :to="getBelongsTo(user).url" style="text-decoration: underline; color: #1976d2">
+                    {{ getBelongsTo(user).text }}
+                  </router-link>
+                </template>
+                <template v-else>
+                  {{ getBelongsTo(user).text }}
+                </template>
               </div>
             </v-col>
           </v-row>
@@ -310,6 +344,19 @@ const toggleStatus = async (targetUser) => {
                     </span>
                   </span>
                   <span v-else>Sin rol</span>
+                </td>
+                <td class="belongs-cell">
+                  <template v-if="getBelongsTo(user).url">
+                    <router-link
+                      :to="getBelongsTo(user).url"
+                      style="text-decoration: underline; color: #1976d2; white-space: normal; word-break: break-word"
+                    >
+                      {{ getBelongsTo(user).text }}
+                    </router-link>
+                  </template>
+                  <template v-else>
+                    {{ getBelongsTo(user).text }}
+                  </template>
                 </td>
                 <td class="status-cell">
                   <StatusChip :status="user.status" />
