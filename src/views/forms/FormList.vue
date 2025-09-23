@@ -2,22 +2,34 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import FormTableMeta from './FormTableMeta.vue';
-import { CHIPCOLOR } from '@/constants/constants';
+import StatusChip from '@/components/status/StatusChip.vue';
 import { useToast } from 'vue-toastification';
+import axiosInstance from '@/utils/axios'; // Usa el mismo axios que en show.vue
 import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye, mdiPencil, mdiPublish, mdiArchive } from '@mdi/js';
 
 const props = defineProps({
   items: Array,
   isLoading: Boolean,
-  totalItems: Number
+  totalItems: Number,
+  isMobile: Boolean
 });
 
-const isMobile = ref(window.innerWidth < 1024);
+const isMobile = computed(() => props.isMobile ?? window.innerWidth < 1024);
 const handleResize = () => {
-  isMobile.value = window.innerWidth < 1024;
+  if (props.isMobile === undefined) {
+    isMobile.value = window.innerWidth < 1024;
+  }
 };
-onMounted(() => window.addEventListener('resize', handleResize));
-onUnmounted(() => window.removeEventListener('resize', handleResize));
+onMounted(() => {
+  if (props.isMobile === undefined) {
+    window.addEventListener('resize', handleResize);
+  }
+});
+onUnmounted(() => {
+  if (props.isMobile === undefined) {
+    window.removeEventListener('resize', handleResize);
+  }
+});
 
 const router = useRouter();
 const toast = useToast();
@@ -57,17 +69,40 @@ const paginatedItems = computed(() => {
   return sortedItems.value.slice(start, end);
 });
 
-const goToShow = (form) => router.push({ path: `/formularios-dw/${form.id}` });
-const goToEdit = (form) => router.push({ path: `/formularios-dw/editar/${form.id}` });
+const goToShow = (form) => router.push({ path: `/formularios/${form.id}` });
+const goToEdit = (form) => router.push({ path: `/formularios/editar/${form.id}` });
+
+function translateRole(name) {
+  if (!name) return '';
+  switch (name) {
+    case 'superadmin':
+      return 'Super Administrador';
+    case 'admin':
+      return 'Administrador';
+    case 'sponsor':
+      return 'Sponsor';
+    default:
+      return name;
+  }
+}
 
 function getSupervisor(form) {
-  return form.supervisorRole?.name || 'Sin supervisor';
+  const role = form.supervisor_role || form.supervisorRole;
+  return role ? translateRole(role.name) : 'Sin supervisor';
 }
 function getAuditor(form) {
-  return form.auditorRoles?.map((r) => r.name).join(', ') || 'Sin auditor';
+  const roles = form.auditor_roles || form.auditorRoles;
+  if (Array.isArray(roles) && roles.length) {
+    return roles.map((r) => translateRole(r.name));
+  }
+  return [];
 }
 function getAuditados(form) {
-  return form.auditadoRoles?.map((r) => r.name).join(', ') || 'Sin auditados';
+  const roles = form.auditado_roles || form.auditadoRoles;
+  if (Array.isArray(roles) && roles.length) {
+    return roles.map((r) => translateRole(r.name));
+  }
+  return [];
 }
 function formatDate(dateString) {
   if (!dateString) return '—';
@@ -78,54 +113,40 @@ function formatDate(dateString) {
     year: 'numeric'
   });
 }
-function getStatusLabel(status) {
-  const labels = {
-    draft: 'Borrador',
-    active: 'Activo',
-    archived: 'Archivado'
-  };
-  return labels[status] || status;
-}
 
-// Acciones de status
 const emit = defineEmits(['formUpdated']);
 
-const publishForm = async (form) => {
-  if (form.fields && form.fields.length === 0) {
+// Igual que en show.vue, usando axiosInstance
+const changeFormStatus = async (form, targetStatus) => {
+  if (form.status === 'draft' && targetStatus === 'active' && form.fields && form.fields.length === 0) {
     toast.error('No se puede publicar un formulario sin campos');
     return;
   }
   try {
-    await $fetch(`/forms/${form.id}/status`, {
-      method: 'PUT',
-      body: { status: 'active' }
-    });
-    form.status = 'active';
-    toast.success('Se ha publicado el formulario');
+    const res = await axiosInstance.put(`/forms/${form.id}/status`, { status: targetStatus });
+    form.status = targetStatus;
+    if (res.data && res.data.form) {
+      form.supervisorRole = res.data.form.supervisorRole;
+      form.auditorRoles = res.data.form.auditorRoles;
+      form.auditadoRoles = res.data.form.auditadoRoles;
+    }
     emit('formUpdated');
   } catch (error) {
-    toast.error('Error al publicar formulario');
+    if (error?.response?.data?.message) {
+      toast.error(error.response.data.message);
+    } else {
+      toast.error('Error al actualizar el estado del formulario');
+    }
   }
 };
 
-const archiveForm = async (form) => {
-  try {
-    await $fetch(`/forms/${form.id}/status`, {
-      method: 'PUT',
-      body: { status: 'archived' }
-    });
-    form.status = 'archived';
-    toast.success('Se ha archivado el formulario');
-    emit('formUpdated');
-  } catch (error) {
-    toast.error('Error al archivar formulario');
-  }
-};
+function hasResponses(form) {
+  return Array.isArray(form.responses) && form.responses.length > 0;
+}
 </script>
 
 <template>
   <div>
-    <!-- Loading global -->
     <div v-if="isLoading" class="text-center py-8">
       <v-progress-circular indeterminate color="primary" size="64" />
       <p class="mt-4">Cargando formularios...</p>
@@ -138,7 +159,6 @@ const archiveForm = async (form) => {
         <p class="text-body-2 text-grey">No se encontraron formularios con los filtros aplicados</p>
       </div>
 
-      <!-- MODO MÓVIL (iPad y abajo) -->
       <template v-else-if="isMobile">
         <v-card
           v-for="form in paginatedItems"
@@ -149,21 +169,41 @@ const archiveForm = async (form) => {
         >
           <div class="d-flex align-center mb-2" style="justify-content: space-between">
             <router-link
-              :to="`/formularios-dw/${form.id}`"
+              :to="`/formularios/${form.id}`"
               class="text-primary"
               @click.stop
               style="text-decoration: underline; font-size: 15px"
             >
               {{ form.folio }}
             </router-link>
-            <v-chip :color="CHIPCOLOR(form.status)" text-color="white" size="small">
-              {{ getStatusLabel(form.status) }}
-            </v-chip>
+            <StatusChip :status="form.status" />
           </div>
           <div class="font-weight-medium mb-1">{{ form.name }}</div>
-          <div class="text-caption mb-1"><strong>Supervisor:</strong> {{ getSupervisor(form) }}</div>
-          <div class="text-caption mb-1"><strong>Auditor:</strong> {{ getAuditor(form) }}</div>
-          <div class="text-caption mb-1"><strong>Auditados:</strong> {{ getAuditados(form) }}</div>
+          <div class="text-caption mb-1">
+            <strong>Supervisor:</strong>
+            <v-chip v-if="getSupervisor(form) !== 'Sin supervisor'" color="teal" class="mx-1" size="small">
+              {{ getSupervisor(form) }}
+            </v-chip>
+            <span v-else>Sin supervisor</span>
+          </div>
+          <div class="text-caption mb-1">
+            <strong>Auditor:</strong>
+            <template v-if="getAuditor(form).length">
+              <v-chip v-for="(role, idx) in getAuditor(form)" :key="idx" color="teal" class="mx-1" size="small">
+                {{ role }}
+              </v-chip>
+            </template>
+            <span v-else>Sin auditor</span>
+          </div>
+          <div class="text-caption mb-1">
+            <strong>Auditados:</strong>
+            <template v-if="getAuditados(form).length">
+              <v-chip v-for="(role, idx) in getAuditados(form)" :key="idx" color="teal" class="mx-1" size="small">
+                {{ role }}
+              </v-chip>
+            </template>
+            <span v-else>Sin auditados</span>
+          </div>
           <div class="text-caption mb-1">
             <strong>Fecha de Creación:</strong>
             {{ formatDate(form.created_at) }}
@@ -174,7 +214,6 @@ const archiveForm = async (form) => {
         </div>
       </template>
 
-      <!-- MODO DESKTOP -->
       <template v-else>
         <FormTableMeta
           :items="paginatedItems"
@@ -194,21 +233,38 @@ const archiveForm = async (form) => {
             <template v-if="paginatedItems.length">
               <tr v-for="form in paginatedItems" :key="form.id" @click="goToShow(form)" class="row-clickable" style="cursor: pointer">
                 <td>
-                  <router-link :to="`/formularios-dw/${form.id}`" class="text-primary" @click.stop style="text-decoration: underline">
+                  <router-link :to="`/formularios/${form.id}`" class="text-primary" @click.stop style="text-decoration: underline">
                     {{ form.folio }}
                   </router-link>
                 </td>
                 <td>{{ form.name }}</td>
-                <td>{{ getSupervisor(form) }}</td>
-                <td>{{ getAuditor(form) }}</td>
-                <td>{{ getAuditados(form) }}</td>
                 <td>
-                  <v-chip :color="CHIPCOLOR(form.status)" text-color="white" size="small">
-                    {{ getStatusLabel(form.status) }}
+                  <v-chip v-if="getSupervisor(form) !== 'Sin supervisor'" color="teal" class="mx-1" size="small">
+                    {{ getSupervisor(form) }}
                   </v-chip>
+                  <span v-else>Sin supervisor</span>
+                </td>
+                <td>
+                  <template v-if="getAuditor(form).length">
+                    <v-chip v-for="(role, idx) in getAuditor(form)" :key="idx" color="teal" class="mx-1" size="small">
+                      {{ role }}
+                    </v-chip>
+                  </template>
+                  <span v-else>Sin auditor</span>
+                </td>
+                <td>
+                  <template v-if="getAuditados(form).length">
+                    <v-chip v-for="(role, idx) in getAuditados(form)" :key="idx" color="teal" class="mx-1" size="small">
+                      {{ role }}
+                    </v-chip>
+                  </template>
+                  <span v-else>Sin auditados</span>
                 </td>
                 <td>
                   {{ formatDate(form.created_at) }}
+                </td>
+                <td>
+                  <StatusChip :status="form.status" />
                 </td>
                 <td @click.stop>
                   <v-menu location="bottom end">
@@ -218,49 +274,39 @@ const archiveForm = async (form) => {
                       </v-btn>
                     </template>
                     <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
-                      <v-list-item @click="goToShow(form)">
-                        <template #prepend>
-                          <v-icon :icon="mdiEye" size="18" />
-                        </template>
-                        <v-list-item-title>Ver</v-list-item-title>
-                      </v-list-item>
-                      <!-- Divider only if there are more actions -->
-                      <v-divider v-if="form.status !== 'archived'" class="my-1" />
-
-                      <!-- Si está en borrador -->
+                      <!-- Editar SOLO si está en draft -->
                       <template v-if="form.status === 'draft'">
-                        <v-list-item @click="publishForm(form)">
+                        <v-list-item @click="goToEdit(form)">
                           <template #prepend>
-                            <v-icon :icon="mdiPublish" size="18" color="green" />
+                            <v-icon :icon="mdiPencil" size="18" />
                           </template>
-                          <v-list-item-title>Publicar</v-list-item-title>
+                          <v-list-item-title>Editar</v-list-item-title>
                         </v-list-item>
-                        <v-divider class="my-1" />
-                        <v-list-item @click="archiveForm(form)">
-                          <template #prepend>
-                            <v-icon :icon="mdiArchive" size="18" color="red" />
-                          </template>
-                          <v-list-item-title>Archivar</v-list-item-title>
-                        </v-list-item>
+                        <v-divider />
                       </template>
-
-                      <!-- Si está en activo/publicado -->
-                      <template v-else-if="form.status === 'active'">
-                        <v-list-item @click="archiveForm(form)">
-                          <template #prepend>
-                            <v-icon :icon="mdiArchive" size="18" color="red" />
-                          </template>
-                          <v-list-item-title>Archivar</v-list-item-title>
-                        </v-list-item>
-                        <v-divider class="my-1" />
-                        <v-list-item @click="publishForm(form)">
-                          <template #prepend>
-                            <v-icon :icon="mdiPublish" size="18" color="green" />
-                          </template>
-                          <v-list-item-title>Borrador</v-list-item-title>
-                        </v-list-item>
-                      </template>
-                      <!-- Si está archivado, solo mostrar "Ver" sin divider ni otras acciones -->
+                      <!-- Archivar -->
+                      <v-list-item v-if="form.status !== 'archived'" @click="changeFormStatus(form, 'archived')">
+                        <template #prepend>
+                          <v-icon :icon="mdiArchive" size="18" />
+                        </template>
+                        <v-list-item-title>Archivar</v-list-item-title>
+                      </v-list-item>
+                      <v-divider v-if="form.status !== 'archived' && (form.status !== 'active' || form.status !== 'draft')" />
+                      <!-- Publicar -->
+                      <v-list-item v-if="form.status !== 'active'" @click="changeFormStatus(form, 'active')">
+                        <template #prepend>
+                          <v-icon :icon="mdiPublish" size="18" />
+                        </template>
+                        <v-list-item-title>Publicar</v-list-item-title>
+                      </v-list-item>
+                      <v-divider v-if="form.status !== 'active' && form.status !== 'draft'" />
+                      <!-- Borrador -->
+                      <v-list-item v-if="form.status !== 'draft'" @click="changeFormStatus(form, 'draft')">
+                        <template #prepend>
+                          <v-icon :icon="mdiPencil" size="18" />
+                        </template>
+                        <v-list-item-title>Borrador</v-list-item-title>
+                      </v-list-item>
                     </v-list>
                   </v-menu>
                 </td>

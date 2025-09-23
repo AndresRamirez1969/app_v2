@@ -1,7 +1,7 @@
 <template>
   <div class="address-fields">
-    <!-- Calle -->
-    <div class="field-group single">
+    <!-- Calle con botón de búsqueda Google Maps -->
+    <div class="field-group single" style="position: relative">
       <v-text-field
         ref="autocompleteInput"
         v-model="fields.street"
@@ -12,9 +12,20 @@
         hide-details
         density="compact"
         @focus="initAutocomplete"
-        @input="onStreetInput"
+        @keydown.enter="onFieldsEnter"
         :error-messages="addressError"
       />
+      <v-btn
+        icon
+        size="small"
+        style="position: absolute; right: 8px; top: 8px; z-index: 2"
+        @click="focusAutocomplete"
+        variant="text"
+        color="primary"
+        title="Buscar dirección con Google"
+      >
+        <v-icon>mdi-map-marker</v-icon>
+      </v-btn>
     </div>
 
     <!-- Número exterior e interior -->
@@ -26,6 +37,7 @@
         color="primary"
         hide-details
         density="compact"
+        @keydown.enter="onFieldsEnter"
         :error-messages="addressError"
       />
       <v-text-field
@@ -48,6 +60,7 @@
         color="primary"
         hide-details
         density="compact"
+        @keydown.enter="onFieldsEnter"
         :error-messages="addressError"
       />
       <v-text-field
@@ -57,6 +70,7 @@
         color="primary"
         hide-details
         density="compact"
+        @keydown.enter="onFieldsEnter"
         :error-messages="addressError"
       />
     </div>
@@ -70,6 +84,7 @@
         color="primary"
         hide-details
         density="compact"
+        @keydown.enter="onFieldsEnter"
         :error-messages="addressError"
       />
       <v-text-field
@@ -79,6 +94,7 @@
         color="primary"
         hide-details
         density="compact"
+        @keydown.enter="onFieldsEnter"
         :error-messages="addressError"
       />
     </div>
@@ -100,38 +116,68 @@
           clearable
           :return-object="false"
           :filter="customCountryFilter"
+          @keydown.enter="onFieldsEnter"
           :error-messages="addressError"
         />
-        <!-- Mensaje de error justo debajo del campo País, pequeño y con un poco de separación -->
         <div v-if="addressError" class="text-error" style="font-size: 0.78rem; margin-top: 6px; margin-bottom: 0">
           {{ addressError }}
         </div>
       </div>
     </div>
 
-    <!-- Mapa -->
-    <div v-if="showMap" ref="mapContainer" class="map-preview" />
+    <!-- Radio de geolocalización -->
+    <div class="field-group single">
+      <v-text-field
+        v-model.number="fields.geofence_radius"
+        label="Radio de geolocalización (metros)"
+        type="number"
+        min="0"
+        variant="outlined"
+        color="primary"
+        hide-details
+        density="compact"
+      />
+    </div>
+
+    <!-- Mapa SIEMPRE visible -->
+    <div ref="mapContainer" class="map-preview" />
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, nextTick, computed } from 'vue';
 
 const props = defineProps({
   placeholder: { type: String, default: '' },
   initialValue: { type: Object, default: () => ({}) },
-  mode: { type: String, default: 'edit' }, // 'create' o 'edit'
-  addressError: { type: String, default: '' }
+  mode: { type: String, default: 'edit' }, // 'create' | 'edit'
+  addressError: { type: String, default: '' },
+  /**
+   * Ubicación del usuario en sesión. Acepta:
+   * { lat, lng }  o  { latitude, longitude }
+   * Puede llegar ASÍNCRONO. Tiene prioridad en CREATE.
+   */
+  sessionLocation: { type: Object, default: () => ({}) }
 });
 const emit = defineEmits(['update:parsedAddress']);
 
+const isCreate = computed(() => (props.mode || 'edit') === 'create');
+
 const autocompleteInput = ref(null);
 const autocomplete = ref(null);
+const mapContainer = ref(null);
 const map = ref(null);
 const marker = ref(null);
-const mapContainer = ref(null);
+const circle = ref(null);
+const geocoder = ref(null);
 
-const showMap = ref(false);
+const isHydrating = ref(false); // evita geocodificar durante la carga del record (edit)
+const mapBooted = ref(false); // ya hay mapa
+const markerBooted = ref(false); // ya hay marker
+const sessionHandled = ref(false); // ya usamos sessionLocation (create)
+
+const countrySearch = ref('');
+const countries = [{ name: 'México' }, { name: 'Estados Unidos' }, { name: 'Canadá' }, { name: 'España' }, { name: 'Argentina' }];
 
 const fields = ref({
   street: '',
@@ -141,81 +187,14 @@ const fields = ref({
   postal_code: '',
   city: '',
   state: '',
-  country: ''
+  country: '',
+  latitude: null,
+  longitude: null,
+  geofence_radius: 100
 });
 
-const countrySearch = ref('');
-const countries = [
-  { name: 'México' },
-  { name: 'Estados Unidos' },
-  { name: 'Canadá' },
-  { name: 'España' },
-  { name: 'Argentina' } /* ...otros países */
-];
-
-watch(
-  () => props.initialValue,
-  (val) => {
-    if (val && typeof val === 'object') {
-      Object.assign(fields.value, val);
-      if (props.mode === 'edit' && (val.street || val.city || val.state)) {
-        showMap.value = true;
-        setTimeout(() => updateMapFromFields(), 300);
-      }
-    }
-  },
-  { immediate: true }
-);
-
-function onStreetInput() {
-  if (props.mode === 'create') {
-    if (!showMap.value && fields.value.street.trim()) {
-      showMap.value = true;
-    }
-    if (showMap.value) {
-      updateMapFromFields();
-    }
-  }
-}
-
-let autocompleteInitialized = false;
-const initAutocomplete = () => {
-  if (autocompleteInitialized) return;
-  autocompleteInitialized = true;
-
-  const inputEl = autocompleteInput.value?.$el?.querySelector('input');
-  if (!inputEl || !window.google || !google.maps.places) return;
-
-  autocomplete.value = new window.google.maps.places.Autocomplete(inputEl, { types: ['geocode'] });
-  autocomplete.value.addListener('place_changed', () => {
-    const place = autocomplete.value.getPlace();
-    fillFieldsFromPlace(place);
-    updateMapFromAddress(place);
-    showMap.value = true;
-  });
-};
-
-const fillFieldsFromPlace = (place) => {
-  const components = place.address_components || [];
-  const getComponent = (type) => components.find((comp) => comp.types.includes(type))?.long_name || '';
-
-  fields.value.street = getComponent('route');
-  fields.value.outdoor_number = getComponent('street_number');
-  fields.value.neighborhood = getComponent('sublocality') || getComponent('neighborhood');
-  fields.value.postal_code = getComponent('postal_code');
-  fields.value.city = getComponent('locality');
-  fields.value.state = getComponent('administrative_area_level_1');
-  fields.value.country = getComponent('country');
-
-  const matched = countries.find((c) => c.name.toLowerCase() === fields.value.country.toLowerCase());
-  if (matched) fields.value.country = matched.name;
-
-  emit('update:parsedAddress', { ...fields.value });
-};
-
-watch(fields, (val) => emit('update:parsedAddress', { ...val }), { deep: true });
-
-const normalize = (str) =>
+/* ============== Helpers =============== */
+const normalize = (str = '') =>
   str
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -223,77 +202,411 @@ const normalize = (str) =>
 
 const customCountryFilter = (item, queryText) => normalize(item.name).includes(normalize(queryText));
 
-// INTEGRACIÓN: Usar AdvancedMarkerElement en vez de Marker
-const initMap = (lat, lng) => {
-  const position = { lat, lng };
-  if (!map.value) {
-    map.value = new google.maps.Map(mapContainer.value, {
-      center: position,
-      zoom: 16
-    });
-    if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
-      marker.value = new google.maps.marker.AdvancedMarkerElement({
-        map: map.value,
-        position
-      });
-    } else {
-      // fallback para versiones antiguas
-      marker.value = new google.maps.Marker({ position, map: map.value });
-    }
-  } else {
-    map.value.setCenter(position);
-    if (marker.value && marker.value.position) {
-      // AdvancedMarkerElement
-      marker.value.position = position;
-    } else if (marker.value && marker.value.setPosition) {
-      // Marker clásico
-      marker.value.setPosition(position);
-    }
-  }
+const hasCoords = (val) => val != null && val !== '' && !Number.isNaN(Number(val));
+
+const extractSessionLatLng = () => {
+  const s = props.sessionLocation || {};
+  const lat = hasCoords(s.lat) ? Number(s.lat) : hasCoords(s.latitude) ? Number(s.latitude) : null;
+  const lng = hasCoords(s.lng) ? Number(s.lng) : hasCoords(s.longitude) ? Number(s.longitude) : null;
+  return { lat, lng };
 };
 
-const updateMapFromAddress = (place) => {
-  const geocoder = new google.maps.Geocoder();
-  const address = place.formatted_address || fields.value.street;
-
-  geocoder.geocode({ address }, (results, status) => {
-    if (status === 'OK' && results[0]) {
-      const location = results[0].geometry.location;
-      initMap(location.lat(), location.lng());
-    }
-  });
+const hasSufficientAddress = () => {
+  const f = fields.value;
+  const hasStreet = !!f.street;
+  const hasCityState = !!(f.city || f.state);
+  const hasCP = !!f.postal_code;
+  const onlyCountry = !!f.country && !hasStreet && !hasCityState && !hasCP;
+  return !onlyCountry && (hasStreet || hasCityState || hasCP);
 };
 
-const updateMapFromFields = () => {
-  const geocoder = new google.maps.Geocoder();
-  const address = [fields.value.street, fields.value.city, fields.value.state, fields.value.postal_code, fields.value.country]
+const getFullAddressFromFields = () =>
+  [
+    fields.value.street,
+    fields.value.outdoor_number,
+    fields.value.neighborhood,
+    fields.value.city,
+    fields.value.state,
+    fields.value.postal_code,
+    fields.value.country
+  ]
     .filter(Boolean)
     .join(', ');
 
-  if (address.trim()) {
-    geocoder.geocode({ address }, (results, status) => {
-      if (status === 'OK' && results[0]) {
-        const location = results[0].geometry.location;
-        initMap(location.lat(), location.lng());
-      }
+/* ====== Google API ====== */
+function ensureGeocoder() {
+  if (!geocoder.value && window.google?.maps?.Geocoder) {
+    geocoder.value = new google.maps.Geocoder();
+  }
+}
+
+function geocodeAddress(address, onSuccess) {
+  ensureGeocoder();
+  if (!address?.trim()) return;
+  geocoder.value.geocode({ address }, (results, status) => {
+    if (status === 'OK' && results?.[0]) {
+      const loc = results[0].geometry.location;
+      onSuccess?.({ lat: loc.lat(), lng: loc.lng(), result: results[0] });
+    }
+  });
+}
+
+function reverseGeocode(lat, lng, onSuccess) {
+  ensureGeocoder();
+  geocoder.value.geocode({ location: { lat, lng } }, (results, status) => {
+    if (status === 'OK' && results?.[0]) onSuccess?.(results[0]);
+    else onSuccess?.(null);
+  });
+}
+
+/* ====== Mapa / Marker / Circle ====== */
+function bootMapVisual(center = { lat: 19.4326, lng: -99.1332 }) {
+  if (mapBooted.value || !window.google?.maps) return;
+  map.value = new google.maps.Map(mapContainer.value, {
+    center,
+    zoom: 16,
+    clickableIcons: false,
+    streetViewControl: false,
+    mapTypeControl: false
+  });
+  mapBooted.value = true;
+
+  // Click en mapa → fijar coords exactas y reverse geocoding de textos
+  map.value.addListener('click', (e) => {
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    setMarkerPosition({ lat, lng }, /*center*/ true);
+    fields.value.latitude = lat;
+    fields.value.longitude = lng;
+    reverseGeocode(lat, lng, (place) => {
+      if (place) fillFieldsFromPlace(place);
+    });
+    updateCircle();
+  });
+}
+
+function ensureMarker() {
+  if (markerBooted.value || !mapBooted.value) return;
+  if (google.maps.marker?.AdvancedMarkerElement) {
+    marker.value = new google.maps.marker.AdvancedMarkerElement({ map: map.value, position: map.value.getCenter() });
+  } else {
+    marker.value = new google.maps.Marker({ map: map.value, position: map.value.getCenter(), draggable: true });
+
+    // Drag → coords exactas + reverse geocoding de textos
+    marker.value.addListener('dragend', (e) => {
+      const dLat = e.latLng.lat();
+      const dLng = e.latLng.lng();
+      setMarkerPosition({ lat: dLat, lng: dLng }, /*center*/ false);
+      fields.value.latitude = dLat;
+      fields.value.longitude = dLng;
+      reverseGeocode(dLat, dLng, (place) => {
+        if (place) fillFieldsFromPlace(place);
+      });
+      updateCircle();
     });
   }
-};
+  markerBooted.value = true;
+  updateCircle();
+}
 
-// debounce para evitar llamadas constantes
-let debounceTimeout;
-watch(
-  () => [fields.value.street, fields.value.city, fields.value.state, fields.value.postal_code, fields.value.country],
-  () => {
-    clearTimeout(debounceTimeout);
-    debounceTimeout = setTimeout(() => {
-      if (props.mode === 'edit' || (props.mode === 'create' && showMap.value)) {
-        updateMapFromFields();
+function setMarkerPosition({ lat, lng }, center = true) {
+  if (!mapBooted.value) bootMapVisual();
+  ensureMarker();
+
+  const pos = { lat, lng };
+  if (marker.value.setPosition) {
+    marker.value.setPosition(pos);
+  } else {
+    // AdvancedMarker
+    marker.value.position = pos;
+    marker.value.map = map.value;
+  }
+  if (center) map.value.setCenter(pos);
+  updateCircle();
+}
+
+function updateCircle() {
+  if (!mapBooted.value) return;
+  const lat = Number(fields.value.latitude);
+  const lng = Number(fields.value.longitude);
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+  const radius = Number(fields.value.geofence_radius) || 0;
+  const center = { lat, lng };
+
+  if (!circle.value) {
+    circle.value = new google.maps.Circle({
+      map: map.value,
+      center,
+      radius,
+      fillColor: '#1976d2',
+      fillOpacity: 0.15,
+      strokeColor: '#1976d2',
+      strokeOpacity: 0.5,
+      strokeWeight: 2
+    });
+  } else {
+    circle.value.setCenter(center);
+    circle.value.setRadius(radius);
+  }
+}
+
+/* ====== Places Autocomplete ====== */
+let autocompleteInitialized = false;
+function initAutocomplete() {
+  if (autocompleteInitialized) return;
+  const inputEl = autocompleteInput.value?.$el?.querySelector('input');
+  if (!inputEl || !window.google?.maps?.places) return;
+  autocompleteInitialized = true;
+
+  autocomplete.value = new window.google.maps.places.Autocomplete(inputEl, { types: ['geocode'] });
+  autocomplete.value.addListener('place_changed', () => {
+    const place = autocomplete.value.getPlace();
+    fillFieldsFromPlace(place);
+
+    if (place?.geometry?.location) {
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      fields.value.latitude = lat;
+      fields.value.longitude = lng;
+      bootMapVisual({ lat, lng });
+      setMarkerPosition({ lat, lng }, true);
+    } else {
+      const addr = place?.formatted_address || getFullAddressFromFields();
+      if (addr) {
+        geocodeAddress(addr, ({ lat, lng }) => {
+          fields.value.latitude = lat;
+          fields.value.longitude = lng;
+          bootMapVisual({ lat, lng });
+          setMarkerPosition({ lat, lng }, true);
+        });
       }
-    }, 800);
-  },
-  { deep: true }
+    }
+  });
+}
+function focusAutocomplete() {
+  nextTick(() => {
+    const inputEl = autocompleteInput.value?.$el?.querySelector('input');
+    if (inputEl) inputEl.focus();
+    initAutocomplete();
+  });
+}
+
+/* ====== Fill fields from place (solo textos) ====== */
+function fillFieldsFromPlace(place) {
+  const components = place?.address_components || [];
+  const getComponent = (type) => components.find((c) => c.types.includes(type))?.long_name || '';
+
+  fields.value.street = getComponent('route') || fields.value.street;
+  fields.value.outdoor_number = getComponent('street_number') || fields.value.outdoor_number;
+  fields.value.neighborhood = getComponent('sublocality') || getComponent('neighborhood') || fields.value.neighborhood;
+  fields.value.postal_code = getComponent('postal_code') || fields.value.postal_code;
+  fields.value.city = getComponent('locality') || getComponent('administrative_area_level_2') || fields.value.city;
+  fields.value.state = getComponent('administrative_area_level_1') || fields.value.state;
+
+  const countryLong = getComponent('country') || fields.value.country;
+  if (countryLong) {
+    const matched = countries.find((c) => normalize(c.name) === normalize(countryLong));
+    fields.value.country = matched ? matched.name : countryLong;
+  }
+
+  emit('update:parsedAddress', { ...fields.value });
+}
+
+/* ====== Enter en fields ====== */
+function onFieldsEnter() {
+  if (isHydrating.value) return;
+  const address = getFullAddressFromFields();
+  if (!hasSufficientAddress() || !address.trim()) return;
+
+  geocodeAddress(address, ({ lat, lng }) => {
+    fields.value.latitude = lat;
+    fields.value.longitude = lng;
+    bootMapVisual({ lat, lng });
+    setMarkerPosition({ lat, lng }, true);
+  });
+}
+
+/* ====== Flujo CREATE con prioridades ====== */
+function initCreateFlow() {
+  // 1) Sesión (si ya vino)
+  const { lat: sLat, lng: sLng } = extractSessionLatLng();
+  if (hasCoords(sLat) && hasCoords(sLng)) {
+    fields.value.latitude = Number(sLat);
+    fields.value.longitude = Number(sLng);
+    bootMapVisual({ lat: fields.value.latitude, lng: fields.value.longitude });
+    setMarkerPosition({ lat: fields.value.latitude, lng: fields.value.longitude }, true);
+    sessionHandled.value = true;
+    return;
+  }
+
+  // 2) Cache local
+  const latCache = localStorage.getItem('geo_lat');
+  const lngCache = localStorage.getItem('geo_lng');
+  if (latCache && lngCache) {
+    const lat = Number(latCache);
+    const lng = Number(lngCache);
+    fields.value.latitude = lat;
+    fields.value.longitude = lng;
+    bootMapVisual({ lat, lng });
+    setMarkerPosition({ lat, lng }, true);
+    return;
+  }
+
+  // 3) Geolocation del navegador
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        fields.value.latitude = lat;
+        fields.value.longitude = lng;
+        localStorage.setItem('geo_lat', String(lat));
+        localStorage.setItem('geo_lng', String(lng));
+        bootMapVisual({ lat, lng });
+        setMarkerPosition({ lat, lng }, true);
+      },
+      () => {
+        // 4) Fallback SOLO visual (no tocar fields)
+        bootMapVisual({ lat: 19.4326, lng: -99.1332 });
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  } else {
+    // Fallback visual
+    bootMapVisual({ lat: 19.4326, lng: -99.1332 });
+  }
+}
+
+/* ====== Watchers ====== */
+watch(
+  () => fields.value.geofence_radius,
+  () => updateCircle()
 );
+
+watch(
+  () => [fields.value.latitude, fields.value.longitude],
+  ([lat, lng]) => {
+    if (isHydrating.value) return;
+    if (hasCoords(lat) && hasCoords(lng)) {
+      bootMapVisual({ lat: Number(lat), lng: Number(lng) });
+      setMarkerPosition({ lat: Number(lat), lng: Number(lng) }, true);
+    }
+  }
+);
+
+// ⚠️ CLAVE: reaccionar si la sesión llega TARDE
+watch(
+  () => props.sessionLocation,
+  (loc) => {
+    if (!isCreate.value) return;
+    if (sessionHandled.value) return; // ya usamos sesión
+    const { lat, lng } = extractSessionLatLng();
+    if (hasCoords(lat) && hasCoords(lng)) {
+      fields.value.latitude = Number(lat);
+      fields.value.longitude = Number(lng);
+      bootMapVisual({ lat: fields.value.latitude, lng: fields.value.longitude });
+      setMarkerPosition({ lat: fields.value.latitude, lng: fields.value.longitude }, true);
+      sessionHandled.value = true;
+    }
+  },
+  { immediate: true, deep: true }
+);
+
+/* ====== Reactividad a initialValue (EDIT) ====== */
+watch(
+  () => props.initialValue,
+  async (val) => {
+    if (isCreate.value) return; // create lo maneja su propio flujo
+    isHydrating.value = true;
+
+    // Reset limpio
+    Object.assign(fields.value, {
+      street: '',
+      outdoor_number: '',
+      indoor_number: '',
+      neighborhood: '',
+      postal_code: '',
+      city: '',
+      state: '',
+      country: '',
+      latitude: null,
+      longitude: null,
+      geofence_radius: 100
+    });
+
+    if (val && typeof val === 'object') {
+      // Asignar primero textos y meta
+      Object.assign(fields.value, {
+        street: val.street ?? '',
+        outdoor_number: val.outdoor_number ?? '',
+        indoor_number: val.indoor_number ?? '',
+        neighborhood: val.neighborhood ?? '',
+        postal_code: val.postal_code ?? '',
+        city: val.city ?? '',
+        state: val.state ?? '',
+        country: val.country ?? '',
+        geofence_radius: hasCoords(val.geofence_radius) ? Number(val.geofence_radius) : 100
+      });
+
+      await nextTick();
+
+      const hasLatLng = hasCoords(val.latitude) && hasCoords(val.longitude);
+
+      if (hasLatLng) {
+        fields.value.latitude = Number(val.latitude);
+        fields.value.longitude = Number(val.longitude);
+        // Bootear mapa exacto del record
+        bootMapVisual({ lat: fields.value.latitude, lng: fields.value.longitude });
+        setMarkerPosition({ lat: fields.value.latitude, lng: fields.value.longitude }, true);
+      } else if (hasSufficientAddress()) {
+        // Geocodificar UNA sola vez la dirección del record
+        const addr = getFullAddressFromFields();
+        geocodeAddress(addr, ({ lat, lng }) => {
+          fields.value.latitude = lat;
+          fields.value.longitude = lng;
+          bootMapVisual({ lat, lng });
+          setMarkerPosition({ lat, lng }, true);
+        });
+      } else {
+        // Sin info suficiente: solo mapa visual (no tocar fields)
+        bootMapVisual({ lat: 19.4326, lng: -99.1332 });
+      }
+    } else {
+      // Si no vino nada, solo boot visual
+      bootMapVisual({ lat: 19.4326, lng: -99.1332 });
+    }
+
+    isHydrating.value = false;
+  },
+  { immediate: true }
+);
+
+/* ====== Mounted ====== */
+onMounted(() => {
+  nextTick(() => {
+    ensureGeocoder();
+
+    // INTEGRACIÓN FUNCIONAL: Si es create y hay sesión, usar coords de sesión
+    if (isCreate.value) {
+      const { lat: sLat, lng: sLng } = extractSessionLatLng();
+      if (hasCoords(sLat) && hasCoords(sLng)) {
+        fields.value.latitude = Number(sLat);
+        fields.value.longitude = Number(sLng);
+        bootMapVisual({ lat: fields.value.latitude, lng: fields.value.longitude });
+        setMarkerPosition({ lat: fields.value.latitude, lng: fields.value.longitude }, true);
+        sessionHandled.value = true;
+      } else {
+        // Si no, correr el flujo normal de prioridades
+        initCreateFlow();
+      }
+    } else {
+      // Edit: el watcher de initialValue resuelve marker/coords. Aquí solo
+      // prevenimos pantalla vacía con un boot visual si aún no hay mapa.
+      bootMapVisual({ lat: 19.4326, lng: -99.1332 });
+    }
+  });
+});
 </script>
 
 <style scoped>
@@ -302,29 +615,28 @@ watch(
   flex-direction: column;
   gap: 20px;
 }
-
 .field-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
 }
-
 .field-group.single {
   grid-template-columns: 1fr;
 }
-
 .v-text-field,
 .v-autocomplete {
   width: 100%;
 }
-
 .map-preview {
   height: 300px;
   width: 100%;
   border-radius: 8px;
   margin-top: 16px;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.06),
+    0 1px 3px rgba(16, 24, 40, 0.1);
+  border: 1px solid #e9ecef;
 }
-
 @media (max-width: 900px) {
   .field-group,
   .field-group.single {

@@ -27,37 +27,37 @@ const MainRoutes = {
       component: () => import('@/views/user/UserProfile.vue'),
       meta: { requiresAuth: true }
     },
-    {
-      name: 'Forms',
-      path: '/formularios',
-      component: () => import('@/views/formularios/FormTab.vue')
-    },
-    {
-      name: 'CreateForm',
-      path: '/crearFormulario/:id',
-      component: () => import('@/views/formularios/componentes/CreateForm.vue')
-    },
-    {
-      name: 'FormDetail',
-      path: '/formulario/:id',
-      component: () => import('@/views/formularios/componentes/ShowForm.vue')
-    },
-    {
-      name: 'AddFieldsForm',
-      path: '/formularios/:id/add-fields',
-      component: () => import('@/views/formularios/componentes/AddFieldsForm.vue')
-    },
+    // {
+    //   name: 'Forms List',
+    //   path: '/formularios',
+    //   component: () => import('@/views/formularios/FormTab.vue')
+    // },
+    // {
+    //   name: 'CreateForm',
+    //   path: '/crearFormulario/:id',
+    //   component: () => import('@/views/formularios/componentes/CreateForm.vue')
+    // },
+    // {
+    //   name: 'FormDetail',
+    //   path: '/formulario/:id',
+    //   component: () => import('@/views/formularios/componentes/ShowForm.vue')
+    // },
+    // {
+    //   name: 'AddFieldsForm',
+    //   path: '/formularios/:id/add-fields',
+    //   component: () => import('@/views/formularios/componentes/AddFieldsForm.vue')
+    // },
 
-    {
-      name: 'MyForms',
-      path: '/mis-formularios',
-      component: () => import('@/views/user-forms/UserFormTab.vue')
-    },
-    {
-      name: 'FillForm',
-      path: '/formulario/:id/llenar',
-      component: () => import('../views/user-forms/componentes/FillForm.vue')
-    },
+    // {
+    //   name: 'MyForms',
+    //   path: '/mis-formularios',
+    //   component: () => import('@/views/user-forms/UserFormTab.vue')
+    // },
+    // {
+    //   name: 'FillForm',
+    //   path: '/formulario/:id/llenar',
+    //   component: () => import('../views/user-forms/componentes/FillForm.vue')
+    // },
     {
       name: 'Organizaciones',
       path: '/organizaciones',
@@ -196,17 +196,42 @@ const MainRoutes = {
       name: 'Role Show',
       path: '/roles/:id',
       component: () => import('@/views/roles/show.vue')
+    },
+    {
+      name: 'Forms',
+      path: '/formularios',
+      component: () => import('@/views/forms/index.vue')
+    },
+    {
+      name: 'Forms Create',
+      path: '/formularios/crear',
+      component: () => import('@/views/forms/create.vue')
+    },
+    {
+      name: 'Forms Edit',
+      path: '/formularios/editar/:id',
+      component: () => import('@/views/forms/edit.vue')
+    },
+    {
+      name: 'Forms Show',
+      path: '/formularios/:id',
+      component: () => import('@/views/forms/show.vue')
+    },
+    {
+      name: 'AddFieldsForm',
+      path: '/formularios/:id/add-fields',
+      component: () => import('@/views/forms/AddFieldsFormModal.vue')
+    },
+    {
+      name: 'My Forms',
+      path: '/mis-formularios',
+      component: () => import('@/views/form_assignment/index.vue')
+    },
+    {
+      name: 'My Form Answer',
+      path: '/formulario/:id/llenar',
+      component: () => import('@/views/form_assignment/AnswerForm.vue')
     }
-    // {
-    //   name: 'Forms DW',
-    //   path: '/formularios-dw',
-    //   component: () => import('@/views/forms/index.vue')
-    // },
-    // {
-    //   name: 'Forms',
-    //   path: '/formularios-dw/crear',
-    //   component: () => import('@/views/forms/create.vue')
-    // }
   ]
 };
 

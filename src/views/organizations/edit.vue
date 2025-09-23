@@ -14,6 +14,7 @@ const organizationId = route.params.id;
 const auth = useAuthStore();
 
 const Regform = ref(null);
+// Usar objeto vacío por defecto, nunca null
 const parsedAddress = ref({});
 const logoPreview = ref(null);
 const errorMsg = ref('');
@@ -157,7 +158,6 @@ const scrollToField = async (fieldName) => {
   }
 };
 
-// Validación mejorada para mostrar mensajes correctamente
 const validateField = (fieldName, value) => {
   clearFieldError(fieldName);
   switch (fieldName) {
@@ -174,7 +174,6 @@ const validateField = (fieldName, value) => {
       }
       break;
     case 'address':
-      // address es requerido y debe tener al menos la calle
       if (
         !parsedAddress.value ||
         Object.keys(parsedAddress.value).length === 0 ||
@@ -186,7 +185,6 @@ const validateField = (fieldName, value) => {
       }
       break;
     case 'phone_country':
-      // Solo mostrar error si hay teléfono pero no país
       if (form.contact.phone_number && !value) {
         fieldErrors.phone_country = 'Selecciona el país para el teléfono';
         return false;
@@ -281,7 +279,8 @@ onMounted(async () => {
       logoPreview.value = data.logo.startsWith('http') ? data.logo : `/storage/${data.logo}`;
     }
 
-    if (data.address) {
+    // address puede venir plano o anidado
+    if (data.address && data.address.latitude && data.address.longitude) {
       parsedAddress.value = {
         street: data.address.street || '',
         outdoor_number: data.address.outdoor_number || '',
@@ -290,11 +289,15 @@ onMounted(async () => {
         postal_code: data.address.postal_code || '',
         city: data.address.city || '',
         state: data.address.state || '',
-        country: data.address.country || ''
+        country: data.address.country || '',
+        latitude: Number(data.address.latitude),
+        longitude: Number(data.address.longitude),
+        geofence_radius: data.address.geofence_radius || 100
       };
+    } else {
+      parsedAddress.value = {};
     }
 
-    // INTEGRACIÓN: los datos de contacto vienen bajo contact
     if (data.contact) {
       form.contact.first_name = data.contact.first_name || '';
       form.contact.last_name = data.contact.last_name || '';
@@ -304,6 +307,7 @@ onMounted(async () => {
     }
   } catch (err) {
     console.error('❌ Error al cargar datos de organización', err);
+    parsedAddress.value = {};
   }
 });
 
@@ -323,7 +327,6 @@ const validate = async () => {
       formData.append(`address[${key}]`, parsedAddress.value[key] || '');
     }
 
-    // INTEGRACIÓN: enviar datos de contacto bajo 'contact'
     const hasContactData = Object.values(form.contact).some((val) => val && val.trim() !== '');
     if (hasContactData) {
       for (const key in form.contact) {
@@ -485,6 +488,7 @@ const validate = async () => {
           <v-col cols="12" class="mt-4">
             <v-label>Dirección <span class="text-error">*</span></v-label>
             <AddressAutocomplete
+              v-if="parsedAddress !== null"
               class="mt-2"
               :initial-value="parsedAddress"
               :placeholder="fullAddress"

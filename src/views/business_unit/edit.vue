@@ -29,6 +29,7 @@ const phoneCountrySearch = ref('');
 const parsedAddress = ref({});
 const logoPreview = ref(null);
 const errorMsg = ref('');
+const isLoading = ref(false);
 
 const user = computed(() => auth.user || { roles: [], permissions: [] });
 const roles = computed(() => (Array.isArray(user.value.roles) ? user.value.roles : user.value.roles?.map?.((r) => r.name) || []));
@@ -116,6 +117,12 @@ const filteredCountries = computed(() => {
     const dial = normalizeString(getDialPrefix(item.value, item.title));
     return name.includes(q) || dial.includes(q);
   });
+});
+
+const filteredTimezones = computed(() => {
+  const search = normalizeString(timezoneSearch.value);
+  if (!search) return tzRaw;
+  return tzRaw.filter((tz) => normalizeString(tz.label).includes(search) || normalizeString(tz.value).includes(search));
 });
 
 const form = reactive({
@@ -477,7 +484,7 @@ onMounted(async () => {
       selectedBusiness.value = busId;
     }
   } catch (err) {
-    // Error al cargar datos de ubicación
+    errorMsg.value = 'Error al cargar datos de ubicación';
   }
 });
 
@@ -502,6 +509,8 @@ const handleParsedAddress = (val) => {
 const validate = async () => {
   errorMsg.value = '';
   if (!(await validateAllFields())) return;
+
+  isLoading.value = true;
 
   let organization_id = null;
   if (isSuperadmin.value) {
@@ -553,6 +562,8 @@ const validate = async () => {
     router.push(`/ubicaciones/${business_unitId}`);
   } catch (err) {
     errorMsg.value = 'Error al actualizar ubicación';
+  } finally {
+    isLoading.value = false;
   }
 };
 </script>
@@ -680,7 +691,7 @@ const validate = async () => {
           <v-autocomplete
             ref="fieldRefs.timezone"
             v-model="form.timezone"
-            :items="tzRaw"
+            :items="filteredTimezones"
             v-model:search-input="timezoneSearch"
             item-title="label"
             item-value="value"
@@ -792,7 +803,12 @@ const validate = async () => {
 
       <v-row>
         <v-col cols="12" class="d-flex justify-end">
-          <v-btn color="primary" class="mt-6" @click="validate">Guardar Cambios</v-btn>
+          <v-btn color="primary" class="mt-6" :loading="isLoading" :disabled="isLoading" @click="validate">
+            <template v-slot:loader>
+              <v-progress-circular indeterminate color="white" size="20" />
+            </template>
+            {{ isLoading ? 'Guardando...' : 'Guardar Cambios' }}
+          </v-btn>
         </v-col>
       </v-row>
 

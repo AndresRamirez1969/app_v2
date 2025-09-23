@@ -1,0 +1,164 @@
+<script setup>
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import FormAssignmentTableMeta from './FormAssignmentTableMeta.vue';
+import { mdiChevronUp, mdiChevronDown } from '@mdi/js';
+
+const props = defineProps({
+  items: Array,
+  isLoading: { type: Boolean, default: false },
+  isMobile: { type: Boolean, default: false }
+});
+
+const router = useRouter();
+
+const sortBy = ref('folio');
+const sortDesc = ref(false);
+const page = ref(1);
+const itemsPerPage = ref(10);
+
+const toggleSort = (column) => {
+  if (sortBy.value === column) sortDesc.value = !sortDesc.value;
+  else {
+    sortBy.value = column;
+    sortDesc.value = false;
+  }
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const getResponseStatus = (form) => {
+  if (!form.can_respond && form.frequency === 'once_per_day') return { text: 'Completado', color: 'success' };
+  if (!form.has_responded && form.frequency === 'once_per_day') return { text: 'Sin Responder', color: 'warning' };
+  if (form.frequency === 'multiple_per_day') return { text: 'Formulario Persistente', color: 'info' };
+};
+
+const filteredItems = computed(() => props.items.filter((f) => f && typeof f === 'object' && f.can_respond !== false));
+const sortedItems = computed(() =>
+  [...filteredItems.value].sort((a, b) => {
+    const aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
+    const bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
+    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
+  })
+);
+const paginatedItems = computed(() => sortedItems.value.slice((page.value - 1) * itemsPerPage.value, page.value * itemsPerPage.value));
+
+const fillForm = (form) => {
+  router.push({ name: 'My Form Answer', params: { id: form.id } });
+};
+</script>
+
+<template>
+  <div>
+    <div v-if="isLoading" class="text-center py-8">
+      <v-progress-circular indeterminate color="primary" size="64" />
+      <p class="mt-4">Cargando formularios...</p>
+    </div>
+    <template v-else>
+      <div v-if="!paginatedItems.length" class="text-center py-8">
+        <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
+        <p class="mt-4 text-h6 text-grey-darken-1">No hay formularios que llenar</p>
+        <p class="text-body-2 text-grey">No se encontraron formularios con los filtros aplicados</p>
+      </div>
+      <template v-else-if="isMobile">
+        <v-card
+          v-for="form in paginatedItems"
+          :key="form.id"
+          class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
+          @click="fillForm(form)"
+          style="cursor: pointer"
+        >
+          <v-row no-gutters align="center" class="mb-1">
+            <v-col cols="12">
+              <div class="d-flex align-center mb-1" style="justify-content: space-between">
+                <div class="text-caption" style="margin-right: 8px">
+                  <router-link :to="`/formularios/${form.id}`" @click.stop style="text-decoration: underline">
+                    {{ form.folio }}
+                  </router-link>
+                </div>
+              </div>
+              <div class="font-weight-medium mb-1">{{ form.name }}</div>
+              <div class="text-caption"><strong>Creado:</strong> {{ formatDate(form.created_at) }}</div>
+              <div class="mt-2">
+                <v-chip :color="getResponseStatus(form).color" text-color="white" size="small">
+                  {{ getResponseStatus(form).text }}
+                </v-chip>
+              </div>
+            </v-col>
+          </v-row>
+        </v-card>
+      </template>
+      <template v-else>
+        <FormAssignmentTableMeta
+          :items="sortedItems"
+          :page="page"
+          :itemsPerPage="itemsPerPage"
+          :sortBy="sortBy"
+          :sortDesc="sortDesc"
+          @update:page="page = $event"
+          @sort="toggleSort"
+          density="comfortable"
+          class="fixed-table"
+        >
+          <template #sort-icon="{ column }">
+            <v-icon v-if="sortBy === column" size="16" class="ml-1">
+              {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
+            </v-icon>
+          </template>
+          <template #rows>
+            <tr
+              v-for="form in paginatedItems"
+              :key="form.id"
+              @click="fillForm(form)"
+              class="row-clickable"
+              style="cursor: pointer"
+              tabindex="0"
+              @keydown.enter="fillForm(form)"
+            >
+              <td class="folio-cell">{{ form.folio }}</td>
+              <td class="name-cell">{{ form.name }}</td>
+              <td class="date-cell">{{ formatDate(form.created_at) }}</td>
+              <td class="response-cell">
+                <v-chip :color="getResponseStatus(form).color" text-color="white" size="small">
+                  {{ getResponseStatus(form).text }}
+                </v-chip>
+              </td>
+            </tr>
+          </template>
+        </FormAssignmentTableMeta>
+        <div class="d-flex justify-center mt-4">
+          <v-pagination
+            v-model="page"
+            :length="Math.ceil(sortedItems.length / itemsPerPage)"
+            :total-visible="7"
+            @update:model-value="page = $event"
+          />
+        </div>
+      </template>
+    </template>
+  </div>
+</template>
+
+<style scoped>
+.row-clickable:hover {
+  background: #f5f5f5;
+  transition: background 0.2s;
+}
+.folio-cell,
+.name-cell,
+.status-cell,
+.date-cell,
+.response-cell,
+.actions-cell {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+.response-cell {
+  width: 150px;
+  text-align: center;
+}
+</style>

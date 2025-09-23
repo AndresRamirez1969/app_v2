@@ -135,7 +135,6 @@ const form = reactive({
   }
 });
 
-/* --------- errores de campos --------- */
 const fieldErrors = reactive({
   name: '',
   timezone: '',
@@ -606,6 +605,8 @@ const validate = async () => {
             <AddressAutocomplete
               ref="fieldRefs.address"
               class="mt-2"
+              mode="create"
+              :sessionLocation="auth.user?.location"
               @update:parsedAddress="handleParsedAddress"
               :addressError="fieldErrors.address"
             />
@@ -636,7 +637,6 @@ const validate = async () => {
           <v-col cols="12" sm="6">
             <v-label>Teléfono</v-label>
             <div class="phone-group phone-group-responsive mt-2">
-              <!-- País -->
               <div style="display: flex; flex-direction: column">
                 <v-autocomplete
                   ref="fieldRefs.phone_country"
@@ -676,7 +676,6 @@ const validate = async () => {
                     </v-list-item>
                   </template>
                 </v-autocomplete>
-                <!-- Mensaje de error con pequeña separación -->
                 <div v-if="fieldErrors.phone_country" class="text-error" style="font-size: 0.78rem; margin-top: 6px; margin-bottom: 0">
                   {{ fieldErrors.phone_country }}
                 </div>

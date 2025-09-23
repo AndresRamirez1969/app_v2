@@ -164,7 +164,6 @@ const scrollToField = async (fieldName) => {
   }
 };
 
-// Validación mejorada para mostrar mensajes correctamente
 const validateField = (fieldName, value) => {
   clearFieldError(fieldName);
   switch (fieldName) {
@@ -187,7 +186,6 @@ const validateField = (fieldName, value) => {
       }
       break;
     case 'phone_country':
-      // Ya no mostrar mensaje obligatorio
       fieldErrors.phone_country = '';
       break;
   }
@@ -238,7 +236,6 @@ watch(
   () => [form.legal_name, form.timezone, parsedAddress.value, form.logo, form.contact.phone_country, form.contact.phone_number],
   () => {
     errorMsg.value = '';
-    // Limpiar errores de campos al cambiar valores
     clearFieldError('legal_name');
     clearFieldError('timezone');
     clearFieldError('address');
@@ -259,7 +256,6 @@ const validate = async () => {
     formData.append('timezone', form.timezone);
     for (const key in parsedAddress.value) formData.append(`address[${key}]`, parsedAddress.value[key] || '');
 
-    // INTEGRACIÓN: enviar datos de contacto bajo 'contact'
     const hasContactData = Object.values(form.contact).some((val) => val?.trim?.() !== '');
     if (hasContactData) {
       for (const key in form.contact) formData.append(`contact[${key}]`, form.contact[key] || '');
@@ -415,7 +411,13 @@ const validate = async () => {
 
           <v-col cols="12" class="mt-4">
             <v-label>Dirección <span class="text-error">*</span></v-label>
-            <AddressAutocomplete class="mt-2" @update:parsedAddress="handleParsedAddress" :addressError="fieldErrors.address" />
+            <AddressAutocomplete
+              class="mt-2"
+              mode="create"
+              :sessionLocation="auth.user?.location"
+              @update:parsedAddress="handleParsedAddress"
+              :addressError="fieldErrors.address"
+            />
           </v-col>
         </v-row>
 
@@ -483,7 +485,6 @@ const validate = async () => {
                     </v-list-item>
                   </template>
                 </v-autocomplete>
-                <!-- Mensaje de error con pequeña separación -->
                 <div v-if="fieldErrors.phone_country" class="text-error" style="font-size: 0.78rem; margin-top: 6px; margin-bottom: 0">
                   {{ fieldErrors.phone_country }}
                 </div>

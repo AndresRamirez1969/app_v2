@@ -46,7 +46,7 @@ onMounted(async () => {
 });
 
 const goToCreate = () => {
-  router.push('/formularios-dw/crear');
+  router.push('/formularios/crear');
 };
 
 function handleSearch(text) {

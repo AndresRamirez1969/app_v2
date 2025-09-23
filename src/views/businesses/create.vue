@@ -24,7 +24,6 @@ const organizationSearch = ref('');
 const organizations = ref([]);
 const selectedOrganization = ref(null);
 
-/* -------------------- helpers -------------------- */
 function normalizeString(str) {
   return str
     ? str
@@ -89,7 +88,6 @@ function buildUniqueCountries() {
   return result;
 }
 
-/* --------- datos reactivos / estados --------- */
 const fieldErrors = reactive({
   name: '',
   timezone: '',
@@ -112,7 +110,6 @@ onMounted(async () => {
   const user = auth.user;
   canCreate.value = user?.roles?.includes('admin') || user?.roles?.includes('superadmin') || user?.permissions?.includes('business.create');
 
-  // Redirecciona si no tiene permiso business.create
   if (!canCreate.value) {
     router.replace('/403');
     return;
@@ -156,7 +153,6 @@ const form = reactive({
   }
 });
 
-/* --------- computeds --------- */
 const filteredTimezones = computed(() => {
   const search = normalizeString(timezoneSearch.value);
   if (!search) return tzRaw;
@@ -175,7 +171,6 @@ const filteredCountries = computed(() => {
   });
 });
 
-/* --------- validaciones y envío --------- */
 const clearFieldError = (fieldName) => {
   if (fieldErrors[fieldName]) fieldErrors[fieldName] = '';
 };
@@ -434,7 +429,6 @@ const validate = async () => {
               @update:model-value="clearFieldError('logo')"
             />
 
-            <!-- Select de organización SOLO para superadmin -->
             <template v-if="auth.user?.roles?.includes('superadmin')">
               <v-label>Organización <span class="text-error">*</span></v-label>
               <v-autocomplete
@@ -500,11 +494,12 @@ const validate = async () => {
             <v-label>Dirección <span class="text-error">*</span></v-label>
             <AddressAutocomplete
               class="mt-2"
+              mode="create"
+              :sessionLocation="auth.user?.location"
               :initial-value="parsedAddress"
               @update:parsedAddress="handleParsedAddress"
               :addressError="fieldErrors.address"
             />
-            <!-- Mensaje de error de address ya lo muestra AddressAutocomplete -->
           </v-col>
         </v-row>
 
@@ -532,7 +527,6 @@ const validate = async () => {
           <v-col cols="12" sm="6">
             <v-label>Teléfono</v-label>
             <div class="phone-group phone-group-responsive mt-2">
-              <!-- País -->
               <div style="display: flex; flex-direction: column">
                 <v-autocomplete
                   ref="fieldRefs.phone_country"
@@ -572,7 +566,6 @@ const validate = async () => {
                     </v-list-item>
                   </template>
                 </v-autocomplete>
-                <!-- Mensaje de error con pequeña separación -->
                 <div v-if="fieldErrors.phone_country" class="text-error" style="font-size: 0.78rem; margin-top: 6px; margin-bottom: 0">
                   {{ fieldErrors.phone_country }}
                 </div>

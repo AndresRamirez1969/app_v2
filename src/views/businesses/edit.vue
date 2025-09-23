@@ -568,7 +568,6 @@ const validate = async () => {
             @update:parsedAddress="handleParsedAddress"
             :addressError="fieldErrors.address"
           />
-          <!-- Mensaje de error de address ya lo muestra AddressAutocomplete -->
         </v-col>
       </v-row>
 
@@ -596,7 +595,6 @@ const validate = async () => {
         <v-col cols="12" sm="6">
           <v-label>Teléfono</v-label>
           <div class="phone-group phone-group-responsive mt-2">
-            <!-- País -->
             <div style="display: flex; flex-direction: column">
               <v-autocomplete
                 ref="fieldRefs.phone_country"

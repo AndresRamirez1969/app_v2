@@ -20,6 +20,7 @@ const hasBusinessViewAny = computed(() => permissions.value.includes('business.v
 const hasBusinessUnitViewAny = computed(() => permissions.value.includes('businessUnit.viewAny'));
 
 const hasFormViewAny = computed(() => permissions.value.includes('form.create'));
+const hasFormView = computed(() => permissions.value.includes('form.view'));
 const hasResponseViewAny = computed(() => permissions.value.includes('form_response.viewAny'));
 const hasBusinessUnitGroupViewAny = computed(() => permissions.value.includes('businessUnitGroup.viewAny'));
 const hasUserViewAny = computed(() => permissions.value.includes('user.viewAny'));
@@ -102,14 +103,14 @@ const sidebarMenu = computed(() => {
         const show = userRoles.value.includes('superadmin') || hasUserViewAny.value;
         return show ? { ...item, to: '/usuarios' } : null;
       }
+      // if (item.title === 'Formularios') {
+      //   const show = userRoles.value.includes('superadmin') || hasFormViewAny.value;
+      //   return show ? { ...item, to: '/formularios' } : null;
+      // }
       if (item.title === 'Formularios') {
         const show = userRoles.value.includes('superadmin') || hasFormViewAny.value;
         return show ? { ...item, to: '/formularios' } : null;
       }
-      // if (item.title === 'Formularios DW') {
-      //   const show = userRoles.value.includes('superadmin') || hasFormViewAny.value;
-      //   return show ? { ...item, to: '/formularios-dw' } : null;
-      // }
       if (item.title === 'Reportes') {
         const show = userRoles.value.includes('superadmin') || userRoles.value.includes('admin') || hasResponseViewAny.value;
         return show ? { ...item, to: '/reportes' } : null;
