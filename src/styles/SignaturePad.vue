@@ -1,19 +1,35 @@
-<template>
-  <div>
-    <div class="d-flex gap-2 mb-3">
-      <v-btn @click="save" color="primary" variant="outlined" size="small" class="mr-2"> Guardar </v-btn>
-      <v-btn @click="undo" color="secondary" variant="outlined" size="small"> Deshacer </v-btn>
-      <v-btn @click="clear" color="error" variant="outlined" size="small"> Borrar </v-btn>
-    </div>
-    <VueSignaturePad width="500px" height="500px" ref="signaturePad" :options="{ penColor: 'black', backgroundColor: 'white' }" />
-  </div>
-</template>
-
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { VueSignaturePad } from 'vue-signature-pad';
 
 const signaturePad = ref(null);
+const padWrapper = ref(null);
+let resizeObserver = null;
+
+const resizePad = () => {
+  if (!padWrapper.value || !signaturePad.value) return;
+  const wrapper = padWrapper.value;
+  const width = wrapper.offsetWidth;
+  const height = wrapper.offsetHeight || 200;
+  // Ajusta el canvas interno del signature pad
+  signaturePad.value.resizeCanvas(width, height);
+};
+
+onMounted(() => {
+  // Redimensiona al montar
+  resizePad();
+  // Observa cambios de tamaño
+  resizeObserver = new ResizeObserver(resizePad);
+  if (padWrapper.value) {
+    resizeObserver.observe(padWrapper.value);
+  }
+});
+
+onBeforeUnmount(() => {
+  if (resizeObserver && padWrapper.value) {
+    resizeObserver.unobserve(padWrapper.value);
+  }
+});
 
 const undo = () => {
   signaturePad.value.undoSignature();
@@ -53,8 +69,36 @@ defineExpose({
 const emit = defineEmits(['signature-changed']);
 </script>
 
+<template>
+  <div>
+    <div class="signature-pad-wrapper" ref="padWrapper">
+      <VueSignaturePad
+        width="100%"
+        height="200px"
+        ref="signaturePad"
+        :options="{ penColor: 'black', backgroundColor: 'white' }"
+        class="signature-pad-responsive"
+      />
+    </div>
+    <div class="d-flex mt-3 button-group">
+      <v-btn @click="save" color="primary" variant="outlined" size="small"> Guardar </v-btn>
+      <v-btn @click="undo" color="secondary" variant="outlined" size="small"> Deshacer </v-btn>
+      <v-btn @click="clear" color="error" variant="outlined" size="small"> Borrar </v-btn>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-.gap-2 {
-  gap: 0.5rem;
+.signature-pad-wrapper {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: #fafafa;
+}
+.button-group > *:not(:last-child) {
+  margin-right: 12px !important;
 }
 </style>

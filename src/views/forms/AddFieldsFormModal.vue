@@ -333,6 +333,9 @@ const saveCurrentFields = async () => {
 
   const savedFields = [];
   try {
+    // Obtener ids de campos existentes en el backend
+    const backendFieldIds = Array.isArray(props.form?.fields) ? props.form.fields.map((f) => f.id) : [];
+
     for (const f of currentFields.value) {
       const payload = {
         label: f.label,
@@ -356,7 +359,10 @@ const saveCurrentFields = async () => {
         };
       }
 
-      if (typeof f.id === 'number' && Number.isInteger(f.id) && f.id > 0) {
+      // SOLO actualiza (PUT) si el campo existe en el backend
+      const isExistingField = backendFieldIds.includes(f.id);
+
+      if (isExistingField) {
         const { data } = await axiosInstance.put(`/forms/${props.form.id}/fields/${f.id}`, payload);
         savedFields.push(data.field);
       } else {

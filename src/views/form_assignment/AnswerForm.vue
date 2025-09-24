@@ -1,3 +1,273 @@
+<template>
+  <v-container fluid>
+    <!-- Encabezado: flecha + folio - nombre -->
+    <v-row class="align-center mb-6" no-gutters>
+      <v-col cols="auto" class="d-flex align-center">
+        <v-btn
+          icon
+          variant="text"
+          class="px-3 py-2"
+          style="border-radius: 8px; border: 1px solid #ccc; min-width: 44px; height: 44px"
+          @click="goBack"
+        >
+          <v-icon :icon="mdiArrowLeft" />
+        </v-btn>
+        <h3 class="font-weight-medium ml-3 mb-0">{{ form?.folio }} - {{ form?.name || 'Formulario' }}</h3>
+      </v-col>
+    </v-row>
+
+    <!-- Primera fila: logo + info general -->
+    <v-row class="mb-6">
+      <v-col cols="12" md="4" class="d-flex justify-center align-center">
+        <template v-if="formLogo">
+          <v-img :src="formLogo" max-width="320" max-height="320" class="rounded-lg" alt="Logo" style="background: none" />
+        </template>
+        <template v-else>
+          <div
+            class="d-flex align-center justify-center"
+            style="width: 200px; height: 200px; background-color: #f5f5f5; border-radius: 12px"
+          >
+            <span class="text-medium-emphasis">Sin logo</span>
+          </div>
+        </template>
+      </v-col>
+      <v-col cols="12" md="8">
+        <!-- Título fuera del card -->
+        <div class="font-weight-bold text-h6 mb-2" style="padding-left: 0.5rem">Información general</div>
+        <v-card class="rounded-lg elevation-1 pa-0">
+          <v-table class="rounded-lg elevation-0" style="border: none">
+            <tbody>
+              <tr>
+                <td class="font-weight-bold text-subtitle-1">Folio</td>
+                <td>
+                  <span v-if="form?.folio">{{ form.folio }}</span>
+                  <span v-else>No disponible</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="font-weight-bold text-subtitle-1">
+                  <template v-if="form?.assignment_scope === 'organization'">Nombre Legal (Organización)</template>
+                  <template v-else-if="form?.assignment_scope === 'business'">Nombre (Empresa)</template>
+                  <template v-else-if="form?.assignment_scope === 'business_unit'">Nombre (Ubicación)</template>
+                  <template v-else-if="form?.assignment_scope === 'business_unit_group'">Grupo de Unidades</template>
+                  <template v-else>Nombre del Formulario</template>
+                </td>
+                <td>
+                  <template v-if="form?.assignment_scope === 'organization'">
+                    {{ organization?.legal_name || 'No disponible' }}
+                  </template>
+                  <template v-else-if="form?.assignment_scope === 'business'">
+                    {{ business?.name || 'No disponible' }}
+                  </template>
+                  <template v-else-if="form?.assignment_scope === 'business_unit'">
+                    {{ businessUnit?.name || 'No disponible' }}
+                  </template>
+                  <template v-else-if="form?.assignment_scope === 'business_unit_group'">
+                    {{ businessUnitGroup?.id || 'ID' }}
+                  </template>
+                  <template v-else>
+                    {{ form?.name || 'Formulario' }}
+                  </template>
+                </td>
+              </tr>
+              <tr v-if="form?.assignment_scope === 'business_unit_group' && businessUnit?.name">
+                <td class="font-weight-bold text-subtitle-1">Ubicación del usuario</td>
+                <td>
+                  {{ businessUnit?.name }}
+                </td>
+              </tr>
+              <tr>
+                <td class="font-weight-bold text-subtitle-1">Descripción</td>
+                <td>{{ form?.description || 'No disponible' }}</td>
+              </tr>
+              <tr>
+                <td class="font-weight-bold text-subtitle-1">Frecuencia</td>
+                <td>
+                  {{
+                    form?.frequency === 'once_per_day'
+                      ? 'Una vez al día'
+                      : form?.frequency === 'multiple_per_day'
+                        ? 'Muchas veces al día'
+                        : form?.frequency || 'No disponible'
+                  }}
+                </td>
+              </tr>
+              <tr v-if="form?.has_weighting && form?.max_score">
+                <td class="font-weight-bold text-subtitle-1">Puntaje Máximo</td>
+                <td>{{ form?.max_score }} puntos</td>
+              </tr>
+            </tbody>
+          </v-table>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Segunda fila: preguntas (cada pregunta en su propio card) -->
+    <v-row>
+      <v-col cols="12">
+        <v-form ref="formRef" @submit.prevent="submitForm">
+          <div v-if="isLoading" class="text-center pa-8">
+            <v-progress-circular indeterminate color="primary" size="64" />
+            <p class="mt-4">Cargando formulario...</p>
+          </div>
+          <div v-else-if="form && form.fields && form.fields.length">
+            <div v-for="(field, index) in form.fields" :key="field.id || index" class="mb-4">
+              <v-card class="rounded-lg elevation-1 pa-0 card-business-unit">
+                <v-row no-gutters>
+                  <v-col
+                    cols="auto"
+                    class="d-flex align-center justify-center"
+                    style="min-width: 48px; max-width: 64px; background: #f5f5f5"
+                  >
+                    <div class="text-h6 font-weight-bold" style="width: 100%; text-align: center">
+                      {{ index + 1 }}
+                    </div>
+                  </v-col>
+                  <v-col>
+                    <v-card-text>
+                      <v-label class="mb-2 field-label">
+                        {{ field.label }}
+                        <span v-if="field.is_required" class="required-asterisk">*</span>
+                        <span v-if="field.score" class="ml-2 text-caption text-grey" style="font-weight: normal"
+                          >({{ field.score }} pts)</span
+                        >
+                      </v-label>
+                      <div v-if="field.type === 'file'">
+                        <v-file-input
+                          v-model="fileData[field.id]"
+                          :accept="'image/*,application/pdf,.doc,.docx'"
+                          multiple
+                          :counter="true"
+                          :show-size="true"
+                          :rules="[(v) => !field.is_required || (fileData[field.id]?.length >= 1 && fileData[field.id]?.length <= 4) || '']"
+                          @change="handleFileChange(field.id, $event)"
+                          variant="outlined"
+                          :chips="false"
+                          :clearable="false"
+                        >
+                          <template #selection>
+                            <div class="file-chips-container">
+                              <v-chip
+                                v-for="(file, idx) in fileData[field.id]"
+                                :key="file.name + idx"
+                                color="primary"
+                                class="mr-2 mb-2"
+                                size="small"
+                              >
+                                <span>{{ file.name }}</span>
+                              </v-chip>
+                            </div>
+                          </template>
+                        </v-file-input>
+                      </div>
+                      <div v-else-if="field.type === 'checkbox'">
+                        <div class="checkbox-group">
+                          <v-checkbox
+                            v-for="option in field.options"
+                            :key="option"
+                            :label="option"
+                            :value="option"
+                            v-model="formData[field.id]"
+                            class="ml-4"
+                          />
+                        </div>
+                        <div v-if="triedSubmit && field.is_required && !formData[field.id]?.length" class="text-caption text-red mt-1">
+                          Este campo es requerido
+                        </div>
+                      </div>
+                      <div v-else-if="field.type === 'signature'">
+                        <div class="signature-container">
+                          <SignaturePad
+                            :ref="
+                              (el) => {
+                                if (el) signatureRefs[field.id] = [el];
+                              }
+                            "
+                            @signature-changed="(signatureBlob) => handleSignature(field.id, signatureBlob)"
+                          />
+                          <div class="d-flex flex-wrap justify-end mt-2" v-if="signatureData[field.id]?.length">
+                            <div v-for="(file, idx) in signatureData[field.id]" :key="idx" class="mr-2 mb-2">
+                              <v-chip color="green" class="mr-1" size="small">
+                                {{ file.name }}
+                              </v-chip>
+                            </div>
+                          </div>
+                        </div>
+                        <div
+                          v-if="triedSubmit && field.is_required && (!signatureData[field.id] || signatureData[field.id].length < 1)"
+                          class="text-caption text-red mt-1"
+                        >
+                          Adjunta al menos una firma
+                        </div>
+                      </div>
+                      <div v-else-if="field.type === 'radio'">
+                        <v-radio-group
+                          v-model="formData[field.id]"
+                          :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
+                        >
+                          <v-radio v-for="option in field.options" :key="option" :label="option" :value="option" class="ml-4" />
+                        </v-radio-group>
+                      </div>
+                      <!-- Campo geolocalización manual -->
+                      <div v-else-if="field.type === 'geolocation' && field.attributes?.mode === 'manual'">
+                        <AddressAutocomplete
+                          :initialValue="formData[field.id]"
+                          mode="create"
+                          :addressError="
+                            triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])
+                              ? 'Este campo es requerido'
+                              : ''
+                          "
+                          @update:parsedAddress="(val) => handleGeolocationManual(field.id, val)"
+                        />
+                        <div
+                          v-if="triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])"
+                          class="text-caption text-red mt-1"
+                        >
+                          Este campo es requerido
+                        </div>
+                      </div>
+                      <!-- Otros campos -->
+                      <component
+                        v-else-if="
+                          field.type !== 'file' && field.type !== 'checkbox' && field.type !== 'radio' && field.type !== 'geolocation'
+                        "
+                        :is="FIELD_TYPES(field)"
+                        v-bind="{
+                          ...getFieldProps(field),
+                          label: undefined // Quita el label dentro del field
+                        }"
+                        v-model="formData[field.id]"
+                        :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
+                      />
+                    </v-card-text>
+                  </v-col>
+                </v-row>
+              </v-card>
+            </div>
+          </div>
+          <div v-else class="text-center pa-8">
+            <p class="text-grey">No se pudo cargar el formulario o no tiene campos</p>
+          </div>
+        </v-form>
+      </v-col>
+    </v-row>
+
+    <!-- Fila separada: botón enviar en la esquina derecha -->
+    <v-row>
+      <v-col cols="12" class="d-flex justify-end">
+        <v-btn color="primary" class="mt-6" :loading="submitting" :disabled="isLoading" @click="submitForm">
+          <template v-slot:loader>
+            <v-progress-circular indeterminate color="white" size="20" />
+          </template>
+          <v-icon :icon="mdiCheck" class="mr-2" />
+          {{ submitting ? 'Enviando...' : 'Enviar Formulario' }}
+        </v-btn>
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
 <script setup>
 import axiosInstance from '@/utils/axios';
 import { ref, onMounted, computed } from 'vue';
@@ -27,7 +297,6 @@ const organization = ref(null);
 const business = ref(null);
 const businessUnit = ref(null);
 const businessUnitGroup = ref(null);
-const user = ref(null);
 
 // --- INTEGRACIÓN: Control de submit para mostrar errores solo después de intentar enviar ---
 const triedSubmit = ref(false);
@@ -43,25 +312,6 @@ const showForm = async () => {
     business.value = form.value?.business || null;
     businessUnit.value = form.value?.business_unit || null;
     businessUnitGroup.value = form.value?.business_unit_group || null;
-    user.value = form.value?.created_by || null;
-
-    if (form.value && form.value.fields) {
-      form.value.fields.forEach((field) => {
-        if (field.type === 'checkbox') {
-          formData.value[field.id] = [];
-        } else if (field.type === 'file') {
-          fileData.value[field.id] = [];
-          formData.value[field.id] = [];
-        } else if (field.type === 'signature') {
-          signatureData.value[field.id] = [];
-          formData.value[field.id] = [];
-        } else if (field.type === 'geolocation' && field.attributes?.mode === 'manual') {
-          formData.value[field.id] = {};
-        } else {
-          formData.value[field.id] = '';
-        }
-      });
-    }
   } catch (err) {
     console.error('Failed to fetch form', err);
     toast.error('No se pudo cargar el formulario');
@@ -91,6 +341,7 @@ const removeFile = (fieldId, idx) => {
   }
 };
 
+// SOLO UNA FIRMA POR CAMPO
 const handleSignature = (fieldId, signatureBlob) => {
   if (signatureBlob instanceof Blob) {
     const field = form.value.fields.find((f) => f.id == fieldId);
@@ -99,14 +350,9 @@ const handleSignature = (fieldId, signatureBlob) => {
       type: 'image/*',
       lastModified: Date.now()
     });
-    if (!signatureData.value[fieldId]) signatureData.value[fieldId] = [];
-    if (!formData.value[fieldId]) formData.value[fieldId] = [];
-    if (signatureData.value[fieldId].length < 4) {
-      signatureData.value[fieldId].push(signatureFile);
-      formData.value[fieldId].push(fileName);
-    } else {
-      toast.error('Solo puedes subir hasta 4 firmas.');
-    }
+    // Reemplaza cualquier firma anterior
+    signatureData.value[fieldId] = [signatureFile];
+    formData.value[fieldId] = [fileName];
   }
 };
 
@@ -208,232 +454,21 @@ const submitForm = async () => {
   }
 };
 
-const formLogo = computed(() => form.value?.logo_url || organization.value?.logo_url || null);
+// INTEGRACIÓN: Buscar logo en todos los posibles campos
+const formLogo = computed(
+  () => form.value?.logo_url || form.value?.logo || organization.value?.logo_url || organization.value?.logo || null
+);
 </script>
 
-<template>
-  <v-container fluid>
-    <!-- Encabezado: flecha + folio - nombre -->
-    <v-row class="align-center mb-6" no-gutters>
-      <v-col cols="auto" class="d-flex align-center">
-        <v-btn
-          icon
-          variant="text"
-          class="px-3 py-2"
-          style="border-radius: 8px; border: 1px solid #ccc; min-width: 44px; height: 44px"
-          @click="goBack"
-        >
-          <v-icon :icon="mdiArrowLeft" />
-        </v-btn>
-        <h3 class="font-weight-medium ml-3 mb-0">
-          <span v-if="form?.folio">{{ form.folio }} - </span>{{ form?.name || 'Formulario' }}
-        </h3>
-      </v-col>
-    </v-row>
-
-    <!-- Primera fila: logo + info general -->
-    <v-row class="mb-6">
-      <v-col cols="12" md="4" class="d-flex justify-center align-center">
-        <template v-if="formLogo">
-          <v-img :src="formLogo" max-width="220" max-height="220" class="rounded-lg" alt="Logo" style="background: none" />
-        </template>
-        <template v-else>
-          <div
-            class="d-flex align-center justify-center"
-            style="width: 160px; height: 160px; background-color: #f5f5f5; border-radius: 12px"
-          >
-            <span class="text-medium-emphasis">Sin logo</span>
-          </div>
-        </template>
-      </v-col>
-      <v-col cols="12" md="8">
-        <v-card class="rounded-lg elevation-1 pa-0">
-          <v-card-title class="font-weight-bold text-h6" style="padding-left: 0.5rem">Información general</v-card-title>
-          <v-table class="rounded-lg elevation-0" style="border: none">
-            <tbody>
-              <tr>
-                <td class="font-weight-bold text-subtitle-1">Nombre Legal (Organización)</td>
-                <td>{{ organization?.legal_name || 'No disponible' }}</td>
-              </tr>
-              <tr>
-                <td class="font-weight-bold text-subtitle-1">Nombre (Empresa)</td>
-                <td>{{ business?.name || 'No disponible' }}</td>
-              </tr>
-              <tr>
-                <td class="font-weight-bold text-subtitle-1">Unidad de Negocio</td>
-                <td>{{ businessUnit?.name || 'No disponible' }}</td>
-              </tr>
-              <tr>
-                <td class="font-weight-bold text-subtitle-1">Grupo de Unidades</td>
-                <td>{{ businessUnitGroup?.name || 'No disponible' }}</td>
-              </tr>
-              <tr>
-                <td class="font-weight-bold text-subtitle-1">Nombre del Formulario</td>
-                <td>{{ form?.name || 'No disponible' }}</td>
-              </tr>
-              <tr>
-                <td class="font-weight-bold text-subtitle-1">Descripción</td>
-                <td>{{ form?.description || 'No disponible' }}</td>
-              </tr>
-              <tr>
-                <td class="font-weight-bold text-subtitle-1">Usuario</td>
-                <td>{{ user?.name || user?.full_name || user?.username || 'No disponible' }}</td>
-              </tr>
-            </tbody>
-          </v-table>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Segunda fila: preguntas (full width) -->
-    <v-row>
-      <v-col cols="12">
-        <v-card>
-          <v-card-text>
-            <div v-if="isLoading" class="text-center pa-8">
-              <v-progress-circular indeterminate color="primary" size="64" />
-              <p class="mt-4">Cargando formulario...</p>
-            </div>
-            <div v-else-if="form && form.fields && form.fields.length">
-              <v-form ref="formRef" @submit.prevent="submitForm">
-                <div v-for="(field, index) in form.fields" :key="field.id || index" class="mb-6">
-                  <!-- Etiqueta arriba del campo, con * si es requerido -->
-                  <v-label class="mb-2 field-label">
-                    {{ field.label }}
-                    <span v-if="field.is_required" class="required-asterisk">*</span>
-                  </v-label>
-                  <div v-if="field.type === 'file'">
-                    <v-file-input
-                      v-model="fileData[field.id]"
-                      :accept="'image/*,application/pdf,.doc,.docx'"
-                      multiple
-                      :counter="true"
-                      :show-size="true"
-                      :rules="[
-                        (v) =>
-                          !field.is_required ||
-                          (fileData[field.id]?.length >= 1 && fileData[field.id]?.length <= 4) ||
-                          'Adjunta entre 1 y 4 archivos'
-                      ]"
-                      @change="handleFileChange(field.id, $event)"
-                      variant="outlined"
-                    />
-                    <div v-if="fileData[field.id]?.length" class="d-flex flex-wrap mt-2">
-                      <v-chip
-                        v-for="(file, idx) in fileData[field.id]"
-                        :key="file.name + idx"
-                        color="primary"
-                        class="mr-2 mb-2"
-                        close
-                        @click:close="removeFile(field.id, idx)"
-                      >
-                        {{ file.name }}
-                      </v-chip>
-                    </div>
-                  </div>
-                  <div v-else-if="field.type === 'checkbox'">
-                    <div class="checkbox-group">
-                      <v-checkbox
-                        v-for="option in field.options"
-                        :key="option"
-                        :label="option"
-                        :value="option"
-                        v-model="formData[field.id]"
-                        class="ml-4"
-                      />
-                    </div>
-                    <div v-if="triedSubmit && field.is_required && !formData[field.id]?.length" class="text-caption text-red mt-1">
-                      Este campo es requerido
-                    </div>
-                  </div>
-                  <div v-else-if="field.type === 'signature'">
-                    <div class="signature-container">
-                      <SignaturePad
-                        v-for="idx in 4"
-                        :key="idx"
-                        :ref="
-                          (el) => {
-                            if (el && !signatureRefs[field.id]) signatureRefs[field.id] = [];
-                            if (el) signatureRefs[field.id][idx - 1] = el;
-                          }
-                        "
-                        @signature-changed="(signatureBlob) => handleSignature(field.id, signatureBlob)"
-                      />
-                      <div class="d-flex flex-wrap mt-2" v-if="signatureData[field.id]?.length">
-                        <div v-for="(file, idx) in signatureData[field.id]" :key="idx" class="mr-2 mb-2">
-                          <v-chip color="green" class="mr-1" close @click:close="handleClearSignature(field.id, idx)">
-                            {{ file.name }}
-                          </v-chip>
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      v-if="triedSubmit && field.is_required && (!signatureData[field.id] || signatureData[field.id].length < 1)"
-                      class="text-caption text-red mt-1"
-                    >
-                      Adjunta al menos una firma
-                    </div>
-                  </div>
-                  <div v-else-if="field.type === 'radio'">
-                    <v-radio-group v-model="formData[field.id]" :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []">
-                      <v-radio v-for="option in field.options" :key="option" :label="option" :value="option" class="ml-4" />
-                    </v-radio-group>
-                  </div>
-                  <!-- Campo geolocalización manual -->
-                  <div v-else-if="field.type === 'geolocation' && field.attributes?.mode === 'manual'">
-                    <AddressAutocomplete
-                      :initialValue="formData[field.id]"
-                      mode="create"
-                      :addressError="
-                        triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id]) ? 'Este campo es requerido' : ''
-                      "
-                      @update:parsedAddress="(val) => handleGeolocationManual(field.id, val)"
-                    />
-                    <div
-                      v-if="triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])"
-                      class="text-caption text-red mt-1"
-                    >
-                      Este campo es requerido
-                    </div>
-                  </div>
-                  <!-- Otros campos -->
-                  <component
-                    v-else-if="field.type !== 'file' && field.type !== 'checkbox' && field.type !== 'radio' && field.type !== 'geolocation'"
-                    :is="FIELD_TYPES(field)"
-                    v-bind="{
-                      ...getFieldProps(field),
-                      label: undefined // Quita el label dentro del field
-                    }"
-                    v-model="formData[field.id]"
-                    :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
-                  />
-                </div>
-              </v-form>
-            </div>
-            <div v-else class="text-center pa-8">
-              <p class="text-grey">No se pudo cargar el formulario o no tiene campos</p>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Fila separada: botón enviar en la esquina derecha -->
-    <v-row>
-      <v-col cols="12" class="d-flex justify-end">
-        <v-btn color="primary" class="mt-6" :loading="submitting" :disabled="isLoading" @click="submitForm">
-          <template v-slot:loader>
-            <v-progress-circular indeterminate color="white" size="20" />
-          </template>
-          <v-icon :icon="mdiCheck" class="mr-2" />
-          {{ submitting ? 'Enviando...' : 'Enviar Formulario' }}
-        </v-btn>
-      </v-col>
-    </v-row>
-  </v-container>
-</template>
-
 <style scoped>
+.card-business-unit,
+.v-card.rounded-lg.elevation-1.pa-0,
+.v-table.rounded-lg {
+  border-radius: 12px !important;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08) !important;
+}
 .checkbox-group {
   display: flex;
   flex-direction: column;
@@ -444,6 +479,9 @@ const formLogo = computed(() => form.value?.logo_url || organization.value?.logo
   border-radius: 8px;
   padding: 16px;
   background-color: #fafafa;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .required-asterisk {
   color: #e53935;
@@ -453,5 +491,13 @@ const formLogo = computed(() => form.value?.logo_url || organization.value?.logo
 .field-label {
   color: #23272f;
   font-weight: 500;
+}
+.file-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start; /* Cambiado para alinear a la izquierda */
+  width: 100%;
+  min-height: 38px;
 }
 </style>

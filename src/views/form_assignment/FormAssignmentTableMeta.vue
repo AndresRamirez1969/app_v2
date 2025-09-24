@@ -22,9 +22,11 @@ const emit = defineEmits(['update:page', 'sort']);
             Nombre
             <slot name="sort-icon" :column="'name'" />
           </th>
-          <th @click="emit('sort', 'created_at')" class="cursor-pointer date-header">
-            Fecha de Creación
-            <slot name="sort-icon" :column="'created_at'" />
+          <th class="description-header">Descripción</th>
+          <th class="scope-header">Alcance</th>
+          <th @click="emit('sort', 'frequency')" class="cursor-pointer frequency-header">
+            Frecuencia
+            <slot name="sort-icon" :column="'frequency'" />
           </th>
           <th class="response-header">Estado</th>
         </tr>
