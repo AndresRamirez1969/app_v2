@@ -671,8 +671,18 @@ const validate = async () => {
       allRoles.value.find((r) => Number(r.id) === Number(supervisor.value));
     if (supervisorRole) formData.append('supervisor_role_id', supervisorRole.id);
 
-    auditors.value.forEach((id, i) => formData.append(`auditor_role_ids[${i}]`, id));
-    audited.value.forEach((id, i) => formData.append(`auditado_role_ids[${i}]`, id));
+    // --- LOGS PARA DEPURAR ---
+    console.log('auditors.value antes de enviar:', auditors.value);
+    console.log('audited.value antes de enviar:', audited.value);
+
+    auditors.value.forEach((id, i) => {
+      console.log(`Agregando auditor_role_ids[${i}]:`, id);
+      formData.append('auditor_role_ids[]', id);
+    });
+    audited.value.forEach((id, i) => {
+      console.log(`Agregando auditado_role_ids[${i}]:`, id);
+      formData.append('auditado_role_ids[]', id);
+    });
 
     formData.append('frequency', frequency.value);
     formData.append('assignment_scope', scope.value);
@@ -723,12 +733,21 @@ const validate = async () => {
     }
 
     const formId = route.params.id;
-    await axiosInstance.post(`/forms/${formId}/update`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+
+    // --- LOG FINAL DE FORM DATA ---
+    for (let pair of formData.entries()) {
+      console.log('FormData:', pair[0], pair[1]);
+    }
+
+    // INTEGRACIÓN CORRECTA PARA LARAVEL
+    formData.append('_method', 'PUT');
+    await axiosInstance.post(`/forms/${formId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 
     toast.success('Formulario actualizado correctamente');
     router.push('/formularios');
   } catch (err) {
     toast.error('Error al actualizar el formulario');
+    console.log('Error al actualizar:', err);
   } finally {
     isLoading.value = false;
   }
@@ -751,6 +770,10 @@ onMounted(async () => {
     supervisor.value = form.supervisorRole ? form.supervisorRole.id : '';
     auditors.value = Array.isArray(form.auditorRoles) ? form.auditorRoles.map((r) => r.id) : [];
     audited.value = Array.isArray(form.auditadoRoles) ? form.auditadoRoles.map((r) => r.id) : [];
+    // --- LOGS PARA DEPURAR ---
+    console.log('Valores iniciales supervisor:', supervisor.value);
+    console.log('Valores iniciales auditors:', auditors.value);
+    console.log('Valores iniciales audited:', audited.value);
   }
 });
 </script>

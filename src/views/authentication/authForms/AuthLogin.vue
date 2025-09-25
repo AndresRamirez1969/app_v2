@@ -20,20 +20,20 @@ const showPassword = ref(false);
 const emailRules = [(v: string) => !!v || 'El correo es obligatorio', (v: string) => /.+@.+\..+/.test(v) || 'Correo no válido'];
 const passwordRules = [(v: string) => !!v || 'La contraseña es obligatoria'];
 
-// Función para pedir geolocalización solo una vez y esperar resultado
-const requestGeolocationOnce = () => {
+// Solicitar geolocalización cada vez que inicia sesión
+const requestGeolocationOnLogin = () => {
   return new Promise<void>((resolve) => {
-    if (typeof window !== 'undefined' && navigator.geolocation && !localStorage.getItem('geo_permission_requested')) {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          localStorage.setItem('geo_permission_requested', 'true');
           localStorage.setItem('geo_lat', String(pos.coords.latitude));
           localStorage.setItem('geo_lng', String(pos.coords.longitude));
           resolve();
         },
         () => {
-          // Si el usuario rechaza o falla, igual marcamos como solicitado
-          localStorage.setItem('geo_permission_requested', 'true');
+          // Si el usuario rechaza o falla, limpiamos las coordenadas
+          localStorage.removeItem('geo_lat');
+          localStorage.removeItem('geo_lng');
           resolve();
         }
       );
@@ -47,8 +47,8 @@ const login = async () => {
   try {
     isLoading.value = true;
     await auth.login(email.value, password.value);
-    // Pedir geolocalización solo una vez después de login exitoso y esperar antes de redirigir
-    await requestGeolocationOnce();
+    // Pedir geolocalización después de login exitoso y esperar antes de redirigir
+    await requestGeolocationOnLogin();
     const roles = auth.user?.roles || [];
     const isAdmin = roles.includes('admin');
     const hasOrg = !!auth.user?.organization_id;

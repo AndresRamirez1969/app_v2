@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid v-if="canShow">
+  <v-container fluid v-if="showForm && canShow">
     <v-row class="align-center mb-6" no-gutters>
       <v-col cols="auto" class="d-flex align-center">
         <template v-if="canShowArrow">
@@ -415,8 +415,32 @@
             </v-row>
           </template>
         </div>
-        <div v-else class="text-center pa-4 text-grey">
-          <p>No hay campos agregados a este formulario</p>
+        <div v-else>
+          <template v-if="!mdAndDown">
+            <v-table class="rounded-lg elevation-1 card-shadow" style="margin-top: 16px">
+              <thead>
+                <tr>
+                  <th class="font-weight-bold text-subtitle-1">Tipo</th>
+                  <th class="font-weight-bold text-subtitle-1">Nombre</th>
+                  <th class="font-weight-bold text-subtitle-1">¿Requerido?</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="3" class="text-center text-grey">No hay campos agregados a este formulario</td>
+                </tr>
+              </tbody>
+            </v-table>
+          </template>
+          <template v-else>
+            <v-row dense style="margin-top: 16px">
+              <v-col cols="12">
+                <v-card class="rounded-lg card-shadow pa-3 mb-2 text-center text-grey" elevation="1">
+                  No hay campos agregados a este formulario
+                </v-card>
+              </v-col>
+            </v-row>
+          </template>
         </div>
       </div>
     </div>
@@ -452,6 +476,7 @@ const formData = ref(null);
 const auth = useAuthStore();
 
 const showAddFieldsModal = ref(false);
+const showForm = ref(true); // NUEVO: para controlar la visibilidad
 
 const user = computed(() => auth.user || { roles: [], permissions: [], organization_id: null });
 const roles = computed(() => user.value.roles || []);
@@ -673,7 +698,7 @@ onMounted(async () => {
       return;
     }
   } catch (err) {
-    canShow.value = false;
+    showForm.value = false; // CAMBIO: ahora usamos showForm en vez de canShow
     if (err.response && err.response.status === 403) {
       router.replace('/403');
     }

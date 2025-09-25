@@ -102,169 +102,180 @@
       </v-col>
     </v-row>
 
+    <!-- Mensaje de error de geolocalización o fuera de alcance -->
+    <div v-if="geoCheckError" class="text-center pa-8">
+      <v-icon color="red" size="48">mdi-map-marker-off</v-icon>
+      <p class="text-h6 mt-4">{{ geoCheckError }}</p>
+      <v-btn color="primary" class="mt-4" @click="showForm">Reintentar</v-btn>
+    </div>
+
     <!-- Segunda fila: preguntas (cada pregunta en su propio card) -->
-    <v-row>
-      <v-col cols="12">
-        <v-form ref="formRef" @submit.prevent="submitForm">
-          <div v-if="isLoading" class="text-center pa-8">
-            <v-progress-circular indeterminate color="primary" size="64" />
-            <p class="mt-4">Cargando formulario...</p>
-          </div>
-          <div v-else-if="form && form.fields && form.fields.length">
-            <div v-for="(field, index) in form.fields" :key="field.id || index" class="mb-4">
-              <v-card class="rounded-lg elevation-1 pa-0 card-business-unit">
-                <v-row no-gutters>
-                  <v-col
-                    cols="auto"
-                    class="d-flex align-center justify-center"
-                    style="min-width: 48px; max-width: 64px; background: #f5f5f5"
-                  >
-                    <div class="text-h6 font-weight-bold" style="width: 100%; text-align: center">
-                      {{ index + 1 }}
-                    </div>
-                  </v-col>
-                  <v-col>
-                    <v-card-text>
-                      <v-label class="mb-2 field-label">
-                        {{ field.label }}
-                        <span v-if="field.is_required" class="required-asterisk">*</span>
-                        <span v-if="field.score" class="ml-2 text-caption text-grey" style="font-weight: normal"
-                          >({{ field.score }} pts)</span
-                        >
-                      </v-label>
-                      <div v-if="field.type === 'file'">
-                        <v-file-input
-                          v-model="fileData[field.id]"
-                          :accept="'image/*,application/pdf,.doc,.docx'"
-                          multiple
-                          :counter="true"
-                          :show-size="true"
-                          :rules="[(v) => !field.is_required || (fileData[field.id]?.length >= 1 && fileData[field.id]?.length <= 4) || '']"
-                          @change="handleFileChange(field.id, $event)"
-                          variant="outlined"
-                          :chips="false"
-                          :clearable="false"
-                        >
-                          <template #selection>
-                            <div class="file-chips-container">
-                              <v-chip
-                                v-for="(file, idx) in fileData[field.id]"
-                                :key="file.name + idx"
-                                color="primary"
-                                class="mr-2 mb-2"
-                                size="small"
-                              >
-                                <span>{{ file.name }}</span>
-                              </v-chip>
-                            </div>
-                          </template>
-                        </v-file-input>
+    <template v-else>
+      <v-row>
+        <v-col cols="12">
+          <v-form ref="formRef" @submit.prevent="submitForm">
+            <div v-if="isLoading" class="text-center pa-8">
+              <v-progress-circular indeterminate color="primary" size="64" />
+              <p class="mt-4">Cargando formulario...</p>
+            </div>
+            <div v-else-if="form && form.fields && form.fields.length">
+              <div v-for="(field, index) in visibleFields" :key="field.id || index" class="mb-4">
+                <v-card class="rounded-lg elevation-1 pa-0 card-business-unit">
+                  <v-row no-gutters>
+                    <v-col
+                      cols="auto"
+                      class="d-flex align-center justify-center"
+                      style="min-width: 48px; max-width: 64px; background: #f5f5f5"
+                    >
+                      <div class="text-h6 font-weight-bold" style="width: 100%; text-align: center">
+                        {{ index + 1 }}
                       </div>
-                      <div v-else-if="field.type === 'checkbox'">
-                        <div class="checkbox-group">
-                          <v-checkbox
-                            v-for="option in field.options"
-                            :key="option"
-                            :label="option"
-                            :value="option"
-                            v-model="formData[field.id]"
-                            class="ml-4"
-                          />
+                    </v-col>
+                    <v-col>
+                      <v-card-text>
+                        <v-label class="mb-2 field-label">
+                          {{ field.label }}
+                          <span v-if="field.is_required" class="required-asterisk">*</span>
+                          <span v-if="field.score" class="ml-2 text-caption text-grey" style="font-weight: normal"
+                            >({{ field.score }} pts)</span
+                          >
+                        </v-label>
+                        <div v-if="field.type === 'file'">
+                          <v-file-input
+                            v-model="fileData[field.id]"
+                            :accept="'image/*,application/pdf,.doc,.docx'"
+                            multiple
+                            :counter="true"
+                            :show-size="true"
+                            :rules="[
+                              (v) => !field.is_required || (fileData[field.id]?.length >= 1 && fileData[field.id]?.length <= 4) || ''
+                            ]"
+                            @change="handleFileChange(field.id, $event)"
+                            variant="outlined"
+                            :chips="false"
+                            :clearable="false"
+                          >
+                            <template #selection>
+                              <div class="file-chips-container">
+                                <v-chip
+                                  v-for="(file, idx) in fileData[field.id]"
+                                  :key="file.name + idx"
+                                  color="primary"
+                                  class="mr-2 mb-2"
+                                  size="small"
+                                >
+                                  <span>{{ file.name }}</span>
+                                </v-chip>
+                              </div>
+                            </template>
+                          </v-file-input>
                         </div>
-                        <div v-if="triedSubmit && field.is_required && !formData[field.id]?.length" class="text-caption text-red mt-1">
-                          Este campo es requerido
-                        </div>
-                      </div>
-                      <div v-else-if="field.type === 'signature'">
-                        <div class="signature-container">
-                          <SignaturePad
-                            :ref="
-                              (el) => {
-                                if (el) signatureRefs[field.id] = [el];
-                              }
-                            "
-                            @signature-changed="(signatureBlob) => handleSignature(field.id, signatureBlob)"
-                          />
-                          <div class="d-flex flex-wrap justify-end mt-2" v-if="signatureData[field.id]?.length">
-                            <div v-for="(file, idx) in signatureData[field.id]" :key="idx" class="mr-2 mb-2">
-                              <v-chip color="green" class="mr-1" size="small">
-                                {{ file.name }}
-                              </v-chip>
-                            </div>
+                        <div v-else-if="field.type === 'checkbox'">
+                          <div class="checkbox-group">
+                            <v-checkbox
+                              v-for="option in field.options"
+                              :key="option"
+                              :label="option"
+                              :value="option"
+                              v-model="formData[field.id]"
+                              class="ml-4"
+                            />
+                          </div>
+                          <div v-if="triedSubmit && field.is_required && !formData[field.id]?.length" class="text-caption text-red mt-1">
+                            Este campo es requerido
                           </div>
                         </div>
-                        <div
-                          v-if="triedSubmit && field.is_required && (!signatureData[field.id] || signatureData[field.id].length < 1)"
-                          class="text-caption text-red mt-1"
-                        >
-                          Adjunta al menos una firma
+                        <div v-else-if="field.type === 'signature'">
+                          <div class="signature-container">
+                            <SignaturePad
+                              :ref="
+                                (el) => {
+                                  if (el) signatureRefs[field.id] = [el];
+                                }
+                              "
+                              @signature-changed="(signatureBlob) => handleSignature(field.id, signatureBlob)"
+                            />
+                            <div class="d-flex flex-wrap justify-end mt-2" v-if="signatureData[field.id]?.length">
+                              <div v-for="(file, idx) in signatureData[field.id]" :key="idx" class="mr-2 mb-2">
+                                <v-chip color="green" class="mr-1" size="small">
+                                  {{ file.name }}
+                                </v-chip>
+                              </div>
+                            </div>
+                          </div>
+                          <div
+                            v-if="triedSubmit && field.is_required && (!signatureData[field.id] || signatureData[field.id].length < 1)"
+                            class="text-caption text-red mt-1"
+                          >
+                            Adjunta al menos una firma
+                          </div>
                         </div>
-                      </div>
-                      <div v-else-if="field.type === 'radio'">
-                        <v-radio-group
+                        <div v-else-if="field.type === 'radio'">
+                          <v-radio-group
+                            v-model="formData[field.id]"
+                            :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
+                          >
+                            <v-radio v-for="option in field.options" :key="option" :label="option" :value="option" class="ml-4" />
+                          </v-radio-group>
+                        </div>
+                        <!-- Campo geolocalización manual -->
+                        <div v-else-if="field.type === 'geolocation' && field.attributes?.mode === 'manual'">
+                          <AddressAutocomplete
+                            :initialValue="formData[field.id]"
+                            mode="create"
+                            :addressError="
+                              triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])
+                                ? 'Este campo es requerido'
+                                : ''
+                            "
+                            @update:parsedAddress="(val) => handleGeolocationManual(field.id, val)"
+                          />
+                          <div
+                            v-if="triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])"
+                            class="text-caption text-red mt-1"
+                          >
+                            Este campo es requerido
+                          </div>
+                        </div>
+                        <!-- Otros campos -->
+                        <component
+                          v-else-if="
+                            field.type !== 'file' && field.type !== 'checkbox' && field.type !== 'radio' && field.type !== 'geolocation'
+                          "
+                          :is="FIELD_TYPES(field)"
+                          v-bind="{
+                            ...getFieldProps(field),
+                            label: undefined // Quita el label dentro del field
+                          }"
                           v-model="formData[field.id]"
                           :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
-                        >
-                          <v-radio v-for="option in field.options" :key="option" :label="option" :value="option" class="ml-4" />
-                        </v-radio-group>
-                      </div>
-                      <!-- Campo geolocalización manual -->
-                      <div v-else-if="field.type === 'geolocation' && field.attributes?.mode === 'manual'">
-                        <AddressAutocomplete
-                          :initialValue="formData[field.id]"
-                          mode="create"
-                          :addressError="
-                            triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])
-                              ? 'Este campo es requerido'
-                              : ''
-                          "
-                          @update:parsedAddress="(val) => handleGeolocationManual(field.id, val)"
                         />
-                        <div
-                          v-if="triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])"
-                          class="text-caption text-red mt-1"
-                        >
-                          Este campo es requerido
-                        </div>
-                      </div>
-                      <!-- Otros campos -->
-                      <component
-                        v-else-if="
-                          field.type !== 'file' && field.type !== 'checkbox' && field.type !== 'radio' && field.type !== 'geolocation'
-                        "
-                        :is="FIELD_TYPES(field)"
-                        v-bind="{
-                          ...getFieldProps(field),
-                          label: undefined // Quita el label dentro del field
-                        }"
-                        v-model="formData[field.id]"
-                        :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
-                      />
-                    </v-card-text>
-                  </v-col>
-                </v-row>
-              </v-card>
+                      </v-card-text>
+                    </v-col>
+                  </v-row>
+                </v-card>
+              </div>
             </div>
-          </div>
-          <div v-else class="text-center pa-8">
-            <p class="text-grey">No se pudo cargar el formulario o no tiene campos</p>
-          </div>
-        </v-form>
-      </v-col>
-    </v-row>
+            <div v-else class="text-center pa-8">
+              <p class="text-grey">No se pudo cargar el formulario o no tiene campos</p>
+            </div>
+          </v-form>
+        </v-col>
+      </v-row>
 
-    <!-- Fila separada: botón enviar en la esquina derecha -->
-    <v-row>
-      <v-col cols="12" class="d-flex justify-end">
-        <v-btn color="primary" class="mt-6" :loading="submitting" :disabled="isLoading" @click="submitForm">
-          <template v-slot:loader>
-            <v-progress-circular indeterminate color="white" size="20" />
-          </template>
-          <v-icon :icon="mdiCheck" class="mr-2" />
-          {{ submitting ? 'Enviando...' : 'Enviar Formulario' }}
-        </v-btn>
-      </v-col>
-    </v-row>
+      <!-- Fila separada: botón enviar en la esquina derecha -->
+      <v-row>
+        <v-col cols="12" class="d-flex justify-end">
+          <v-btn color="primary" class="mt-6" :loading="submitting" :disabled="isLoading" @click="submitForm">
+            <template v-slot:loader>
+              <v-progress-circular indeterminate color="white" size="20" />
+            </template>
+            <v-icon :icon="mdiCheck" class="mr-2" />
+            {{ submitting ? 'Enviando...' : 'Enviar Formulario' }}
+          </v-btn>
+        </v-col>
+      </v-row>
+    </template>
   </v-container>
 </template>
 
@@ -301,10 +312,33 @@ const businessUnitGroup = ref(null);
 // --- INTEGRACIÓN: Control de submit para mostrar errores solo después de intentar enviar ---
 const triedSubmit = ref(false);
 
+// NUEVO: Para control de geolocalización
+const userLocation = ref(null);
+const geoCheckError = ref(null);
+
+// Computed para filtrar los campos visibles (oculta geolocalización con scope)
+const visibleFields = computed(
+  () => form.value?.fields?.filter((field) => !(field.type === 'geolocation' && field.attributes?.mode === 'scope')) || []
+);
+
+// NUEVO: Usar la ubicación guardada en localStorage (no volver a pedir permiso)
+const getUserLocation = () =>
+  new Promise((resolve, reject) => {
+    const lat = localStorage.getItem('geo_lat');
+    const lng = localStorage.getItem('geo_lng');
+    if (lat && lng) {
+      resolve({ lat: parseFloat(lat), lng: parseFloat(lng) });
+    } else {
+      reject('No se encontró la ubicación del usuario. Por favor, inicia sesión de nuevo.');
+    }
+  });
+
 const showForm = async () => {
   isLoading.value = true;
+  geoCheckError.value = null;
   try {
-    const res = await axiosInstance.get(`/forms/${formId.value}`);
+    // 1. Primer fetch para saber si hay campo geolocalización scope
+    let res = await axiosInstance.get(`/forms/${formId.value}`);
     form.value = res.data.forms ? res.data.forms[0] : res.data.data;
 
     // Extraer info adicional si existe
@@ -312,9 +346,44 @@ const showForm = async () => {
     business.value = form.value?.business || null;
     businessUnit.value = form.value?.business_unit || null;
     businessUnitGroup.value = form.value?.business_unit_group || null;
+
+    // 2. Si tiene campo geolocalización con mode=scope, usar ubicación guardada
+    const geoField = form.value?.fields?.find((f) => f.type === 'geolocation' && f.attributes?.mode === 'scope');
+    if (geoField) {
+      try {
+        userLocation.value = await getUserLocation();
+      } catch (err) {
+        geoCheckError.value = err || 'No se pudo obtener tu ubicación';
+        isLoading.value = false;
+        return;
+      }
+      // Hacer fetch con ubicación y for_response=1
+      try {
+        res = await axiosInstance.get(`/forms/${formId.value}`, {
+          params: {
+            for_response: 1,
+            'location.lat': userLocation.value.lat,
+            'location.lng': userLocation.value.lng
+          }
+        });
+        form.value = res.data.forms ? res.data.forms[0] : res.data.data;
+        // Extraer info adicional de nuevo (por si cambia)
+        organization.value = form.value?.organization || null;
+        business.value = form.value?.business || null;
+        businessUnit.value = form.value?.business_unit || null;
+        businessUnitGroup.value = form.value?.business_unit_group || null;
+      } catch (err) {
+        if (err.response && err.response.status === 403) {
+          geoCheckError.value = err.response.data.message || 'No puedes abrir este formulario fuera del alcance permitido.';
+        } else {
+          geoCheckError.value = 'No se pudo cargar el formulario';
+        }
+        isLoading.value = false;
+        return;
+      }
+    }
   } catch (err) {
-    console.error('Failed to fetch form', err);
-    toast.error('No se pudo cargar el formulario');
+    geoCheckError.value = 'No se pudo cargar el formulario';
   } finally {
     isLoading.value = false;
   }
@@ -378,7 +447,8 @@ const isGeolocationManualValid = (val) => {
 const submitForm = async () => {
   triedSubmit.value = true;
   if (!form.value) return;
-  const requiredFields = form.value.fields.filter((field) => field.is_required);
+  // Usar visibleFields para validación de requeridos
+  const requiredFields = visibleFields.value.filter((field) => field.is_required);
   const missingFields = requiredFields.filter((field) => {
     if (field.type === 'checkbox') {
       return !formData.value[field.id] || formData.value[field.id].length === 0;
@@ -393,7 +463,7 @@ const submitForm = async () => {
   });
 
   // Validar máximo 4 archivos/firma
-  const tooManyFiles = form.value.fields.some(
+  const tooManyFiles = visibleFields.value.some(
     (field) =>
       (field.type === 'file' && fileData.value[field.id] && fileData.value[field.id].length > 4) ||
       (field.type === 'signature' && signatureData.value[field.id] && signatureData.value[field.id].length > 4)
@@ -412,6 +482,7 @@ const submitForm = async () => {
   try {
     const dataToSend = new FormData();
     const answers = Object.keys(formData.value).map((fieldId) => {
+      // Buscar el field en todos los campos, no solo los visibles, para no perder respuestas ocultas
       const field = form.value.fields.find((f) => f.id == fieldId);
       let value;
       if (field.type === 'file' || field.type === 'signature') {

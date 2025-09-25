@@ -653,9 +653,8 @@ const validate = async () => {
     const newForm = res.data.form;
     if (newForm && newForm.id) {
       router.push({
-        name: 'AddFieldsForm',
-        params: { id: newForm.id },
-        state: { form: newForm }
+        name: 'Forms Show',
+        params: { id: newForm.id }
       });
     }
   } catch (err) {

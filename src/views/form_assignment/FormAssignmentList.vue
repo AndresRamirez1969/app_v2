@@ -26,6 +26,8 @@ const checkScreen = () => {
 onMounted(() => {
   checkScreen();
   window.addEventListener('resize', checkScreen);
+  // Debug: Verifica que los formularios de todas las frecuencias llegan correctamente
+  console.log('Formularios recibidos:', props.items);
 });
 onBeforeUnmount(() => {
   window.removeEventListener('resize', checkScreen);
@@ -46,22 +48,23 @@ const formatDate = (dateString) => {
 };
 
 const getResponseStatus = (form) => {
-  console.log(
-    'Formulario:',
-    form.folio,
-    'frequency:',
-    form.frequency,
-    'can_respond:',
-    form.can_respond,
-    'has_responded:',
-    form.has_responded
-  );
+  // Puedes dejar este log para debug si lo necesitas
+  // console.log(
+  //   'Formulario:',
+  //   form.folio,
+  //   'frequency:',
+  //   form.frequency,
+  //   'can_respond:',
+  //   form.can_respond,
+  //   'has_responded:',
+  //   form.has_responded
+  // );
 
   if (form.frequency === 'multiple_per_day') {
     return { text: 'Formulario Persistente', color: 'info' };
   }
   if (form.frequency === 'once_per_day') {
-    if (form.can_respond === false) return { text: 'Completado', color: 'success' };
+    if (form.can_respond === false) return { text: 'Contestado', color: 'success' };
     if (form.can_respond === true) return { text: 'Sin Responder', color: 'warning' };
     return { text: 'Desconocido', color: 'grey' };
   }
@@ -90,7 +93,11 @@ const getScope = (form) => {
   return { text: '—', route: null };
 };
 
-const filteredItems = computed(() => props.items.filter((f) => f && typeof f === 'object'));
+// Solución: Asegúrate de que el filtro no excluya formularios por frecuencia
+const filteredItems = computed(() =>
+  props.items.filter((f) => f && typeof f === 'object' && (f.frequency === 'once_per_day' || f.frequency === 'multiple_per_day'))
+);
+
 const sortedItems = computed(() =>
   [...filteredItems.value].sort((a, b) => {
     const aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';

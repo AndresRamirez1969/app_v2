@@ -276,7 +276,32 @@ const close = () => {
   emit('update:modelValue', false);
 };
 
+const totalWeightUsed = computed(() => currentFields.value.reduce((total, field) => total + (field.weight || 0), 0));
+const maxWeightAvailable = computed(() => {
+  let current = 0;
+  if (editingFieldIndex.value >= 0 && editingFieldIndex.value < currentFields.value.length) {
+    current = currentFields.value[editingFieldIndex.value]?.weight || 0;
+  }
+  return 100 - totalWeightUsed.value + current;
+});
+const validateWeight = (w) => {
+  const n = parseInt(w) || 0;
+  if (n < 0) return 0;
+  if (n > maxWeightAvailable.value) return maxWeightAvailable.value;
+  return n;
+};
+
+const getFieldTypeLabel = (type) => {
+  const fieldType = availableFieldTypes.value.find((ft) => ft.value === type);
+  return fieldType ? fieldType.label : type;
+};
+
+// Estado para controlar si se intentó guardar con ponderación incorrecta
+const triedSaveWithWrongWeight = ref(false);
+
 const saveCurrentFields = async () => {
+  triedSaveWithWrongWeight.value = false;
+
   if (!currentFields.value.length) {
     errorMsg.value = 'No hay campos para guardar';
     return;
@@ -307,6 +332,13 @@ const saveCurrentFields = async () => {
         return;
       }
     }
+  }
+
+  // Validar ponderación si aplica
+  if (props.form?.has_rating && totalWeightUsed.value !== 100) {
+    triedSaveWithWrongWeight.value = true;
+    errorMsg.value = 'La suma de la ponderación debe ser exactamente 100 puntos.';
+    return;
   }
 
   // Validar estado del formulario antes de guardar campos
@@ -399,26 +431,6 @@ const saveCurrentFields = async () => {
     saving.value = false;
   }
 };
-
-const getFieldTypeLabel = (type) => {
-  const fieldType = availableFieldTypes.value.find((ft) => ft.value === type);
-  return fieldType ? fieldType.label : type;
-};
-
-const totalWeightUsed = computed(() => currentFields.value.reduce((total, field) => total + (field.weight || 0), 0));
-const maxWeightAvailable = computed(() => {
-  let current = 0;
-  if (editingFieldIndex.value >= 0 && editingFieldIndex.value < currentFields.value.length) {
-    current = currentFields.value[editingFieldIndex.value]?.weight || 0;
-  }
-  return 100 - totalWeightUsed.value + current;
-});
-const validateWeight = (w) => {
-  const n = parseInt(w) || 0;
-  if (n < 0) return 0;
-  if (n > maxWeightAvailable.value) return maxWeightAvailable.value;
-  return n;
-};
 </script>
 
 <template>
@@ -435,9 +447,22 @@ const validateWeight = (w) => {
         <div class="modal-title-container" :class="{ 'center-mobile': isMobile }">
           <span class="modal-title">Constructor de Campos</span>
         </div>
-        <span class="close-icon" @click="close">
-          <v-icon :icon="mdiClose" color="grey-darken-2" size="28"></v-icon>
-        </span>
+        <div class="d-flex align-center">
+          <template v-if="form?.has_rating">
+            <span
+              class="ponderacion-header mr-4"
+              :style="{
+                color: totalWeightUsed === 100 ? '#111' : '#d32f2f',
+                fontWeight: 500
+              }"
+            >
+              Ponderación: {{ totalWeightUsed }} / 100
+            </span>
+          </template>
+          <span class="close-icon" @click="close">
+            <v-icon :icon="mdiClose" color="grey-darken-2" size="28"></v-icon>
+          </span>
+        </div>
       </div>
 
       <!-- SIDEBAR DROPDOWN (MOBILE) -->
@@ -1177,5 +1202,10 @@ const validateWeight = (w) => {
   .sidebar-dropdown-mobile {
     display: none !important;
   }
+}
+.ponderacion-header {
+  display: inline-block;
+  min-width: 120px;
+  text-align: right;
 }
 </style>
