@@ -67,11 +67,6 @@ const formatDate = (dateString) => {
   });
 };
 
-const getFieldValue = (fieldId) => {
-  const response = userResponse.value.field_responses?.find((r) => r.form_field_id === fieldId);
-  return response ? response.value : '—';
-};
-
 const getFieldValueForDisplay = (fieldId, fieldType) => {
   const response = userResponse.value.field_responses?.find((r) => r.form_field_id === fieldId);
   if (!response) {
@@ -82,8 +77,23 @@ const getFieldValueForDisplay = (fieldId, fieldType) => {
   console.log(`Campo ${fieldId} (${fieldType}):`, response);
 
   if (fieldType === 'file' || fieldType === 'signature') {
-    const value = response.value;
+    let value = response.value;
     console.log(`Valor del campo ${fieldType}:`, value);
+
+    // Si el valor es un string JSON (array), parsearlo
+    if (typeof value === 'string' && value.startsWith('[')) {
+      try {
+        value = JSON.parse(value);
+      } catch (e) {
+        console.error('Error parsing JSON:', e);
+        return null;
+      }
+    }
+
+    // Si es un array, devolver el primer elemento o el array completo
+    if (Array.isArray(value)) {
+      return value.length > 0 ? value : null;
+    }
 
     // Si el valor es una URL completa, úsala directamente
     if (value && (value.startsWith('http://') || value.startsWith('https://'))) {
@@ -92,7 +102,6 @@ const getFieldValueForDisplay = (fieldId, fieldType) => {
 
     // Si es solo un nombre de archivo, construye la URL completa de S3
     if (value && !value.startsWith('http')) {
-      // Ajusta esta URL base según tu configuración de S3
       const s3BaseUrl = 'https://tasker-v2-bucket.s3.us-east-2.amazonaws.com/';
       return s3BaseUrl + value;
     }
@@ -101,6 +110,46 @@ const getFieldValueForDisplay = (fieldId, fieldType) => {
   }
 
   return response.value || '—';
+};
+
+// Nueva función para obtener todos los archivos de un campo
+const getFieldFiles = (fieldId, fieldType) => {
+  const response = userResponse.value.field_responses?.find((r) => r.form_field_id === fieldId);
+  if (!response) return [];
+
+  if (fieldType === 'file' || fieldType === 'signature') {
+    let value = response.value;
+
+    // Si el valor es un string JSON (array), parsearlo
+    if (typeof value === 'string' && value.startsWith('[')) {
+      try {
+        value = JSON.parse(value);
+      } catch (e) {
+        console.error('Error parsing JSON:', e);
+        return [];
+      }
+    }
+
+    // Si es un array, devolverlo
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    // Si es un string, convertirlo a array
+    if (value && (value.startsWith('http://') || value.startsWith('https://'))) {
+      return [value];
+    }
+
+    // Si es solo un nombre de archivo, construir la URL completa
+    if (value && !value.startsWith('http')) {
+      const s3BaseUrl = 'https://tasker-v2-bucket.s3.us-east-2.amazonaws.com/';
+      return [s3BaseUrl + value];
+    }
+
+    return [];
+  }
+
+  return [];
 };
 
 onMounted(() => {
@@ -159,8 +208,23 @@ onMounted(() => {
                     </v-card-title>
                     <v-card-text class="pt-0">
                       <div v-if="field.type === 'signature' || field.type === 'file'">
-                        <div v-if="getFieldValueForDisplay(field.id, field.type)">
+                        <div v-if="getFieldFiles(field.id, field.type).length > 0">
+                          <!-- Si hay múltiples archivos, mostrar todos -->
+                          <div v-if="getFieldFiles(field.id, field.type).length > 1" class="d-flex flex-wrap gap-2">
+                            <v-img
+                              v-for="(fileUrl, index) in getFieldFiles(field.id, field.type)"
+                              :key="index"
+                              :src="fileUrl"
+                              :alt="`Archivo ${index + 1}`"
+                              class="mb-2"
+                              max-height="200"
+                              max-width="200"
+                              contain
+                            />
+                          </div>
+                          <!-- Si hay un solo archivo, mostrar normalmente -->
                           <v-img
+                            v-else
                             :src="getFieldValueForDisplay(field.id, field.type)"
                             alt="Firma o archivo"
                             class="mb-2"

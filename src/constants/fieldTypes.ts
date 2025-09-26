@@ -132,13 +132,13 @@ export const AVAILABLE_FIELDS = [
     description: 'Campo para número telefónico',
     preview: 'v-text-field'
   },
-  {
-    label: 'Color',
-    value: 'color',
-    icon: mdiPalette,
-    description: 'Selector de color',
-    preview: 'v-text-field'
-  },
+  // {
+  //   label: 'Color',
+  //   value: 'color',
+  //   icon: mdiPalette,
+  //   description: 'Selector de color',
+  //   preview: 'v-text-field'
+  // },
   {
     label: 'Geolocalización',
     value: 'geolocation',
