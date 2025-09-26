@@ -119,14 +119,33 @@ onMounted(async () => {
     }
 
     // --- ACCESS CONTROL LOGIC ---
+    const userOrgId = String(user.value.organization_id ?? '');
+    const userBusinessId = String(user.value.business_id ?? '');
+    const unitOrgId = String(businessUnit.value.organization_id ?? '');
+    const unitBusinessId = String(businessUnit.value.business_id ?? '');
+
+    // LOG para depuración
+    console.log('Access check', {
+      isSuperadmin: isSuperadmin.value,
+      isAdmin: isAdmin.value,
+      isSponsor: isSponsor.value,
+      canView: canView.value,
+      canViewAny: canViewAny.value,
+      userOrgId,
+      userBusinessId,
+      unitOrgId,
+      unitBusinessId,
+      user: user.value,
+      businessUnit: businessUnit.value
+    });
+
     if (isSuperadmin.value) {
       canShow.value = true;
       return;
     }
 
     if (isAdmin.value) {
-      const userOrgId = user.value.organization_id;
-      if (String(businessUnit.value.organization_id) === String(userOrgId)) {
+      if (unitOrgId === userOrgId) {
         canShow.value = true;
         return;
       } else {
@@ -136,12 +155,8 @@ onMounted(async () => {
     }
 
     if (isSponsor.value) {
-      const userOrgId = user.value.organization_id;
-      const userBusinessId = user.value.business_id;
-      if (
-        String(businessUnit.value.organization_id) === String(userOrgId) &&
-        String(businessUnit.value.business_id) === String(userBusinessId)
-      ) {
+      // El sponsor debe tener el permiso y coincidir ambos IDs
+      if (canView.value && unitOrgId === userOrgId && unitBusinessId === userBusinessId) {
         canShow.value = true;
         return;
       } else {
@@ -151,12 +166,7 @@ onMounted(async () => {
     }
 
     if (canViewAny.value && canView.value) {
-      const userOrgId = user.value.organization_id;
-      const userBusinessId = user.value.business_id;
-      if (
-        String(businessUnit.value.organization_id) === String(userOrgId) &&
-        String(businessUnit.value.business_id) === String(userBusinessId)
-      ) {
+      if (unitOrgId === userOrgId && unitBusinessId === userBusinessId) {
         canShow.value = true;
         return;
       } else {
