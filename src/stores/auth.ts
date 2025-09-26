@@ -24,12 +24,21 @@ export const useAuthStore = defineStore('auth', {
           return [];
         }
       })(),
-      returnUrl: null as string | null
+      returnUrl: null as string | null,
+      tokenExpiresAt: localStorage.getItem('tokenExpiresAt') || null
     };
   },
 
   getters: {
     isLoggedIn: (state) => !!state.token && !!state.user,
+    isTokenExpired: (state) => {
+      if (!state.tokenExpiresAt) return false;
+      return new Date().getTime() > parseInt(state.tokenExpiresAt);
+    },
+    isTokenValid: (state) => {
+      if (!state.token || !state.user || !state.tokenExpiresAt) return false;
+      return new Date().getTime() <= parseInt(state.tokenExpiresAt);
+    },
     getUser: (state) => state.user,
     hasRole: (state) => (role: string | string[]) => {
       if (!state.user || !state.user.roles) return false;
@@ -52,7 +61,6 @@ export const useAuthStore = defineStore('auth', {
           password
         });
 
-        // Validar que la respuesta tenga la estructura esperada
         if (!response.data || !response.data.token) {
           throw new Error('Respuesta del servidor inválida');
         }
@@ -72,16 +80,21 @@ export const useAuthStore = defineStore('auth', {
         };
         this.permissions = permissions;
 
+        const expiresAt = new Date().getTime() + (60 * 60 * 1000); // 60 minutos en milisegundos
+        this.tokenExpiresAt = expiresAt.toString();
+
         localStorage.setItem('authToken', this.token);
         localStorage.setItem('authUser', JSON.stringify(this.user));
+        localStorage.setItem('tokenExpiresAt', this.tokenExpiresAt);
 
-        console.log('✅ Login exitoso:', {
+        console.log('Login exitoso:', {
           user: this.user,
           permissions: this.permissions,
-          token: this.token ? 'presente' : 'ausente'
+          token: this.token ? 'presente' : 'ausente',
+          expiresAt: new Date(expiresAt).toLocaleString()
         });
       } catch (error) {
-        console.error('❌ Error en login:', error);
+        console.error('Error en login:', error);
         throw error;
       }
     },
@@ -94,8 +107,13 @@ export const useAuthStore = defineStore('auth', {
         permissions: permissions
       };
       this.permissions = permissions;
+
+      const expiresAt = new Date().getTime() + (60 * 60 * 1000);
+      this.tokenExpiresAt = expiresAt.toString();
+
       localStorage.setItem('authToken', token);
       localStorage.setItem('authUser', JSON.stringify(this.user));
+      localStorage.setItem('tokenExpiresAt', this.tokenExpiresAt);
     },
 
     async logout() {
@@ -103,10 +121,20 @@ export const useAuthStore = defineStore('auth', {
       this.user = null;
       this.permissions = [];
       this.returnUrl = null;
+      this.tokenExpiresAt = null;
       localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
       localStorage.removeItem('authPermissions');
+      localStorage.removeItem('tokenExpiresAt');
       axiosInstance.post('/logout').catch(() => {});
+    },
+
+    checkTokenExpiration() {
+      if (this.isTokenExpired) {
+        this.logout();
+        return false;
+      }
+      return true;
     },
 
     async fetchUser() {
