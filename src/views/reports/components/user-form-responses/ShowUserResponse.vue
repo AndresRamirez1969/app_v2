@@ -207,6 +207,7 @@ onMounted(() => {
                       <v-chip v-if="field.is_required" color="error" size="x-small" class="ml-2"> Requerido </v-chip>
                     </v-card-title>
                     <v-card-text class="pt-0">
+                      <!-- Para campos de archivo o firma -->
                       <div v-if="field.type === 'signature' || field.type === 'file'">
                         <div v-if="getFieldFiles(field.id, field.type).length > 0">
                           <!-- Si hay múltiples archivos, mostrar todos -->
@@ -237,7 +238,8 @@ onMounted(() => {
                           <p class="text-grey mt-2">No hay archivo disponible</p>
                         </div>
                       </div>
-                      <p v-else class="text-body-1">{{ getFieldValue(field.id) }}</p>
+                      <!-- Para todos los demás tipos de campos (texto, número, fecha, etc.) -->
+                      <p v-else class="text-body-1">{{ getFieldValueForDisplay(field.id, field.type) }}</p>
                     </v-card-text>
                   </v-card>
                 </v-col>
