@@ -860,15 +860,18 @@ const saveCurrentFields = async () => {
 }
 
 .drop-zone {
-  min-height: 300px;
+  min-height: 600px;
   transition: none;
   background-color: #fff !important;
   position: relative;
+  padding: 32px !important;
 }
 .drop-zone-active {
-  background-color: #fff !important;
-  border-color: #2196f3;
+  background-color: #f0f8ff !important; 
+  border: 2px dashed #2196f3 !important; 
+  border-radius: 12px;  
   transform: none;
+  box-shadow: 0 4px 20px rgba(33, 150, 243, 0.15);
 }
 .drop-zone-mobile {
   min-height: 180px !important;
@@ -884,7 +887,7 @@ const saveCurrentFields = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
+  min-height: 500px;
   width: 100%;
   z-index: 2;
 }
