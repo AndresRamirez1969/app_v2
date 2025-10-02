@@ -21,6 +21,11 @@ const canView = ref(false);
 const canCreate = ref(false);
 const isLoading = ref(false);
 
+const currentPage = ref(1);
+const totalPages = ref(1);
+const perPage = ref(20);
+const total = ref(0);
+
 function hasPermission(permission) {
   return Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission);
 }
@@ -35,9 +40,18 @@ onMounted(async () => {
   canCreate.value = hasPermission('user.create');
   try {
     isLoading.value = true;
-    const { data } = await axios.get('/users');
+    const { data } = await axios.get('/users', {
+      params: {
+        page: currentPage.value,
+        per_page: perPage.value,
+        search: searchText.value,
+        ...filterOptions.value
+      }
+    });
     users.value = data.data;
     filteredUsers.value = data.data;
+    totalPages.value = data.meta.total_pages;
+    total.value = data.meta.total;
   } catch (error) {
     console.error('Error fetching users:', error);
   } finally {
