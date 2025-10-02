@@ -534,7 +534,6 @@ const saveCurrentFields = async () => {
 
     try {
       const response = await axiosInstance.get(`/forms/${props.form.id}`);
-      // Ajuste para soportar distintas estructuras de respuesta
       const data = response.data.form || response.data.data || response.data;
       currentFields.value = Array.isArray(data.fields)
         ? data.fields.map((f) => ({

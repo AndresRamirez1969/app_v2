@@ -156,6 +156,7 @@
                           <v-icon size="16" color="grey" class="mr-1">mdi-information-outline</v-icon>
                           {{ field.description }}
                         </div>
+
                         <!-- Si el campo requiere evidencia -->
                         <template v-if="field.has_evidence">
                           <div class="mb-4">
@@ -207,6 +208,7 @@
                             </v-file-input>
                           </div>
                         </template>
+
                         <!-- Si no tiene evidencia, render normal -->
                         <template v-else>
                           <!-- Campo Imagen -->
@@ -243,6 +245,7 @@
                               </template>
                             </v-file-input>
                           </div>
+
                           <!-- Campo Documento -->
                           <div v-else-if="field.type === 'document'">
                             <v-file-input
@@ -277,6 +280,7 @@
                               </template>
                             </v-file-input>
                           </div>
+
                           <!-- Campo Checkbox -->
                           <div v-else-if="field.type === 'checkbox'">
                             <div class="checkbox-group">
@@ -293,6 +297,7 @@
                               Este campo es requerido
                             </div>
                           </div>
+
                           <!-- Campo Firma -->
                           <div v-else-if="field.type === 'signature'">
                             <div class="signature-container">
@@ -319,40 +324,39 @@
                               Adjunta al menos una firma
                             </div>
                           </div>
-                          <!-- Campo Semáforo -->
+
+                          <!-- Campo Semáforo: radios con chips de colores -->
                           <div v-else-if="field.type === 'semaforo'">
-                            <div class="semaforo-chips-row mb-2">
-                              <v-chip
+                            <v-radio-group
+                              v-model="formData[field.id]"
+                              :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
+                              class="semaforo-radio-group semaforo-chips-row"
+                            >
+                              <v-radio
                                 v-for="option in field.options"
                                 :key="option"
-                                :color="
-                                  field.attributes?.semaforo_colors?.[option] ||
-                                  (option === 'Alto' ? 'red' : option === 'Medio' ? 'yellow' : 'green')
-                                "
-                                :style="{
-                                  background: option === 'Alto' ? '#e53935' : option === 'Medio' ? '#ffd600' : '#43a047',
-                                  color: option === 'Medio' ? 'black' : 'white',
-                                  paddingLeft: '18px',
-                                  paddingRight: '18px',
-                                  fontWeight: formData[field.id] === option ? 'bold' : 'normal',
-                                  border: formData[field.id] === option ? '2px solid #1976d2' : '2px solid transparent',
-                                  cursor: 'pointer',
-                                  fontSize: '1rem'
-                                }"
-                                class="semaforo-chip"
-                                @click="formData[field.id] = option"
-                                outlined
-                                pill
-                                :elevation="formData[field.id] === option ? 4 : 0"
+                                :value="option"
+                                class="ml-0 mr-3 my-1 semaforo-radio"
+                                :ripple="false"
                               >
-                                {{ option }}
-                                <v-icon v-if="formData[field.id] === option" color="primary" size="18" class="ml-1">mdi-check</v-icon>
-                              </v-chip>
-                            </div>
+                                <template #label>
+                                  <v-chip
+                                    pill
+                                    class="semaforo-chip"
+                                    :style="chipStyle(option, formData[field.id])"
+                                    @click.stop="formData[field.id] = option"
+                                  >
+                                    {{ option }}
+                                    <v-icon v-if="formData[field.id] === option" size="16" class="ml-1">mdi-check</v-icon>
+                                  </v-chip>
+                                </template>
+                              </v-radio>
+                            </v-radio-group>
                             <div v-if="triedSubmit && field.is_required && !formData[field.id]" class="text-caption text-red mt-1">
                               Este campo es requerido
                             </div>
                           </div>
+
                           <!-- Campo Radio -->
                           <div v-else-if="field.type === 'radio'">
                             <v-radio-group
@@ -362,6 +366,7 @@
                               <v-radio v-for="option in field.options" :key="option" :label="option" :value="option" class="ml-4" />
                             </v-radio-group>
                           </div>
+
                           <!-- Campo geolocalización manual -->
                           <div v-else-if="field.type === 'geolocation' && field.attributes?.mode === 'manual'">
                             <AddressAutocomplete
@@ -381,6 +386,7 @@
                               Este campo es requerido
                             </div>
                           </div>
+
                           <!-- Otros campos -->
                           <component
                             v-else-if="
@@ -407,6 +413,7 @@
                 </v-card>
               </div>
             </div>
+
             <div v-else class="text-center pa-8">
               <p class="text-grey">No se pudo cargar el formulario o no tiene campos</p>
             </div>
@@ -464,6 +471,40 @@ const triedSubmit = ref(false);
 
 const userLocation = ref(null);
 const geoCheckError = ref(null);
+
+/** --------- NUEVO: Colores y estilo dinámico de chips para Semáforo ---------- */
+const SEMAFORO_COLORS = {
+  Alto: '#e53935', // rojo
+  Medio: '#fb8c00', // ámbar
+  Bajo: '#43a047' // verde
+};
+
+const chipStyle = (option, selected) => {
+  // Soporta opciones en distintas capitalizaciones
+  const key =
+    option === 'Alto' || option === 'alto'
+      ? 'Alto'
+      : option === 'Medio' || option === 'medio'
+        ? 'Medio'
+        : option === 'Bajo' || option === 'bajo'
+          ? 'Bajo'
+          : option;
+
+  const base = SEMAFORO_COLORS[key] || '#9e9e9e';
+  const isSelected = selected === option;
+  return {
+    background: isSelected ? base : 'transparent',
+    color: isSelected ? 'white' : base,
+    border: `2px solid ${base}`,
+    padding: '4px 14px',
+    fontWeight: isSelected ? '600' : '500',
+    boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+    transition: 'all .15s ease-in-out',
+    cursor: 'pointer',
+    userSelect: 'none'
+  };
+};
+/** --------------------------------------------------------------------------- */
 
 const visibleFields = computed(
   () => form.value?.fields?.filter((field) => !(field.type === 'geolocation' && field.attributes?.mode === 'scope')) || []
@@ -702,6 +743,7 @@ const submitForm = async () => {
     });
 
     // Si el formulario requiere geolocalización por alcance, enviar location.lat y location.lng
+    const geoField = form.value?.fields?.find((f) => f.type === 'geolocation' && f.attributes?.mode === 'scope');
     if (geoField && userLocation.value) {
       dataToSend.append('location.lat', userLocation.value.lat);
       dataToSend.append('location.lng', userLocation.value.lng);
@@ -795,27 +837,44 @@ const formLogo = computed(
   justify-content: center;
   margin: 0;
 }
+
+/* Fila de chips (ya existía y la mantenemos) */
 .semaforo-chips-row {
   display: flex;
   flex-direction: row;
   gap: 12px;
   padding: 4px 0;
 }
+
+/* Look de píldora (se mantiene y se complementa) */
 .semaforo-chip {
   transition:
     border 0.2s,
-    box-shadow 0.2s;
+    box-shadow 0.2s,
+    background 0.15s ease-in-out,
+    color 0.15s ease-in-out;
   border-radius: 999px !important;
-  min-width: 70px;
+  min-width: 84px;
   justify-content: center;
   align-items: center;
   font-size: 1rem;
   cursor: pointer;
   user-select: none;
+  display: inline-flex;
 }
 .semaforo-chip:active {
   box-shadow: 0 2px 8px rgba(33, 150, 243, 0.12);
 }
+
+/* NUEVO: ocultar el circulito del radio; nos quedamos solo con el chip */
+.semaforo-radio .v-selection-control__input {
+  display: none !important;
+}
+.semaforo-radio .v-label {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 @media (max-width: 900px) {
   .question-number-desktop {
     display: none !important;
