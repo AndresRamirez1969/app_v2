@@ -319,6 +319,40 @@
                               Adjunta al menos una firma
                             </div>
                           </div>
+                          <!-- Campo Semáforo -->
+                          <div v-else-if="field.type === 'semaforo'">
+                            <div class="semaforo-chips-row mb-2">
+                              <v-chip
+                                v-for="option in field.options"
+                                :key="option"
+                                :color="
+                                  field.attributes?.semaforo_colors?.[option] ||
+                                  (option === 'Alto' ? 'red' : option === 'Medio' ? 'yellow' : 'green')
+                                "
+                                :style="{
+                                  background: option === 'Alto' ? '#e53935' : option === 'Medio' ? '#ffd600' : '#43a047',
+                                  color: option === 'Medio' ? 'black' : 'white',
+                                  paddingLeft: '18px',
+                                  paddingRight: '18px',
+                                  fontWeight: formData[field.id] === option ? 'bold' : 'normal',
+                                  border: formData[field.id] === option ? '2px solid #1976d2' : '2px solid transparent',
+                                  cursor: 'pointer',
+                                  fontSize: '1rem'
+                                }"
+                                class="semaforo-chip"
+                                @click="formData[field.id] = option"
+                                outlined
+                                pill
+                                :elevation="formData[field.id] === option ? 4 : 0"
+                              >
+                                {{ option }}
+                                <v-icon v-if="formData[field.id] === option" color="primary" size="18" class="ml-1">mdi-check</v-icon>
+                              </v-chip>
+                            </div>
+                            <div v-if="triedSubmit && field.is_required && !formData[field.id]" class="text-caption text-red mt-1">
+                              Este campo es requerido
+                            </div>
+                          </div>
                           <!-- Campo Radio -->
                           <div v-else-if="field.type === 'radio'">
                             <v-radio-group
@@ -355,7 +389,8 @@
                               field.type !== 'checkbox' &&
                               field.type !== 'radio' &&
                               field.type !== 'signature' &&
-                              field.type !== 'geolocation'
+                              field.type !== 'geolocation' &&
+                              field.type !== 'semaforo'
                             "
                             :is="FIELD_TYPES(field)"
                             v-bind="{
@@ -759,6 +794,27 @@ const formLogo = computed(
   align-items: center;
   justify-content: center;
   margin: 0;
+}
+.semaforo-chips-row {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  padding: 4px 0;
+}
+.semaforo-chip {
+  transition:
+    border 0.2s,
+    box-shadow 0.2s;
+  border-radius: 999px !important;
+  min-width: 70px;
+  justify-content: center;
+  align-items: center;
+  font-size: 1rem;
+  cursor: pointer;
+  user-select: none;
+}
+.semaforo-chip:active {
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.12);
 }
 @media (max-width: 900px) {
   .question-number-desktop {

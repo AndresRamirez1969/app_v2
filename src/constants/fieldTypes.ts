@@ -153,6 +153,13 @@ export const AVAILABLE_FIELDS = [
     icon: mdiMapMarker,
     description: 'Campo para capturar ubicación geográfica. Permite restringir por alcance, o permitir ingreso manual.',
     preview: 'geolocation-field'
+  },
+  {
+    label: 'Semáforo',
+    value: 'semaforo',
+    icon: mdiTuneVariant, // Usa el ícono que prefieras
+    description: 'Campo tipo semáforo (Alto, Medio, Bajo)',
+    preview: 'v-radio-group'
   }
 ];
 

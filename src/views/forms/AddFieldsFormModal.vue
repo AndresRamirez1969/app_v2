@@ -18,7 +18,7 @@ const showEditDialog = ref(false);
 const editingFieldIndex = ref(-1);
 const editingField = ref({
   label: '',
-  description: '', // INTEGRACIÓN: descripción opcional
+  description: '',
   type: '',
   is_required: false,
   options: [],
@@ -43,12 +43,11 @@ const isMobile = ref(false);
 const sidebarDropdownOpen = ref(false);
 
 const showOptionsField = computed(() => {
-  return ['select', 'radio', 'checkbox'].includes(editingField.value.type);
+  return ['select', 'radio', 'checkbox'].includes(editingField.value.type) && editingField.value.type !== 'semaforo';
 });
 const showGeolocationMode = computed(() => editingField.value.type === 'geolocation');
-const showMaxFilesField = computed(() => false); // INTEGRACIÓN: ocultar input de max_files
+const showMaxFilesField = computed(() => false);
 
-// Tipos permitidos para evidencia (según backend)
 const typesWithEvidence = [
   'text',
   'textarea',
@@ -77,7 +76,6 @@ if (typeof window !== 'undefined') {
   window.addEventListener('resize', checkMobile);
 }
 
-// Forzar attributes.mode en geolocation y mantenerlo siempre definido
 watch(editingField, (val) => {
   if (val.type === 'geolocation') {
     editingField.value.is_required = true;
@@ -88,21 +86,17 @@ watch(editingField, (val) => {
   }
   if (['signature', 'image', 'document'].includes(val.type)) {
     if (!editingField.value.attributes) editingField.value.attributes = {};
-    // INTEGRACIÓN: siempre forzar max_files a 1 si no está definido
     if (editingField.value.attributes.max_files === undefined || editingField.value.attributes.max_files === null) {
       editingField.value.attributes.max_files = 1;
     }
-    // INTEGRACIÓN: forzar rango permitido
     if (editingField.value.attributes.max_files < 1) editingField.value.attributes.max_files = 1;
     if (editingField.value.attributes.max_files > 4) editingField.value.attributes.max_files = 4;
   }
-  // Si cambia a un tipo que no soporta evidencia, limpiar has_evidence
   if (!typesWithEvidence.includes(val.type)) {
     editingField.value.has_evidence = false;
   }
 });
 
-// Al cargar campos, asegurar que attributes existe y tiene mode y descripción
 watch(
   () => props.modelValue,
   async (val) => {
@@ -110,7 +104,7 @@ watch(
       currentFields.value = Array.isArray(props.form?.fields)
         ? props.form.fields.map((f) => ({
             ...f,
-            description: f.description || '', // INTEGRACIÓN: descripción opcional
+            description: f.description || '',
             attributes:
               f.type === 'geolocation'
                 ? { ...(f.attributes || {}), mode: (f.attributes && f.attributes.mode) || 'scope' }
@@ -122,7 +116,8 @@ watch(
       editingFieldIndex.value = -1;
       try {
         const response = await axiosInstance.get(`/forms/${props.form.id}`);
-        const data = response.data.data || response.data;
+        // Ajuste para soportar distintas estructuras de respuesta
+        const data = response.data.form || response.data.data || response.data;
         existingLabels.value = Array.isArray(data.fields) ? data.fields.map((f) => f.label.trim().toLowerCase()) : [];
       } catch {
         existingLabels.value = [];
@@ -140,7 +135,7 @@ const addFieldType = (fieldType) => {
   const newField = {
     id: Date.now() + Math.random(),
     label: '',
-    description: '', // INTEGRACIÓN: descripción opcional
+    description: '',
     type: fieldType.value,
     is_required: fieldType.value === 'geolocation' ? true : false,
     options: ['select', 'radio', 'checkbox'].includes(fieldType.value) ? ['Opción 1'] : [],
@@ -155,6 +150,15 @@ const addFieldType = (fieldType) => {
   }
   if (['signature', 'image', 'document'].includes(fieldType.value)) {
     newField.attributes.max_files = 1;
+  }
+  if (fieldType.value === 'semaforo') {
+    newField.options = ['Alto', 'Medio', 'Bajo'];
+    newField.attributes.semaforo = true;
+    newField.attributes.semaforo_colors = {
+      Alto: 'red',
+      Medio: 'yellow',
+      Bajo: 'green'
+    };
   }
   currentFields.value.push(newField);
 };
@@ -273,12 +277,11 @@ const removeCurrentField = async (index) => {
   saving.value = false;
 };
 
-// INTEGRACIÓN: fuerza has_evidence a booleano real al abrir el modal de edición
 const editField = (index) => {
   editingFieldIndex.value = index;
   editingField.value = {
     ...currentFields.value[index],
-    description: currentFields.value[index].description || '', // INTEGRACIÓN: descripción opcional
+    description: currentFields.value[index].description || '',
     has_evidence: Boolean(currentFields.value[index].has_evidence)
   };
   if (editingField.value.type === 'geolocation') {
@@ -294,13 +297,24 @@ const editField = (index) => {
   ) {
     editingField.value.attributes.max_files = 1;
   }
-  // INTEGRACIÓN: forzar rango permitido
   if (['signature', 'image', 'document'].includes(editingField.value.type)) {
     if (editingField.value.attributes.max_files < 1) editingField.value.attributes.max_files = 1;
     if (editingField.value.attributes.max_files > 4) editingField.value.attributes.max_files = 4;
   }
   if (!typesWithEvidence.includes(editingField.value.type)) {
     editingField.value.has_evidence = false;
+  }
+  if (editingField.value.type === 'semaforo') {
+    editingField.value.options = ['Alto', 'Medio', 'Bajo'];
+    editingField.value.attributes = {
+      ...editingField.value.attributes,
+      semaforo: true,
+      semaforo_colors: {
+        Alto: 'red',
+        Medio: 'yellow',
+        Bajo: 'green'
+      }
+    };
   }
   showEditDialog.value = true;
 };
@@ -320,6 +334,18 @@ const saveEditedField = () => {
   }
   if (!typesWithEvidence.includes(editingField.value.type)) {
     editingField.value.has_evidence = false;
+  }
+  if (editingField.value.type === 'semaforo') {
+    editingField.value.options = ['Alto', 'Medio', 'Bajo'];
+    editingField.value.attributes = {
+      ...editingField.value.attributes,
+      semaforo: true,
+      semaforo_colors: {
+        Alto: 'red',
+        Medio: 'yellow',
+        Bajo: 'green'
+      }
+    };
   }
   if (editingFieldIndex.value >= 0) {
     currentFields.value[editingFieldIndex.value] = { ...editingField.value };
@@ -394,7 +420,7 @@ const saveCurrentFields = async () => {
   }
 
   for (const f of currentFields.value) {
-    if (['select', 'radio', 'checkbox'].includes(f.type)) {
+    if (['select', 'radio', 'checkbox'].includes(f.type) && f.type !== 'semaforo') {
       if (!Array.isArray(f.options) || !f.options.length || f.options.some((opt) => typeof opt !== 'string' || !opt.trim())) {
         errorMsg.value = 'Todos los campos de opciones deben tener al menos una opción válida y no vacía.';
         return;
@@ -423,7 +449,8 @@ const saveCurrentFields = async () => {
 
   try {
     const response = await axiosInstance.get(`/forms/${props.form.id}`);
-    const formData = response.data.data || response.data;
+    // Ajuste para soportar distintas estructuras de respuesta
+    const formData = response.data.form || response.data.data || response.data;
     const status = formData.status;
     const responsesCount = formData.responses_count ?? 0;
     if (status !== 'draft') {
@@ -449,7 +476,7 @@ const saveCurrentFields = async () => {
     for (const f of currentFields.value) {
       const payload = {
         label: f.label,
-        description: f.description || '', // INTEGRACIÓN: descripción opcional
+        description: f.description || '',
         type: f.type,
         is_required: !!f.is_required,
         order: f.order,
@@ -457,7 +484,15 @@ const saveCurrentFields = async () => {
         weight: typeof f.weight === 'number' ? f.weight : 0
       };
 
-      if (['select', 'radio', 'checkbox'].includes(f.type)) {
+      if (f.type === 'semaforo') {
+        payload.options = ['Alto', 'Medio', 'Bajo'];
+        payload.attributes.semaforo = true;
+        payload.attributes.semaforo_colors = {
+          Alto: 'red',
+          Medio: 'yellow',
+          Bajo: 'green'
+        };
+      } else if (['select', 'radio', 'checkbox'].includes(f.type)) {
         payload.options = (f.options || []).filter((opt) => typeof opt === 'string' && !!opt.trim());
       } else {
         delete payload.options;
@@ -472,7 +507,6 @@ const saveCurrentFields = async () => {
         delete payload.attributes.max_files;
       }
 
-      // has_evidence solo para tipos permitidos
       if (typesWithEvidence.includes(f.type)) {
         payload.has_evidence = !!f.has_evidence;
       } else {
@@ -500,11 +534,12 @@ const saveCurrentFields = async () => {
 
     try {
       const response = await axiosInstance.get(`/forms/${props.form.id}`);
-      const data = response.data.data || response.data;
+      // Ajuste para soportar distintas estructuras de respuesta
+      const data = response.data.form || response.data.data || response.data;
       currentFields.value = Array.isArray(data.fields)
         ? data.fields.map((f) => ({
             ...f,
-            description: f.description || '', // INTEGRACIÓN: descripción opcional
+            description: f.description || '',
             attributes:
               f.type === 'geolocation'
                 ? { ...(f.attributes || {}), mode: (f.attributes && f.attributes.mode) || 'scope' }
@@ -708,7 +743,6 @@ const saveCurrentFields = async () => {
                 class="mb-4"
                 @keyup.enter="saveEditedField"
               />
-              <!-- INTEGRACIÓN: Campo de descripción opcional -->
               <v-text-field
                 v-model="editingField.description"
                 label="Descripción (opcional)"
@@ -725,7 +759,6 @@ const saveCurrentFields = async () => {
                 :disabled="editingField.type === 'geolocation'"
               />
 
-              <!-- INTEGRACIÓN: Checkbox para evidencia -->
               <div v-if="typesWithEvidence.includes(editingField.type)">
                 <v-checkbox
                   v-model="editingField.has_evidence"
@@ -753,6 +786,16 @@ const saveCurrentFields = async () => {
                   label="Por alcance del formulario (automático)"
                   hide-details
                 />
+              </div>
+
+              <!-- Semáforo chips -->
+              <div v-if="editingField.type === 'semaforo'" class="mb-4">
+                <v-label class="text-body-2 font-weight-medium mb-2">Opciones del semáforo</v-label>
+                <div class="semaforo-chips-row">
+                  <v-chip style="background: #e53935; color: white; padding-left: 18px; padding-right: 18px">Alto</v-chip>
+                  <v-chip style="background: #ffd600; color: black; padding-left: 18px; padding-right: 18px">Medio</v-chip>
+                  <v-chip style="background: #43a047; color: white; padding-left: 18px; padding-right: 18px">Bajo</v-chip>
+                </div>
               </div>
 
               <div v-if="showOptionsField" class="mb-4">
@@ -785,8 +828,6 @@ const saveCurrentFields = async () => {
                   Agregar Opción
                 </v-btn>
               </div>
-
-              <!-- INTEGRACIÓN: max_files oculto, siempre 1-4, no editable -->
 
               <div v-if="form?.has_rating" class="mb-4">
                 <div class="d-flex align-center justify-space-between mb-3">
@@ -985,9 +1026,9 @@ const saveCurrentFields = async () => {
   padding: 32px !important;
 }
 .drop-zone-active {
-  background-color: #f0f8ff !important; 
-  border: 2px dashed #2196f3 !important; 
-  border-radius: 12px;  
+  background-color: #f0f8ff !important;
+  border: 2px dashed #2196f3 !important;
+  border-radius: 12px;
   transform: none;
   box-shadow: 0 4px 20px rgba(33, 150, 243, 0.15);
 }
@@ -1157,6 +1198,13 @@ const saveCurrentFields = async () => {
 .option-delete-icon {
   margin-left: 4px;
 } /* opcional, para separar del borde del input */
+
+.semaforo-chips-row {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  padding: 4px 0;
+}
 
 /* ----------- Mobile ----------- */
 @media (max-width: 900px) {
