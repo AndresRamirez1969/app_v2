@@ -35,7 +35,7 @@ const isProtectedRole = computed(() => protectedRoles.includes(role.value?.name?
 
 const goToEdit = () => {
   if (role.value?.id) {
-    router.push({ path: `/roles/${role.value.id}/edit` });
+    router.push({ path: `/roles/editar/${role.value.id}` });
   }
 };
 
