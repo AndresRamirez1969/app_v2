@@ -45,7 +45,6 @@ const selectedOrgForRoles = ref(null);
 const orgRoleOptions = ref([]);
 const loadingOrgRoles = ref(false);
 
-// INTEGRACIÓN: roles de la organización para admin/sponsor
 const orgRolesForAdmin = ref([]);
 const loadingOrgRolesForAdmin = ref(false);
 
@@ -72,7 +71,6 @@ const userOrganization = computed(() => user.value?.organization_id);
 
 const allRoles = computed(() => groupUsersByRole(allUsers.value));
 
-// INTEGRACIÓN: Roles filtrados por organización seleccionada en Asignaciones
 const filteredOrgRoles = computed(() => {
   const fixedRoles = [
     { id: 1, customLabel: 'Super Administrador' },
@@ -88,7 +86,6 @@ const filteredOrgRoles = computed(() => {
   return allRoles.value;
 });
 
-// INTEGRACIÓN: Roles para asignaciones según tipo de usuario
 const getAssignmentRoles = computed(() => {
   if (isSuperadmin.value) return filteredOrgRoles.value;
   if (isAdmin.value || isSponsor.value) {
@@ -295,17 +292,11 @@ const fetchUsersByScope = async () => {
 const fetchBusinesses = async () => {
   try {
     const res = await axiosInstance.get('/businesses');
-    businesses.value = res.data.data
-      .filter((b) => {
-        const orgId = b.organization?.id;
-        if (isSuperadmin.value) return true;
-        return Number(orgId) === Number(user.value?.organization_id);
-      })
-      .map((b) => ({
-        ...b,
-        customLabel: `${b.folio} - ${b.name}`,
-        organization_id: b.organization?.id
-      }));
+    businesses.value = res.data.data.map((b) => ({
+      ...b,
+      customLabel: `${b.folio} - ${b.name}`,
+      organization_id: b.organization?.id ?? b.organization_id
+    }));
   } catch {
     businesses.value = [];
   }
@@ -336,19 +327,12 @@ const fetchBusinessUnits = async (searchText = '') => {
 const fetchGroups = async () => {
   try {
     const res = await axiosInstance.get('/business-unit-groups');
-    groups.value = res.data.data
-      .filter((g) => {
-        const orgId = g.organization?.id ?? g.organization_id;
-        if (isSuperadmin.value) return true;
-        if (isSponsor.value) return Number(g.business_id) === Number(userBusinesses.value);
-        return Number(orgId) === Number(user.value?.organization_id);
-      })
-      .map((g) => ({
-        ...g,
-        customLabel: `${g.name}`,
-        business_id: g.business_id,
-        organization_id: g.organization?.id ?? g.organization_id
-      }));
+    groups.value = res.data.data.map((g) => ({
+      ...g,
+      customLabel: `${g.name}`,
+      business_id: g.business_id,
+      organization_id: g.organization?.id ?? g.organization_id
+    }));
   } catch {
     groups.value = [];
   }
@@ -372,7 +356,6 @@ const fetchOrganizations = async () => {
   }
 };
 
-// INTEGRACIÓN: Fetch roles por organización seleccionada para Asignaciones (superadmin)
 const fetchOrgRoles = async (orgId) => {
   loadingOrgRoles.value = true;
   try {
@@ -385,7 +368,6 @@ const fetchOrgRoles = async (orgId) => {
   }
 };
 
-// INTEGRACIÓN: Fetch roles de la organización para admin y sponsor
 const fetchOrgRolesForAdmin = async () => {
   loadingOrgRolesForAdmin.value = true;
   try {
@@ -398,6 +380,8 @@ const fetchOrgRolesForAdmin = async () => {
   }
 };
 
+const originalLogo = ref(null);
+
 watch(selectedOrgForRoles, async (orgId) => {
   if (isSuperadmin.value && orgId) {
     await fetchOrgRoles(orgId);
@@ -407,16 +391,34 @@ watch(selectedOrgForRoles, async (orgId) => {
   }
 });
 
-onMounted(async () => {
-  await fetchAllUsers();
+watch(scope, async (newScope, oldScope) => {
   await fetchBusinesses();
   await fetchGroups();
-  if (isSuperadmin.value) await fetchOrganizations();
-  if (isAdmin.value || isSponsor.value) await fetchOrgRolesForAdmin();
-  await fetchFormData();
+  await fetchBusinessUnits();
+  await fetchUsersByScope();
 });
 
-const originalLogo = ref(null);
+watch(selectedOrganization, async (orgId) => {
+  if (isSuperadmin.value && orgId) {
+    await fetchBusinesses();
+    await fetchGroups();
+    await fetchBusinessUnits();
+    await fetchUsersByScope();
+  }
+});
+
+watch(businessId, async (newBusinessId) => {
+  if (scope.value === 'business_unit' && newBusinessId) {
+    await fetchBusinessUnits();
+    businessUnitId.value = '';
+  }
+});
+
+watch(groupId, async (newGroupId) => {
+  if (scope.value === 'business_unit_group' && newGroupId) {
+    await fetchUsersByScope();
+  }
+});
 
 watch(logo, (newLogo) => {
   if (newLogo && !reuseLogo.value) {
@@ -433,6 +435,7 @@ watch(logo, (newLogo) => {
 
 const isLoading = ref(false);
 
+// --- INTEGRACIÓN: fetchFormData usando los objetos completos si existen ---
 const fetchFormData = async () => {
   const formId = route.params.id;
   if (!formId) return null;
@@ -452,19 +455,45 @@ const fetchFormData = async () => {
     logo.value = null;
     reuseLogo.value = !!form.use_scope_logo;
 
-    if (form) {
-      supervisor.value = form.supervisorRole ? form.supervisorRole.id : '';
-      auditors.value = Array.isArray(form.auditorRoles) ? form.auditorRoles.map((r) => r.id) : [];
-      audited.value = Array.isArray(form.auditadoRoles) ? form.auditadoRoles.map((r) => r.id) : [];
+    // Asignar organización seleccionada si aplica
+    if (isSuperadmin.value && form.organization_id) {
+      selectedOrganization.value = form.organization_id;
+      selectedOrgForRoles.value = form.organization_id;
+      await fetchOrgRoles(form.organization_id);
     }
 
+    // Esperar a que los roles estén cargados antes de asignar asignaciones
     await fetchUsersByScope();
+    await nextTick();
+
+    // INTEGRACIÓN: Usa los objetos completos si existen
+    supervisor.value = form.supervisorRole?.id || form.supervisor_role_id || '';
+    auditors.value = Array.isArray(form.auditorRoles)
+      ? form.auditorRoles.map((r) => r.id)
+      : Array.isArray(form.auditor_role_ids)
+        ? form.auditor_role_ids
+        : [];
+    audited.value = Array.isArray(form.auditadoRoles)
+      ? form.auditadoRoles.map((r) => r.id)
+      : Array.isArray(form.auditado_role_ids)
+        ? form.auditado_role_ids
+        : [];
+
     return form;
   } catch (err) {
     toast.error('No se pudo cargar el formulario');
     return null;
   }
 };
+
+onMounted(async () => {
+  await fetchAllUsers();
+  await fetchOrganizations();
+  await fetchBusinesses();
+  await fetchGroups();
+  if (isAdmin.value || isSponsor.value) await fetchOrgRolesForAdmin();
+  await fetchFormData();
+});
 
 const validate = async () => {
   if (!validateAllFields()) {
