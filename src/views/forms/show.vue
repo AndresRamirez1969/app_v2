@@ -17,7 +17,7 @@
           {{ formData.id ? `${formData.folio || formData.id} - ${formData.name || 'Formulario'}` : formData.name || 'Formulario' }}
         </h3>
         <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="formData">
-          {{ formData.id ? `${formData.folio || formData.id} - ${displayName}` : displayName }}
+          {{ formData.folio || formData.id }}
         </h3>
       </v-col>
       <v-col class="d-flex justify-end align-center">
@@ -379,7 +379,9 @@
                   <tr>
                     <th class="font-weight-bold text-subtitle-1">Tipo</th>
                     <th class="font-weight-bold text-subtitle-1">Nombre</th>
+                    <th class="font-weight-bold text-subtitle-1">Descripción</th>
                     <th class="font-weight-bold text-subtitle-1">¿Requerido?</th>
+                    <th v-if="formData?.has_rating" class="font-weight-bold text-subtitle-1">Puntuaje</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -392,8 +394,18 @@
                     </td>
                     <td>{{ field.label }}</td>
                     <td>
+                      <template v-if="field.description">
+                        <div v-for="(line, idx) in splitDescription(field.description)" :key="idx">{{ line }}</div>
+                      </template>
+                      <template v-else>-</template>
+                    </td>
+                    <td>
                       <v-chip v-if="field.is_required" color="red" size="x-small">Requerido</v-chip>
                       <span v-else>No</span>
+                    </td>
+                    <td v-if="formData?.has_rating">
+                      <span v-if="isValidWeight(field.weight)">{{ formatWeight(field.weight) }}</span>
+                      <span v-else>No asignado</span>
                     </td>
                   </tr>
                 </tbody>
@@ -410,6 +422,18 @@
                     <v-chip v-if="field.is_required" color="red" size="x-small" class="ml-2">Requerido</v-chip>
                   </div>
                   <div class="text-body-2 text-medium-emphasis">Tipo: {{ getFieldLabel(field.type) }}</div>
+                  <div class="text-body-2 text-medium-emphasis">
+                    Descripción:
+                    <template v-if="field.description">
+                      <div v-for="(line, idx) in splitDescription(field.description)" :key="idx">{{ line }}</div>
+                    </template>
+                    <template v-else>-</template>
+                  </div>
+                  <div v-if="formData?.has_rating" class="text-body-2 text-medium-emphasis">
+                    Puntuaje:
+                    <span v-if="isValidWeight(field.weight)">{{ formatWeight(field.weight) }}</span>
+                    <span v-else>No asignado</span>
+                  </div>
                 </v-card>
               </v-col>
             </v-row>
@@ -422,12 +446,14 @@
                 <tr>
                   <th class="font-weight-bold text-subtitle-1">Tipo</th>
                   <th class="font-weight-bold text-subtitle-1">Nombre</th>
+                  <th class="font-weight-bold text-subtitle-1">Descripción</th>
                   <th class="font-weight-bold text-subtitle-1">¿Requerido?</th>
+                  <th v-if="formData?.has_rating" class="font-weight-bold text-subtitle-1">Puntuaje</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td colspan="3" class="text-center text-grey">No hay campos agregados a este formulario</td>
+                  <td colspan="5" class="text-center text-grey">No hay campos agregados a este formulario</td>
                 </tr>
               </tbody>
             </v-table>
@@ -476,7 +502,7 @@ const formData = ref(null);
 const auth = useAuthStore();
 
 const showAddFieldsModal = ref(false);
-const showForm = ref(true); // NUEVO: para controlar la visibilidad
+const showForm = ref(true);
 
 const user = computed(() => auth.user || { roles: [], permissions: [], organization_id: null });
 const roles = computed(() => user.value.roles || []);
@@ -573,7 +599,6 @@ const formatFrequency = (freq) => {
   }
 };
 
-// Mapea los nombres de roles fijos a su versión legible
 function mapRoleName(name) {
   if (!name) return '';
   if (name === 'superadmin') return 'Super Administrador';
@@ -582,34 +607,62 @@ function mapRoleName(name) {
   return name;
 }
 
-// Solo refresca los datos, no hagas POST aquí
 const handleFieldsAdded = async () => {
   try {
     const res = await axiosInstance.get(`/forms/${formData.value.id}`);
     formData.value = res.data.data || res.data.form || res.data;
-  } catch (err) {
-    // Maneja el error si lo deseas
-  }
+  } catch (err) {}
 };
 
-// Devuelve el label del tipo de campo, si no existe, muestra el value original
 const getFieldLabel = (type) => {
   const found = AVAILABLE_FIELDS.find((f) => f.value === type);
   return found ? found.label : type;
 };
 
-// Devuelve el icono del tipo de campo
 const getFieldIcon = (type) => {
   const found = AVAILABLE_FIELDS.find((f) => f.value === type);
   return found ? found.icon : mdiFormTextbox;
 };
 
-// Devuelve el color del tipo de campo
 const getFieldColor = (type) => {
   return FIELD_COLOR(type);
 };
 
-// Cambia el estado del formulario
+// Validar si el weight es válido (no null, no undefined, no string vacío)
+const isValidWeight = (weight) => {
+  if (weight === null || weight === undefined) return false;
+  if (typeof weight === 'string' && weight.trim() === '') return false;
+  // Si es string numérico, también es válido
+  if (!isNaN(Number(weight))) return true;
+  return typeof weight === 'number';
+};
+
+// Formatear el weight para mostrarlo como número (sin decimales si es entero, con 2 si es decimal)
+const formatWeight = (weight) => {
+  if (typeof weight === 'string') {
+    const num = Number(weight);
+    if (Number.isInteger(num)) return num;
+    return num.toFixed(2);
+  }
+  if (typeof weight === 'number') {
+    if (Number.isInteger(weight)) return weight;
+    return weight.toFixed(2);
+  }
+  return weight;
+};
+
+// Divide la descripción en líneas de máximo 40 caracteres
+function splitDescription(desc, max = 40) {
+  if (!desc) return ['-'];
+  const lines = [];
+  let i = 0;
+  while (i < desc.length) {
+    lines.push(desc.slice(i, i + max));
+    i += max;
+  }
+  return lines;
+}
+
 const changeFormStatus = async (targetStatus) => {
   if (!formData.value) return;
   if (formData.value.status === 'draft' && targetStatus === 'active' && formData.value.fields && formData.value.fields.length === 0) {
@@ -624,7 +677,6 @@ const changeFormStatus = async (targetStatus) => {
       formData.value.auditorRoles = res.data.form.auditorRoles;
       formData.value.auditadoRoles = res.data.form.auditadoRoles;
     }
-    // Opcional: notificación de éxito
   } catch (error) {
     if (error?.response?.data?.message) {
       alert(error.response.data.message);
@@ -698,7 +750,7 @@ onMounted(async () => {
       return;
     }
   } catch (err) {
-    showForm.value = false; // CAMBIO: ahora usamos showForm en vez de canShow
+    showForm.value = false;
     if (err.response && err.response.status === 403) {
       router.replace('/403');
     }

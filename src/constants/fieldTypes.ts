@@ -5,12 +5,12 @@ import { mdiClock } from '@mdi/js';
 import { mdiFormSelect } from '@mdi/js';
 import { mdiRadioboxMarked } from '@mdi/js';
 import { mdiCheckboxMarkedOutline } from '@mdi/js';
-import { mdiFileImage } from '@mdi/js';
+import { mdiFileImage, mdiFileDocument } from '@mdi/js';
 import { mdiSignature } from '@mdi/js';
 import { mdiTuneVariant } from '@mdi/js';
 import { mdiToggleSwitch } from '@mdi/js';
 import { mdiMapMarker } from '@mdi/js';
-import { mdiLink, mdiEyeOff, mdiCellphone, mdiPalette } from '@mdi/js'; // nuevos iconos
+import { mdiLink, mdiEyeOff, mdiCellphone, mdiPalette } from '@mdi/js';
 
 export const AVAILABLE_FIELDS = [
   {
@@ -83,11 +83,19 @@ export const AVAILABLE_FIELDS = [
     description: 'Casillas de verificación',
     preview: 'v-checkbox'
   },
+  // --- SOLO Imagen y Documento ---
   {
-    label: 'Archivo',
-    value: 'file',
+    label: 'Imagen',
+    value: 'image',
     icon: mdiFileImage,
-    description: 'Subida de archivos',
+    description: 'Subida de imágenes (jpg, png, etc.)',
+    preview: 'v-file-input'
+  },
+  {
+    label: 'Documento',
+    value: 'document',
+    icon: mdiFileDocument,
+    description: 'Subida de documentos (PDF, Word, Excel, etc.)',
     preview: 'v-file-input'
   },
   {
@@ -160,7 +168,8 @@ export const FIELD_COLOR = (type: string) => {
     select: 'indigo',
     radio: 'indigo',
     checkbox: 'indigo',
-    file: 'brown',
+    image: 'amber',
+    document: 'deep-orange',
     signature: 'pink',
     color: 'pink',
     range: 'deep-purple',
