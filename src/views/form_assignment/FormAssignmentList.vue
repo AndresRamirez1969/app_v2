@@ -93,7 +93,7 @@ const getScope = (form) => {
   return { text: '—', route: null };
 };
 
-// Solución: Asegúrate de que el filtro no excluya formularios por frecuencia
+//Asegúrate de que el filtro no excluya formularios por frecuencia
 const filteredItems = computed(() =>
   props.items.filter((f) => f && typeof f === 'object' && (f.frequency === 'once_per_day' || f.frequency === 'multiple_per_day'))
 );
