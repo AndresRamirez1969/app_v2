@@ -335,6 +335,12 @@ watch(
       isBusinessUnitOnly.value = false;
       form.organization_id = null;
       form.business_unit_id = null;
+      const business = businessOptions.value.find((b) => b.id === val);
+      if (business && business.organization_id) {
+        suppressScopeWatchers.value = true;
+        scopeOrgId.value = business.organization_id;
+        suppressScopeWatchers.value = false;
+      }
       const orgFilter = scopeOrgId.value || undefined;
       fetchBusinesses('', { organization_id: orgFilter });
     } else if (!val && !form.organization_id && !form.business_unit_id) {
@@ -358,6 +364,13 @@ watch(
       isBusinessUnitOnly.value = true;
       form.organization_id = null;
       form.business_id = null;
+      const unit = businessUnitOptions.value.find((u) => u.id === val);
+      if (unit) {
+        suppressScopeWatchers.value = true;
+        scopeOrgId.value = unit.organization_id;
+        scopeBusinessId.value = unit.business_id;
+        suppressScopeWatchers.value = false;
+      }
       fetchBusinessUnits('', {
         organization_id: scopeOrgId.value || undefined,
         business_id: scopeBusinessId.value || undefined
@@ -429,30 +442,29 @@ const validate = async () => {
 
   isLoading.value = true;
 
-  // Si eligió business_unit, busca y asigna business y organization
-  if (form.business_unit_id) {
-    const unit = businessUnitOptions.value.find((u) => u.id === form.business_unit_id);
-    if (unit) {
-      form.business_id = unit.business_id;
-      form.organization_id = unit.organization_id;
-    }
+  let finalOrgId = form.organization_id;
+  let finalBusinessId = form.business_id;
+  let finalBusinessUnitId = form.business_unit_id;
+
+ // Si eligió business_unit, usar los IDs almacenados en scope
+ if (form.business_unit_id) {
+    finalBusinessId = scopeBusinessId.value;
+    finalOrgId = scopeOrgId.value;
   }
-  // Si eligió business, busca y asigna organization
+  // Si eligió business, usar el organization_id almacenado en scope
   else if (form.business_id) {
-    const business = businessOptions.value.find((b) => b.id === form.business_id);
-    if (business) {
-      form.organization_id = business.organization_id;
-    }
+    finalOrgId = scopeOrgId.value;
   }
+
 
   // --- DEBUG: Mostrar datos enviados ---
   console.log('Datos enviados al backend:', {
     name: form.name,
     email: form.email,
     role: form.role,
-    organization_id: form.organization_id,
-    business_id: form.business_id,
-    business_unit_id: form.business_unit_id,
+    organization_id: finalOrgId,
+    business_id: finalBusinessId,
+    business_unit_id: finalBusinessUnitId,
     contact: form.contact
   });
 
@@ -462,9 +474,9 @@ const validate = async () => {
     formData.append('email', form.email);
     formData.append('role', form.role);
 
-    if (form.organization_id) formData.append('organization_id', form.organization_id);
-    if (form.business_id) formData.append('business_id', form.business_id);
-    if (form.business_unit_id) formData.append('business_unit_id', form.business_unit_id);
+    if (finalOrgId) formData.append('organization_id', finalOrgId);
+    if (finalBusinessId) formData.append('business_id', finalBusinessId);
+    if (finalBusinessUnitId) formData.append('business_unit_id', finalBusinessUnitId);
 
     if (form.profile_picture) {
       const file = Array.isArray(form.profile_picture) ? form.profile_picture[0] : form.profile_picture;

@@ -36,7 +36,7 @@ export const permissionDescriptions = {
   'form.update': 'Permite editar la información de formularios existentes.',
   'form.delete': 'Permite eliminar formularios.',
   'form.assign': 'Permite asignar formularios a usuarios o ubicaciones.',
-
+  'form.hasResponses': 'Permite ver las respuestas de un formulario específico.',
   'form_field.create': 'Permite crear nuevos campos en formularios.',
   'form_field.update': 'Permite editar campos de formularios existentes.',
   'form_field.delete': 'Permite eliminar campos de formularios.',

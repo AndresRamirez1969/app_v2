@@ -6,6 +6,7 @@ export const permissionTranslations = {
   'form.update': 'Actualizar',
   'form.delete': 'Eliminar',
   'form.assign': 'Asignar',
+  'form.hasResponses' : 'Ver Respuesta Individual',
   // FORM RESPONSE
   'form_response.store': 'Responder',
   'form_response.viewAny': 'Ver Respuestas',
