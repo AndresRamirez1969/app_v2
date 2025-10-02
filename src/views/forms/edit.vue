@@ -45,13 +45,9 @@ const selectedOrgForRoles = ref(null);
 const orgRoleOptions = ref([]);
 const loadingOrgRoles = ref(false);
 
-const selectedBusinessOrganization = ref(null);
-
-// NUEVO: Para grupo, selecciona organización y empresa antes de grupo
-const selectedGroupOrganization = ref(null);
-const selectedGroupBusiness = ref(null);
-const groupBusinessOptions = ref([]);
-const groupGroupOptions = ref([]);
+// INTEGRACIÓN: roles de la organización para admin/sponsor
+const orgRolesForAdmin = ref([]);
+const loadingOrgRolesForAdmin = ref(false);
 
 const fieldErrors = reactive({
   name: '',
@@ -65,10 +61,7 @@ const fieldErrors = reactive({
   businessId: '',
   businessUnitId: '',
   groupId: '',
-  orgRole: '',
-  businessOrganization: '',
-  groupOrganization: '',
-  groupBusiness: ''
+  orgRole: ''
 });
 
 const isSuperadmin = computed(() => user.value?.roles?.includes('superadmin'));
@@ -78,6 +71,8 @@ const userBusinesses = computed(() => user.value?.business_id);
 const userOrganization = computed(() => user.value?.organization_id);
 
 const allRoles = computed(() => groupUsersByRole(allUsers.value));
+
+// INTEGRACIÓN: Roles filtrados por organización seleccionada en Asignaciones
 const filteredOrgRoles = computed(() => {
   const fixedRoles = [
     { id: 1, customLabel: 'Super Administrador' },
@@ -93,24 +88,19 @@ const filteredOrgRoles = computed(() => {
   return allRoles.value;
 });
 
+// INTEGRACIÓN: Roles para asignaciones según tipo de usuario
 const getAssignmentRoles = computed(() => {
   if (isSuperadmin.value) return filteredOrgRoles.value;
-  const orgId = selectedOrgForRoles.value || user.value?.organization_id;
-  let orgRoles = allRoles.value.filter((role) => role.organization_id === orgId && role.id !== 1);
-  if (isAdmin.value) {
-    orgRoles = [
-      { id: 2, customLabel: 'Administrador' },
-      { id: 3, customLabel: 'Sponsor' },
-      ...orgRoles.filter((role) => role.id !== 2 && role.id !== 3)
-    ];
-  } else if (isSponsor.value) {
-    orgRoles = [
-      { id: 2, customLabel: 'Administrador' },
-      { id: 3, customLabel: 'Sponsor' },
-      ...orgRoles.filter((role) => role.id !== 2 && role.id !== 3)
-    ];
+  if (isAdmin.value || isSponsor.value) {
+    const fixed = [];
+    if (isAdmin.value) fixed.push({ id: 2, customLabel: 'Administrador' });
+    fixed.push({ id: 3, customLabel: 'Sponsor' });
+    const orgRoles = orgRolesForAdmin.value
+      .filter((role) => ![1, 2, 3].includes(role.id))
+      .map((role) => ({ id: role.id, customLabel: role.name }));
+    return [...fixed, ...orgRoles];
   }
-  return orgRoles;
+  return [];
 });
 
 const scopeOptions = computed(() => {
@@ -166,29 +156,6 @@ const clearFieldError = (fieldName) => {
   if (fieldErrors[fieldName]) fieldErrors[fieldName] = '';
 };
 
-const clearFormFieldsOnScopeChange = () => {
-  supervisor.value = '';
-  auditors.value = [];
-  audited.value = [];
-  businessId.value = '';
-  businessUnitId.value = '';
-  groupId.value = '';
-  if (scope.value !== 'organization') {
-    selectedOrganization.value = null;
-  }
-  selectedOrgForRoles.value = null;
-  if (scope.value !== 'business' && scope.value !== 'business_unit') {
-    selectedBusinessOrganization.value = null;
-  }
-  logo.value = null;
-  profilePreview.value = null;
-  originalLogo.value = null;
-  selectedGroupOrganization.value = null;
-  selectedGroupBusiness.value = null;
-  groupBusinessOptions.value = [];
-  groupGroupOptions.value = [];
-};
-
 const validateField = (fieldName, value) => {
   clearFieldError(fieldName);
   switch (fieldName) {
@@ -229,17 +196,8 @@ const validateField = (fieldName, value) => {
       }
       break;
     case 'logo':
-      if (scope.value === 'business_unit_group' && reuseLogo.value) break;
-      if (scope.value === 'business_unit' && reuseLogo.value) break;
-      if ((reuseLogo.value && isSuperadmin.value) || (reuseLogo.value && scope.value !== 'business_unit_group')) break;
       if (!reuseLogo.value && (!value || (Array.isArray(value) && value.length === 0))) {
         fieldErrors.logo = 'El logo es obligatorio';
-        return false;
-      }
-      break;
-    case 'businessOrganization':
-      if ((scope.value === 'business' || scope.value === 'business_unit') && isSuperadmin.value && !selectedBusinessOrganization.value) {
-        fieldErrors.businessOrganization = 'Selecciona una organización para filtrar empresas';
         return false;
       }
       break;
@@ -267,18 +225,6 @@ const validateField = (fieldName, value) => {
         return false;
       }
       break;
-    case 'groupOrganization':
-      if (scope.value === 'business_unit_group' && isSuperadmin.value && !selectedGroupOrganization.value) {
-        fieldErrors.groupOrganization = 'Selecciona una organización para filtrar empresas';
-        return false;
-      }
-      break;
-    case 'groupBusiness':
-      if (scope.value === 'business_unit_group' && !selectedGroupBusiness.value) {
-        fieldErrors.groupBusiness = 'Selecciona una empresa para filtrar grupos';
-        return false;
-      }
-      break;
   }
   return true;
 };
@@ -292,21 +238,9 @@ const validateAllFields = () => {
   if (!validateField('frequency', frequency.value)) isValid = false;
   if (!validateField('scope', scope.value)) isValid = false;
   if (!validateField('logo', logo.value)) isValid = false;
-  if (
-    (scope.value === 'business' || scope.value === 'business_unit') &&
-    isSuperadmin.value &&
-    !validateField('businessOrganization', selectedBusinessOrganization.value)
-  )
-    isValid = false;
   if (!validateField('businessId', businessId.value)) isValid = false;
   if (!validateField('businessUnitId', businessUnitId.value)) isValid = false;
-  if (scope.value === 'business_unit_group') {
-    if (isSuperadmin.value && !validateField('groupOrganization', selectedGroupOrganization.value)) isValid = false;
-    if (!validateField('groupBusiness', selectedGroupBusiness.value)) isValid = false;
-    if (!validateField('groupId', groupId.value)) isValid = false;
-  } else {
-    if (!validateField('groupId', groupId.value)) isValid = false;
-  }
+  if (!validateField('groupId', groupId.value)) isValid = false;
   if (isSuperadmin.value && !validateField('orgRole', selectedOrgForRoles.value)) isValid = false;
   return isValid;
 };
@@ -364,10 +298,8 @@ const fetchBusinesses = async () => {
     businesses.value = res.data.data
       .filter((b) => {
         const orgId = b.organization?.id;
-        if ((scope.value === 'business' || scope.value === 'business_unit') && isSuperadmin.value) {
-          return selectedBusinessOrganization.value ? Number(orgId) === Number(selectedBusinessOrganization.value) : false;
-        }
-        return isSuperadmin.value ? true : Number(orgId) === Number(user.value?.organization_id);
+        if (isSuperadmin.value) return true;
+        return Number(orgId) === Number(user.value?.organization_id);
       })
       .map((b) => ({
         ...b,
@@ -379,67 +311,15 @@ const fetchBusinesses = async () => {
   }
 };
 
-const fetchGroupBusinesses = async () => {
-  try {
-    const res = await axiosInstance.get('/businesses');
-    groupBusinessOptions.value = res.data.data
-      .filter((b) => {
-        if (isSuperadmin.value) {
-          return selectedGroupOrganization.value ? Number(b.organization?.id) === Number(selectedGroupOrganization.value) : false;
-        }
-        return Number(b.organization?.id) === Number(user.value?.organization_id);
-      })
-      .map((b) => ({
-        ...b,
-        customLabel: `${b.folio} - ${b.name}`,
-        organization_id: b.organization?.id
-      }));
-  } catch {
-    groupBusinessOptions.value = [];
-  }
-};
-
-const fetchGroupGroups = async () => {
-  try {
-    const res = await axiosInstance.get('/business-unit-groups');
-    groupGroupOptions.value = res.data.data
-      .filter((g) => {
-        if (!selectedGroupBusiness.value) return false;
-        return Number(g.business_id) === Number(selectedGroupBusiness.value);
-      })
-      .map((g) => ({
-        ...g,
-        customLabel: `${g.name}`,
-        business_id: g.business_id,
-        organization_id: g.organization?.id ?? g.organization_id
-      }));
-  } catch {
-    groupGroupOptions.value = [];
-  }
-};
-
 const fetchBusinessUnits = async (searchText = '') => {
   try {
     const params = { q: searchText, limit: 10 };
     let businessIdFilter = businessId.value;
-    let orgIdFilter = null;
-
     if (isSponsor.value) businessIdFilter = userBusinesses.value;
-    if (isSuperadmin.value && selectedBusinessOrganization.value) {
-      orgIdFilter = Number(selectedBusinessOrganization.value);
-    } else if (!isSuperadmin.value) {
-      orgIdFilter = Number(user.value?.organization_id);
-    }
-
     if (scope.value === 'business_unit' && businessIdFilter) {
       const res = await axiosInstance.get('/business-units', { params });
       businessUnits.value = res.data.data
-        .filter((u) => {
-          const orgId = u.organization?.id ?? u.organization_id;
-          const businessMatch = Number(u.business_id) === Number(businessIdFilter);
-          const orgMatch = orgIdFilter ? Number(orgId) === Number(orgIdFilter) : true;
-          return businessMatch && orgMatch;
-        })
+        .filter((u) => Number(u.business_id) === Number(businessIdFilter))
         .map((u) => ({
           ...u,
           customLabel: `${u.folio} - ${u.legal_name ?? u.name}`,
@@ -492,6 +372,7 @@ const fetchOrganizations = async () => {
   }
 };
 
+// INTEGRACIÓN: Fetch roles por organización seleccionada para Asignaciones (superadmin)
 const fetchOrgRoles = async (orgId) => {
   loadingOrgRoles.value = true;
   try {
@@ -504,111 +385,35 @@ const fetchOrgRoles = async (orgId) => {
   }
 };
 
-const updateSelectedOrgForRoles = async () => {
-  let orgId = null;
-  if (scope.value === 'organization' && selectedOrganization.value) {
-    orgId = selectedOrganization.value;
-  } else if (scope.value === 'business' && businessId.value) {
-    const b = businesses.value.find((bb) => Number(bb.id) === Number(businessId.value));
-    orgId = b && typeof b.organization_id !== 'undefined' ? Number(b.organization_id) : null;
-  } else if (scope.value === 'business_unit' && businessUnitId.value) {
-    const unit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
-    orgId = unit && typeof unit.organization_id !== 'undefined' ? Number(unit.organization_id) : null;
-  } else if (scope.value === 'business_unit_group' && groupId.value) {
-    const group = groups.value.find((g) => Number(g.id) === Number(groupId.value));
-    orgId = group && typeof group.organization_id !== 'undefined' ? Number(group.organization_id) : null;
-  }
-  if (orgId) {
-    selectedOrgForRoles.value = orgId;
-    await fetchOrgRoles(orgId);
+// INTEGRACIÓN: Fetch roles de la organización para admin y sponsor
+const fetchOrgRolesForAdmin = async () => {
+  loadingOrgRolesForAdmin.value = true;
+  try {
+    const { data } = await axiosInstance.get('/roles');
+    orgRolesForAdmin.value = (data.data || []).filter((r) => r.organization_id === user.value.organization_id);
+  } catch {
+    orgRolesForAdmin.value = [];
+  } finally {
+    loadingOrgRolesForAdmin.value = false;
   }
 };
 
-watch(scope, async () => {
-  clearFormFieldsOnScopeChange();
-  await fetchUsersByScope();
-});
-
-watch(selectedOrganization, async () => {
-  if (scope.value === 'organization' && isSuperadmin.value) {
-    reuseLogo.value = false;
-    await refreshScopeSelection();
-    await fetchUsersByScope();
-  }
-});
-
-watch(selectedBusinessOrganization, async () => {
-  if ((scope.value === 'business' || scope.value === 'business_unit') && isSuperadmin.value) {
-    businessId.value = '';
-    businessUnitId.value = '';
-    await fetchBusinesses();
-    if (scope.value === 'business_unit' && !selectedBusinessOrganization.value) {
-      businesses.value = [];
-      businessUnits.value = [];
-    }
-  }
-});
-
-watch(businessId, async () => {
-  if (scope.value === 'business' || scope.value === 'business_unit') {
-    reuseLogo.value = false;
-    if (scope.value === 'business_unit') {
-      businessUnitId.value = '';
-      await fetchBusinessUnits();
-      if (!businessId.value) {
-        businessUnits.value = [];
-      }
-    }
-    await fetchUsersByScope();
-  }
-});
-
-watch(businessUnitId, async () => {
-  if (scope.value === 'business_unit') {
-    reuseLogo.value = false;
-    await fetchUsersByScope();
-  }
-});
-
-watch(groupId, async () => {
-  if (scope.value === 'business_unit_group') {
-    reuseLogo.value = false;
-    await fetchUsersByScope();
-  }
-});
-
-watch([scope, selectedOrganization, businessId, businessUnitId, groupId], async () => {
-  if (isSuperadmin.value) {
-    await updateSelectedOrgForRoles();
+watch(selectedOrgForRoles, async (orgId) => {
+  if (isSuperadmin.value && orgId) {
+    await fetchOrgRoles(orgId);
     supervisor.value = '';
     auditors.value = [];
-    if (scope.value !== 'business_unit_group') {
-      audited.value = [];
-    }
-    await fetchUsersByScope();
+    audited.value = [];
   }
 });
 
-watch(selectedGroupOrganization, async (val) => {
-  selectedGroupBusiness.value = null;
-  groupBusinessOptions.value = [];
-  groupGroupOptions.value = [];
-  groupId.value = '';
-  if (val) {
-    await fetchGroupBusinesses();
-  }
-});
-watch(selectedGroupBusiness, async (val) => {
-  groupGroupOptions.value = [];
-  groupId.value = '';
-  if (val) {
-    await fetchGroupGroups();
-  }
-});
-watch(groupId, async () => {
-  if (scope.value === 'business_unit_group') {
-    await fetchUsersByScope();
-  }
+onMounted(async () => {
+  await fetchAllUsers();
+  await fetchBusinesses();
+  await fetchGroups();
+  if (isSuperadmin.value) await fetchOrganizations();
+  if (isAdmin.value || isSponsor.value) await fetchOrgRolesForAdmin();
+  await fetchFormData();
 });
 
 const originalLogo = ref(null);
@@ -626,128 +431,7 @@ watch(logo, (newLogo) => {
   }
 });
 
-// --- INTEGRACIÓN: Logo de grupo igual que empresa y logo de empresa para ubicación ---
-watch([reuseLogo, selectedGroupBusiness], async ([reuse, business]) => {
-  if (scope.value === 'business_unit_group' && reuse && business && !groupId.value) {
-    await refreshScopeSelection();
-  }
-});
-watch([reuseLogo, groupId], async ([reuse, group]) => {
-  if (scope.value === 'business_unit_group' && reuse && group) {
-    await refreshScopeSelection();
-  }
-});
-watch([reuseLogo, businessUnitId], async ([reuse, unitId]) => {
-  if (scope.value === 'business_unit' && reuse && unitId) {
-    await refreshScopeSelection();
-  }
-});
-watch(reuseLogo, async () => {
-  await refreshScopeSelection();
-});
-const refreshScopeSelection = async () => {
-  if (reuseLogo.value) {
-    try {
-      let logoToShow = null;
-      if (scope.value === 'business_unit_group') {
-        if (groupId.value) {
-          // Si hay grupo seleccionado, busca logo del grupo, si no tiene, busca logo de la empresa
-          const { data: groupData } = await axiosInstance.get(`/business-unit-groups/${groupId.value}`);
-          if (groupData.data?.logo) {
-            logoToShow = groupData.data.logo;
-          } else if (groupData.data?.business_id) {
-            const { data: businessData } = await axiosInstance.get(`/businesses/${groupData.data.business_id}`);
-            logoToShow = businessData.data?.logo || null;
-          }
-        } else if (selectedGroupBusiness.value) {
-          // Si solo hay empresa seleccionada, busca logo de la empresa
-          const { data: businessData } = await axiosInstance.get(`/businesses/${selectedGroupBusiness.value}`);
-          logoToShow = businessData.data?.logo || null;
-        }
-      } else if (scope.value === 'business' && businessId.value) {
-        const { data } = await axiosInstance.get(`/businesses/${businessId.value}`);
-        logoToShow = data.data?.logo || null;
-      } else if (scope.value === 'organization' && selectedOrganization.value) {
-        const { data } = await axiosInstance.get(`/organizations/${selectedOrganization.value}`);
-        logoToShow = data.data?.logo || null;
-      } else if (scope.value === 'business_unit' && businessUnitId.value) {
-        // INTEGRACIÓN: mostrar logo de la empresa asociada a la unidad seleccionada
-        const unit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
-        let businessIdToFetch = businessId.value;
-        if (unit && unit.business_id) {
-          businessIdToFetch = unit.business_id;
-        }
-        if (businessIdToFetch) {
-          const { data } = await axiosInstance.get(`/businesses/${businessIdToFetch}`);
-          logoToShow = data.data?.logo || null;
-        }
-      }
-      profilePreview.value = logoToShow;
-      logo.value = null;
-    } catch (err) {
-      profilePreview.value = null;
-    }
-  } else {
-    profilePreview.value = originalLogo.value;
-  }
-};
-
 const isLoading = ref(false);
-
-const formHasAnswers = ref(false);
-const formStatus = ref('');
-const isLimitedEdit = computed(() => formHasAnswers.value && formStatus.value === 'draft');
-
-const canEditForm = ref(false);
-
-const checkPolicy = (form, user) => {
-  if (!form || !user) return false;
-  if (user.roles?.includes('superadmin')) return true;
-
-  if (user.roles?.includes('admin')) {
-    if (user.permissions?.includes('form.update')) {
-      if (user.organization_id === form.organization_id) return true;
-      if (form.business_id && form.business && form.business.organization_id === user.organization_id) return true;
-      if (form.business_unit_id && form.businessUnit && form.businessUnit.organization_id === user.organization_id) return true;
-      if (form.business_unit_group_id && form.businessUnitGroup && form.businessUnitGroup.organization_id === user.organization_id)
-        return true;
-    }
-    return false;
-  }
-
-  if (user.roles?.includes('sponsor')) {
-    if (user.permissions?.includes('form.update')) {
-      if (form.business_id && user.business_id === form.business_id) return true;
-      if (form.assignment_scope === 'business_unit' && form.business_unit_id) {
-        const unit = form.businessUnit;
-        if (unit && unit.business_id === user.business_id) return true;
-      }
-      if (form.assignment_scope === 'business_unit_group' && form.business_unit_group_id) {
-        const group = form.businessUnitGroup;
-        if (group && group.business_id === user.business_id) return true;
-      }
-    }
-    return false;
-  }
-
-  if (user.permissions?.includes('form.update')) {
-    if (user.organization_id && !user.business_id && !user.business_unit_id) {
-      return user.organization_id === form.organization_id;
-    }
-    if (user.organization_id && user.business_id && !user.business_unit_id) {
-      if (form.business_id && user.business_id === form.business_id) return true;
-      if (form.assignment_scope === 'business_unit' && form.business_unit_id && user.business_id === form.business_id) return true;
-      if (form.assignment_scope === 'business_unit_group' && form.business_unit_group_id && user.business_id === form.business_id)
-        return true;
-      return false;
-    }
-    if (user.organization_id && user.business_id && user.business_unit_id) {
-      return form.assignment_scope === 'business_unit' && form.business_unit_id === user.business_unit_id;
-    }
-  }
-
-  return false;
-};
 
 const fetchFormData = async () => {
   const formId = route.params.id;
@@ -766,83 +450,12 @@ const fetchFormData = async () => {
     originalLogo.value = form.logo || null;
     profilePreview.value = form.logo || null;
     logo.value = null;
-    await nextTick();
     reuseLogo.value = !!form.use_scope_logo;
 
-    if (
-      form.assignment_scope === 'business_unit' &&
-      (!form.organization_id || form.organization_id === null) &&
-      form.business_unit &&
-      form.business_unit.organization_id
-    ) {
-      selectedOrganization.value = Number(form.business_unit.organization_id);
-      selectedOrgForRoles.value = Number(form.business_unit.organization_id);
-      selectedBusinessOrganization.value = Number(form.business_unit.organization_id);
-    } else if (
-      form.assignment_scope === 'business_unit_group' &&
-      (!form.organization_id || form.organization_id === null) &&
-      form.business_unit_group &&
-      form.business_unit_group.organization_id
-    ) {
-      selectedOrganization.value = Number(form.business_unit_group.organization_id);
-      selectedOrgForRoles.value = Number(form.business_unit_group.organization_id);
-      selectedGroupOrganization.value = Number(form.business_unit_group.organization_id);
-      await fetchGroupBusinesses();
-      selectedGroupBusiness.value = Number(form.business_unit_group.business_id);
-      await fetchGroupGroups();
-      groupId.value = Number(form.business_unit_group.id);
-    } else if (
-      form.assignment_scope === 'business' &&
-      (!form.organization_id || form.organization_id === null) &&
-      form.business &&
-      form.business.organization_id
-    ) {
-      selectedOrganization.value = Number(form.business.organization_id);
-      selectedOrgForRoles.value = Number(form.business.organization_id);
-      selectedBusinessOrganization.value = Number(form.business.organization_id);
-    } else {
-      selectedOrganization.value =
-        form.organization_id !== undefined && form.organization_id !== null ? Number(form.organization_id) : null;
-      selectedOrgForRoles.value = form.organization_id !== undefined && form.organization_id !== null ? Number(form.organization_id) : null;
-      if (form.organization_id !== undefined && form.organization_id !== null) {
-        selectedBusinessOrganization.value = Number(form.organization_id);
-      }
-    }
-
-    if (
-      form.assignment_scope === 'business_unit' &&
-      (!form.business_id || form.business_id === null) &&
-      form.business_unit &&
-      form.business_unit.business_id
-    ) {
-      businessId.value = Number(form.business_unit.business_id);
-    }
-
-    if (form.assignment_scope === 'business_unit' && form.business_unit) {
-      const exists = businessUnits.value.some((u) => u.id === form.business_unit.id);
-      if (!exists) {
-        businessUnits.value = [
-          {
-            ...form.business_unit,
-            customLabel: `${form.business_unit.folio} - ${form.business_unit.legal_name ?? form.business_unit.name}`,
-            organization_id: form.business_unit.organization_id
-          }
-        ];
-      }
-    }
-
-    if (!form.logo) {
-      profilePreview.value = null;
-      reuseLogo.value = false;
-    }
-
-    formHasAnswers.value = !!form.answers_count && form.answers_count > 0;
-    formStatus.value = form.status || '';
-
-    canEditForm.value = checkPolicy(form, user.value);
-    if (!canEditForm.value) {
-      router.replace('/403');
-      return null;
+    if (form) {
+      supervisor.value = form.supervisorRole ? form.supervisorRole.id : '';
+      auditors.value = Array.isArray(form.auditorRoles) ? form.auditorRoles.map((r) => r.id) : [];
+      audited.value = Array.isArray(form.auditadoRoles) ? form.auditadoRoles.map((r) => r.id) : [];
     }
 
     await fetchUsersByScope();
@@ -866,27 +479,23 @@ const validate = async () => {
 
     const supervisorRole =
       filteredOrgRoles.value.find((r) => Number(r.id) === Number(supervisor.value)) ||
+      orgRolesForAdmin.value.find((r) => Number(r.id) === Number(supervisor.value)) ||
       allRoles.value.find((r) => Number(r.id) === Number(supervisor.value));
     if (supervisorRole) formData.append('supervisor_role_id', supervisorRole.id);
 
-    auditors.value.forEach((id, i) => {
+    auditors.value.forEach((id) => {
       formData.append('auditor_role_ids[]', id);
     });
-    audited.value.forEach((id, i) => {
+    audited.value.forEach((id) => {
       formData.append('auditado_role_ids[]', id);
     });
 
     formData.append('frequency', frequency.value);
     formData.append('assignment_scope', scope.value);
     formData.append('has_rating', hasRating.value ? '1' : '0');
-
     formData.append('use_scope_logo', reuseLogo.value ? '1' : '0');
-    if (!reuseLogo.value) {
-      if (logo.value) {
-        formData.append('logo', logo.value);
-      } else {
-        formData.append('logo', '');
-      }
+    if (!reuseLogo.value && logo.value) {
+      formData.append('logo', logo.value);
     }
 
     let orgId = null;
@@ -899,12 +508,8 @@ const validate = async () => {
       const unit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
       orgId = unit && typeof unit.organization_id !== 'undefined' ? Number(unit.organization_id) : null;
     } else if (scope.value === 'business_unit_group' && groupId.value) {
-      if (isSuperadmin.value && selectedGroupOrganization.value) {
-        orgId = Number(selectedGroupOrganization.value);
-      } else {
-        const group = groups.value.find((g) => Number(g.id) === Number(groupId.value));
-        orgId = group && typeof group.organization_id !== 'undefined' ? Number(group.organization_id) : null;
-      }
+      const group = groups.value.find((g) => Number(g.id) === Number(groupId.value));
+      orgId = group && typeof group.organization_id !== 'undefined' ? Number(group.organization_id) : null;
     }
     if (orgId) formData.append('organization_id', orgId);
 
@@ -920,7 +525,7 @@ const validate = async () => {
     }
     if (scope.value === 'business_unit_group') {
       formData.append('business_unit_group_id', Number(groupId.value));
-      formData.append('business_id', Number(selectedGroupBusiness.value));
+      formData.append('business_id', '');
       formData.append('business_unit_id', '');
     }
     if (scope.value === 'organization') {
@@ -930,7 +535,6 @@ const validate = async () => {
     }
 
     const formId = route.params.id;
-
     formData.append('_method', 'PUT');
     await axiosInstance.post(`/forms/${formId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 
@@ -942,32 +546,6 @@ const validate = async () => {
     isLoading.value = false;
   }
 };
-
-onMounted(async () => {
-  await fetchAllUsers();
-  await fetchBusinesses();
-  await fetchGroups();
-
-  if (isSuperadmin.value) await fetchOrganizations();
-
-  const form = await fetchFormData();
-
-  if (isSuperadmin.value && form && form.assignment_scope === 'organization') {
-    selectedOrganization.value = Number(form.organization_id);
-    selectedOrgForRoles.value = Number(form.organization_id);
-  }
-
-  if (isSuperadmin.value) {
-    await updateSelectedOrgForRoles();
-    await fetchOrgRoles(selectedOrgForRoles.value);
-  }
-
-  if (form) {
-    supervisor.value = form.supervisorRole ? form.supervisorRole.id : '';
-    auditors.value = Array.isArray(form.auditorRoles) ? form.auditorRoles.map((r) => r.id) : [];
-    audited.value = Array.isArray(form.auditadoRoles) ? form.auditadoRoles.map((r) => r.id) : [];
-  }
-});
 </script>
 
 <template>
@@ -1297,7 +875,8 @@ onMounted(async () => {
                   :ripple="false"
                   :true-value="true"
                   :false-value="false"
-                  :disabled="isLimitedEdit"
+                  :readonly="isLimitedEdit"
+                  :disabled="false"
                 />
                 <v-checkbox
                   v-else-if="scope === 'business_unit'"
@@ -1310,7 +889,8 @@ onMounted(async () => {
                   :ripple="false"
                   :true-value="true"
                   :false-value="false"
-                  :disabled="isLimitedEdit"
+                  :readonly="isLimitedEdit"
+                  :disabled="false"
                 />
                 <v-checkbox
                   v-else
@@ -1323,7 +903,8 @@ onMounted(async () => {
                   :ripple="false"
                   :true-value="true"
                   :false-value="false"
-                  :disabled="isLimitedEdit"
+                  :readonly="isLimitedEdit"
+                  :disabled="false"
                 />
               </div>
             </div>

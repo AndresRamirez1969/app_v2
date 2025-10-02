@@ -49,6 +49,10 @@ const selectedOrgForRoles = ref(null);
 const orgRoleOptions = ref([]);
 const loadingOrgRoles = ref(false);
 
+// INTEGRACIÓN: Roles de la organización para admin y sponsor
+const orgRolesForAdmin = ref([]);
+const loadingOrgRolesForAdmin = ref(false);
+
 const fieldErrors = reactive({
   name: '',
   description: '',
@@ -102,25 +106,28 @@ const getAssignmentRoles = computed(() => {
     return filteredOrgRoles.value;
   }
 
-  // Admin y Sponsor: filtrar roles por organización del usuario
-  const orgId = user.value?.organization_id;
-  let orgRoles = allRoles.value.filter(
-    (role) => role.organization_id === orgId && role.id !== 1 // nunca mostrar superadmin
-  );
+  // Admin y Sponsor: usar roles de la organización obtenidos del backend
+  if (isAdmin.value || isSponsor.value) {
+    // Fijos
+    const fixed = [];
+    if (isAdmin.value) {
+      fixed.push({ id: 2, customLabel: 'Administrador' });
+    }
+    fixed.push({ id: 3, customLabel: 'Sponsor' });
 
-  if (isAdmin.value) {
-    // Admin: roles de su organización + admin + sponsor
-    orgRoles = [
-      { id: 2, customLabel: 'Administrador' },
-      { id: 3, customLabel: 'Sponsor' },
-      ...orgRoles.filter((role) => role.id !== 2 && role.id !== 3)
-    ];
-  } else if (isSponsor.value) {
-    // Sponsor: roles de su organización + sponsor
-    orgRoles = [{ id: 3, customLabel: 'Sponsor' }, ...orgRoles.filter((role) => role.id !== 3)];
+    // Roles de la organización (sin fijos)
+    const orgRoles = orgRolesForAdmin.value
+      .filter((role) => ![1, 2, 3].includes(role.id)) // quitar superadmin, admin, sponsor por id
+      .map((role) => ({
+        id: role.id,
+        customLabel: role.name
+      }));
+
+    return [...fixed, ...orgRoles];
   }
 
-  return orgRoles;
+  // fallback
+  return [];
 });
 
 const scopeOptions = computed(() => {
@@ -128,22 +135,19 @@ const scopeOptions = computed(() => {
     return [
       { label: 'Organización', value: 'organization' },
       { label: 'Empresa', value: 'business' },
-      { label: 'Ubicación', value: 'business_unit' },
-      { label: 'Grupo', value: 'business_unit_group' }
+      { label: 'Ubicación', value: 'business_unit' }
     ];
   }
   if (isSponsor.value) {
     return [
       { label: 'Empresa', value: 'business' },
-      { label: 'Ubicación', value: 'business_unit' },
-      { label: 'Grupo', value: 'business_unit_group' }
+      { label: 'Ubicación', value: 'business_unit' }
     ];
   }
   return [
     { label: 'Organización', value: 'organization' },
     { label: 'Empresa', value: 'business' },
-    { label: 'Ubicación', value: 'business_unit' },
-    { label: 'Grupo', value: 'business_unit_group' }
+    { label: 'Ubicación', value: 'business_unit' }
   ];
 });
 
@@ -172,7 +176,6 @@ const getScopeLogo = () => {
   // GRUPO
   if (scope.value === 'business_unit_group' && groupId.value) {
     const group = groups.value.find((g) => g.id === groupId.value);
-    // Si el grupo tiene logo propio, úsalo; si no, usa el de la empresa del grupo
     if (group?.logo) return group.logo;
     const business = businesses.value.find((b) => b.id === group?.business_id);
     return business?.logo || null;
@@ -431,7 +434,7 @@ const fetchOrganizations = async () => {
   }
 };
 
-// INTEGRACIÓN: Fetch roles por organización seleccionada para Asignaciones
+// INTEGRACIÓN: Fetch roles por organización seleccionada para Asignaciones (superadmin)
 const fetchOrgRoles = async (orgId) => {
   loadingOrgRoles.value = true;
   try {
@@ -441,6 +444,20 @@ const fetchOrgRoles = async (orgId) => {
     orgRoleOptions.value = [];
   } finally {
     loadingOrgRoles.value = false;
+  }
+};
+
+// INTEGRACIÓN: Fetch roles de la organización para admin y sponsor
+const fetchOrgRolesForAdmin = async () => {
+  loadingOrgRolesForAdmin.value = true;
+  try {
+    const { data } = await axiosInstance.get('/roles');
+    // Solo los de la organización del usuario y sin los fijos
+    orgRolesForAdmin.value = (data.data || []).filter((r) => r.organization_id === user.value.organization_id);
+  } catch (e) {
+    orgRolesForAdmin.value = [];
+  } finally {
+    loadingOrgRolesForAdmin.value = false;
   }
 };
 
@@ -459,6 +476,9 @@ onMounted(async () => {
   await fetchGroups();
   if (isSuperadmin.value) {
     await fetchOrganizations();
+  }
+  if (isAdmin.value || isSponsor.value) {
+    await fetchOrgRolesForAdmin();
   }
 });
 
@@ -505,14 +525,12 @@ watch([scope, businessId, businessUnitId, groupId, selectedOrganization, reuseLo
     await fetchUsersByScope();
   }
 
-  // Si se selecciona reutilizar logo, siempre mostrar el logo del alcance
   if (reuseLogo.value) {
     const logoUrl = getScopeLogo();
     profilePreview.value = logoUrl || null;
     logo.value = null;
     return;
   }
-  // Si no se reutiliza, mostrar el logo cargado manualmente (si existe)
   if (!reuseLogo.value && logo.value) {
     if (typeof logo.value === 'object') {
       const imgFile = Array.isArray(logo.value) ? logo.value[0] : logo.value;
@@ -569,7 +587,9 @@ const validate = async () => {
     // INTEGRACIÓN: Si es superadmin y seleccionó organización para roles, enviar ese dato si lo necesitas en el backend
 
     const supervisorRole =
-      filteredOrgRoles.value.find((role) => role.id === supervisor.value) || allRoles.value.find((role) => role.id === supervisor.value);
+      filteredOrgRoles.value.find((role) => role.id === supervisor.value) ||
+      orgRolesForAdmin.value.find((role) => role.id === supervisor.value) ||
+      allRoles.value.find((role) => role.id === supervisor.value);
     if (supervisorRole) formData.append('supervisor_role_id', supervisorRole.id);
 
     auditors.value.forEach((roleId, index) => {
@@ -584,12 +604,11 @@ const validate = async () => {
     formData.append('assignment_scope', scope.value);
     formData.append('has_rating', hasRating.value ? '1' : '0');
 
-    if (reuseLogo.value && scope.value === 'business_unit_group') {
-      // No enviar logo, backend debe tomar el de la empresa del grupo
-    } else if (reuseLogo.value && isSuperadmin.value) {
-      // No enviar logo, backend debe tomar el del alcance
-    } else if (logo.value && !reuseLogo.value) {
-      formData.append('logo', logo.value);
+    formData.append('use_scope_logo', reuseLogo.value ? '1' : '0');
+
+    if (!reuseLogo.value && logo.value) {
+      const imgFile = Array.isArray(logo.value) ? logo.value[0] : logo.value;
+      formData.append('logo', imgFile);
     }
 
     let orgId = null;
