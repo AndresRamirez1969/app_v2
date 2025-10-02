@@ -490,6 +490,7 @@ watch(scope, async (newScope, oldScope) => {
   }
 });
 
+// INTEGRACIÓN: Manejo de logo preview y reutilización
 watch([scope, businessId, businessUnitId, groupId, selectedOrganization, reuseLogo], async () => {
   if (scope.value) {
     if (scope.value !== 'business_unit_group') audited.value = [];
@@ -503,40 +504,38 @@ watch([scope, businessId, businessUnitId, groupId, selectedOrganization, reuseLo
     }
     await fetchUsersByScope();
   }
-  if (reuseLogo.value && scope.value === 'business_unit_group' && groupId.value) {
+
+  // Si se selecciona reutilizar logo, siempre mostrar el logo del alcance
+  if (reuseLogo.value) {
     const logoUrl = getScopeLogo();
-    if (!logoUrl) {
-      console.log('[LOGO DEBUG] No se pudo obtener el logo para el grupo seleccionado.');
-    }
     profilePreview.value = logoUrl || null;
     logo.value = null;
     return;
   }
-  if (isSuperadmin.value && reuseLogo.value) {
-    const logoUrl = getScopeLogo();
-    if (!logoUrl) {
-      console.log('[LOGO DEBUG] No se pudo obtener el logo para el alcance seleccionado.');
+  // Si no se reutiliza, mostrar el logo cargado manualmente (si existe)
+  if (!reuseLogo.value && logo.value) {
+    if (typeof logo.value === 'object') {
+      const imgFile = Array.isArray(logo.value) ? logo.value[0] : logo.value;
+      profilePreview.value = URL.createObjectURL(imgFile);
+    } else if (typeof logo.value === 'string') {
+      profilePreview.value = logo.value;
     }
-    profilePreview.value = logoUrl || null;
-    logo.value = null;
-    return;
-  }
-  if (!reuseLogo.value) {
+  } else if (!reuseLogo.value) {
     profilePreview.value = null;
   }
 });
 
 watch(
-  () => reuseLogo.value,
-  (val) => {
-    if (val && scope.value === 'business_unit_group' && groupId.value) {
-      const logoUrl = getScopeLogo();
-      if (!logoUrl) {
-        console.log('[LOGO DEBUG] No se pudo obtener el logo para el grupo seleccionado (watcher específico).');
-      }
-      profilePreview.value = logoUrl || null;
-      logo.value = null;
-    } else if (!val && !logo.value) {
+  () => logo.value,
+  (file) => {
+    if (file && typeof file === 'object') {
+      const imgFile = Array.isArray(file) ? file[0] : file;
+      profilePreview.value = URL.createObjectURL(imgFile);
+      reuseLogo.value = false;
+    } else if (typeof file === 'string' && file) {
+      profilePreview.value = file;
+      reuseLogo.value = false;
+    } else if (!reuseLogo.value) {
       profilePreview.value = null;
     }
   }
@@ -554,22 +553,6 @@ watch(groupId, async (newGroupId) => {
     await fetchUsersByScope();
   }
 });
-
-watch(
-  () => logo.value,
-  (file) => {
-    if (file && typeof file === 'object') {
-      const imgFile = Array.isArray(file) ? file[0] : file;
-      profilePreview.value = URL.createObjectURL(imgFile);
-      reuseLogo.value = false;
-    } else if (typeof file === 'string' && file) {
-      profilePreview.value = file;
-      logo.value = null;
-    } else {
-      profilePreview.value = null;
-    }
-  }
-);
 
 const isLoading = ref(false);
 const validate = async () => {
@@ -871,7 +854,7 @@ const validate = async () => {
             <!-- Logo y booleano de reutilizar logo -->
             <div v-if="scope" class="mt-4">
               <v-file-input
-                v-if="!(reuseLogo && scope === 'business_unit_group') && !(reuseLogo && isSuperadmin)"
+                v-if="!reuseLogo"
                 v-model="logo"
                 variant="outlined"
                 color="primary"

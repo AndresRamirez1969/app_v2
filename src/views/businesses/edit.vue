@@ -238,8 +238,9 @@ watch(
   }
 );
 
+// INTEGRACIÓN: Forzar nueva referencia para parsedAddress para reactividad
 const handleParsedAddress = (val) => {
-  parsedAddress.value = val;
+  parsedAddress.value = { ...val };
   if (val && Object.keys(val).length > 0) clearFieldError('address');
 };
 
@@ -311,9 +312,9 @@ onMounted(async () => {
         city: data.address.city || '',
         state: data.address.state || '',
         country: data.address.country || '',
-        latitude: data.address.latitude || '',
-        longitude: data.address.longitude || '',
-        geofence_radius: data.address.geofence_radius || ''
+        latitude: data.address.latitude ?? '',
+        longitude: data.address.longitude ?? '',
+        geofence_radius: data.address.geofence_radius ?? ''
       };
     }
 
@@ -325,7 +326,6 @@ onMounted(async () => {
       form.contact.phone_number = data.contact.phone_number || '';
     }
 
-    // Si es superadmin, carga organizaciones y selecciona la actual
     if (user?.roles?.includes('superadmin')) {
       try {
         const orgRes = await axiosInstance.get('/organizations');
@@ -341,9 +341,24 @@ onMounted(async () => {
     }
   } catch (err) {
     errorMsg.value = 'Error al cargar datos de empresa';
-    console.error('❌ Error al cargar datos de empresa', err);
   }
 });
+
+function cleanAddressForFormData(address) {
+  const cleaned = {};
+  for (const key in address) {
+    let val = address[key];
+    if (['latitude', 'longitude', 'geofence_radius'].includes(key)) {
+      if (val === '' || val === null || typeof val === 'undefined') continue;
+      if (typeof val === 'string' && val.trim() !== '') {
+        val = Number(val);
+        if (isNaN(val)) continue;
+      }
+    }
+    cleaned[key] = val ?? '';
+  }
+  return cleaned;
+}
 
 const validate = async () => {
   errorMsg.value = '';
@@ -375,7 +390,10 @@ const validate = async () => {
       formData.append('organization_id', organization_id);
     }
 
-    for (const key in parsedAddress.value) formData.append(`address[${key}]`, parsedAddress.value[key] || '');
+    const cleanedAddress = cleanAddressForFormData(parsedAddress.value);
+    for (const key in cleanedAddress) {
+      formData.append(`address[${key}]`, cleanedAddress[key]);
+    }
 
     const hasContactData = Object.values(form.contact).some((val) => val?.trim?.() !== '');
     if (hasContactData) {
@@ -436,7 +454,6 @@ const validate = async () => {
     } else {
       errorMsg.value = 'Error al actualizar empresa';
     }
-    console.error('❌ Error al actualizar empresa', err);
   } finally {
     isLoading.value = false;
   }
@@ -498,7 +515,6 @@ const validate = async () => {
             @update:model-value="clearFieldError('logo')"
           />
 
-          <!-- Select de organización SOLO para superadmin -->
           <template v-if="auth.user?.roles?.includes('superadmin')">
             <v-label>Organización <span class="text-error">*</span></v-label>
             <v-autocomplete

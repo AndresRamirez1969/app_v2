@@ -18,13 +18,15 @@ const showEditDialog = ref(false);
 const editingFieldIndex = ref(-1);
 const editingField = ref({
   label: '',
+  description: '', // INTEGRACIÓN: descripción opcional
   type: '',
   is_required: false,
   options: [],
   order: 0,
   hasWeight: false,
   weight: 0,
-  attributes: {}
+  attributes: {},
+  has_evidence: false
 });
 const showSidebar = ref(true);
 
@@ -37,7 +39,6 @@ const saving = ref(false);
 const errorMsg = ref('');
 const existingLabels = ref([]);
 
-// Responsive sidebar dropdown
 const isMobile = ref(false);
 const sidebarDropdownOpen = ref(false);
 
@@ -45,6 +46,27 @@ const showOptionsField = computed(() => {
   return ['select', 'radio', 'checkbox'].includes(editingField.value.type);
 });
 const showGeolocationMode = computed(() => editingField.value.type === 'geolocation');
+const showMaxFilesField = computed(() => false); // INTEGRACIÓN: ocultar input de max_files
+
+// Tipos permitidos para evidencia (según backend)
+const typesWithEvidence = [
+  'text',
+  'textarea',
+  'email',
+  'password',
+  'number',
+  'date',
+  'time',
+  'select',
+  'radio',
+  'checkbox',
+  'color',
+  'range',
+  'switch',
+  'tel',
+  'url',
+  'hidden'
+];
 
 const checkMobile = () => {
   isMobile.value = window.innerWidth <= 900;
@@ -55,7 +77,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('resize', checkMobile);
 }
 
-// --- INTEGRACIÓN: Forzar attributes.mode en geolocation y mantenerlo siempre definido ---
+// Forzar attributes.mode en geolocation y mantenerlo siempre definido
 watch(editingField, (val) => {
   if (val.type === 'geolocation') {
     editingField.value.is_required = true;
@@ -64,9 +86,23 @@ watch(editingField, (val) => {
       editingField.value.attributes.mode = 'scope';
     }
   }
+  if (['signature', 'image', 'document'].includes(val.type)) {
+    if (!editingField.value.attributes) editingField.value.attributes = {};
+    // INTEGRACIÓN: siempre forzar max_files a 1 si no está definido
+    if (editingField.value.attributes.max_files === undefined || editingField.value.attributes.max_files === null) {
+      editingField.value.attributes.max_files = 1;
+    }
+    // INTEGRACIÓN: forzar rango permitido
+    if (editingField.value.attributes.max_files < 1) editingField.value.attributes.max_files = 1;
+    if (editingField.value.attributes.max_files > 4) editingField.value.attributes.max_files = 4;
+  }
+  // Si cambia a un tipo que no soporta evidencia, limpiar has_evidence
+  if (!typesWithEvidence.includes(val.type)) {
+    editingField.value.has_evidence = false;
+  }
 });
 
-// --- INTEGRACIÓN: Al cargar campos, asegurar que attributes existe y tiene mode ---
+// Al cargar campos, asegurar que attributes existe y tiene mode y descripción
 watch(
   () => props.modelValue,
   async (val) => {
@@ -74,10 +110,12 @@ watch(
       currentFields.value = Array.isArray(props.form?.fields)
         ? props.form.fields.map((f) => ({
             ...f,
+            description: f.description || '', // INTEGRACIÓN: descripción opcional
             attributes:
               f.type === 'geolocation'
                 ? { ...(f.attributes || {}), mode: (f.attributes && f.attributes.mode) || 'scope' }
-                : f.attributes || {}
+                : f.attributes || {},
+            has_evidence: Boolean(f.has_evidence)
           }))
         : [];
       showEditDialog.value = false;
@@ -102,16 +140,21 @@ const addFieldType = (fieldType) => {
   const newField = {
     id: Date.now() + Math.random(),
     label: '',
+    description: '', // INTEGRACIÓN: descripción opcional
     type: fieldType.value,
     is_required: fieldType.value === 'geolocation' ? true : false,
     options: ['select', 'radio', 'checkbox'].includes(fieldType.value) ? ['Opción 1'] : [],
     order: currentFields.value.length,
     attributes: {},
     hasWeight: false,
-    weight: 0
+    weight: 0,
+    has_evidence: false
   };
   if (fieldType.value === 'geolocation') {
     newField.attributes = { mode: 'scope' };
+  }
+  if (['signature', 'image', 'document'].includes(fieldType.value)) {
+    newField.attributes.max_files = 1;
   }
   currentFields.value.push(newField);
 };
@@ -119,7 +162,6 @@ const addFieldType = (fieldType) => {
 const onSidebarDragStart = (event, fieldType) => {
   dragStarted.value = true;
   isSidebarDragging.value = true;
-
   const json = JSON.stringify(fieldType);
   event.dataTransfer?.setData('application/json', json);
   event.dataTransfer?.setData('text/plain', json);
@@ -231,15 +273,34 @@ const removeCurrentField = async (index) => {
   saving.value = false;
 };
 
+// INTEGRACIÓN: fuerza has_evidence a booleano real al abrir el modal de edición
 const editField = (index) => {
   editingFieldIndex.value = index;
-  editingField.value = { ...currentFields.value[index] };
+  editingField.value = {
+    ...currentFields.value[index],
+    description: currentFields.value[index].description || '', // INTEGRACIÓN: descripción opcional
+    has_evidence: Boolean(currentFields.value[index].has_evidence)
+  };
   if (editingField.value.type === 'geolocation') {
     if (!editingField.value.attributes) editingField.value.attributes = {};
     if (!['scope', 'manual'].includes(editingField.value.attributes.mode)) {
       editingField.value.attributes.mode = 'scope';
     }
     editingField.value.is_required = true;
+  }
+  if (
+    ['signature', 'image', 'document'].includes(editingField.value.type) &&
+    (editingField.value.attributes.max_files === undefined || editingField.value.attributes.max_files === null)
+  ) {
+    editingField.value.attributes.max_files = 1;
+  }
+  // INTEGRACIÓN: forzar rango permitido
+  if (['signature', 'image', 'document'].includes(editingField.value.type)) {
+    if (editingField.value.attributes.max_files < 1) editingField.value.attributes.max_files = 1;
+    if (editingField.value.attributes.max_files > 4) editingField.value.attributes.max_files = 4;
+  }
+  if (!typesWithEvidence.includes(editingField.value.type)) {
+    editingField.value.has_evidence = false;
   }
   showEditDialog.value = true;
 };
@@ -250,6 +311,15 @@ const saveEditedField = () => {
     editingField.value.is_required = true;
     const mode = editingField.value.attributes?.mode;
     if (!['scope', 'manual'].includes(mode)) return;
+  }
+  if (['signature', 'image', 'document'].includes(editingField.value.type)) {
+    let maxFiles = parseInt(editingField.value.attributes.max_files) || 1;
+    if (maxFiles < 1) maxFiles = 1;
+    if (maxFiles > 4) maxFiles = 4;
+    editingField.value.attributes.max_files = maxFiles;
+  }
+  if (!typesWithEvidence.includes(editingField.value.type)) {
+    editingField.value.has_evidence = false;
   }
   if (editingFieldIndex.value >= 0) {
     currentFields.value[editingFieldIndex.value] = { ...editingField.value };
@@ -296,7 +366,6 @@ const getFieldTypeLabel = (type) => {
   return fieldType ? fieldType.label : type;
 };
 
-// Estado para controlar si se intentó guardar con ponderación incorrecta
 const triedSaveWithWrongWeight = ref(false);
 
 const saveCurrentFields = async () => {
@@ -312,7 +381,6 @@ const saveCurrentFields = async () => {
     return;
   }
 
-  // Validación de duplicados mejorada
   const labelIdPairs = currentFields.value.map((f) => ({
     label: f.label.trim().toLowerCase(),
     id: f.id
@@ -332,16 +400,27 @@ const saveCurrentFields = async () => {
         return;
       }
     }
+    if (['signature', 'image', 'document'].includes(f.type)) {
+      let maxFiles = parseInt(f.attributes?.max_files) || 1;
+      if (maxFiles < 1 || maxFiles > 4) {
+        errorMsg.value = 'La cantidad máxima de archivos debe ser entre 1 y 4.';
+        return;
+      }
+    }
+    if (f.type === 'geolocation') {
+      if (!['scope', 'manual'].includes(f.attributes?.mode)) {
+        errorMsg.value = 'El campo de geolocalización requiere un modo válido (scope o manual).';
+        return;
+      }
+    }
   }
 
-  // Validar ponderación si aplica
   if (props.form?.has_rating && totalWeightUsed.value !== 100) {
     triedSaveWithWrongWeight.value = true;
     errorMsg.value = 'La suma de la ponderación debe ser exactamente 100 puntos.';
     return;
   }
 
-  // Validar estado del formulario antes de guardar campos
   try {
     const response = await axiosInstance.get(`/forms/${props.form.id}`);
     const formData = response.data.data || response.data;
@@ -365,24 +444,41 @@ const saveCurrentFields = async () => {
 
   const savedFields = [];
   try {
-    // Obtener ids de campos existentes en el backend
     const backendFieldIds = Array.isArray(props.form?.fields) ? props.form.fields.map((f) => f.id) : [];
 
     for (const f of currentFields.value) {
       const payload = {
         label: f.label,
+        description: f.description || '', // INTEGRACIÓN: descripción opcional
         type: f.type,
         is_required: !!f.is_required,
         order: f.order,
-        attributes: f.attributes && typeof f.attributes === 'object' ? f.attributes : {},
+        attributes: f.attributes && typeof f.attributes === 'object' ? { ...f.attributes } : {},
         weight: typeof f.weight === 'number' ? f.weight : 0
       };
+
       if (['select', 'radio', 'checkbox'].includes(f.type)) {
         payload.options = (f.options || []).filter((opt) => typeof opt === 'string' && !!opt.trim());
-      }
-      if (!['select', 'radio', 'checkbox'].includes(f.type)) {
+      } else {
         delete payload.options;
       }
+
+      if (['signature', 'image', 'document'].includes(f.type)) {
+        let maxFiles = parseInt(payload.attributes?.max_files) || 1;
+        if (maxFiles < 1) maxFiles = 1;
+        if (maxFiles > 4) maxFiles = 4;
+        payload.attributes.max_files = maxFiles;
+      } else if (payload.attributes && 'max_files' in payload.attributes) {
+        delete payload.attributes.max_files;
+      }
+
+      // has_evidence solo para tipos permitidos
+      if (typesWithEvidence.includes(f.type)) {
+        payload.has_evidence = !!f.has_evidence;
+      } else {
+        payload.has_evidence = false;
+      }
+
       if (f.type === 'geolocation') {
         payload.is_required = true;
         payload.attributes = {
@@ -391,7 +487,6 @@ const saveCurrentFields = async () => {
         };
       }
 
-      // SOLO actualiza (PUT) si el campo existe en el backend
       const isExistingField = backendFieldIds.includes(f.id);
 
       if (isExistingField) {
@@ -403,17 +498,18 @@ const saveCurrentFields = async () => {
       }
     }
 
-    // Sincroniza los campos con el backend
     try {
       const response = await axiosInstance.get(`/forms/${props.form.id}`);
       const data = response.data.data || response.data;
       currentFields.value = Array.isArray(data.fields)
         ? data.fields.map((f) => ({
             ...f,
+            description: f.description || '', // INTEGRACIÓN: descripción opcional
             attributes:
               f.type === 'geolocation'
                 ? { ...(f.attributes || {}), mode: (f.attributes && f.attributes.mode) || 'scope' }
-                : f.attributes || {}
+                : f.attributes || {},
+            has_evidence: Boolean(f.has_evidence)
           }))
         : [];
     } catch {
@@ -527,6 +623,9 @@ const saveCurrentFields = async () => {
                         <div class="text-caption text-grey-darken-1">
                           {{ getFieldTypeLabel(field.type) }}
                         </div>
+                        <div v-if="field.description" class="text-caption text-grey-darken-2 mt-1">
+                          {{ field.description }}
+                        </div>
                       </div>
                     </div>
                     <div class="d-flex align-center">
@@ -609,6 +708,15 @@ const saveCurrentFields = async () => {
                 class="mb-4"
                 @keyup.enter="saveEditedField"
               />
+              <!-- INTEGRACIÓN: Campo de descripción opcional -->
+              <v-text-field
+                v-model="editingField.description"
+                label="Descripción (opcional)"
+                variant="outlined"
+                class="mb-4"
+                maxlength="500"
+                counter
+              />
               <v-checkbox
                 v-model="editingField.is_required"
                 label="Campo requerido"
@@ -616,6 +724,17 @@ const saveCurrentFields = async () => {
                 color="primary"
                 :disabled="editingField.type === 'geolocation'"
               />
+
+              <!-- INTEGRACIÓN: Checkbox para evidencia -->
+              <div v-if="typesWithEvidence.includes(editingField.type)">
+                <v-checkbox
+                  v-model="editingField.has_evidence"
+                  label="Requiere evidencia (adjuntar archivo)"
+                  color="primary"
+                  class="mb-4"
+                />
+              </div>
+
               <div v-if="showGeolocationMode" class="mb-4">
                 <v-label class="text-body-2 font-weight-medium mb-2">Modo de Geolocalización</v-label>
                 <v-checkbox
@@ -638,8 +757,6 @@ const saveCurrentFields = async () => {
 
               <div v-if="showOptionsField" class="mb-4">
                 <v-label class="text-body-2 font-weight-medium mb-2">Opciones</v-label>
-
-                <!-- INPUT DE OPCIÓN con botón de borrar dentro -->
                 <div v-for="(option, index) in editingField.options" :key="index" class="option-row mb-2">
                   <v-text-field
                     v-model="editingField.options[index]"
@@ -663,12 +780,13 @@ const saveCurrentFields = async () => {
                     </template>
                   </v-text-field>
                 </div>
-
                 <v-btn color="primary" variant="outlined" class="mt-2" @click="addOption">
                   <v-icon :icon="mdiPlus" class="mr-1"></v-icon>
                   Agregar Opción
                 </v-btn>
               </div>
+
+              <!-- INTEGRACIÓN: max_files oculto, siempre 1-4, no editable -->
 
               <div v-if="form?.has_rating" class="mb-4">
                 <div class="d-flex align-center justify-space-between mb-3">

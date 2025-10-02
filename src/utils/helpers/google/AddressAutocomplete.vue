@@ -24,7 +24,7 @@
         color="primary"
         title="Buscar dirección con Google"
       >
-        <v-icon>mdi-map-marker</v-icon>
+        <v-icon icon="mdi-map-marker" />
       </v-btn>
     </div>
 
@@ -152,11 +152,6 @@ const props = defineProps({
   initialValue: { type: Object, default: () => ({}) },
   mode: { type: String, default: 'edit' }, // 'create' | 'edit'
   addressError: { type: String, default: '' },
-  /**
-   * Ubicación del usuario en sesión. Acepta:
-   * { lat, lng }  o  { latitude, longitude }
-   * Puede llegar ASÍNCRONO. Tiene prioridad en CREATE.
-   */
   sessionLocation: { type: Object, default: () => ({}) }
 });
 const emit = defineEmits(['update:parsedAddress']);
@@ -171,10 +166,10 @@ const marker = ref(null);
 const circle = ref(null);
 const geocoder = ref(null);
 
-const isHydrating = ref(false); // evita geocodificar durante la carga del record (edit)
-const mapBooted = ref(false); // ya hay mapa
-const markerBooted = ref(false); // ya hay marker
-const sessionHandled = ref(false); // ya usamos sessionLocation (create)
+const isHydrating = ref(false);
+const mapBooted = ref(false);
+const markerBooted = ref(false);
+const sessionHandled = ref(false);
 
 const countrySearch = ref('');
 const countries = [{ name: 'México' }, { name: 'Estados Unidos' }, { name: 'Canadá' }, { name: 'España' }, { name: 'Argentina' }];
@@ -271,17 +266,17 @@ function bootMapVisual(center = { lat: 19.4326, lng: -99.1332 }) {
   });
   mapBooted.value = true;
 
-  // Click en mapa → fijar coords exactas y reverse geocoding de textos
   map.value.addListener('click', (e) => {
     const lat = e.latLng.lat();
     const lng = e.latLng.lng();
-    setMarkerPosition({ lat, lng }, /*center*/ true);
+    setMarkerPosition({ lat, lng }, true);
     fields.value.latitude = lat;
     fields.value.longitude = lng;
     reverseGeocode(lat, lng, (place) => {
       if (place) fillFieldsFromPlace(place);
     });
     updateCircle();
+    emit('update:parsedAddress', { ...fields.value });
   });
 }
 
@@ -292,17 +287,17 @@ function ensureMarker() {
   } else {
     marker.value = new google.maps.Marker({ map: map.value, position: map.value.getCenter(), draggable: true });
 
-    // Drag → coords exactas + reverse geocoding de textos
     marker.value.addListener('dragend', (e) => {
       const dLat = e.latLng.lat();
       const dLng = e.latLng.lng();
-      setMarkerPosition({ lat: dLat, lng: dLng }, /*center*/ false);
+      setMarkerPosition({ lat: dLat, lng: dLng }, false);
       fields.value.latitude = dLat;
       fields.value.longitude = dLng;
       reverseGeocode(dLat, dLng, (place) => {
         if (place) fillFieldsFromPlace(place);
       });
       updateCircle();
+      emit('update:parsedAddress', { ...fields.value });
     });
   }
   markerBooted.value = true;
@@ -310,18 +305,19 @@ function ensureMarker() {
 }
 
 function setMarkerPosition({ lat, lng }, center = true) {
-  if (!mapBooted.value) bootMapVisual();
+  if (!mapBooted.value) {
+    bootMapVisual({ lat, lng });
+  }
   ensureMarker();
 
   const pos = { lat, lng };
   if (marker.value.setPosition) {
     marker.value.setPosition(pos);
   } else {
-    // AdvancedMarker
     marker.value.position = pos;
     marker.value.map = map.value;
   }
-  if (center) map.value.setCenter(pos);
+  if (center && map.value) map.value.setCenter(pos);
   updateCircle();
 }
 
@@ -371,6 +367,7 @@ function initAutocomplete() {
       fields.value.longitude = lng;
       bootMapVisual({ lat, lng });
       setMarkerPosition({ lat, lng }, true);
+      emit('update:parsedAddress', { ...fields.value });
     } else {
       const addr = place?.formatted_address || getFullAddressFromFields();
       if (addr) {
@@ -379,6 +376,7 @@ function initAutocomplete() {
           fields.value.longitude = lng;
           bootMapVisual({ lat, lng });
           setMarkerPosition({ lat, lng }, true);
+          emit('update:parsedAddress', { ...fields.value });
         });
       }
     }
@@ -424,12 +422,12 @@ function onFieldsEnter() {
     fields.value.longitude = lng;
     bootMapVisual({ lat, lng });
     setMarkerPosition({ lat, lng }, true);
+    emit('update:parsedAddress', { ...fields.value });
   });
 }
 
 /* ====== Flujo CREATE con prioridades ====== */
 function initCreateFlow() {
-  // 1) Sesión (si ya vino)
   const { lat: sLat, lng: sLng } = extractSessionLatLng();
   if (hasCoords(sLat) && hasCoords(sLng)) {
     fields.value.latitude = Number(sLat);
@@ -437,10 +435,10 @@ function initCreateFlow() {
     bootMapVisual({ lat: fields.value.latitude, lng: fields.value.longitude });
     setMarkerPosition({ lat: fields.value.latitude, lng: fields.value.longitude }, true);
     sessionHandled.value = true;
+    emit('update:parsedAddress', { ...fields.value });
     return;
   }
 
-  // 2) Cache local
   const latCache = localStorage.getItem('geo_lat');
   const lngCache = localStorage.getItem('geo_lng');
   if (latCache && lngCache) {
@@ -450,10 +448,10 @@ function initCreateFlow() {
     fields.value.longitude = lng;
     bootMapVisual({ lat, lng });
     setMarkerPosition({ lat, lng }, true);
+    emit('update:parsedAddress', { ...fields.value });
     return;
   }
 
-  // 3) Geolocation del navegador
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -465,15 +463,14 @@ function initCreateFlow() {
         localStorage.setItem('geo_lng', String(lng));
         bootMapVisual({ lat, lng });
         setMarkerPosition({ lat, lng }, true);
+        emit('update:parsedAddress', { ...fields.value });
       },
       () => {
-        // 4) Fallback SOLO visual (no tocar fields)
         bootMapVisual({ lat: 19.4326, lng: -99.1332 });
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
   } else {
-    // Fallback visual
     bootMapVisual({ lat: 19.4326, lng: -99.1332 });
   }
 }
@@ -481,26 +478,33 @@ function initCreateFlow() {
 /* ====== Watchers ====== */
 watch(
   () => fields.value.geofence_radius,
-  () => updateCircle()
+  () => {
+    updateCircle();
+    emit('update:parsedAddress', { ...fields.value });
+  }
 );
 
 watch(
   () => [fields.value.latitude, fields.value.longitude],
-  ([lat, lng]) => {
+  ([lat, lng], [oldLat, oldLng]) => {
     if (isHydrating.value) return;
     if (hasCoords(lat) && hasCoords(lng)) {
-      bootMapVisual({ lat: Number(lat), lng: Number(lng) });
-      setMarkerPosition({ lat: Number(lat), lng: Number(lng) }, true);
+      if (Number(lat) !== Number(oldLat) || Number(lng) !== Number(oldLng)) {
+        if (!mapBooted.value) {
+          bootMapVisual({ lat: Number(lat), lng: Number(lng) });
+        }
+        setMarkerPosition({ lat: Number(lat), lng: Number(lng) }, true);
+        emit('update:parsedAddress', { ...fields.value });
+      }
     }
   }
 );
 
-// ⚠️ CLAVE: reaccionar si la sesión llega TARDE
 watch(
   () => props.sessionLocation,
   (loc) => {
     if (!isCreate.value) return;
-    if (sessionHandled.value) return; // ya usamos sesión
+    if (sessionHandled.value) return;
     const { lat, lng } = extractSessionLatLng();
     if (hasCoords(lat) && hasCoords(lng)) {
       fields.value.latitude = Number(lat);
@@ -508,19 +512,35 @@ watch(
       bootMapVisual({ lat: fields.value.latitude, lng: fields.value.longitude });
       setMarkerPosition({ lat: fields.value.latitude, lng: fields.value.longitude }, true);
       sessionHandled.value = true;
+      emit('update:parsedAddress', { ...fields.value });
     }
   },
   { immediate: true, deep: true }
 );
 
-/* ====== Reactividad a initialValue (EDIT) ====== */
 watch(
   () => props.initialValue,
   async (val) => {
-    if (isCreate.value) return; // create lo maneja su propio flujo
+    if (isCreate.value) return;
+    // Solo actualiza si el valor realmente cambió
+    const keys = [
+      'street',
+      'outdoor_number',
+      'indoor_number',
+      'neighborhood',
+      'postal_code',
+      'city',
+      'state',
+      'country',
+      'latitude',
+      'longitude',
+      'geofence_radius'
+    ];
+    const isDifferent = keys.some((k) => fields.value[k] !== val?.[k]);
+    if (!isDifferent) return;
+
     isHydrating.value = true;
 
-    // Reset limpio
     Object.assign(fields.value, {
       street: '',
       outdoor_number: '',
@@ -536,7 +556,6 @@ watch(
     });
 
     if (val && typeof val === 'object') {
-      // Asignar primero textos y meta
       Object.assign(fields.value, {
         street: val.street ?? '',
         outdoor_number: val.outdoor_number ?? '',
@@ -556,25 +575,25 @@ watch(
       if (hasLatLng) {
         fields.value.latitude = Number(val.latitude);
         fields.value.longitude = Number(val.longitude);
-        // Bootear mapa exacto del record
         bootMapVisual({ lat: fields.value.latitude, lng: fields.value.longitude });
         setMarkerPosition({ lat: fields.value.latitude, lng: fields.value.longitude }, true);
+        emit('update:parsedAddress', { ...fields.value });
       } else if (hasSufficientAddress()) {
-        // Geocodificar UNA sola vez la dirección del record
         const addr = getFullAddressFromFields();
         geocodeAddress(addr, ({ lat, lng }) => {
           fields.value.latitude = lat;
           fields.value.longitude = lng;
           bootMapVisual({ lat, lng });
           setMarkerPosition({ lat, lng }, true);
+          emit('update:parsedAddress', { ...fields.value });
         });
       } else {
-        // Sin info suficiente: solo mapa visual (no tocar fields)
         bootMapVisual({ lat: 19.4326, lng: -99.1332 });
+        emit('update:parsedAddress', { ...fields.value });
       }
     } else {
-      // Si no vino nada, solo boot visual
       bootMapVisual({ lat: 19.4326, lng: -99.1332 });
+      emit('update:parsedAddress', { ...fields.value });
     }
 
     isHydrating.value = false;
@@ -582,12 +601,10 @@ watch(
   { immediate: true }
 );
 
-/* ====== Mounted ====== */
 onMounted(() => {
   nextTick(() => {
     ensureGeocoder();
 
-    // INTEGRACIÓN FUNCIONAL: Si es create y hay sesión, usar coords de sesión
     if (isCreate.value) {
       const { lat: sLat, lng: sLng } = extractSessionLatLng();
       if (hasCoords(sLat) && hasCoords(sLng)) {
@@ -596,14 +613,13 @@ onMounted(() => {
         bootMapVisual({ lat: fields.value.latitude, lng: fields.value.longitude });
         setMarkerPosition({ lat: fields.value.latitude, lng: fields.value.longitude }, true);
         sessionHandled.value = true;
+        emit('update:parsedAddress', { ...fields.value });
       } else {
-        // Si no, correr el flujo normal de prioridades
         initCreateFlow();
       }
     } else {
-      // Edit: el watcher de initialValue resuelve marker/coords. Aquí solo
-      // prevenimos pantalla vacía con un boot visual si aún no hay mapa.
       bootMapVisual({ lat: 19.4326, lng: -99.1332 });
+      emit('update:parsedAddress', { ...fields.value });
     }
   });
 });
