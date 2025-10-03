@@ -11,7 +11,6 @@ const isLoading = ref(false);
 const selectedFormId = ref(null);
 const selectedFormDetails = ref(null);
 const isLoadingFormDetails = ref(false);
-const fieldType = ref(null);
 
 const fetchForms = async () => {
   isLoading.value = true;
@@ -45,7 +44,6 @@ const fetchFormStatus = async (formId) => {
 // Calcular estadísticas de formularios generales
 const formStats = computed(() => {
   const allForms = forms.value.data || [];
-  console.log('All forms', allForms);
   const total = allForms.length;
   const withResponses = allForms.filter(f => (f.responses_count || 0) > 0).length;
   const withoutResponses = allForms.filter(f => (f.responses_count || 0) === 0).length;
@@ -54,24 +52,6 @@ const formStats = computed(() => {
     total,
     withResponses,
     withoutResponses
-  };
-});
-
-// Calcular estadísticas del formulario específico
-const selectedFormStats = computed(() => {
-  if (!selectedFormDetails.value) return null;
-  
-  const form = selectedFormDetails.value;
-  const totalResponses = form.responses_count || 0;
-  
-  // Aquí puedes agregar más lógica según los campos que tenga tu formulario
-  // Por ejemplo, si tienes campos de diferentes tipos o estados
-  return {
-    totalResponses,
-    formName: form.title || form.name || `Formulario ${form.id}`,
-    formStatus: form.status || 'unknown',
-    createdAt: form.created_at,
-    updatedAt: form.updated_at
   };
 });
 
@@ -84,6 +64,136 @@ const formOptions = computed(() => {
     subtitle: `${form.responses_count || 0} respuestas`
   }));
 });
+
+// Analizar campos de tipo select y checkbox
+const selectAndCheckboxFields = computed(() => {
+  if (!selectedFormDetails.value) return [];
+  
+  const fields = selectedFormDetails.value.form.fields || [];
+  console.log('Fields', fields);
+  return fields.filter(field => 
+    field.type === 'select' || field.type === 'checkbox'
+  );
+});
+
+// Contar respuestas por cada campo de select/checkbox
+const fieldResponseStats = computed(() => {
+  if (!selectedFormDetails.value) return [];
+  
+  const fields = selectAndCheckboxFields.value;
+  const userResponses = selectedFormDetails.value.user_responses || [];
+  
+  return fields.map(field => {
+    const options = field.options || [];
+    
+    // Inicializar contador para cada opción
+    const optionCounts = {};
+    options.forEach(option => {
+      optionCounts[option] = 0;
+    });
+    
+    // Contar respuestas
+    userResponses.forEach(userResponse => {
+      const fieldResponses = userResponse.field_responses || [];
+      
+      fieldResponses.forEach(fieldResponse => {
+        // Buscar si esta respuesta corresponde a este campo
+        if (fieldResponse.field_id === field.id || fieldResponse.label === field.label) {
+          const value = fieldResponse.value;
+          
+          // Para checkbox puede ser un array, para select es un string
+          if (field.type === 'checkbox' && Array.isArray(value)) {
+            value.forEach(v => {
+              if (optionCounts.hasOwnProperty(v)) {
+                optionCounts[v]++;
+              }
+            });
+          } else if (field.type === 'select' && typeof value === 'string') {
+            if (optionCounts.hasOwnProperty(value)) {
+              optionCounts[value]++;
+            }
+          }
+        }
+      });
+    });
+    
+    return {
+      fieldId: field.id,
+      fieldLabel: field.label,
+      fieldType: field.type,
+      options: options,
+      optionCounts: optionCounts,
+      totalResponses: Object.values(optionCounts).reduce((sum, count) => sum + count, 0)
+    };
+  });
+});
+
+// Generar configuraciones de gráficas para cada campo
+const getChartOptionsForField = (fieldStat) => {
+  return {
+    chart: {
+      type: 'bar',
+      height: 350,
+      toolbar: {
+        show: true
+      }
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '55%',
+        borderRadius: 8,
+        dataLabels: {
+          position: 'top'
+        }
+      }
+    },
+    dataLabels: {
+      enabled: true,
+      offsetY: -20,
+      style: {
+        fontSize: '12px',
+        colors: ['#304758']
+      }
+    },
+    xaxis: {
+      categories: fieldStat.options,
+      labels: {
+        style: {
+          fontSize: '12px'
+        },
+        rotate: -45,
+        rotateAlways: fieldStat.options.length > 5
+      }
+    },
+    yaxis: {
+      title: {
+        text: 'Cantidad de Respuestas'
+      }
+    },
+    title: {
+      text: fieldStat.fieldLabel,
+      align: 'left',
+      style: {
+        fontSize: '16px',
+        fontWeight: 600
+      }
+    },
+    colors: ['#2196f3'],
+    tooltip: {
+      y: {
+        formatter: (val) => `${val} respuesta${val !== 1 ? 's' : ''}`
+      }
+    }
+  };
+};
+
+const getChartSeriesForField = (fieldStat) => {
+  return [{
+    name: 'Respuestas',
+    data: fieldStat.options.map(option => fieldStat.optionCounts[option] || 0)
+  }];
+};
 
 // Configuración de la gráfica general
 const chartOptions = computed(() => ({
@@ -153,57 +263,6 @@ const chartSeries = computed(() => [
   }
 ]);
 
-// Configuración de la gráfica del formulario específico
-const selectedFormChartOptions = computed(() => ({
-  chart: {
-    type: 'donut',
-    height: 350
-  },
-  labels: ['Respuestas', 'Sin Respuestas'],
-  colors: ['#4caf50', '#f44336'],
-  legend: {
-    position: 'bottom'
-  },
-  dataLabels: {
-    enabled: true,
-    formatter: (val) => `${Math.round(val)}%`
-  },
-  tooltip: {
-    y: {
-      formatter: (val) => `${val} respuesta${val !== 1 ? 's' : ''}`
-    }
-  },
-  plotOptions: {
-    pie: {
-      donut: {
-        size: '65%',
-        labels: {
-          show: true,
-          total: {
-            show: true,
-            label: 'Total',
-            fontSize: '22px',
-            fontWeight: 600,
-            formatter: () => selectedFormStats.value?.totalResponses || 0
-          }
-        }
-      }
-    }
-  }
-}));
-
-const selectedFormChartSeries = computed(() => {
-  if (!selectedFormStats.value) return [0, 0];
-  
-  const totalResponses = selectedFormStats.value.totalResponses;
-  const maxResponses = Math.max(totalResponses, 1); // Evitar división por 0
-  
-  return [
-    totalResponses,
-    maxResponses - totalResponses // Esto es solo visual, no representa datos reales
-  ];
-});
-
 // Watcher para cargar detalles cuando se selecciona un formulario
 const onFormSelected = (formId) => {
   selectedFormId.value = formId;
@@ -249,12 +308,12 @@ onMounted(() => {
       </v-col>
     </v-row>
 
-    <!-- Selector y gráfica de formulario específico -->
+    <!-- Selector y gráficas de formulario específico -->
     <v-row>
       <v-col cols="12">
         <v-card elevation="2">
           <v-card-text>
-            <h3 class="text-h5 font-weight-bold mb-4">Detalles de Formulario Específico</h3>
+            <h3 class="text-h5 font-weight-bold mb-4">Análisis de Formulario Específico</h3>
             
             <!-- Selector de formulario -->
             <v-row class="mb-4">
@@ -280,56 +339,59 @@ onMounted(() => {
               </v-col>
             </v-row>
 
-            <!-- Información del formulario seleccionado -->
-            <div v-if="selectedFormDetails" class="mb-4">
+            <!-- Loading state para detalles -->
+            <div v-if="isLoadingFormDetails" class="text-center py-8">
+              <v-progress-circular indeterminate color="primary" />
+              <p class="mt-2">Cargando detalles del formulario...</p>
+            </div>
+            
+            <!-- Gráficas de campos select/checkbox -->
+            <div v-else-if="selectedFormDetails && fieldResponseStats.length > 0">
               <v-row>
-                <v-col cols="12" md="3">
-                  <v-card variant="outlined" class="pa-3">
-                    <div class="text-overline mb-1">Formulario</div>
-                    <div class="text-h6">{{ selectedFormStats?.formName }}</div>
-                  </v-card>
-                </v-col>
-                <v-col cols="12" md="3">
-                  <v-card variant="outlined" class="pa-3">
-                    <div class="text-overline mb-1">Total Respuestas</div>
-                    <div class="text-h6 primary--text">{{ selectedFormStats?.totalResponses }}</div>
-                  </v-card>
-                </v-col>
-                <v-col cols="12" md="3">
-                  <v-card variant="outlined" class="pa-3">
-                    <div class="text-overline mb-1">Estado</div>
-                    <div class="text-h6">{{ selectedFormStats?.formStatus }}</div>
-                  </v-card>
-                </v-col>
-                <v-col cols="12" md="3">
-                  <v-card variant="outlined" class="pa-3">
-                    <div class="text-overline mb-1">Creado</div>
-                    <div class="text-h6">{{ selectedFormStats?.createdAt ? new Date(selectedFormStats.createdAt).toLocaleDateString() : 'N/A' }}</div>
+                <v-col 
+                  v-for="fieldStat in fieldResponseStats" 
+                  :key="fieldStat.fieldId"
+                  cols="12"
+                  :md="fieldResponseStats.length === 1 ? 12 : 6"
+                >
+                  <v-card variant="outlined" class="mb-4">
+                    <v-card-text>
+                      <div class="d-flex justify-space-between align-center mb-2">
+                        <div>
+                          <v-chip 
+                            size="small" 
+                            :color="fieldStat.fieldType === 'select' ? 'primary' : 'success'"
+                            class="mb-2"
+                          >
+                            {{ fieldStat.fieldType === 'select' ? 'Selección' : 'Múltiple' }}
+                          </v-chip>
+                          <div class="text-caption text-grey">
+                            Total de respuestas: {{ fieldStat.totalResponses }}
+                          </div>
+                        </div>
+                      </div>
+                      <VueApexCharts
+                        type="bar"
+                        height="300"
+                        :options="getChartOptionsForField(fieldStat)"
+                        :series="getChartSeriesForField(fieldStat)"
+                      />
+                    </v-card-text>
                   </v-card>
                 </v-col>
               </v-row>
             </div>
 
-            <!-- Gráfica del formulario específico -->
-            <div v-if="selectedFormDetails && !isLoadingFormDetails">
-              <VueApexCharts
-                type="donut"
-                height="350"
-                :options="selectedFormChartOptions"
-                :series="selectedFormChartSeries"
-              />
-            </div>
-            
-            <!-- Loading state para detalles -->
-            <div v-else-if="isLoadingFormDetails" class="text-center py-8">
-              <v-progress-circular indeterminate color="primary" />
-              <p class="mt-2">Cargando detalles del formulario...</p>
+            <!-- Mensaje cuando el formulario no tiene campos select/checkbox -->
+            <div v-else-if="selectedFormDetails && fieldResponseStats.length === 0" class="text-center py-8 text-grey">
+              <v-icon size="48" color="grey-lighten-1">mdi-chart-box-outline</v-icon>
+              <p class="mt-2">Este formulario no tiene campos de tipo selección o múltiple</p>
             </div>
             
             <!-- Mensaje cuando no hay formulario seleccionado -->
             <div v-else-if="!selectedFormId" class="text-center py-8 text-grey">
-              <v-icon size="48" color="grey-lighten-1">mdi-chart-donut</v-icon>
-              <p class="mt-2">Selecciona un formulario para ver sus detalles</p>
+              <v-icon size="48" color="grey-lighten-1">mdi-chart-bar</v-icon>
+              <p class="mt-2">Selecciona un formulario para ver el análisis de respuestas</p>
             </div>
           </v-card-text>
         </v-card>
