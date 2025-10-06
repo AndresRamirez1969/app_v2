@@ -4,18 +4,67 @@ import axiosInstance from '@/utils/axios';
 import { VCard, VCardText } from 'vuetify/components';
 import VueApexCharts from 'vue3-apexcharts';
 
+const today = new Date();
+const dd = String(today.getDate());
+const mm = String(today.getMonth() + 1);
+const yyyy = today.getFullYear();
+const todayFormatted = `${yyyy}-${mm}-${dd}`;
 const forms = ref({ data: [], last_page: 1 });
 const isLoading = ref(false);
+const filters = ref({
+  date: null
+});
+const dateMenu = ref(false);
+const currentPage = ref(1);
+const dateRange = ref('');
 
 // Variables para el formulario específico
 const selectedFormId = ref(null);
 const selectedFormDetails = ref(null);
 const isLoadingFormDetails = ref(false);
 
+const formatDateForAPI = (date) => {
+  if (!date) return null;
+  const d = new Date(date);
+  return d.toISOString().split('T')[0];
+};
+
+const clearDateFilter = () => {
+  filters.value.date = null;
+  dateRange.value = '';
+  fetchForms();
+  if (selectedFormId.value) {
+    fetchFormStatus(selectedFormId.value);
+  }
+};
+
+const onDateChange = (date) => {
+  dateMenu.value = false;
+  if (date) {
+    dateRange.value = formatDateForAPI(date);
+  } else {
+    dateRange.value = '';
+  }
+  fetchForms();
+  if (selectedFormId.value) {
+    fetchFormStatus(selectedFormId.value);
+  }
+}
+
 const fetchForms = async () => {
   isLoading.value = true;
   try {
-    const res = await axiosInstance.get('/forms');
+    const params = {
+      page: currentPage.value
+    };
+
+    if (dateRange.value) {
+      params.submitted_at = dateRange.value;
+    }
+
+    const res = await axiosInstance.get('/forms', {
+      params: params
+    });
     forms.value = res.data;
     console.log('Forms', forms.value);
   } catch (err) {
@@ -30,7 +79,14 @@ const fetchFormStatus = async (formId) => {
   
   isLoadingFormDetails.value = true;
   try {
-    const res = await axiosInstance.get(`/forms/${formId}/responses`);
+    const params = {};
+    if (dateRange.value) {
+      params.submitted_at = dateRange.value;
+    }
+
+    const res = await axiosInstance.get(`/forms/${formId}/responses`, {
+      params: params
+    });
     selectedFormDetails.value = res.data.data || res.data;
     console.log('Form details', selectedFormDetails.value);
   } catch (err) {
@@ -45,8 +101,22 @@ const fetchFormStatus = async (formId) => {
 const formStats = computed(() => {
   const allForms = forms.value.data || [];
   const total = allForms.length;
-  const withResponses = allForms.filter(f => (f.responses_count || 0) > 0).length;
-  const withoutResponses = allForms.filter(f => (f.responses_count || 0) === 0).length;
+
+  let withResponses = 0;
+  let withoutResponses = 0;
+
+  if (dateRange.value) {
+    allForms.forEach(form => {
+      if ((form.responses_count || 0) > 0) {
+        withResponses++;
+      } else {
+        withoutResponses++;
+      }
+    })
+  } else {
+    withResponses = allForms.filter(f => (f.responses_count || 0) > 0).length;
+    withoutResponses = allForms.filter(f => (f.responses_count || 0) === 0).length;
+  }
   
   return {
     total,
@@ -81,7 +151,18 @@ const fieldResponseStats = computed(() => {
   if (!selectedFormDetails.value) return [];
   
   const fields = selectAndCheckboxFields.value;
-  const userResponses = selectedFormDetails.value.user_responses || [];
+  let userResponses = selectedFormDetails.value.form.user_responses || [];
+  
+  // Filtrar respuestas por fecha de submitted_at si hay filtro activo
+  if (dateRange.value) {
+    userResponses = userResponses.filter(response => {
+      if (!response.submitted_at) return false;
+      const responseDate = formatDateForAPI(response.submitted_at);
+      return responseDate === dateRange.value;
+    });
+  }
+  
+  console.log('Filtered user responses', userResponses);
   
   return fields.map(field => {
     const options = field.options || [];
@@ -92,27 +173,33 @@ const fieldResponseStats = computed(() => {
       optionCounts[option] = 0;
     });
     
-    // Contar respuestas
+    // Contar respuestas filtradas
     userResponses.forEach(userResponse => {
       const fieldResponses = userResponse.field_responses || [];
       
       fieldResponses.forEach(fieldResponse => {
-        // Buscar si esta respuesta corresponde a este campo
-        if (fieldResponse.field_id === field.id || fieldResponse.label === field.label) {
-          const value = fieldResponse.value;
+        // Buscar si esta respuesta corresponde a este campo por field_id
+        if (fieldResponse.field_id === field.id) {
+          let value = fieldResponse.value;
           
-          // Para checkbox puede ser un array, para select es un string
-          if (field.type === 'checkbox' && Array.isArray(value)) {
-            value.forEach(v => {
-              if (optionCounts.hasOwnProperty(v)) {
-                optionCounts[v]++;
-              }
-            });
-          } else if (field.type === 'select' && typeof value === 'string') {
-            if (optionCounts.hasOwnProperty(value)) {
-              optionCounts[value]++;
-            }
+          // Tanto checkbox como select pueden venir como JSON string
+          let values = [];
+          
+          try {
+            // Intentar parsear como JSON
+            const parsed = JSON.parse(value);
+            values = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (e) {
+            // Si no es JSON, tratar como string simple
+            values = [value];
           }
+          
+          // Contar cada valor
+          values.forEach(v => {
+            if (Object.prototype.hasOwnProperty.call(optionCounts, v)) {
+              optionCounts[v]++;
+            }
+          });
         }
       });
     });
@@ -172,7 +259,7 @@ const getChartOptionsForField = (fieldStat) => {
       }
     },
     title: {
-      text: fieldStat.fieldLabel,
+      text: `${fieldStat.fieldLabel}${dateRange.value ? ` (${dateRange.value})` : ''}`,
       align: 'left',
       style: {
         fontSize: '16px',
@@ -245,6 +332,14 @@ const chartOptions = computed(() => ({
     y: {
       formatter: (val) => `${val} formulario${val !== 1 ? 's' : ''}`
     }
+  },
+  title: {
+    text: `Estado General de Formularios${dateRange.value ? ` (${dateRange.value})` : ''}`,
+    align: 'left',
+    style: {
+      fontSize: '18px',
+      fontWeight: 600
+    }
   }
 }));
 
@@ -282,7 +377,41 @@ onMounted(() => {
   <v-container fluid>
     <v-row class="mb-4">
       <v-col cols="12">
-        <h2 class="text-h4 font-weight-bold">Dashboard</h2>
+        <div class="d-flex flex-column">
+        <h2 class="text-h4 font-weight-bold">Tu Dashboard</h2>
+        <p class="text-body-1 text-grey-darken-1">
+          Hoy es {{ todayFormatted }}
+        </p>
+      </div>
+      </v-col>
+    </v-row>
+    <v-row class="mb-4">
+      <v-col cols="12" md="4">
+        <!-- Filtro de fecha -->
+        <v-menu v-model="dateMenu" :close-on-content-click="false" transition="scale-transition" offset-y min-width="auto">
+          <template #activator="{ props }">
+            <v-text-field
+              v-bind="props"
+              v-model="dateRange"
+              placeholder="Filtrar por fecha de respuesta"
+              :prepend-inner-icon="mdiCalendar"
+              readonly
+              clearable
+              density="compact"
+              variant="outlined"
+              hide-details
+              style="min-width: 220px"
+              @click:clear="clearDateFilter"
+            />
+          </template>
+
+          <v-date-picker
+            v-model="filters.date"
+            @update:model-value="onDateChange"
+            :max="new Date().toISOString().substr(0, 10)"
+            locale="es"
+          />
+        </v-menu>
       </v-col>
     </v-row>
 

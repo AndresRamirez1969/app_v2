@@ -70,8 +70,14 @@ const getReports = async () => {
     const responsesRes = await axiosInstance.get(`/forms/${formId}/responses`, { params });
     console.log('API response:', responsesRes.data);
 
-    responses.value = responsesRes.data.responses.data;
-    totalResponses.value = responsesRes.data.responses.total;
+    const responseData = responsesRes.data.data || responsesRes.data;
+    
+    responses.value = responseData.form?.user_responses || [];
+    console.log('Responses:', responses.value);
+    
+    // Obtener el total de respuestas
+    totalResponses.value = responseData.form?.user_responses?.total || responseData.total || 0;
+    
   } catch (err) {
     console.error('Error fetching reports:', err);
     toast.error('Error al cargar los reportes');
