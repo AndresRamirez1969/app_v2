@@ -89,10 +89,7 @@ const filteredOrgRoles = computed(() => {
     // Filtra roles por organización seleccionada
     const orgRoles = orgRoleOptions.value
       .filter((r) => r.organization_id === selectedOrgForRoles.value)
-      .map((r) => ({
-        id: r.id,
-        customLabel: r.name
-      }));
+      .map((r) => ({ id: r.id, customLabel: r.name }));
     return [...fixedRoles, ...orgRoles];
   }
   // Si no es superadmin, regresa todos los roles
@@ -118,10 +115,7 @@ const getAssignmentRoles = computed(() => {
     // Roles de la organización (sin fijos)
     const orgRoles = orgRolesForAdmin.value
       .filter((role) => ![1, 2, 3].includes(role.id)) // quitar superadmin, admin, sponsor por id
-      .map((role) => ({
-        id: role.id,
-        customLabel: role.name
-      }));
+      .map((role) => ({ id: role.id, customLabel: role.name }));
 
     return [...fixed, ...orgRoles];
   }
@@ -288,10 +282,7 @@ const validateAllFields = () => {
 const fetchAllUsers = async () => {
   try {
     const res = await axiosInstance.get('/users');
-    allUsers.value = res.data.data.map((user) => ({
-      ...user,
-      customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
-    }));
+    allUsers.value = res.data.data.map((user) => ({ ...user, customLabel: `${user.roles?.[0]?.name || 'Sin rol'}` }));
   } catch (err) {
     allUsers.value = [];
   }
@@ -322,10 +313,7 @@ const fetchUsersByScope = async () => {
     }
 
     const res = await axiosInstance.get('/users-by-scope', { params });
-    filteredUsers.value = res.data.data.map((user) => ({
-      ...user,
-      customLabel: `${user.roles?.[0]?.name || 'Sin rol'}`
-    }));
+    filteredUsers.value = res.data.data.map((user) => ({ ...user, customLabel: `${user.roles?.[0]?.name || 'Sin rol'}` }));
 
     if (scope.value === 'business_unit_group' && groupId.value) {
       const allRoles = new Set();
@@ -370,10 +358,7 @@ const fetchBusinessUnits = async (searchText = '') => {
           if (isSuperadmin.value) return true;
           return unit.organization_id === user.value?.organization_id;
         })
-        .map((businessUnit) => ({
-          ...businessUnit,
-          customLabel: `${businessUnit.folio} - ${businessUnit.name}`
-        }));
+        .map((businessUnit) => ({ ...businessUnit, customLabel: `${businessUnit.folio} - ${businessUnit.name}` }));
     }
   } catch (err) {
     businessUnits.value = [];
@@ -388,10 +373,7 @@ const fetchBusinesses = async () => {
         if (isSuperadmin.value) return true;
         return business.organization_id === user.value?.organization_id;
       })
-      .map((business) => ({
-        ...business,
-        customLabel: `${business.folio} - ${business.name}`
-      }));
+      .map((business) => ({ ...business, customLabel: `${business.folio} - ${business.name}` }));
   } catch (err) {
     businesses.value = [];
   }
@@ -406,11 +388,7 @@ const fetchGroups = async () => {
         if (isSponsor.value) return group.business_id === userBusinesses.value;
         return group.organization_id === user.value?.organization_id;
       })
-      .map((group) => ({
-        ...group,
-        customLabel: `${group.name}`,
-        business_id: group.business_id
-      }));
+      .map((group) => ({ ...group, customLabel: `${group.name}`, business_id: group.business_id }));
   } catch (err) {
     groups.value = [];
   }
@@ -647,17 +625,12 @@ const validate = async () => {
       formData.append('business_unit_group_id', '');
     }
 
-    const res = await axiosInstance.post('/forms', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    const res = await axiosInstance.post('/forms', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 
     toast.success('Formulario creado correctamente');
     const newForm = res.data.form;
     if (newForm && newForm.id) {
-      router.push({
-        name: 'Forms Show',
-        params: { id: newForm.id }
-      });
+      router.push({ name: 'Forms Show', params: { id: newForm.id } });
     }
   } catch (err) {
     toast.error('Error al crear el formulario');

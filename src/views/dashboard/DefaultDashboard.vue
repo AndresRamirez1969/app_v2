@@ -1,8 +1,10 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import axiosInstance from '@/utils/axios';
 import { VCard, VCardText } from 'vuetify/components';
 import VueApexCharts from 'vue3-apexcharts';
+import { useAuthStore } from '@/stores/auth';
+import AnalyticsReport from './components/AnalyticsReport.vue';
 
 const today = new Date();
 const dd = String(today.getDate());
@@ -11,13 +13,38 @@ const yyyy = today.getFullYear();
 const todayFormatted = `${yyyy}-${mm}-${dd}`;
 const forms = ref({ data: [], last_page: 1 });
 const isLoading = ref(false);
-const filters = ref({
-  date: null
-});
+const filters = ref({ date: null });
 const dateMenu = ref(false);
 const currentPage = ref(1);
 const dateRange = ref('');
 
+const auth = useAuthStore();
+const roles = computed(() => auth.user?.roles || []);
+const isSuperadmin = computed(() => roles.value.includes('superadmin'));
+
+const organizationOptions = ref([]);
+const loadingOrganizations = ref(false);
+const selectedOrgForDashboard = ref(null);
+
+const userOrganizationId = computed(() => auth.user?.organization_id);
+
+const fetchOrganizations = async () => {
+  if (!isSuperadmin.value) return;
+  loadingOrganizations.value = true;
+  try {
+    const { data } = await axiosInstance.get('/organizations');
+    organizationOptions.value = (data.data || []).map((o) => ({
+      ...o,
+      title: `${o.folio} - ${o.legal_name}`,
+      value: o.id,
+      logo: o.logo || null
+    }));
+  } catch {
+    organizationOptions.value = [];
+  } finally {
+    loadingOrganizations.value = false;
+  }
+};
 // Variables para el formulario específico
 const selectedFormId = ref(null);
 const selectedFormDetails = ref(null);
@@ -49,22 +76,33 @@ const onDateChange = (date) => {
   if (selectedFormId.value) {
     fetchFormStatus(selectedFormId.value);
   }
-}
+};
+
+const getOrgParams = () => {
+  const params = {};
+
+  if (isSuperadmin.value) {
+    if (selectedOrgForDashboard.value) {
+      params.organization_id = selectedOrgForDashboard.value;
+    }
+  } else {
+    if (userOrganizationId.value) {
+      params.organization_id = userOrganizationId.value;
+    }
+  }
+  return params;
+};
 
 const fetchForms = async () => {
   isLoading.value = true;
   try {
-    const params = {
-      page: currentPage.value
-    };
+    const params = { page: currentPage.value, ...getOrgParams() };
 
     if (dateRange.value) {
       params.submitted_at = dateRange.value;
     }
 
-    const res = await axiosInstance.get('/forms', {
-      params: params
-    });
+    const res = await axiosInstance.get('/forms', { params: params });
     forms.value = res.data;
     console.log('Forms', forms.value);
   } catch (err) {
@@ -76,17 +114,15 @@ const fetchForms = async () => {
 
 const fetchFormStatus = async (formId) => {
   if (!formId) return;
-  
+
   isLoadingFormDetails.value = true;
   try {
-    const params = {};
+    const params = { ...getOrgParams() };
     if (dateRange.value) {
       params.submitted_at = dateRange.value;
     }
 
-    const res = await axiosInstance.get(`/forms/${formId}/responses`, {
-      params: params
-    });
+    const res = await axiosInstance.get(`/forms/${formId}/responses`, { params: params });
     selectedFormDetails.value = res.data.data || res.data;
     console.log('Form details', selectedFormDetails.value);
   } catch (err) {
@@ -97,6 +133,12 @@ const fetchFormStatus = async (formId) => {
   }
 };
 
+watch(selectedOrgForDashboard, () => {
+  selectedFormId.value = null;
+  selectedFormDetails.value = null;
+  fetchForms();
+});
+
 // Calcular estadísticas de formularios generales
 const formStats = computed(() => {
   const allForms = forms.value.data || [];
@@ -105,30 +147,30 @@ const formStats = computed(() => {
   let withResponses = 0;
   let withoutResponses = 0;
 
+  if (isSuperadmin.value && !selectedOrgForDashboard.value) {
+    return { total: 0, withResponses: 0, withoutResponses: 0 };
+  }
+
   if (dateRange.value) {
-    allForms.forEach(form => {
+    allForms.forEach((form) => {
       if ((form.responses_count || 0) > 0) {
         withResponses++;
       } else {
         withoutResponses++;
       }
-    })
+    });
   } else {
-    withResponses = allForms.filter(f => (f.responses_count || 0) > 0).length;
-    withoutResponses = allForms.filter(f => (f.responses_count || 0) === 0).length;
+    withResponses = allForms.filter((f) => (f.responses_count || 0) > 0).length;
+    withoutResponses = allForms.filter((f) => (f.responses_count || 0) === 0).length;
   }
-  
-  return {
-    total,
-    withResponses,
-    withoutResponses
-  };
+
+  return { total, withResponses, withoutResponses };
 });
 
 // Opciones para el select de formularios
 const formOptions = computed(() => {
   const allForms = forms.value.data || [];
-  return allForms.map(form => ({
+  return allForms.map((form) => ({
     title: form.title || form.name || `Formulario ${form.id}`,
     value: form.id,
     subtitle: `${form.responses_count || 0} respuestas`
@@ -138,53 +180,51 @@ const formOptions = computed(() => {
 // Analizar campos de tipo select y checkbox
 const selectAndCheckboxFields = computed(() => {
   if (!selectedFormDetails.value) return [];
-  
+
   const fields = selectedFormDetails.value.form.fields || [];
   console.log('Fields', fields);
-  return fields.filter(field => 
-    field.type === 'select' || field.type === 'checkbox'
-  );
+  return fields.filter((field) => field.type === 'select' || field.type === 'checkbox');
 });
 
 // Contar respuestas por cada campo de select/checkbox
 const fieldResponseStats = computed(() => {
   if (!selectedFormDetails.value) return [];
-  
+
   const fields = selectAndCheckboxFields.value;
   let userResponses = selectedFormDetails.value.form.user_responses || [];
-  
+
   // Filtrar respuestas por fecha de submitted_at si hay filtro activo
   if (dateRange.value) {
-    userResponses = userResponses.filter(response => {
+    userResponses = userResponses.filter((response) => {
       if (!response.submitted_at) return false;
       const responseDate = formatDateForAPI(response.submitted_at);
       return responseDate === dateRange.value;
     });
   }
-  
+
   console.log('Filtered user responses', userResponses);
-  
-  return fields.map(field => {
+
+  return fields.map((field) => {
     const options = field.options || [];
-    
+
     // Inicializar contador para cada opción
     const optionCounts = {};
-    options.forEach(option => {
+    options.forEach((option) => {
       optionCounts[option] = 0;
     });
-    
+
     // Contar respuestas filtradas
-    userResponses.forEach(userResponse => {
+    userResponses.forEach((userResponse) => {
       const fieldResponses = userResponse.field_responses || [];
-      
-      fieldResponses.forEach(fieldResponse => {
+
+      fieldResponses.forEach((fieldResponse) => {
         // Buscar si esta respuesta corresponde a este campo por field_id
         if (fieldResponse.field_id === field.id) {
           let value = fieldResponse.value;
-          
+
           // Tanto checkbox como select pueden venir como JSON string
           let values = [];
-          
+
           try {
             // Intentar parsear como JSON
             const parsed = JSON.parse(value);
@@ -193,9 +233,9 @@ const fieldResponseStats = computed(() => {
             // Si no es JSON, tratar como string simple
             values = [value];
           }
-          
+
           // Contar cada valor
-          values.forEach(v => {
+          values.forEach((v) => {
             if (Object.prototype.hasOwnProperty.call(optionCounts, v)) {
               optionCounts[v]++;
             }
@@ -203,14 +243,22 @@ const fieldResponseStats = computed(() => {
         }
       });
     });
-    
+    const uniqueUserResponses = new Set();
+    userResponses.forEach((userResponse) => {
+      const fieldResponses = userResponse.field_responses || [];
+      const hasResponse = fieldResponses.some((fieldResponse) => fieldResponse.field_id === field.id);
+      if (hasResponse) {
+        uniqueUserResponses.add(userResponse.user?.id || userResponse.id);
+      }
+    });
+
     return {
       fieldId: field.id,
       fieldLabel: field.label,
       fieldType: field.type,
       options: options,
       optionCounts: optionCounts,
-      totalResponses: Object.values(optionCounts).reduce((sum, count) => sum + count, 0)
+      totalResponses: uniqueUserResponses.size
     };
   });
 });
@@ -218,144 +266,49 @@ const fieldResponseStats = computed(() => {
 // Generar configuraciones de gráficas para cada campo
 const getChartOptionsForField = (fieldStat) => {
   return {
-    chart: {
-      type: 'bar',
-      height: 350,
-      toolbar: {
-        show: true
-      }
-    },
-    plotOptions: {
-      bar: {
-        horizontal: false,
-        columnWidth: '55%',
-        borderRadius: 8,
-        dataLabels: {
-          position: 'top'
-        }
-      }
-    },
-    dataLabels: {
-      enabled: true,
-      offsetY: -20,
-      style: {
-        fontSize: '12px',
-        colors: ['#304758']
-      }
-    },
+    chart: { type: 'bar', height: 350, toolbar: { show: true } },
+    plotOptions: { bar: { horizontal: false, columnWidth: '55%', borderRadius: 8, dataLabels: { position: 'top' } } },
+    dataLabels: { enabled: true, offsetY: -20, style: { fontSize: '12px', colors: ['#304758'] } },
     xaxis: {
       categories: fieldStat.options,
-      labels: {
-        style: {
-          fontSize: '12px'
-        },
-        rotate: -45,
-        rotateAlways: fieldStat.options.length > 5
-      }
+      labels: { style: { fontSize: '12px' }, rotate: -45, rotateAlways: fieldStat.options.length > 5 }
     },
-    yaxis: {
-      title: {
-        text: 'Cantidad de Respuestas'
-      }
-    },
+    yaxis: { title: { text: 'Cantidad de Respuestas' } },
     title: {
       text: `${fieldStat.fieldLabel}${dateRange.value ? ` (${dateRange.value})` : ''}`,
       align: 'left',
-      style: {
-        fontSize: '16px',
-        fontWeight: 600
-      }
+      style: { fontSize: '16px', fontWeight: 600 }
     },
     colors: ['#2196f3'],
-    tooltip: {
-      y: {
-        formatter: (val) => `${val} respuesta${val !== 1 ? 's' : ''}`
-      }
-    }
+    tooltip: { y: { formatter: (val) => `${val} respuesta${val !== 1 ? 's' : ''}` } }
   };
 };
 
 const getChartSeriesForField = (fieldStat) => {
-  return [{
-    name: 'Respuestas',
-    data: fieldStat.options.map(option => fieldStat.optionCounts[option] || 0)
-  }];
+  return [{ name: 'Respuestas', data: fieldStat.options.map((option) => fieldStat.optionCounts[option] || 0) }];
 };
 
 // Configuración de la gráfica general
 const chartOptions = computed(() => ({
-  chart: {
-    type: 'bar',
-    height: 350,
-    toolbar: {
-      show: true
-    }
-  },
-  plotOptions: {
-    bar: {
-      horizontal: false,
-      columnWidth: '55%',
-      borderRadius: 8,
-      dataLabels: {
-        position: 'top'
-      }
-    }
-  },
-  dataLabels: {
-    enabled: true,
-    offsetY: -20,
-    style: {
-      fontSize: '12px',
-      colors: ['#304758']
-    }
-  },
-  xaxis: {
-    categories: ['Formularios'],
-    labels: {
-      style: {
-        fontSize: '14px',
-        fontWeight: 600
-      }
-    }
-  },
-  yaxis: {
-    title: {
-      text: 'Cantidad de Formularios'
-    }
-  },
-  legend: {
-    position: 'top',
-    horizontalAlign: 'center'
-  },
+  chart: { type: 'bar', height: 350, toolbar: { show: true } },
+  plotOptions: { bar: { horizontal: false, columnWidth: '55%', borderRadius: 8, dataLabels: { position: 'top' } } },
+  dataLabels: { enabled: true, offsetY: -20, style: { fontSize: '12px', colors: ['#304758'] } },
+  xaxis: { categories: ['Formularios'], labels: { style: { fontSize: '14px', fontWeight: 600 } } },
+  yaxis: { title: { text: 'Cantidad de Formularios' } },
+  legend: { position: 'top', horizontalAlign: 'center' },
   colors: ['#1976d2', '#4caf50', '#f44336'],
-  tooltip: {
-    y: {
-      formatter: (val) => `${val} formulario${val !== 1 ? 's' : ''}`
-    }
-  },
+  tooltip: { y: { formatter: (val) => `${val} formulario${val !== 1 ? 's' : ''}` } },
   title: {
     text: `Estado General de Formularios${dateRange.value ? ` (${dateRange.value})` : ''}`,
     align: 'left',
-    style: {
-      fontSize: '18px',
-      fontWeight: 600
-    }
+    style: { fontSize: '18px', fontWeight: 600 }
   }
 }));
 
 const chartSeries = computed(() => [
-  {
-    name: 'Total',
-    data: [formStats.value.total]
-  },
-  {
-    name: 'Con Respuestas',
-    data: [formStats.value.withResponses]
-  },
-  {
-    name: 'Sin Respuestas',
-    data: [formStats.value.withoutResponses]
-  }
+  { name: 'Total', data: [formStats.value.total] },
+  { name: 'Con Respuestas', data: [formStats.value.withResponses] },
+  { name: 'Sin Respuestas', data: [formStats.value.withoutResponses] }
 ]);
 
 // Watcher para cargar detalles cuando se selecciona un formulario
@@ -367,53 +320,88 @@ const onFormSelected = (formId) => {
     selectedFormDetails.value = null;
   }
 };
+// Datos para el componente AnalyticsReport
+const analyticsData = computed(() => {
+  if (!selectedFormDetails.value || !selectedFormDetails.value.form.user_responses) {
+    return [];
+  }
+  return selectedFormDetails.value.form.user_responses;
+});
+
+const selectedFormForAnalytics = computed(() => {
+  if (!selectedFormDetails.value) return null;
+  return selectedFormDetails.value.form;
+});
 
 onMounted(() => {
   fetchForms();
+  if (isSuperadmin.value) {
+    fetchOrganizations();
+  }
 });
 </script>
 
 <template>
   <v-container fluid>
+    <!-- Header -->
     <v-row class="mb-4">
       <v-col cols="12">
-        <div class="d-flex flex-column">
-        <h2 class="text-h4 font-weight-bold">Tu Dashboard</h2>
-        <p class="text-body-1 text-grey-darken-1">
-          Hoy es {{ todayFormatted }}
-        </p>
-      </div>
-      </v-col>
-    </v-row>
-    <v-row class="mb-4">
-      <v-col cols="12" md="4">
-        <!-- Filtro de fecha -->
-        <v-menu v-model="dateMenu" :close-on-content-click="false" transition="scale-transition" offset-y min-width="auto">
-          <template #activator="{ props }">
-            <v-text-field
-              v-bind="props"
-              v-model="dateRange"
-              placeholder="Filtrar por fecha de respuesta"
-              :prepend-inner-icon="mdiCalendar"
-              readonly
-              clearable
-              density="compact"
-              variant="outlined"
-              hide-details
-              style="min-width: 220px"
-              @click:clear="clearDateFilter"
-            />
-          </template>
+        <div class="d-flex justify-space-between align-center">
+          <div class="d-flex flex-column">
+            <h2 class="text-h4 font-weight-bold">Tu Dashboard</h2>
+            <p class="text-body-1 text-grey-darken-1">Hoy es {{ todayFormatted }}</p>
+          </div>
+          <div class="d-flex align-center" style="min-width: 300px">
+            <!-- Filtro de fecha -->
+            <v-menu v-model="dateMenu" :close-on-content-click="false" transition="scale-transition" offset-y min-width="auto">
+              <template #activator="{ props }">
+                <v-text-field
+                  v-bind="props"
+                  v-model="dateRange"
+                  placeholder="Filtrar por fecha (vacio para ver todos)"
+                  :prepend-inner-icon="mdiCalendar"
+                  readonly
+                  clearable
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  style="min-width: 280px"
+                  @click:clear="clearDateFilter"
+                />
+              </template>
 
-          <v-date-picker
-            v-model="filters.date"
-            @update:model-value="onDateChange"
-            :max="new Date().toISOString().substr(0, 10)"
-            locale="es"
-          />
-        </v-menu>
+              <v-date-picker
+                v-model="filters.date"
+                @update:model-value="onDateChange"
+                :max="new Date().toISOString().substr(0, 10)"
+                locale="es"
+              />
+            </v-menu>
+          </div>
+        </div>
       </v-col>
     </v-row>
+    <template v-if="isSuperadmin">
+      <div class="d-flex align-center justify-between mb-2">
+        <v-label>Organización para filtrar graficas <span class="text-error">*</span></v-label>
+        <v-icon :icon="mdiInformationSlabCircleOutline" color="primary" size="22" class="ml-2" style="cursor: pointer" />
+      </div>
+      <div class="padding-bottom: 18px;">
+        <v-select
+          v-model="selectedOrgForDashboard"
+          :items="organizationOptions"
+          :loading="loadingOrganizations"
+          item-title="title"
+          item-value="value"
+          clearable
+          hide-details
+          variant="outlined"
+          color="primary"
+          class="mt-2 mb-4 asignaciones-full-length"
+          required
+        />
+      </div>
+    </template>
 
     <!-- Gráfica general -->
     <v-row class="mb-6">
@@ -425,12 +413,7 @@ onMounted(() => {
               <v-progress-circular indeterminate color="primary" />
             </div>
             <div v-else>
-              <VueApexCharts
-                type="bar"
-                height="350"
-                :options="chartOptions"
-                :series="chartSeries"
-              />
+              <VueApexCharts type="bar" height="350" :options="chartOptions" :series="chartSeries" />
             </div>
           </v-card-text>
         </v-card>
@@ -443,7 +426,7 @@ onMounted(() => {
         <v-card elevation="2">
           <v-card-text>
             <h3 class="text-h5 font-weight-bold mb-4">Análisis de Formulario Específico</h3>
-            
+
             <!-- Selector de formulario -->
             <v-row class="mb-4">
               <v-col cols="12" md="6">
@@ -473,12 +456,12 @@ onMounted(() => {
               <v-progress-circular indeterminate color="primary" />
               <p class="mt-2">Cargando detalles del formulario...</p>
             </div>
-            
+
             <!-- Gráficas de campos select/checkbox -->
             <div v-else-if="selectedFormDetails && fieldResponseStats.length > 0">
               <v-row>
-                <v-col 
-                  v-for="fieldStat in fieldResponseStats" 
+                <v-col
+                  v-for="fieldStat in fieldResponseStats"
                   :key="fieldStat.fieldId"
                   cols="12"
                   :md="fieldResponseStats.length === 1 ? 12 : 6"
@@ -487,16 +470,10 @@ onMounted(() => {
                     <v-card-text>
                       <div class="d-flex justify-space-between align-center mb-2">
                         <div>
-                          <v-chip 
-                            size="small" 
-                            :color="fieldStat.fieldType === 'select' ? 'primary' : 'success'"
-                            class="mb-2"
-                          >
+                          <v-chip size="small" :color="fieldStat.fieldType === 'select' ? 'primary' : 'success'" class="mb-2">
                             {{ fieldStat.fieldType === 'select' ? 'Selección' : 'Múltiple' }}
                           </v-chip>
-                          <div class="text-caption text-grey">
-                            Total de respuestas: {{ fieldStat.totalResponses }}
-                          </div>
+                          <div class="text-caption text-grey">Total de respuestas: {{ fieldStat.totalResponses }}</div>
                         </div>
                       </div>
                       <VueApexCharts
@@ -516,12 +493,25 @@ onMounted(() => {
               <v-icon size="48" color="grey-lighten-1">mdi-chart-box-outline</v-icon>
               <p class="mt-2">Este formulario no tiene campos de tipo selección o múltiple</p>
             </div>
-            
+
             <!-- Mensaje cuando no hay formulario seleccionado -->
             <div v-else-if="!selectedFormId" class="text-center py-8 text-grey">
               <v-icon size="48" color="grey-lighten-1">mdi-chart-bar</v-icon>
               <p class="mt-2">Selecciona un formulario para ver el análisis de respuestas</p>
             </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+    <v-row>
+      <v-col cols="12">
+        <v-card elevation="2">
+          <v-card-text>
+            <AnalyticsReport
+              :form-responses-data="analyticsData"
+              :selected-form="selectedFormForAnalytics"
+              :is-loading="isLoadingFormDetails"
+            />
           </v-card-text>
         </v-card>
       </v-col>
