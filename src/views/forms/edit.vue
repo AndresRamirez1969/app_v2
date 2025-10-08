@@ -48,6 +48,10 @@ const loadingOrgRoles = ref(false);
 const orgRolesForAdmin = ref([]);
 const loadingOrgRolesForAdmin = ref(false);
 
+const selectedBusinessOrganization = ref(null);
+const selectedGroupOrganization = ref(null);
+const selectedGroupBusiness = ref(null);
+
 const fieldErrors = reactive({
   name: '',
   description: '',
@@ -60,7 +64,10 @@ const fieldErrors = reactive({
   businessId: '',
   businessUnitId: '',
   groupId: '',
-  orgRole: ''
+  orgRole: '',
+  businessOrganization: '',
+  groupOrganization: '',
+  groupBusiness: ''
 });
 
 const isSuperadmin = computed(() => user.value?.roles?.includes('superadmin'));
@@ -124,6 +131,15 @@ const scopeOptions = computed(() => {
   ];
 });
 
+const groupBusinessOptions = computed(() => {
+  if (!selectedGroupOrganization.value) return [];
+  return businesses.value.filter((b) => Number(b.organization_id) === Number(selectedGroupOrganization.value));
+});
+const groupGroupOptions = computed(() => {
+  if (!selectedGroupBusiness.value) return [];
+  return groups.value.filter((g) => Number(g.business_id) === Number(selectedGroupBusiness.value));
+});
+
 const getScopeLogo = () => {
   if (scope.value === 'organization') {
     const orgId = isSuperadmin.value && selectedOrganization.value ? Number(selectedOrganization.value) : Number(userOrganization.value);
@@ -147,12 +163,16 @@ const getScopeLogo = () => {
   return null;
 };
 
-const goBack = () => router.push('/formularios');
+const goBack = () => router.push(`/formularios/${route.params.id}`);
 
 const clearFieldError = (fieldName) => {
   if (fieldErrors[fieldName]) fieldErrors[fieldName] = '';
 };
 
+// --- LOGO PLACEHOLDER LOGIC ---
+const LOGO_PLACEHOLDER = '__original_logo__';
+
+// --- VALIDATION ---
 const validateField = (fieldName, value) => {
   clearFieldError(fieldName);
   switch (fieldName) {
@@ -193,7 +213,12 @@ const validateField = (fieldName, value) => {
       }
       break;
     case 'logo':
-      if (!reuseLogo.value && (!value || (Array.isArray(value) && value.length === 0))) {
+      if (
+        !reuseLogo.value &&
+        (!value ||
+          (Array.isArray(value) && value.length === 0) ||
+          (typeof value === 'object' && value !== null && value.type === LOGO_PLACEHOLDER && !originalLogo.value))
+      ) {
         fieldErrors.logo = 'El logo es obligatorio';
         return false;
       }
@@ -222,6 +247,28 @@ const validateField = (fieldName, value) => {
         return false;
       }
       break;
+    case 'businessOrganization':
+      if (isSuperadmin.value && scope.value === 'business' && !selectedBusinessOrganization.value) {
+        fieldErrors.businessOrganization = 'Selecciona una organización';
+        return false;
+      }
+      break;
+    case 'groupOrganization':
+      if (isSuperadmin.value && scope.value === 'business_unit_group' && !selectedGroupOrganization.value) {
+        fieldErrors.groupOrganization = 'Selecciona una organización';
+        return false;
+      }
+      break;
+    case 'groupBusiness':
+      if (
+        (isSuperadmin.value || (isAdmin.value && !user.value.business_id && !user.value.business_unit_id)) &&
+        scope.value === 'business_unit_group' &&
+        !selectedGroupBusiness.value
+      ) {
+        fieldErrors.groupBusiness = 'Selecciona una empresa';
+        return false;
+      }
+      break;
   }
   return true;
 };
@@ -239,6 +286,9 @@ const validateAllFields = () => {
   if (!validateField('businessUnitId', businessUnitId.value)) isValid = false;
   if (!validateField('groupId', groupId.value)) isValid = false;
   if (isSuperadmin.value && !validateField('orgRole', selectedOrgForRoles.value)) isValid = false;
+  if (!validateField('businessOrganization', selectedBusinessOrganization.value)) isValid = false;
+  if (!validateField('groupOrganization', selectedGroupOrganization.value)) isValid = false;
+  if (!validateField('groupBusiness', selectedGroupBusiness.value)) isValid = false;
   return isValid;
 };
 
@@ -295,7 +345,8 @@ const fetchBusinesses = async () => {
     businesses.value = res.data.data.map((b) => ({
       ...b,
       customLabel: `${b.folio} - ${b.name}`,
-      organization_id: b.organization?.id ?? b.organization_id
+      organization_id: b.organization?.id ?? b.organization_id,
+      id: b.id
     }));
   } catch {
     businesses.value = [];
@@ -314,12 +365,14 @@ const fetchBusinessUnits = async (searchText = '') => {
         .map((u) => ({
           ...u,
           customLabel: `${u.folio} - ${u.legal_name ?? u.name}`,
-          organization_id: u.organization?.id ?? u.organization_id
+          organization_id: u.organization?.id ?? u.organization_id,
+          business_id: u.business_id,
+          id: u.id
         }));
     } else {
       businessUnits.value = [];
     }
-  } catch {
+  } catch (e) {
     businessUnits.value = [];
   }
 };
@@ -331,7 +384,8 @@ const fetchGroups = async () => {
       ...g,
       customLabel: `${g.name}`,
       business_id: g.business_id,
-      organization_id: g.organization?.id ?? g.organization_id
+      organization_id: g.organization?.id ?? g.organization_id,
+      id: g.id
     }));
   } catch {
     groups.value = [];
@@ -382,6 +436,39 @@ const fetchOrgRolesForAdmin = async () => {
 
 const originalLogo = ref(null);
 
+const initialScope = ref(null);
+
+const isLimitedEdit = ref(false);
+
+// Bandera para saber si el formulario ya fue cargado
+const formLoaded = ref(false);
+
+const clearScopeFields = () => {
+  businessId.value = '';
+  businessUnitId.value = '';
+  groupId.value = '';
+  selectedOrganization.value = '';
+  selectedOrgForRoles.value = '';
+  selectedBusinessOrganization.value = '';
+  selectedGroupOrganization.value = '';
+  selectedGroupBusiness.value = '';
+  supervisor.value = '';
+  auditors.value = [];
+  audited.value = [];
+  logo.value = null;
+  profilePreview.value = null;
+  reuseLogo.value = false;
+  fieldErrors.businessId = '';
+  fieldErrors.businessUnitId = '';
+  fieldErrors.groupId = '';
+  fieldErrors.logo = '';
+  fieldErrors.scope = '';
+  fieldErrors.businessOrganization = '';
+  fieldErrors.groupOrganization = '';
+  fieldErrors.groupBusiness = '';
+};
+
+// --- Watchers ---
 watch(selectedOrgForRoles, async (orgId) => {
   if (isSuperadmin.value && orgId) {
     await fetchOrgRoles(orgId);
@@ -391,12 +478,47 @@ watch(selectedOrgForRoles, async (orgId) => {
   }
 });
 
+// Solo limpia los campos y el visualizador si el usuario cambia el alcance después de cargar el formulario
 watch(scope, async (newScope, oldScope) => {
+  if (formLoaded.value) {
+    clearScopeFields();
+  }
+  await fetchOrganizations();
   await fetchBusinesses();
   await fetchGroups();
   await fetchBusinessUnits();
   await fetchUsersByScope();
 });
+
+// Sincroniza el preview del logo y el estado de reuseLogo/logo al cambiar alcance o datos relacionados
+watch(
+  [
+    scope,
+    businessId,
+    businessUnitId,
+    groupId,
+    selectedOrganization,
+    selectedBusinessOrganization,
+    selectedGroupOrganization,
+    selectedGroupBusiness,
+    reuseLogo
+  ],
+  async () => {
+    if (reuseLogo.value) {
+      profilePreview.value = getScopeLogo();
+      logo.value = null;
+    } else if (logo.value) {
+      // Si hay logo cargado, el watcher de logo se encarga del preview
+    } else if (originalLogo.value) {
+      // Si hay un logo original y no se está reutilizando, poner el placeholder
+      logo.value = { type: LOGO_PLACEHOLDER, url: originalLogo.value };
+      profilePreview.value = originalLogo.value;
+    } else {
+      profilePreview.value = null;
+      logo.value = null;
+    }
+  }
+);
 
 watch(selectedOrganization, async (orgId) => {
   if (isSuperadmin.value && orgId) {
@@ -407,10 +529,25 @@ watch(selectedOrganization, async (orgId) => {
   }
 });
 
-watch(businessId, async (newBusinessId) => {
+watch(businessId, async (newBusinessId, oldBusinessId) => {
   if (scope.value === 'business_unit' && newBusinessId) {
     await fetchBusinessUnits();
-    businessUnitId.value = '';
+    if (oldBusinessId && oldBusinessId !== newBusinessId) {
+      businessUnitId.value = '';
+    }
+  }
+});
+
+watch(businessUnitId, async (newVal, oldVal) => {
+  if (scope.value === 'business_unit' && newVal) {
+    await fetchUsersByScope();
+    // Obtener la organización de la unidad seleccionada
+    const selectedUnit = businessUnits.value.find((u) => Number(u.id) === Number(newVal));
+    if (selectedUnit && isSuperadmin.value) {
+      selectedBusinessOrganization.value = selectedUnit.organization_id;
+      selectedOrgForRoles.value = selectedUnit.organization_id;
+      await fetchOrgRoles(selectedUnit.organization_id);
+    }
   }
 });
 
@@ -420,53 +557,141 @@ watch(groupId, async (newGroupId) => {
   }
 });
 
+// Maneja el preview y el estado de reuseLogo al cargar un archivo
 watch(logo, (newLogo) => {
-  if (newLogo && !reuseLogo.value) {
+  if (newLogo) {
+    // Si el usuario carga un archivo, quitar el placeholder y actualizar el preview
+    reuseLogo.value = false;
     if (Array.isArray(newLogo)) {
       const file = newLogo[0];
       if (file) profilePreview.value = URL.createObjectURL(file);
     } else if (newLogo instanceof File) {
       profilePreview.value = URL.createObjectURL(newLogo);
+    } else if (newLogo.type === LOGO_PLACEHOLDER) {
+      profilePreview.value = newLogo.url;
     }
-  } else if (!newLogo && !reuseLogo.value) {
+  } else if (!reuseLogo.value && originalLogo.value) {
+    // Si no hay archivo pero hay logo original y no se está reutilizando, poner el placeholder
+    logo.value = { type: LOGO_PLACEHOLDER, url: originalLogo.value };
     profilePreview.value = originalLogo.value;
+  } else if (!reuseLogo.value) {
+    profilePreview.value = null;
   }
 });
 
 const isLoading = ref(false);
 
-// --- INTEGRACIÓN: fetchFormData usando los objetos completos si existen ---
 const fetchFormData = async () => {
   const formId = route.params.id;
   if (!formId) return null;
   try {
+    await fetchOrganizations();
+    await fetchBusinesses();
+    await fetchGroups();
+
     const { data } = await axiosInstance.get(`/forms/${formId}`);
     const form = data.form;
+
     name.value = form.name || '';
     description.value = form.description || '';
     frequency.value = form.frequency || '';
     scope.value = form.assignment_scope || '';
+    initialScope.value = form.assignment_scope || '';
     hasRating.value = !!form.has_rating;
     businessId.value = form.business_id || '';
     businessUnitId.value = form.business_unit_id || '';
     groupId.value = form.business_unit_group_id || '';
     originalLogo.value = form.logo || null;
     profilePreview.value = form.logo || null;
-    logo.value = null;
     reuseLogo.value = !!form.use_scope_logo;
+    isLimitedEdit.value = !!form.has_answers;
 
-    // Asignar organización seleccionada si aplica
-    if (isSuperadmin.value && form.organization_id) {
-      selectedOrganization.value = form.organization_id;
-      selectedOrgForRoles.value = form.organization_id;
-      await fetchOrgRoles(form.organization_id);
+    // LOGO: Si hay logo original y no se está reutilizando, poner el placeholder
+    if (form.logo && !form.use_scope_logo) {
+      logo.value = { type: LOGO_PLACEHOLDER, url: form.logo };
+    } else {
+      logo.value = null;
     }
 
-    // Esperar a que los roles estén cargados antes de asignar asignaciones
-    await fetchUsersByScope();
+    if (scope.value === 'business_unit') {
+      let unit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
+      if (!unit && businessUnitId.value) {
+        try {
+          const { data: unitData } = await axiosInstance.get(`/business-units/${businessUnitId.value}`);
+          const unitInfo = unitData.data || unitData;
+          unit = {
+            ...unitInfo,
+            customLabel: `${unitInfo.folio} - ${unitInfo.legal_name ?? unitInfo.name}`,
+            organization_id: unitInfo.organization?.id ?? unitInfo.organization_id,
+            business_id: unitInfo.business_id,
+            id: unitInfo.id
+          };
+          businessUnits.value.push(unit);
+        } catch (e) {}
+      }
+      let business = businesses.value.find((b) => Number(b.id) === Number(unit?.business_id || businessId.value));
+      if (!business && (unit?.business_id || businessId.value)) {
+        try {
+          const { data: businessData } = await axiosInstance.get(`/businesses/${unit?.business_id || businessId.value}`);
+          business = {
+            ...businessData,
+            customLabel: `${businessData.folio} - ${businessData.name}`,
+            organization_id: businessData.organization?.id ?? businessData.organization_id,
+            id: businessData.id
+          };
+          businesses.value.push(business);
+        } catch (e) {}
+      }
+      if (unit) {
+        businessUnitId.value = unit.id;
+        businessId.value = unit.business_id;
+        selectedBusinessOrganization.value = unit.organization_id;
+      } else if (business) {
+        businessId.value = business.id;
+        selectedBusinessOrganization.value = business.organization_id;
+      }
+      let org = organizationOptions.value.find((o) => Number(o.value) === Number(selectedBusinessOrganization.value));
+      if (!org && selectedBusinessOrganization.value) {
+        try {
+          const { data: orgData } = await axiosInstance.get(`/organizations/${selectedBusinessOrganization.value}`);
+          org = {
+            ...orgData,
+            title: `${orgData.folio} - ${orgData.legal_name}`,
+            value: orgData.id,
+            logo: orgData.logo || null
+          };
+          organizationOptions.value.push(org);
+        } catch (e) {}
+      }
+      await fetchBusinessUnits();
+      await fetchUsersByScope();
+      if (isSuperadmin.value && selectedBusinessOrganization.value) {
+        await fetchOrgRoles(selectedBusinessOrganization.value);
+      }
+    } else {
+      if (scope.value === 'business') {
+        const business = businesses.value.find((b) => Number(b.id) === Number(businessId.value));
+        if (business) {
+          selectedBusinessOrganization.value = business.organization_id;
+        }
+      }
+      if (scope.value === 'business_unit_group') {
+        const group = groups.value.find((g) => Number(g.id) === Number(groupId.value));
+        if (group) {
+          selectedGroupOrganization.value = group.organization_id;
+          selectedGroupBusiness.value = group.business_id;
+        }
+      }
+      if (isSuperadmin.value && (form.organization_id || selectedBusinessOrganization.value)) {
+        selectedOrganization.value = form.organization_id || selectedBusinessOrganization.value;
+        selectedOrgForRoles.value = form.organization_id || selectedBusinessOrganization.value;
+        await fetchOrgRoles(selectedOrgForRoles.value);
+      }
+      await fetchUsersByScope();
+    }
+
     await nextTick();
 
-    // INTEGRACIÓN: Usa los objetos completos si existen
     supervisor.value = form.supervisorRole?.id || form.supervisor_role_id || '';
     auditors.value = Array.isArray(form.auditorRoles)
       ? form.auditorRoles.map((r) => r.id)
@@ -478,6 +703,8 @@ const fetchFormData = async () => {
       : Array.isArray(form.auditado_role_ids)
         ? form.auditado_role_ids
         : [];
+
+    formLoaded.value = true; // <-- Bandera en true después de cargar el registro
 
     return form;
   } catch (err) {
@@ -523,7 +750,8 @@ const validate = async () => {
     formData.append('assignment_scope', scope.value);
     formData.append('has_rating', hasRating.value ? '1' : '0');
     formData.append('use_scope_logo', reuseLogo.value ? '1' : '0');
-    if (!reuseLogo.value && logo.value) {
+    // Solo enviar el archivo si es uno nuevo (no el placeholder)
+    if (!reuseLogo.value && logo.value && !(logo.value.type === LOGO_PLACEHOLDER)) {
       formData.append('logo', logo.value);
     }
 
@@ -568,7 +796,7 @@ const validate = async () => {
     await axiosInstance.post(`/forms/${formId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 
     toast.success('Formulario actualizado correctamente');
-    router.push('/formularios');
+    router.push(`/formularios/${route.params.id}`);
   } catch (err) {
     toast.error('Error al actualizar el formulario');
   } finally {
@@ -877,8 +1105,9 @@ const validate = async () => {
 
             <!-- Logo -->
             <div v-if="scope" class="mt-4">
+              <!-- Solo muestra el input de archivo si reuseLogo está desactivado -->
               <v-file-input
-                v-if="!((reuseLogo && scope === 'business_unit_group') || (reuseLogo && scope === 'business_unit'))"
+                v-if="!reuseLogo"
                 v-model="logo"
                 variant="outlined"
                 color="primary"
@@ -892,39 +1121,18 @@ const validate = async () => {
                 :disabled="isLimitedEdit"
                 @update:model-value="clearFieldError('logo')"
               />
+              <!-- Solo muestra el checkbox si no hay archivo cargado -->
               <div class="d-flex align-center mb-2 logo-checkbox">
                 <v-checkbox
-                  v-if="scope === 'business_unit_group'"
+                  v-if="!logo"
                   v-model="reuseLogo"
-                  :label="'Reutilizar logo de la empresa del grupo seleccionado'"
-                  color="primary"
-                  hide-details
-                  class="mr-2"
-                  style="border-radius: 8px"
-                  :ripple="false"
-                  :true-value="true"
-                  :false-value="false"
-                  :readonly="isLimitedEdit"
-                  :disabled="false"
-                />
-                <v-checkbox
-                  v-else-if="scope === 'business_unit'"
-                  v-model="reuseLogo"
-                  :label="'Reutilizar logo de la empresa de la ubicación seleccionada'"
-                  color="primary"
-                  hide-details
-                  class="mr-2"
-                  style="border-radius: 8px"
-                  :ripple="false"
-                  :true-value="true"
-                  :false-value="false"
-                  :readonly="isLimitedEdit"
-                  :disabled="false"
-                />
-                <v-checkbox
-                  v-else
-                  v-model="reuseLogo"
-                  :label="'Reutilizar logo del alcance seleccionado'"
+                  :label="
+                    scope === 'business_unit_group'
+                      ? 'Reutilizar logo de la empresa del grupo seleccionado'
+                      : scope === 'business_unit'
+                        ? 'Reutilizar logo de la empresa de la ubicación seleccionada'
+                        : 'Reutilizar logo del alcance seleccionado'
+                  "
                   color="primary"
                   hide-details
                   class="mr-2"

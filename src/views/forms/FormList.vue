@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import FormTableMeta from './FormTableMeta.vue';
 import StatusChip from '@/components/status/StatusChip.vue';
 import { useToast } from 'vue-toastification';
-import axiosInstance from '@/utils/axios'; // Usa el mismo axios que en show.vue
+import axiosInstance from '@/utils/axios';
 import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye, mdiPencil, mdiPublish, mdiArchive } from '@mdi/js';
 
 const props = defineProps({
@@ -72,38 +72,6 @@ const paginatedItems = computed(() => {
 const goToShow = (form) => router.push({ path: `/formularios/${form.id}` });
 const goToEdit = (form) => router.push({ path: `/formularios/editar/${form.id}` });
 
-function translateRole(name) {
-  if (!name) return '';
-  switch (name) {
-    case 'superadmin':
-      return 'Super Administrador';
-    case 'admin':
-      return 'Administrador';
-    case 'sponsor':
-      return 'Sponsor';
-    default:
-      return name;
-  }
-}
-
-function getSupervisor(form) {
-  const role = form.supervisor_role || form.supervisorRole;
-  return role ? translateRole(role.name) : 'Sin supervisor';
-}
-function getAuditor(form) {
-  const roles = form.auditor_roles || form.auditorRoles;
-  if (Array.isArray(roles) && roles.length) {
-    return roles.map((r) => translateRole(r.name));
-  }
-  return [];
-}
-function getAuditados(form) {
-  const roles = form.auditado_roles || form.auditadoRoles;
-  if (Array.isArray(roles) && roles.length) {
-    return roles.map((r) => translateRole(r.name));
-  }
-  return [];
-}
 function formatDate(dateString) {
   if (!dateString) return '—';
   const date = new Date(dateString);
@@ -114,9 +82,40 @@ function formatDate(dateString) {
   });
 }
 
+// Devuelve objeto { label, route } para el alcance
+function getAlcance(form) {
+  if (form.assignment_scope === 'organization' && form.organization) {
+    return {
+      label: `${form.folio} - ${form.organization.legal_name || 'No disponible'}`,
+      route: `/organizaciones/${form.organization.id}`
+    };
+  } else if (form.assignment_scope === 'business' && form.business) {
+    return {
+      label: `${form.folio} - ${form.business.name || 'No disponible'}`,
+      route: `/negocios/${form.business.id}`
+    };
+  } else if (form.assignment_scope === 'business_unit' && form.business_unit) {
+    return {
+      label: `${form.folio} - ${form.business_unit.name || 'No disponible'}`,
+      route: `/unidades-negocio/${form.business_unit.id}`
+    };
+  } else if (form.assignment_scope === 'business_unit_group' && form.business_unit_group) {
+    return {
+      label: `${form.folio} - Grupo ${form.business_unit_group.id || 'ID'}`,
+      route: `/grupos-unidad-negocio/${form.business_unit_group.id}`
+    };
+  }
+  return { label: form.folio || '—', route: null };
+}
+
+function getFrecuencia(form) {
+  if (form.frequency === 'once_per_day') return 'Una vez al día';
+  if (form.frequency === 'multiple_per_day') return 'Muchas veces al día';
+  return form.frequency || '—';
+}
+
 const emit = defineEmits(['formUpdated']);
 
-// Igual que en show.vue, usando axiosInstance
 const changeFormStatus = async (form, targetStatus) => {
   if (form.status === 'draft' && targetStatus === 'active' && form.fields && form.fields.length === 0) {
     toast.error('No se puede publicar un formulario sin campos');
@@ -180,33 +179,19 @@ function hasResponses(form) {
           </div>
           <div class="font-weight-medium mb-1">{{ form.name }}</div>
           <div class="text-caption mb-1">
-            <strong>Supervisor:</strong>
-            <v-chip v-if="getSupervisor(form) !== 'Sin supervisor'" color="teal" class="mx-1" size="small">
-              {{ getSupervisor(form) }}
-            </v-chip>
-            <span v-else>Sin supervisor</span>
+            <strong>Frecuencia:</strong>
+            {{ getFrecuencia(form) }}
           </div>
           <div class="text-caption mb-1">
-            <strong>Auditor:</strong>
-            <template v-if="getAuditor(form).length">
-              <v-chip v-for="(role, idx) in getAuditor(form)" :key="idx" color="teal" class="mx-1" size="small">
-                {{ role }}
-              </v-chip>
+            <strong>Alcance:</strong>
+            <template v-if="getAlcance(form).route">
+              <router-link :to="getAlcance(form).route" class="text-primary" @click.stop style="text-decoration: underline">
+                {{ getAlcance(form).label }}
+              </router-link>
             </template>
-            <span v-else>Sin auditor</span>
-          </div>
-          <div class="text-caption mb-1">
-            <strong>Auditados:</strong>
-            <template v-if="getAuditados(form).length">
-              <v-chip v-for="(role, idx) in getAuditados(form)" :key="idx" color="teal" class="mx-1" size="small">
-                {{ role }}
-              </v-chip>
+            <template v-else>
+              {{ getAlcance(form).label }}
             </template>
-            <span v-else>Sin auditados</span>
-          </div>
-          <div class="text-caption mb-1">
-            <strong>Fecha de Creación:</strong>
-            {{ formatDate(form.created_at) }}
           </div>
         </v-card>
         <div class="d-flex flex-column align-center mt-4">
@@ -239,29 +224,17 @@ function hasResponses(form) {
                 </td>
                 <td>{{ form.name }}</td>
                 <td>
-                  <v-chip v-if="getSupervisor(form) !== 'Sin supervisor'" color="teal" class="mx-1" size="small">
-                    {{ getSupervisor(form) }}
-                  </v-chip>
-                  <span v-else>Sin supervisor</span>
+                  {{ getFrecuencia(form) }}
                 </td>
                 <td>
-                  <template v-if="getAuditor(form).length">
-                    <v-chip v-for="(role, idx) in getAuditor(form)" :key="idx" color="teal" class="mx-1" size="small">
-                      {{ role }}
-                    </v-chip>
+                  <template v-if="getAlcance(form).route">
+                    <router-link :to="getAlcance(form).route" class="text-primary" @click.stop style="text-decoration: underline">
+                      {{ getAlcance(form).label }}
+                    </router-link>
                   </template>
-                  <span v-else>Sin auditor</span>
-                </td>
-                <td>
-                  <template v-if="getAuditados(form).length">
-                    <v-chip v-for="(role, idx) in getAuditados(form)" :key="idx" color="teal" class="mx-1" size="small">
-                      {{ role }}
-                    </v-chip>
+                  <template v-else>
+                    {{ getAlcance(form).label }}
                   </template>
-                  <span v-else>Sin auditados</span>
-                </td>
-                <td>
-                  {{ formatDate(form.created_at) }}
                 </td>
                 <td>
                   <StatusChip :status="form.status" />
@@ -274,7 +247,6 @@ function hasResponses(form) {
                       </v-btn>
                     </template>
                     <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
-                      <!-- Editar SOLO si está en draft -->
                       <template v-if="form.status === 'draft'">
                         <v-list-item @click="goToEdit(form)">
                           <template #prepend>
@@ -284,7 +256,6 @@ function hasResponses(form) {
                         </v-list-item>
                         <v-divider />
                       </template>
-                      <!-- Archivar -->
                       <v-list-item v-if="form.status !== 'archived'" @click="changeFormStatus(form, 'archived')">
                         <template #prepend>
                           <v-icon :icon="mdiArchive" size="18" />
@@ -292,7 +263,6 @@ function hasResponses(form) {
                         <v-list-item-title>Archivar</v-list-item-title>
                       </v-list-item>
                       <v-divider v-if="form.status !== 'archived' && (form.status !== 'active' || form.status !== 'draft')" />
-                      <!-- Publicar -->
                       <v-list-item v-if="form.status !== 'active'" @click="changeFormStatus(form, 'active')">
                         <template #prepend>
                           <v-icon :icon="mdiPublish" size="18" />
@@ -300,7 +270,6 @@ function hasResponses(form) {
                         <v-list-item-title>Publicar</v-list-item-title>
                       </v-list-item>
                       <v-divider v-if="form.status !== 'active' && form.status !== 'draft'" />
-                      <!-- Borrador -->
                       <v-list-item v-if="form.status !== 'draft'" @click="changeFormStatus(form, 'draft')">
                         <template #prepend>
                           <v-icon :icon="mdiPencil" size="18" />

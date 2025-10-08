@@ -75,13 +75,11 @@
               </tr>
               <tr v-if="form?.assignment_scope === 'business_unit_group' && businessUnit?.name">
                 <td class="font-weight-bold text-subtitle-1">Ubicación del usuario</td>
-                <td>
-                  {{ businessUnit?.name }}
-                </td>
+                <td>{{ businessUnit?.name }}</td>
               </tr>
               <tr>
                 <td class="font-weight-bold text-subtitle-1">Descripción</td>
-                <td>{{ form?.description || 'No disponible' }}</td>
+                <td>{{ form?.description ? form.description : '-' }}</td>
               </tr>
               <tr>
                 <td class="font-weight-bold text-subtitle-1">Frecuencia</td>
@@ -121,8 +119,9 @@
               <v-progress-circular indeterminate color="primary" size="64" />
               <p class="mt-4">Cargando formulario...</p>
             </div>
+
             <div v-else-if="form && form.fields && form.fields.length">
-              <div v-for="(field, index) in visibleFields" :key="field.id || index" class="mb-4">
+              <div v-for="(field, index) in visibleFields" :key="field.id" class="mb-4">
                 <v-card class="rounded-lg elevation-1 pa-0 card-business-unit">
                   <v-row no-gutters>
                     <v-col
@@ -144,10 +143,11 @@
                         <v-label class="mb-2 field-label">
                           {{ field.label }}
                           <span v-if="field.is_required" class="required-asterisk">*</span>
-                          <span v-if="field.score" class="ml-2 text-caption text-grey" style="font-weight: normal"
-                            >({{ field.score }} pts)</span
-                          >
+                          <span v-if="field.score" class="ml-2 text-caption text-grey" style="font-weight: normal">
+                            ({{ field.score }} pts)
+                          </span>
                         </v-label>
+
                         <div
                           v-if="field.description"
                           class="field-description mb-2"
@@ -160,8 +160,8 @@
                         <!-- Si el campo requiere evidencia -->
                         <template v-if="field.has_evidence">
                           <div class="mb-4">
-                            <!-- Campo principal (igual que antes, pero sin evidencia) -->
                             <component
+                              :key="'field-' + field.id"
                               v-if="
                                 field.type !== 'image' &&
                                 field.type !== 'document' &&
@@ -169,52 +169,86 @@
                                 field.type !== 'geolocation'
                               "
                               :is="FIELD_TYPES(field)"
-                              v-bind="{
-                                ...getFieldProps(field),
-                                label: undefined
-                              }"
+                              v-bind="{ ...getFieldProps(field), label: undefined }"
                               v-model="formData[field.id]"
                               :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
                             />
                           </div>
-                          <!-- Campo de evidencia (adjuntar archivos) -->
                           <div>
                             <v-file-input
-                              v-model="evidenceData[field.id]"
-                              accept="image/jpeg,image/png,image/jpg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                              :key="fileVersion[`evidence-${field.id}`] || 0"
+                              :model-value="evidenceData[field.id] || []"
+                              accept="image/jpeg,image/png,image/jpg"
                               multiple
                               :counter="true"
                               :show-size="true"
                               :rules="[(v) => !field.is_required || evidenceData[field.id]?.length >= 1 || '']"
                               variant="outlined"
-                              :chips="false"
-                              :clearable="false"
+                              :chips="true"
+                              :clearable="true"
                               label="Adjuntar evidencia"
-                              :messages="['Archivos permitidos: JPG, JPEG, PNG, PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX. Máx total: 5MB.']"
+                              :messages="['Solo se permiten imágenes: JPG, JPEG, PNG. Máx total: 5MB.']"
+                              @change="onEvidenceSelected(field.id, $event)"
+                              @click:clear="
+                                () => {
+                                  evidenceData[field.id] = [];
+                                  bumpVersion(`evidence-${field.id}`);
+                                }
+                              "
+                            />
+                            <!-- Previsualización de imágenes de evidencia -->
+                            <div v-if="filteredEvidence(field.id).length" class="d-flex flex-wrap mt-3 image-preview-row">
+                              <div
+                                v-for="(file, idx) in filteredEvidence(field.id)"
+                                :key="'evidence-' + (file?.name || file?.url || file) + idx"
+                                style="position: relative; width: 120px; height: 120px; cursor: pointer"
+                                @click="openImageModal(getImagePreview(file))"
+                              >
+                                <img
+                                  :src="getImagePreview(file)"
+                                  :alt="file.name || 'evidencia'"
+                                  style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
+                                />
+                                <!-- Eliminada la tachita de eliminar -->
+                              </div>
+                            </div>
+                            <!-- Imágenes del campo imagen (cuando el campo es tipo imagen y tiene evidencia) -->
+                            <div
+                              v-if="field.type === 'image' && fileData[field.id]?.length"
+                              class="d-flex flex-wrap mt-3 image-preview-row"
                             >
-                              <template #selection>
-                                <div class="file-chips-container">
-                                  <v-chip
-                                    v-for="(file, idx) in evidenceData[field.id]"
-                                    :key="file.name + idx"
-                                    color="primary"
-                                    class="mr-2 mb-2"
-                                    size="small"
-                                  >
-                                    <span>{{ file.name }}</span>
-                                  </v-chip>
-                                </div>
-                              </template>
-                            </v-file-input>
+                              <div
+                                v-for="(file, idx) in fileData[field.id]"
+                                :key="'file-' + (file?.name || idx)"
+                                style="position: relative; width: 120px; height: 120px; cursor: pointer"
+                                @click="openImageModal(getImagePreview(file))"
+                              >
+                                <img
+                                  :src="getImagePreview(file)"
+                                  :alt="file?.name"
+                                  style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
+                                />
+                                <v-btn
+                                  icon
+                                  size="x-small"
+                                  color="red"
+                                  style="position: absolute; top: 2px; right: 2px; z-index: 2; background: #fff"
+                                  @click.stop="removeFile(field.id, idx)"
+                                >
+                                  <v-icon size="16">mdi-close</v-icon>
+                                </v-btn>
+                              </div>
+                            </div>
                           </div>
                         </template>
 
                         <!-- Si no tiene evidencia, render normal -->
                         <template v-else>
                           <!-- Campo Imagen -->
-                          <div v-if="field.type === 'image'">
+                          <div v-if="field.type === 'image'" class="d-flex flex-column align-stretch">
                             <v-file-input
-                              v-model="fileData[field.id]"
+                              :key="fileVersion[field.id] || 0"
+                              :model-value="fileData[field.id] || []"
                               accept="image/*"
                               multiple
                               :counter="true"
@@ -225,31 +259,35 @@
                                   (fileData[field.id]?.length >= 1 && fileData[field.id]?.length <= (field.attributes?.max_files || 4)) ||
                                   ''
                               ]"
-                              @change="handleFileChange(field.id, $event)"
+                              @change="onFilesSelected(field.id, $event)"
                               variant="outlined"
-                              :chips="false"
-                              :clearable="false"
-                            >
-                              <template #selection>
-                                <div class="file-chips-container">
-                                  <v-chip
-                                    v-for="(file, idx) in fileData[field.id]"
-                                    :key="file.name + idx"
-                                    color="primary"
-                                    class="mr-2 mb-2"
-                                    size="small"
-                                  >
-                                    <span>{{ file.name }}</span>
-                                  </v-chip>
-                                </div>
-                              </template>
-                            </v-file-input>
+                              :chips="true"
+                              :clearable="true"
+                              class="w-100"
+                              @click:clear="clearFiles(field.id)"
+                            />
+                            <!-- Previsualización de imágenes debajo del input, alineadas a la derecha del field -->
+                            <div v-if="fileData[field.id]?.length" class="d-flex flex-wrap mt-3 image-preview-row">
+                              <div
+                                v-for="(file, idx) in fileData[field.id]"
+                                :key="file?.name + idx"
+                                style="position: relative; width: 120px; height: 120px; cursor: pointer"
+                                @click="openImageModal(getImagePreview(file))"
+                              >
+                                <img
+                                  :src="getImagePreview(file)"
+                                  :alt="file?.name"
+                                  style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
+                                />
+                              </div>
+                            </div>
                           </div>
 
                           <!-- Campo Documento -->
-                          <div v-else-if="field.type === 'document'">
+                          <div v-else-if="field.type === 'document'" class="d-flex align-center">
                             <v-file-input
-                              v-model="fileData[field.id]"
+                              :key="fileVersion[field.id] || 0"
+                              :model-value="fileData[field.id] || []"
                               accept="application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                               multiple
                               :counter="true"
@@ -260,25 +298,13 @@
                                   (fileData[field.id]?.length >= 1 && fileData[field.id]?.length <= (field.attributes?.max_files || 2)) ||
                                   ''
                               ]"
-                              @change="handleFileChange(field.id, $event)"
+                              @change="onFilesSelected(field.id, $event)"
                               variant="outlined"
-                              :chips="false"
-                              :clearable="false"
-                            >
-                              <template #selection>
-                                <div class="file-chips-container">
-                                  <v-chip
-                                    v-for="(file, idx) in fileData[field.id]"
-                                    :key="file.name + idx"
-                                    color="primary"
-                                    class="mr-2 mb-2"
-                                    size="small"
-                                  >
-                                    <span>{{ file.name }}</span>
-                                  </v-chip>
-                                </div>
-                              </template>
-                            </v-file-input>
+                              :chips="true"
+                              :clearable="true"
+                              class="flex-grow-1"
+                              @click:clear="clearFiles(field.id)"
+                            />
                           </div>
 
                           <!-- Campo Checkbox -->
@@ -310,9 +336,17 @@
                                 @signature-changed="(signatureBlob) => handleSignature(field.id, signatureBlob)"
                               />
                               <div class="d-flex flex-wrap justify-end mt-2" v-if="signatureData[field.id]?.length">
-                                <div v-for="(file, idx) in signatureData[field.id]" :key="idx" class="mr-2 mb-2">
-                                  <v-chip color="green" class="mr-1" size="small">
-                                    {{ file.name }}
+                                <div class="mr-2 mb-2" v-for="(file, idx) in signatureData[field.id]" :key="idx">
+                                  <v-chip
+                                    color="green"
+                                    class="mr-1"
+                                    size="small"
+                                    closable
+                                    :ripple="false"
+                                    @mousedown.stop.prevent
+                                    @click:close.stop="handleClearSignature(field.id, idx)"
+                                  >
+                                    <span>{{ file.name }}</span>
                                   </v-chip>
                                 </div>
                               </div>
@@ -325,39 +359,34 @@
                             </div>
                           </div>
 
-                          <!-- Campo Semáforo: radios con chips de colores -->
-                          <div v-else-if="field.type === 'semaforo'">
-                            <v-radio-group
-                              v-model="formData[field.id]"
-                              :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
-                              class="semaforo-radio-group semaforo-chips-row"
-                            >
-                              <v-radio
+                          <!-- Campo Semáforo (chips, texto centrado) -->
+                          <div v-else-if="isSemaforo(field)">
+                            <div class="semaforo-chips-row">
+                              <v-chip
                                 v-for="option in field.options"
                                 :key="option"
-                                :value="option"
-                                class="ml-0 mr-3 my-1 semaforo-radio"
+                                pill
+                                variant="flat"
+                                class="semaforo-chip"
+                                :style="chipStyleFilled(option, formData[field.id] === option)"
+                                @click="formData[field.id] = option"
                                 :ripple="false"
                               >
-                                <template #label>
-                                  <v-chip
-                                    pill
-                                    class="semaforo-chip"
-                                    :style="chipStyle(option, formData[field.id])"
-                                    @click.stop="formData[field.id] = option"
-                                  >
-                                    {{ option }}
-                                    <v-icon v-if="formData[field.id] === option" size="16" class="ml-1">mdi-check</v-icon>
-                                  </v-chip>
-                                </template>
-                              </v-radio>
-                            </v-radio-group>
+                                <span class="semaforo-chip-grid">
+                                  <span class="semaforo-check-left"></span>
+                                  <span class="semaforo-text">{{ option }}</span>
+                                  <span class="semaforo-check-right">
+                                    <v-icon v-if="formData[field.id] === option" size="16">mdi-check</v-icon>
+                                  </span>
+                                </span>
+                              </v-chip>
+                            </div>
                             <div v-if="triedSubmit && field.is_required && !formData[field.id]" class="text-caption text-red mt-1">
                               Este campo es requerido
                             </div>
                           </div>
 
-                          <!-- Campo Radio -->
+                          <!-- Campo Radio (cuando NO es semáforo) -->
                           <div v-else-if="field.type === 'radio'">
                             <v-radio-group
                               v-model="formData[field.id]"
@@ -395,14 +424,10 @@
                               field.type !== 'checkbox' &&
                               field.type !== 'radio' &&
                               field.type !== 'signature' &&
-                              field.type !== 'geolocation' &&
-                              field.type !== 'semaforo'
+                              field.type !== 'geolocation'
                             "
                             :is="FIELD_TYPES(field)"
-                            v-bind="{
-                              ...getFieldProps(field),
-                              label: undefined
-                            }"
+                            v-bind="{ ...getFieldProps(field), label: undefined }"
                             v-model="formData[field.id]"
                             :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
                           />
@@ -421,11 +446,21 @@
         </v-col>
       </v-row>
 
+      <!-- Modal para ver imagen grande -->
+      <v-dialog v-model="imageModal.open" max-width="600px">
+        <v-card>
+          <v-img :src="imageModal.src" max-width="100%" max-height="80vh" style="object-fit: contain" />
+          <v-card-actions class="justify-end">
+            <v-btn color="primary" text @click="imageModal.open = false">Cerrar</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
       <!-- Fila separada: botón enviar en la esquina derecha -->
       <v-row>
         <v-col cols="12" class="d-flex justify-end">
           <v-btn color="primary" class="mt-6" :loading="submitting" :disabled="isLoading" @click="submitForm">
-            <template v-slot:loader>
+            <template #loader>
               <v-progress-circular indeterminate color="white" size="20" />
             </template>
             <v-icon :icon="mdiCheck" class="mr-2" />
@@ -439,7 +474,7 @@
 
 <script setup>
 import axiosInstance from '@/utils/axios';
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, reactive, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { mdiArrowLeft, mdiCheck, mdiMapMarkerOff } from '@mdi/js';
 import { FIELD_TYPES, getFieldProps } from '@/constants/constants';
@@ -452,10 +487,12 @@ const toast = useToast();
 const router = useRouter();
 const route = useRoute();
 const formId = ref(route.params.id);
-const formData = ref({});
-const fileData = ref({});
-const signatureData = ref({});
-const evidenceData = ref({});
+
+const formData = reactive({});
+const fileData = reactive({});
+const signatureData = reactive({});
+const evidenceData = reactive({});
+
 const isLoading = ref(false);
 const submitting = ref(false);
 const form = ref(null);
@@ -472,43 +509,77 @@ const triedSubmit = ref(false);
 const userLocation = ref(null);
 const geoCheckError = ref(null);
 
-/** --------- NUEVO: Colores y estilo dinámico de chips para Semáforo ---------- */
-const SEMAFORO_COLORS = {
-  Alto: '#e53935', // rojo
-  Medio: '#fb8c00', // ámbar
-  Bajo: '#43a047' // verde
+const fileVersion = ref({});
+const bumpVersion = (key) => {
+  fileVersion.value[key] = (fileVersion.value[key] || 0) + 1;
 };
 
-const chipStyle = (option, selected) => {
-  // Soporta opciones en distintas capitalizaciones
-  const key =
-    option === 'Alto' || option === 'alto'
-      ? 'Alto'
-      : option === 'Medio' || option === 'medio'
-        ? 'Medio'
-        : option === 'Bajo' || option === 'bajo'
-          ? 'Bajo'
-          : option;
-
+const SEMAFORO_COLORS = { Alto: '#e53935', Medio: '#ffd600', Bajo: '#43a047' };
+const SEMAFORO_PASTEL = { Alto: '#ffebee', Medio: '#fffde7', Bajo: '#e8f5e9' };
+const OPTION_KEYS = {
+  alto: 'Alto',
+  alta: 'Alto',
+  high: 'Alto',
+  rojo: 'Alto',
+  medio: 'Medio',
+  media: 'Medio',
+  amarillo: 'Medio',
+  medium: 'Medio',
+  bajo: 'Bajo',
+  baja: 'Bajo',
+  low: 'Bajo',
+  verde: 'Bajo'
+};
+const mapOptionKey = (opt) => {
+  const k = String(opt || '')
+    .trim()
+    .toLowerCase();
+  return OPTION_KEYS[k] || (['alto', 'medio', 'bajo'].includes(k) ? k[0].toUpperCase() + k.slice(1) : opt);
+};
+const isSemaforo = (field) => {
+  const type = String(field?.type || '').toLowerCase();
+  if (type === 'semaforo') return true;
+  if (field?.attributes?.kind === 'semaforo' || field?.attributes?.display === 'semaforo') return true;
+  const opts = (field?.options || []).map((o) => String(o).trim().toLowerCase());
+  const hasAlto = opts.some((o) => ['alto', 'alta', 'rojo', 'high'].includes(o));
+  const hasMedio = opts.some((o) => ['medio', 'media', 'amarillo', 'medium'].includes(o));
+  const hasBajo = opts.some((o) => ['bajo', 'baja', 'verde', 'low'].includes(o));
+  return type === 'radio' && hasAlto && hasMedio && hasBajo;
+};
+const chipStyleFilled = (option, isSelected) => {
+  const key = mapOptionKey(option);
   const base = SEMAFORO_COLORS[key] || '#9e9e9e';
-  const isSelected = selected === option;
+  const pastel = SEMAFORO_PASTEL[key] || '#f5f5f5';
+  const text = key === 'Medio' ? '#111' : '#fff';
   return {
-    background: isSelected ? base : 'transparent',
-    color: isSelected ? 'white' : base,
-    border: `2px solid ${base}`,
-    padding: '4px 14px',
-    fontWeight: isSelected ? '600' : '500',
-    boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+    background: isSelected ? base : pastel,
+    color: isSelected ? text : '#222',
+    border: 'none',
+    padding: '4px 10px',
+    fontWeight: isSelected ? '700' : '600',
+    boxShadow: isSelected ? '0 0 0 2px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.12)' : 'none',
+    transform: isSelected ? 'translateY(-1px)' : 'none',
     transition: 'all .15s ease-in-out',
     cursor: 'pointer',
     userSelect: 'none'
   };
 };
-/** --------------------------------------------------------------------------- */
 
 const visibleFields = computed(
-  () => form.value?.fields?.filter((field) => !(field.type === 'geolocation' && field.attributes?.mode === 'scope')) || []
+  () => form.value?.fields?.filter((f) => !(f.type === 'geolocation' && f.attributes?.mode === 'scope')) || []
 );
+
+// --- INTEGRACIÓN PARA FILTRAR EVIDENCIA (IMÁGENES) ---
+const filteredEvidence = (fieldId) => {
+  return (evidenceData[fieldId] || []).filter(
+    (file) =>
+      file &&
+      ((file.type && file.type.startsWith('image/')) ||
+        (typeof file === 'object' && file.url && /\.(jpg|jpeg|png)$/i.test(file.url)) ||
+        (typeof file === 'string' && /\.(jpg|jpeg|png)$/i.test(file)))
+  );
+};
+// -----------------------------------------------------
 
 const getUserLocation = () =>
   new Promise((resolve, reject) => {
@@ -533,6 +604,16 @@ const showForm = async () => {
     businessUnit.value = form.value?.business_unit || null;
     businessUnitGroup.value = form.value?.business_unit_group || null;
 
+    (form.value?.fields || []).forEach((field) => {
+      if (formData[field.id] === undefined) {
+        if (field.type === 'checkbox') formData[field.id] = [];
+        else formData[field.id] = '';
+      }
+      if (evidenceData[field.id] === undefined) {
+        evidenceData[field.id] = [];
+      }
+    });
+
     const geoField = form.value?.fields?.find((f) => f.type === 'geolocation' && f.attributes?.mode === 'scope');
     if (geoField) {
       try {
@@ -552,14 +633,9 @@ const showForm = async () => {
         isLoading.value = false;
         return;
       }
-      // Enviar como location.lat y location.lng para máxima compatibilidad backend
       try {
         res = await axiosInstance.get(`/forms/${formId.value}`, {
-          params: {
-            for_response: 1,
-            'location.lat': userLocation.value.lat,
-            'location.lng': userLocation.value.lng
-          }
+          params: { for_response: 1, 'location.lat': userLocation.value.lat, 'location.lng': userLocation.value.lng }
         });
         form.value = res.data.form || res.data.forms?.[0] || res.data.data;
         organization.value = form.value?.organization || null;
@@ -589,29 +665,119 @@ onMounted(() => {
   showForm();
 });
 
+watch(
+  () => ({ ...formData }),
+  (val, oldVal) => {
+    console.log('formData changed', JSON.stringify(val));
+  },
+  { deep: true }
+);
+
 const goBack = () => {
   router.push('/mis-formularios');
 };
 
-const handleFileChange = (fieldId, event) => {
-  let files = [];
-  if (event && event.target && event.target.files) {
-    files = Array.from(event.target.files);
-  } else if (Array.isArray(event)) {
-    files = event;
+const normalizeEventFiles = (evt) => {
+  if (Array.isArray(evt)) return evt;
+  if (evt instanceof FileList) return Array.from(evt);
+  if (evt && evt.target && evt.target.files) return Array.from(evt.target.files);
+  return [];
+};
+
+const getImagePreview = (file) => {
+  if (!file) return '';
+  if (file.previewUrl) return file.previewUrl;
+  if (file instanceof File) {
+    const url = URL.createObjectURL(file);
+    file.previewUrl = url;
+    return url;
   }
+  if (typeof file === 'object' && file.url) return file.url;
+  if (typeof file === 'string') return file;
+  return '';
+};
+
+const onFilesSelected = (fieldId, evt) => {
+  let selected = normalizeEventFiles(evt);
   const field = form.value.fields.find((f) => f.id == fieldId);
   const maxFiles = field?.attributes?.max_files || (field.type === 'document' ? 2 : 4);
-  files = files.slice(0, maxFiles);
-  fileData.value[fieldId] = files;
-  formData.value[fieldId] = files.map((f) => f.name);
+
+  const current = Array.isArray(fileData[fieldId]) ? fileData[fieldId] : [];
+  let combined = [...current, ...selected];
+
+  combined = combined.filter((f, idx, arr) => f && arr.findIndex((x) => x && x.name === f.name && x.size === f.size) === idx);
+
+  combined = combined.slice(0, maxFiles);
+
+  fileData[fieldId] = [...combined];
+  formData[fieldId] = combined.map((f) => f?.name);
+
+  bumpVersion(fieldId);
 };
 
 const removeFile = (fieldId, idx) => {
-  if (Array.isArray(fileData.value[fieldId])) {
-    fileData.value[fieldId].splice(idx, 1);
-    formData.value[fieldId].splice(idx, 1);
-  }
+  const current = Array.isArray(fileData[fieldId]) ? [...fileData[fieldId]] : [];
+  if (!current.length) return;
+  current.splice(idx, 1);
+  fileData[fieldId] = current;
+  formData[fieldId] = current.map((f) => f?.name);
+
+  bumpVersion(fieldId);
+};
+
+const clearFiles = (fieldId) => {
+  fileData[fieldId] = [];
+  formData[fieldId] = [];
+  bumpVersion(fieldId);
+};
+
+const onEvidenceSelected = (fieldId, evt) => {
+  let selected = normalizeEventFiles(evt);
+  const maxFiles = 4;
+
+  // Solo imágenes permitidas
+  selected = selected
+    .filter((file) => {
+      if (!file?.name) return false;
+      const ext = file.name.split('.').pop().toLowerCase();
+      return ['jpg', 'jpeg', 'png'].includes(ext);
+    })
+    .map((file) => {
+      if (!file?.type && file?.name) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (['jpg', 'jpeg'].includes(ext)) file.type = 'image/jpeg';
+        else if (ext === 'png') file.type = 'image/png';
+      }
+      return file;
+    });
+
+  const current = Array.isArray(evidenceData[fieldId]) ? evidenceData[fieldId] : [];
+  let combined = [...current, ...selected];
+
+  combined = combined.filter((f, idx, arr) => f && arr.findIndex((x) => x && x.name === f.name && x.size === f.size) === idx);
+
+  combined = combined.slice(0, maxFiles);
+  evidenceData[fieldId] = [...combined];
+
+  bumpVersion(`evidence-${fieldId}`);
+};
+
+const removeEvidence = (fieldId, idx) => {
+  const current = Array.isArray(evidenceData[fieldId]) ? [...evidenceData[fieldId]] : [];
+  if (!current.length) return;
+  current.splice(idx, 1);
+  evidenceData[fieldId] = current;
+
+  bumpVersion(`evidence-${fieldId}`);
+};
+
+const imageModal = reactive({
+  open: false,
+  src: ''
+});
+const openImageModal = (src) => {
+  imageModal.src = src;
+  imageModal.open = true;
 };
 
 const handleSignature = (fieldId, signatureBlob) => {
@@ -619,64 +785,51 @@ const handleSignature = (fieldId, signatureBlob) => {
     const field = form.value.fields.find((f) => f.id == fieldId);
     const maxFiles = field?.attributes?.max_files || 1;
     const fileName = `firma_${field?.label || fieldId}.jpg`;
-    const signatureFile = new File([signatureBlob], fileName, {
-      type: 'image/jpeg',
-      lastModified: Date.now()
-    });
-    signatureData.value[fieldId] = [signatureFile].slice(0, maxFiles);
-    formData.value[fieldId] = [fileName].slice(0, maxFiles);
+    const signatureFile = new File([signatureBlob], fileName, { type: 'image/jpeg', lastModified: Date.now() });
+    signatureData[fieldId] = [signatureFile].slice(0, maxFiles);
+    formData[fieldId] = [fileName].slice(0, maxFiles);
   }
 };
 
 const handleClearSignature = (fieldId, idx = null) => {
-  if (idx !== null && Array.isArray(signatureData.value[fieldId])) {
-    signatureData.value[fieldId].splice(idx, 1);
-    formData.value[fieldId].splice(idx, 1);
+  if (idx !== null && Array.isArray(signatureData[fieldId])) {
+    const arr = [...signatureData[fieldId]];
+    arr.splice(idx, 1);
+    signatureData[fieldId] = arr;
+    formData[fieldId] = arr.map((f) => f?.name);
   } else {
-    signatureData.value[fieldId] = [];
-    formData.value[fieldId] = [];
+    signatureData[fieldId] = [];
+    formData[fieldId] = [];
   }
 };
 
 const handleGeolocationManual = (fieldId, val) => {
-  formData.value[fieldId] = val;
+  formData[fieldId] = val;
 };
-
-const isGeolocationManualValid = (val) => {
-  return !!val && !!val.latitude && !!val.longitude;
-};
+const isGeolocationManualValid = (val) => !!val && !!val.latitude && !!val.longitude;
 
 const submitForm = async () => {
   triedSubmit.value = true;
   if (!form.value) return;
-  const requiredFields = visibleFields.value.filter((field) => field.is_required);
+
+  const requiredFields = visibleFields.value.filter((f) => f.is_required);
   const missingFields = requiredFields.filter((field) => {
-    if (field.has_evidence && (!evidenceData.value[field.id] || evidenceData.value[field.id].length < 1)) {
-      return true;
-    }
-    if (field.type === 'checkbox') {
-      return !formData.value[field.id] || formData.value[field.id].length === 0;
-    } else if (field.type === 'image' || field.type === 'document') {
-      return !fileData.value[field.id] || fileData.value[field.id].length < 1;
-    } else if (field.type === 'signature') {
-      return !signatureData.value[field.id] || signatureData.value[field.id].length < 1;
-    } else if (field.type === 'geolocation' && field.attributes?.mode === 'manual') {
-      return !isGeolocationManualValid(formData.value[field.id]);
-    }
-    return !formData.value[field.id];
+    if (field.has_evidence && (!evidenceData[field.id] || evidenceData[field.id].length < 1)) return true;
+    if (field.type === 'checkbox') return !formData[field.id] || formData[field.id].length === 0;
+    if (field.type === 'image' || field.type === 'document') return !fileData[field.id] || fileData[field.id].length < 1;
+    if (field.type === 'signature') return !signatureData[field.id] || signatureData[field.id].length < 1;
+    if (field.type === 'geolocation' && field.attributes?.mode === 'manual') return !isGeolocationManualValid(formData[field.id]);
+    return !formData[field.id];
   });
 
   const tooManyFiles = visibleFields.value.some(
     (field) =>
       ((field.type === 'image' || field.type === 'document') &&
-        fileData.value[field.id] &&
-        fileData.value[field.id].length > (field.attributes?.max_files || (field.type === 'document' ? 2 : 4))) ||
-      (field.type === 'signature' &&
-        signatureData.value[field.id] &&
-        signatureData.value[field.id].length > (field.attributes?.max_files || 1))
+        fileData[field.id] &&
+        fileData[field.id].length > (field.attributes?.max_files || (field.type === 'document' ? 2 : 4))) ||
+      (field.type === 'signature' && signatureData[field.id] && signatureData[field.id].length > (field.attributes?.max_files || 1))
   );
 
-  // --- INICIO: Validación de ubicación para geolocalización scope ---
   const geoField = form.value?.fields?.find((f) => f.type === 'geolocation' && f.attributes?.mode === 'scope');
   if (geoField) {
     if (
@@ -690,7 +843,6 @@ const submitForm = async () => {
       return;
     }
   }
-  // --- FIN: Validación de ubicación para geolocalización scope ---
 
   if (missingFields.length > 0) {
     toast.error('Por favor completa todos los campos requeridos');
@@ -705,51 +857,36 @@ const submitForm = async () => {
   try {
     const dataToSend = new FormData();
 
-    // Genera answers con TODOS los campos, incluyendo geolocation scope (valor con lat/lng)
     const answers = form.value.fields.map((field) => {
       let value;
       if (field.type === 'image' || field.type === 'document' || field.type === 'signature') {
-        value = (formData.value[field.id] || []).join(',');
+        value = (formData[field.id] || []).join(',');
       } else if (field.type === 'geolocation' && field.attributes?.mode === 'manual') {
-        value = JSON.stringify(formData.value[field.id] || {});
+        value = JSON.stringify(formData[field.id] || {});
       } else if (field.type === 'geolocation' && field.attributes?.mode === 'scope') {
         value = userLocation.value ? JSON.stringify({ lat: userLocation.value.lat, lng: userLocation.value.lng }) : '';
       } else {
-        value = convertoToString(formData.value[field.id]);
+        value = convertoToString(formData[field.id]);
       }
-      const answer = {
-        form_field_id: field.id,
-        value
-      };
-      if (field.type === 'image' || field.type === 'document' || field.type === 'signature') answer.is_file = true;
-      return answer;
+      const ans = { form_field_id: field.id, value };
+      if (field.type === 'image' || field.type === 'document' || field.type === 'signature') ans.is_file = true;
+      return ans;
     });
 
     dataToSend.append('answers', JSON.stringify(answers));
-    Object.keys(fileData.value).forEach((fieldId) => {
-      (fileData.value[fieldId] || []).forEach((file) => {
-        if (file) dataToSend.append(`file_${fieldId}[]`, file);
-      });
-    });
-    Object.keys(signatureData.value).forEach((fieldId) => {
-      (signatureData.value[fieldId] || []).forEach((file) => {
-        if (file) dataToSend.append(`file_${fieldId}[]`, file);
-      });
-    });
-    Object.keys(evidenceData.value).forEach((fieldId) => {
-      (evidenceData.value[fieldId] || []).forEach((file) => {
-        if (file) dataToSend.append(`evidence_${fieldId}[]`, file);
-      });
-    });
 
-    // Si el formulario requiere geolocalización por alcance, enviar location.lat y location.lng
-    const geoField = form.value?.fields?.find((f) => f.type === 'geolocation' && f.attributes?.mode === 'scope');
+    Object.keys(fileData).forEach((fieldId) => (fileData[fieldId] || []).forEach((f) => f && dataToSend.append(`file_${fieldId}[]`, f)));
+    Object.keys(signatureData).forEach((fieldId) =>
+      (signatureData[fieldId] || []).forEach((f) => f && dataToSend.append(`file_${fieldId}[]`, f))
+    );
+    Object.keys(evidenceData).forEach((fieldId) =>
+      (evidenceData[fieldId] || []).forEach((f) => f && dataToSend.append(`evidence_${fieldId}[]`, f))
+    );
+
     if (geoField && userLocation.value) {
       dataToSend.append('location.lat', userLocation.value.lat);
       dataToSend.append('location.lng', userLocation.value.lng);
     }
-
-    console.log('answers a enviar:', JSON.stringify(answers, null, 2));
 
     await axiosInstance.post(`/forms/${formId.value}/responses`, dataToSend, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -759,11 +896,8 @@ const submitForm = async () => {
     router.push('/mis-formularios');
   } catch (err) {
     console.error('Error al enviar el formulario:', err);
-    if (err.response && err.response.data && err.response.data.message) {
-      toast.error(err.response.data.message);
-    } else {
-      toast.error('Error al enviar el formulario');
-    }
+    if (err.response?.data?.message) toast.error(err.response.data.message);
+    else toast.error('Error al enviar el formulario');
   } finally {
     submitting.value = false;
   }
@@ -838,35 +972,77 @@ const formLogo = computed(
   margin: 0;
 }
 
-/* Fila de chips (ya existía y la mantenemos) */
+/* --- Semáforo chips --- */
 .semaforo-chips-row {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 12px;
-  padding: 4px 0;
+  padding: 0;
+  align-items: stretch;
+  background: none;
+  border: none;
+  border-radius: 0;
+  min-width: 0;
+  max-width: none;
+  box-shadow: none;
 }
 
-/* Look de píldora (se mantiene y se complementa) */
+/* Tamaño fijo + sin padding interno del chip */
 .semaforo-chip {
-  transition:
-    border 0.2s,
-    box-shadow 0.2s,
-    background 0.15s ease-in-out,
-    color 0.15s ease-in-out;
   border-radius: 999px !important;
-  min-width: 84px;
-  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 !important;
+  display: flex !important;
   align-items: center;
-  font-size: 1rem;
-  cursor: pointer;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  font-size: 0.98rem;
   user-select: none;
-  display: inline-flex;
+  cursor: pointer;
+  box-sizing: border-box;
+  margin: 0;
 }
+
+/* Centrado del contenedor interno de Vuetify */
+.semaforo-chip .v-chip__content {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0 !important;
+  width: 100%;
+  height: 100%;
+}
+
+/* Grilla 16px | texto | 16px */
+.semaforo-chip-grid {
+  display: grid;
+  grid-template-columns: 16px 1fr 16px;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+.semaforo-check-left,
+.semaforo-check-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.semaforo-text {
+  justify-self: center;
+  text-align: center;
+  font-weight: inherit;
+}
+
 .semaforo-chip:active {
   box-shadow: 0 2px 8px rgba(33, 150, 243, 0.12);
 }
 
-/* NUEVO: ocultar el circulito del radio; nos quedamos solo con el chip */
+/* Ocultar el circulito del radio cuando sea semáforo */
 .semaforo-radio .v-selection-control__input {
   display: none !important;
 }
@@ -875,6 +1051,13 @@ const formLogo = computed(
   padding: 0 !important;
 }
 
+.image-preview-row {
+  gap: 16px;
+  padding-top: 0;
+  padding-left: 16px;
+}
+
+/* Responsive */
 @media (max-width: 900px) {
   .question-number-desktop {
     display: none !important;

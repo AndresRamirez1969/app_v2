@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted, watch, computed, reactive } from 'vue';
+import { ref, onMounted, watch, computed, reactive, nextTick } from 'vue';
 import axiosInstance from '@/utils/axios';
-import { FREQUENCY, urlToFile } from '@/constants/constants';
+import { FREQUENCY } from '@/constants/constants';
 import { useAuthStore } from '@/stores/auth';
 import { mdiArrowLeft, mdiInformationSlabCircleOutline } from '@mdi/js';
 import { useRouter } from 'vue-router';
@@ -37,19 +37,21 @@ const groupId = ref('');
 const logo = ref(null);
 const reuseLogo = ref(false);
 
-const selectedOrganization = ref(null);
+const selectedOrganization = ref(null); // Para alcance organización
+const selectedBusinessOrganization = ref(null); // Para empresa y ubicación
+const selectedGroupOrganization = ref(null); // Para grupo
+const selectedGroupBusiness = ref(null); // Para grupo
+
 const organizationOptions = ref([]);
 const loadingOrganizations = ref(false);
 
 const allUsers = ref([]);
 const filteredUsers = ref([]);
 
-// INTEGRACIÓN: Organización para filtrar roles en Asignaciones (solo superadmin)
 const selectedOrgForRoles = ref(null);
 const orgRoleOptions = ref([]);
 const loadingOrgRoles = ref(false);
 
-// INTEGRACIÓN: Roles de la organización para admin y sponsor
 const orgRolesForAdmin = ref([]);
 const loadingOrgRolesForAdmin = ref(false);
 
@@ -65,7 +67,10 @@ const fieldErrors = reactive({
   businessId: '',
   businessUnitId: '',
   groupId: '',
-  orgRole: ''
+  orgRole: '',
+  businessOrganization: '',
+  groupOrganization: '',
+  groupBusiness: ''
 });
 
 const isSuperadmin = computed(() => user.value?.roles?.includes('superadmin'));
@@ -75,52 +80,34 @@ const userBusinesses = computed(() => user.value?.business_id);
 const userOrganization = computed(() => user.value?.organization_id);
 
 const allRoles = computed(() => groupUsersByRole(allUsers.value));
-const filteredRoles = computed(() => groupUsersByRole(filteredUsers.value));
 
-// INTEGRACIÓN: Roles filtrados por organización seleccionada en Asignaciones
 const filteredOrgRoles = computed(() => {
-  // Roles fijos (debes usar los IDs numéricos reales de tu base de datos)
   const fixedRoles = [
     { id: 1, customLabel: 'Super Administrador' },
     { id: 2, customLabel: 'Administrador' },
     { id: 3, customLabel: 'Sponsor' }
   ];
   if (isSuperadmin.value && selectedOrgForRoles.value) {
-    // Filtra roles por organización seleccionada
     const orgRoles = orgRoleOptions.value
       .filter((r) => r.organization_id === selectedOrgForRoles.value)
       .map((r) => ({ id: r.id, customLabel: r.name }));
     return [...fixedRoles, ...orgRoles];
   }
-  // Si no es superadmin, regresa todos los roles
   return allRoles.value;
 });
 
-// INTEGRACIÓN: Roles para asignaciones según tipo de usuario
 const getAssignmentRoles = computed(() => {
-  if (isSuperadmin.value) {
-    // Lógica superadmin: ya está en filteredOrgRoles
-    return filteredOrgRoles.value;
-  }
-
-  // Admin y Sponsor: usar roles de la organización obtenidos del backend
+  if (isSuperadmin.value) return filteredOrgRoles.value;
   if (isAdmin.value || isSponsor.value) {
-    // Fijos
     const fixed = [];
-    if (isAdmin.value) {
-      fixed.push({ id: 2, customLabel: 'Administrador' });
-    }
+    if (isAdmin.value) fixed.push({ id: 2, customLabel: 'Administrador' });
     fixed.push({ id: 3, customLabel: 'Sponsor' });
-
-    // Roles de la organización (sin fijos)
     const orgRoles = orgRolesForAdmin.value
       .filter((role) => ![1, 2, 3].includes(role.id)) // quitar superadmin, admin, sponsor por id
       .map((role) => ({ id: role.id, customLabel: role.name }));
 
     return [...fixed, ...orgRoles];
   }
-
-  // fallback
   return [];
 });
 
@@ -129,62 +116,81 @@ const scopeOptions = computed(() => {
     return [
       { label: 'Organización', value: 'organization' },
       { label: 'Empresa', value: 'business' },
-      { label: 'Ubicación', value: 'business_unit' }
+      { label: 'Ubicación', value: 'business_unit' },
+      { label: 'Grupo', value: 'business_unit_group' }
     ];
   }
   if (isSponsor.value) {
     return [
       { label: 'Empresa', value: 'business' },
-      { label: 'Ubicación', value: 'business_unit' }
+      { label: 'Ubicación', value: 'business_unit' },
+      { label: 'Grupo', value: 'business_unit_group' }
     ];
   }
   return [
     { label: 'Organización', value: 'organization' },
     { label: 'Empresa', value: 'business' },
-    { label: 'Ubicación', value: 'business_unit' }
+    { label: 'Ubicación', value: 'business_unit' },
+    { label: 'Grupo', value: 'business_unit_group' }
   ];
 });
 
-// INTEGRACIÓN: Función para obtener el logo según el alcance y selección actual
+// Computed para filtrar empresas y grupos según organización seleccionada
+const businessOptions = computed(() => {
+  if (isSuperadmin.value && (scope.value === 'business' || scope.value === 'business_unit')) {
+    const orgId = selectedBusinessOrganization.value;
+    if (!orgId) return [];
+    return businesses.value.filter((b) => Number(b.organization_id) === Number(orgId));
+  }
+  if (isSuperadmin.value && scope.value === 'organization') {
+    return [];
+  }
+  return businesses.value;
+});
+const groupBusinessOptions = computed(() => {
+  if (isSuperadmin.value && scope.value === 'business_unit_group') {
+    const orgId = selectedGroupOrganization.value;
+    if (!orgId) return [];
+    return businesses.value.filter((b) => Number(b.organization_id) === Number(orgId));
+  }
+  return businesses.value;
+});
+const groupGroupOptions = computed(() => {
+  if (isSuperadmin.value && scope.value === 'business_unit_group') {
+    const bizId = selectedGroupBusiness.value;
+    if (!bizId) return [];
+    return groups.value.filter((g) => Number(g.business_id) === Number(bizId));
+  }
+  return groups.value;
+});
+
 const getScopeLogo = () => {
-  // ORGANIZACIÓN
   if (scope.value === 'organization') {
-    if (isSuperadmin.value && selectedOrganization.value) {
-      const org = organizationOptions.value.find((o) => o.value === selectedOrganization.value);
-      return org?.logo || null;
-    }
-    // Admin/sponsor: su organización
-    const org = organizationOptions.value.find((o) => o.value === userOrganization.value);
+    const orgId = isSuperadmin.value && selectedOrganization.value ? Number(selectedOrganization.value) : Number(userOrganization.value);
+    const org = organizationOptions.value.find((o) => Number(o.value) === orgId);
     return org?.logo || null;
   }
-  // EMPRESA
   if (scope.value === 'business' && businessId.value) {
-    const business = businesses.value.find((b) => b.id === businessId.value);
-    return business?.logo || null;
+    const biz = businesses.value.find((b) => Number(b.id) === Number(businessId.value));
+    return biz?.logo || null;
   }
-  // UBICACIÓN
   if (scope.value === 'business_unit' && businessUnitId.value) {
-    const unit = businessUnits.value.find((u) => u.id === businessUnitId.value);
+    const unit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
     return unit?.logo || null;
   }
-  // GRUPO
   if (scope.value === 'business_unit_group' && groupId.value) {
-    const group = groups.value.find((g) => g.id === groupId.value);
+    const group = groups.value.find((g) => Number(g.id) === Number(groupId.value));
     if (group?.logo) return group.logo;
-    const business = businesses.value.find((b) => b.id === group?.business_id);
-    return business?.logo || null;
+    const biz = businesses.value.find((b) => Number(b.id) === Number(group?.business_id));
+    return biz?.logo || null;
   }
   return null;
 };
 
-const goBack = () => {
-  router.push('/formularios');
-};
+const goBack = () => router.push('/formularios');
 
 const clearFieldError = (fieldName) => {
-  if (fieldErrors[fieldName]) {
-    fieldErrors[fieldName] = '';
-  }
+  if (fieldErrors[fieldName]) fieldErrors[fieldName] = '';
 };
 
 const validateField = (fieldName, value) => {
@@ -227,9 +233,7 @@ const validateField = (fieldName, value) => {
       }
       break;
     case 'logo':
-      if (scope.value === 'business_unit_group' && reuseLogo.value) {
-        break;
-      }
+      if (scope.value === 'business_unit_group' && reuseLogo.value) break;
       if (!reuseLogo.value && (!value || (Array.isArray(value) && value.length === 0))) {
         fieldErrors.logo = 'El logo es obligatorio';
         return false;
@@ -259,6 +263,24 @@ const validateField = (fieldName, value) => {
         return false;
       }
       break;
+    case 'businessOrganization':
+      if (isSuperadmin.value && (scope.value === 'business' || scope.value === 'business_unit') && !selectedBusinessOrganization.value) {
+        fieldErrors.businessOrganization = 'Selecciona una organización';
+        return false;
+      }
+      break;
+    case 'groupOrganization':
+      if (isSuperadmin.value && scope.value === 'business_unit_group' && !selectedGroupOrganization.value) {
+        fieldErrors.groupOrganization = 'Selecciona una organización';
+        return false;
+      }
+      break;
+    case 'groupBusiness':
+      if (isSuperadmin.value && scope.value === 'business_unit_group' && !selectedGroupBusiness.value) {
+        fieldErrors.groupBusiness = 'Selecciona una empresa';
+        return false;
+      }
+      break;
   }
   return true;
 };
@@ -275,6 +297,9 @@ const validateAllFields = () => {
   if (!validateField('businessId', businessId.value)) isValid = false;
   if (!validateField('businessUnitId', businessUnitId.value)) isValid = false;
   if (!validateField('groupId', groupId.value)) isValid = false;
+  if (!validateField('businessOrganization', selectedBusinessOrganization.value)) isValid = false;
+  if (!validateField('groupOrganization', selectedGroupOrganization.value)) isValid = false;
+  if (!validateField('groupBusiness', selectedGroupBusiness.value)) isValid = false;
   if (isSuperadmin.value && !validateField('orgRole', selectedOrgForRoles.value)) isValid = false;
   return isValid;
 };
@@ -297,19 +322,26 @@ const fetchUsersByScope = async () => {
 
     const params = { scope: scope.value };
     if (scope.value === 'organization') {
-      params.organization_id = isSuperadmin.value && selectedOrganization.value ? selectedOrganization.value : user.value?.organization_id;
+      params.organization_id =
+        isSuperadmin.value && selectedOrganization.value ? Number(selectedOrganization.value) : Number(user.value?.organization_id);
     } else if (scope.value === 'business' && businessId.value) {
-      params.business_id = businessId.value;
-      const selectedBusiness = businesses.value.find((b) => b.id === businessId.value);
-      if (selectedBusiness?.organization_id) params.organization_id = selectedBusiness.organization_id;
+      params.business_id = Number(businessId.value);
+      const selectedBusiness = businesses.value.find((b) => Number(b.id) === Number(businessId.value));
+      if (selectedBusiness && typeof selectedBusiness.organization_id !== 'undefined') {
+        params.organization_id = Number(selectedBusiness.organization_id);
+      }
     } else if (scope.value === 'business_unit' && businessUnitId.value) {
-      params.business_unit_id = businessUnitId.value;
-      const selectedBusinessUnit = businessUnits.value.find((u) => u.id === businessUnitId.value);
-      if (selectedBusinessUnit?.organization_id) params.organization_id = selectedBusinessUnit.organization_id;
+      params.business_unit_id = Number(businessUnitId.value);
+      const selectedUnit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
+      if (selectedUnit && typeof selectedUnit.organization_id !== 'undefined') {
+        params.organization_id = Number(selectedUnit.organization_id);
+      }
     } else if (scope.value === 'business_unit_group' && groupId.value) {
-      params.business_unit_group_id = groupId.value;
-      const selectedGroup = groups.value.find((g) => g.id === groupId.value);
-      if (selectedGroup?.organization_id) params.organization_id = selectedGroup.organization_id;
+      params.business_unit_group_id = Number(groupId.value);
+      const selectedGroup = groups.value.find((g) => Number(g.id) === Number(groupId.value));
+      if (selectedGroup && typeof selectedGroup.organization_id !== 'undefined') {
+        params.organization_id = Number(selectedGroup.organization_id);
+      }
     }
 
     const res = await axiosInstance.get('/users-by-scope', { params });
@@ -326,7 +358,7 @@ const fetchUsersByScope = async () => {
       });
       audited.value = Array.from(allRoles);
     }
-  } catch (err) {
+  } catch {
     filteredUsers.value = [];
   }
 };
@@ -338,21 +370,6 @@ const fetchBusinessUnits = async (searchText = '') => {
     if (isSponsor.value) businessIdFilter = userBusinesses.value;
     if (scope.value === 'business_unit' && businessIdFilter) {
       const res = await axiosInstance.get('/business-units', { params });
-      if (isSponsor.value) {
-        const unidadesSponsor = res.data.data.filter((unit) => unit.business_id === userBusinesses.value);
-        if (unidadesSponsor.length === 0) {
-          businessUnits.value = res.data.data.map((businessUnit) => ({
-            ...businessUnit,
-            customLabel: `${businessUnit.folio} - ${businessUnit.name}`
-          }));
-          return;
-        }
-        businessUnits.value = unidadesSponsor.map((businessUnit) => ({
-          ...businessUnit,
-          customLabel: `${businessUnit.folio} - ${businessUnit.name}`
-        }));
-        return;
-      }
       businessUnits.value = res.data.data
         .filter((unit) => {
           if (isSuperadmin.value) return true;
@@ -405,39 +422,48 @@ const fetchOrganizations = async () => {
       value: o.id,
       logo: o.logo || null
     }));
-  } catch (e) {
+  } catch {
     organizationOptions.value = [];
   } finally {
     loadingOrganizations.value = false;
   }
 };
 
-// INTEGRACIÓN: Fetch roles por organización seleccionada para Asignaciones (superadmin)
 const fetchOrgRoles = async (orgId) => {
   loadingOrgRoles.value = true;
   try {
-    const { data } = await axiosInstance.get('/roles', { params: { organization_id: orgId } });
+    const { data } = await axiosInstance.get('/roles', { params: { organization_id: Number(orgId) } });
     orgRoleOptions.value = (data.data || []).filter((r) => r.name !== 'superadmin');
-  } catch (e) {
+  } catch {
     orgRoleOptions.value = [];
   } finally {
     loadingOrgRoles.value = false;
   }
 };
 
-// INTEGRACIÓN: Fetch roles de la organización para admin y sponsor
 const fetchOrgRolesForAdmin = async () => {
   loadingOrgRolesForAdmin.value = true;
   try {
     const { data } = await axiosInstance.get('/roles');
-    // Solo los de la organización del usuario y sin los fijos
     orgRolesForAdmin.value = (data.data || []).filter((r) => r.organization_id === user.value.organization_id);
-  } catch (e) {
+  } catch {
     orgRolesForAdmin.value = [];
   } finally {
     loadingOrgRolesForAdmin.value = false;
   }
 };
+
+// Watchers para dependencias de organización y empresa
+watch(selectedBusinessOrganization, (orgId) => {
+  businessId.value = '';
+  businessUnits.value = [];
+});
+watch(selectedGroupOrganization, (orgId) => {
+  selectedGroupBusiness.value = '';
+});
+watch(selectedGroupBusiness, (bizId) => {
+  groupId.value = '';
+});
 
 watch(selectedOrgForRoles, async (orgId) => {
   if (isSuperadmin.value && orgId) {
@@ -448,61 +474,67 @@ watch(selectedOrgForRoles, async (orgId) => {
   }
 });
 
-onMounted(async () => {
-  await fetchAllUsers();
+watch(scope, async (newScope, oldScope) => {
   await fetchBusinesses();
   await fetchGroups();
-  if (isSuperadmin.value) {
-    await fetchOrganizations();
-  }
-  if (isAdmin.value || isSponsor.value) {
-    await fetchOrgRolesForAdmin();
-  }
-});
-
-// INTEGRACIÓN: Limpia solo los campos dependientes del alcance anterior
-watch(scope, async (newScope, oldScope) => {
-  if (oldScope === 'organization') {
-    selectedOrganization.value = null;
-  }
+  await fetchBusinessUnits();
+  await fetchUsersByScope();
+  if (oldScope === 'organization') selectedOrganization.value = null;
   if (oldScope === 'business') {
+    selectedBusinessOrganization.value = null;
     businessId.value = '';
   }
   if (oldScope === 'business_unit') {
+    selectedBusinessOrganization.value = null;
     businessId.value = '';
     businessUnitId.value = '';
   }
   if (oldScope === 'business_unit_group') {
+    selectedGroupOrganization.value = null;
+    selectedGroupBusiness.value = null;
     groupId.value = '';
   }
   logo.value = null;
   profilePreview.value = null;
   reuseLogo.value = false;
+});
 
-  if (newScope === 'organization' && isSuperadmin.value && organizationOptions.value.length === 0) {
-    fetchOrganizations();
-  }
-  if (newScope === 'business_unit' && isSponsor.value) {
-    businessId.value = userBusinesses.value;
+watch(selectedOrganization, async (orgId) => {
+  if (isSuperadmin.value && orgId) {
+    await fetchBusinesses();
+    await fetchGroups();
     await fetchBusinessUnits();
+    await fetchUsersByScope();
   }
 });
 
-// INTEGRACIÓN: Manejo de logo preview y reutilización
-watch([scope, businessId, businessUnitId, groupId, selectedOrganization, reuseLogo], async () => {
-  if (scope.value) {
-    if (scope.value !== 'business_unit_group') audited.value = [];
-    auditors.value = [];
-    if (scope.value === 'business' && userBusinesses.value && isSponsor.value) {
-      businessId.value = userBusinesses.value;
-    }
-    if (scope.value === 'business_unit' && userBusinesses.value && isSponsor.value) {
-      businessId.value = userBusinesses.value;
-      await fetchBusinessUnits();
-    }
+watch(businessId, async (newBusinessId) => {
+  if (scope.value === 'business_unit' && newBusinessId) {
+    await fetchBusinessUnits();
+    businessUnitId.value = '';
+  }
+});
+
+watch(groupId, async (newGroupId) => {
+  if (scope.value === 'business_unit_group' && newGroupId) {
     await fetchUsersByScope();
   }
+});
 
+watch(logo, (newLogo) => {
+  if (newLogo && !reuseLogo.value) {
+    if (Array.isArray(newLogo)) {
+      const file = newLogo[0];
+      if (file) profilePreview.value = URL.createObjectURL(file);
+    } else if (newLogo instanceof File) {
+      profilePreview.value = URL.createObjectURL(newLogo);
+    }
+  } else if (!newLogo && !reuseLogo.value) {
+    profilePreview.value = null;
+  }
+});
+
+watch([scope, businessId, businessUnitId, groupId, selectedOrganization, reuseLogo], async () => {
   if (reuseLogo.value) {
     const logoUrl = getScopeLogo();
     profilePreview.value = logoUrl || null;
@@ -521,36 +553,16 @@ watch([scope, businessId, businessUnitId, groupId, selectedOrganization, reuseLo
   }
 });
 
-watch(
-  () => logo.value,
-  (file) => {
-    if (file && typeof file === 'object') {
-      const imgFile = Array.isArray(file) ? file[0] : file;
-      profilePreview.value = URL.createObjectURL(imgFile);
-      reuseLogo.value = false;
-    } else if (typeof file === 'string' && file) {
-      profilePreview.value = file;
-      reuseLogo.value = false;
-    } else if (!reuseLogo.value) {
-      profilePreview.value = null;
-    }
-  }
-);
-
-watch(businessId, async (newBusinessId) => {
-  if (newBusinessId && scope.value === 'business_unit') {
-    businessUnitId.value = '';
-    await fetchBusinessUnits();
-  }
-});
-
-watch(groupId, async (newGroupId) => {
-  if (scope.value === 'business_unit_group' && newGroupId) {
-    await fetchUsersByScope();
-  }
-});
-
 const isLoading = ref(false);
+
+onMounted(async () => {
+  await fetchAllUsers();
+  await fetchOrganizations();
+  await fetchBusinesses();
+  await fetchGroups();
+  if (isAdmin.value || isSponsor.value) await fetchOrgRolesForAdmin();
+});
+
 const validate = async () => {
   if (!validateAllFields()) {
     isLoading.value = false;
@@ -562,60 +574,54 @@ const validate = async () => {
     formData.append('name', name.value);
     formData.append('description', description.value);
 
-    // INTEGRACIÓN: Si es superadmin y seleccionó organización para roles, enviar ese dato si lo necesitas en el backend
-
     const supervisorRole =
-      filteredOrgRoles.value.find((role) => role.id === supervisor.value) ||
-      orgRolesForAdmin.value.find((role) => role.id === supervisor.value) ||
-      allRoles.value.find((role) => role.id === supervisor.value);
+      filteredOrgRoles.value.find((r) => Number(r.id) === Number(supervisor.value)) ||
+      orgRolesForAdmin.value.find((r) => Number(r.id) === Number(supervisor.value)) ||
+      allRoles.value.find((r) => Number(r.id) === Number(supervisor.value));
     if (supervisorRole) formData.append('supervisor_role_id', supervisorRole.id);
 
-    auditors.value.forEach((roleId, index) => {
-      formData.append(`auditor_role_ids[${index}]`, roleId);
+    auditors.value.forEach((id) => {
+      formData.append('auditor_role_ids[]', id);
     });
-
-    audited.value.forEach((roleId, index) => {
-      formData.append(`auditado_role_ids[${index}]`, roleId);
+    audited.value.forEach((id) => {
+      formData.append('auditado_role_ids[]', id);
     });
 
     formData.append('frequency', frequency.value);
     formData.append('assignment_scope', scope.value);
     formData.append('has_rating', hasRating.value ? '1' : '0');
-
     formData.append('use_scope_logo', reuseLogo.value ? '1' : '0');
-
     if (!reuseLogo.value && logo.value) {
-      const imgFile = Array.isArray(logo.value) ? logo.value[0] : logo.value;
-      formData.append('logo', imgFile);
+      formData.append('logo', logo.value);
     }
 
     let orgId = null;
     if (scope.value === 'organization') {
-      orgId = isSuperadmin.value && selectedOrganization.value ? selectedOrganization.value : user.value?.organization_id;
+      orgId = isSuperadmin.value && selectedOrganization.value ? Number(selectedOrganization.value) : Number(user.value?.organization_id);
     } else if (scope.value === 'business' && businessId.value) {
-      const selectedBusiness = businesses.value.find((b) => b.id === businessId.value);
-      orgId = selectedBusiness?.organization_id;
-    } else if (scope.value === 'business_unit' && businessId.value) {
-      const selectedBusiness = businesses.value.find((b) => b.id === businessId.value);
-      orgId = selectedBusiness?.organization_id;
-    } else if (scope.value === 'business_unit_group' && businessId.value) {
-      const selectedBusiness = businesses.value.find((b) => b.id === businessId.value);
-      orgId = selectedBusiness?.organization_id;
+      const b = businesses.value.find((bb) => Number(bb.id) === Number(businessId.value));
+      orgId = b && typeof b.organization_id !== 'undefined' ? Number(b.organization_id) : null;
+    } else if (scope.value === 'business_unit' && businessUnitId.value) {
+      const unit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
+      orgId = unit && typeof unit.organization_id !== 'undefined' ? Number(unit.organization_id) : null;
+    } else if (scope.value === 'business_unit_group' && groupId.value) {
+      const group = groups.value.find((g) => Number(g.id) === Number(groupId.value));
+      orgId = group && typeof group.organization_id !== 'undefined' ? Number(group.organization_id) : null;
     }
     if (orgId) formData.append('organization_id', orgId);
 
     if (scope.value === 'business') {
-      formData.append('business_id', businessId.value);
+      formData.append('business_id', Number(businessId.value));
       formData.append('business_unit_id', '');
       formData.append('business_unit_group_id', '');
     }
     if (scope.value === 'business_unit') {
-      formData.append('business_unit_id', businessUnitId.value);
+      formData.append('business_unit_id', Number(businessUnitId.value));
       formData.append('business_id', '');
       formData.append('business_unit_group_id', '');
     }
     if (scope.value === 'business_unit_group') {
-      formData.append('business_unit_group_id', groupId.value);
+      formData.append('business_unit_group_id', Number(groupId.value));
       formData.append('business_id', '');
       formData.append('business_unit_id', '');
     }
@@ -659,7 +665,7 @@ const validate = async () => {
             <v-divider class="mb-6" />
           </v-col>
 
-          <!-- Columna izquierda: preview logo -->
+          <!-- Izquierda: preview -->
           <v-col cols="12" md="6" class="d-flex flex-column align-center justify-center" style="min-height: 300px">
             <template v-if="profilePreview">
               <img :src="profilePreview" alt="Logo Preview" style="max-width: 300px; max-height: 300px; border-radius: 12px" />
@@ -681,7 +687,7 @@ const validate = async () => {
             </template>
           </v-col>
 
-          <!-- Columna derecha: nombre, descripción, alcance, selects dinámicos, logo, frecuencia -->
+          <!-- Derecha: campos -->
           <v-col cols="12" md="6">
             <v-label>Nombre<span class="text-error">*</span></v-label>
             <v-text-field
@@ -731,7 +737,7 @@ const validate = async () => {
               hide-details
             />
 
-            <!-- ORGANIZACION: solo para superadmin, con select -->
+            <!-- ORGANIZACION (solo superadmin) -->
             <div v-if="scope === 'organization' && isSuperadmin" class="mt-4 alcance-select alcance-superadmin-select">
               <v-label>Organización <span class="text-error">*</span></v-label>
               <v-select
@@ -749,13 +755,29 @@ const validate = async () => {
               />
             </div>
 
-            <!-- EMPRESA: admin ve solo empresas de su organización, sponsor no ve el select -->
+            <!-- EMPRESA -->
             <div v-if="scope === 'business'" class="mt-4 alcance-select">
+              <div v-if="isSuperadmin" class="mb-2 pb-superadmin-select">
+                <v-label>Organización<span class="text-error">*</span></v-label>
+                <v-select
+                  v-model="selectedBusinessOrganization"
+                  :items="organizationOptions"
+                  :loading="loadingOrganizations"
+                  item-title="title"
+                  item-value="value"
+                  clearable
+                  hide-details
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2 alcance-select"
+                  required
+                  :error-messages="fieldErrors.businessOrganization"
+                />
+              </div>
               <v-label>Empresa <span class="text-error">*</span></v-label>
               <v-select
-                v-if="isSuperadmin"
                 v-model="businessId"
-                :items="businesses"
+                :items="businessOptions"
                 item-title="customLabel"
                 item-value="id"
                 variant="outlined"
@@ -764,26 +786,42 @@ const validate = async () => {
                 clearable
                 required
                 :error-messages="fieldErrors.businessId"
-                @update:model-value="clearFieldError('businessId')"
-              />
-              <v-select
-                v-else-if="!isSponsor"
-                v-model="businessId"
-                :items="businesses"
-                item-title="customLabel"
-                item-value="id"
-                variant="outlined"
-                color="primary"
-                class="mt-2 alcance-select"
-                clearable
-                required
-                :error-messages="fieldErrors.businessId"
+                :no-data-text="
+                  isSuperadmin && !selectedBusinessOrganization ? 'Selecciona una organización primero' : 'Sin empresas disponibles'
+                "
                 @update:model-value="clearFieldError('businessId')"
               />
             </div>
 
-            <!-- UBICACION: solo ubicaciones de la empresa seleccionada o del sponsor -->
+            <!-- UBICACION -->
             <div v-if="scope === 'business_unit'" class="mt-4 alcance-select">
+              <div v-if="isSuperadmin" class="mb-2 pb-superadmin-select">
+                <v-label>Organización <span class="text-error">*</span></v-label>
+                <v-select
+                  v-model="selectedBusinessOrganization"
+                  :items="organizationOptions"
+                  :loading="loadingOrganizations"
+                  item-title="title"
+                  item-value="value"
+                  clearable
+                  hide-details
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2 alcance-select"
+                  required
+                  :error-messages="fieldErrors.businessOrganization"
+                  :searchable="true"
+                  @update:model-value="
+                    () => {
+                      businessId = '';
+                      businessUnitId = '';
+                      fetchBusinesses();
+                      businesses.value = [];
+                      businessUnits.value = [];
+                    }
+                  "
+                />
+              </div>
               <v-label v-if="!isSponsor">Empresa <span class="text-error">*</span></v-label>
               <v-text-field
                 v-if="isSponsor"
@@ -798,7 +836,7 @@ const validate = async () => {
               <v-select
                 v-if="!isSponsor"
                 v-model="businessId"
-                :items="businesses"
+                :items="businessOptions"
                 item-title="customLabel"
                 item-value="id"
                 variant="outlined"
@@ -807,12 +845,20 @@ const validate = async () => {
                 clearable
                 required
                 :error-messages="fieldErrors.businessId"
-                @update:model-value="clearFieldError('businessId')"
+                :no-data-text="
+                  isSuperadmin && !selectedBusinessOrganization ? 'Selecciona una organización primero' : 'Sin empresas disponibles'
+                "
+                @update:model-value="
+                  () => {
+                    businessUnitId = '';
+                    fetchBusinessUnits();
+                  }
+                "
               />
               <v-label class="mt-4">Ubicación <span class="text-error">*</span></v-label>
               <v-select
                 v-model="businessUnitId"
-                :items="businessUnits"
+                :items="businessId ? businessUnits : []"
                 item-title="customLabel"
                 item-value="id"
                 variant="outlined"
@@ -821,16 +867,58 @@ const validate = async () => {
                 clearable
                 required
                 :error-messages="fieldErrors.businessUnitId"
+                :no-data-text="
+                  !businessId
+                    ? 'Selecciona una empresa primero'
+                    : businessUnits.length === 0
+                      ? 'No hay ubicaciones disponibles'
+                      : 'Sin ubicaciones disponibles'
+                "
                 @update:model-value="clearFieldError('businessUnitId')"
               />
             </div>
 
-            <!-- GRUPO: solo grupos de la organización (admin) o empresa (sponsor) -->
+            <!-- GRUPO -->
             <div v-if="scope === 'business_unit_group'" class="mt-4 alcance-select">
+              <div v-if="isSuperadmin" class="mb-2 pb-superadmin-select">
+                <v-label>Organización <span class="text-error">*</span></v-label>
+                <v-select
+                  v-model="selectedGroupOrganization"
+                  :items="organizationOptions"
+                  :loading="loadingOrganizations"
+                  item-title="title"
+                  item-value="value"
+                  clearable
+                  hide-details
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2 alcance-select"
+                  required
+                  :error-messages="fieldErrors.groupOrganization"
+                />
+              </div>
+              <div v-if="isSuperadmin" class="mb-2">
+                <v-label>Empresa <span class="text-error">*</span></v-label>
+                <v-select
+                  v-model="selectedGroupBusiness"
+                  :items="groupBusinessOptions"
+                  item-title="customLabel"
+                  item-value="id"
+                  variant="outlined"
+                  color="primary"
+                  class="mt-2 alcance-select"
+                  clearable
+                  required
+                  :error-messages="fieldErrors.groupBusiness"
+                  :no-data-text="
+                    isSuperadmin && !selectedGroupOrganization ? 'Selecciona una organización primero' : 'Sin empresas disponibles'
+                  "
+                />
+              </div>
               <v-label>Grupo <span class="text-error">*</span></v-label>
               <v-select
                 v-model="groupId"
-                :items="groups"
+                :items="groupGroupOptions"
                 item-title="customLabel"
                 item-value="id"
                 variant="outlined"
@@ -839,14 +927,15 @@ const validate = async () => {
                 clearable
                 required
                 :error-messages="fieldErrors.groupId"
+                :no-data-text="selectedGroupBusiness ? 'Sin grupos disponibles' : 'Selecciona una empresa primero'"
                 @update:model-value="clearFieldError('groupId')"
               />
             </div>
 
-            <!-- Logo y booleano de reutilizar logo -->
+            <!-- Logo -->
             <div v-if="scope" class="mt-4">
               <v-file-input
-                v-if="!reuseLogo"
+                v-if="!((reuseLogo && scope === 'business_unit_group') || (reuseLogo && scope === 'business_unit'))"
                 v-model="logo"
                 variant="outlined"
                 color="primary"
@@ -861,12 +950,9 @@ const validate = async () => {
               />
               <div class="d-flex align-center mb-2 logo-checkbox">
                 <v-checkbox
+                  v-if="scope === 'business_unit_group'"
                   v-model="reuseLogo"
-                  :label="
-                    scope === 'business_unit_group'
-                      ? 'Reutilizar logo de la empresa del grupo seleccionado'
-                      : 'Reutilizar logo del alcance seleccionado'
-                  "
+                  :label="'Reutilizar logo de la empresa del grupo seleccionado'"
                   color="primary"
                   hide-details
                   class="mr-2"
@@ -874,34 +960,58 @@ const validate = async () => {
                   :ripple="false"
                   :true-value="true"
                   :false-value="false"
-                  :disabled="!!logo && !reuseLogo"
+                />
+                <v-checkbox
+                  v-else-if="scope === 'business_unit'"
+                  v-model="reuseLogo"
+                  :label="'Reutilizar logo de la empresa de la ubicación seleccionada'"
+                  color="primary"
+                  hide-details
+                  class="mr-2"
+                  style="border-radius: 8px"
+                  :ripple="false"
+                  :true-value="true"
+                  :false-value="false"
+                />
+                <v-checkbox
+                  v-else
+                  v-model="reuseLogo"
+                  :label="'Reutilizar logo del alcance seleccionado'"
+                  color="primary"
+                  hide-details
+                  class="mr-2"
+                  style="border-radius: 8px"
+                  :ripple="false"
+                  :true-value="true"
+                  :false-value="false"
                 />
               </div>
             </div>
 
-            <!-- FRECUENCIA: abajo del logo y checkbox -->
-            <v-label class="mt-4">Frecuencia <span class="text-error">*</span></v-label>
-            <v-select
-              v-model="frequency"
-              :items="FREQUENCY"
-              item-title="label"
-              item-value="value"
-              variant="outlined"
-              color="primary"
-              class="mt-2 mb-4 alcance-select"
-              required
-              :error-messages="fieldErrors.frequency"
-              @update:model-value="clearFieldError('frequency')"
-            />
-
-            <!-- Booleano para ponderación -->
-            <div class="mt-2 mb-4">
+            <!-- FRECUENCIA y booleano para ponderación separados -->
+            <div class="mb-2 mt-4">
+              <v-label>Frecuencia <span class="text-error">*</span></v-label>
+              <v-select
+                v-model="frequency"
+                :items="FREQUENCY"
+                item-title="label"
+                item-value="value"
+                variant="outlined"
+                color="primary"
+                class="mt-2 alcance-select"
+                required
+                :error-messages="fieldErrors.frequency"
+                @update:model-value="clearFieldError('frequency')"
+              />
               <v-checkbox
                 v-model="hasRating"
+                :model-value="!!hasRating"
                 label="¿El formulario tendrá ponderación de preguntas?"
                 color="primary"
                 hide-details
                 density="comfortable"
+                class="mt-2"
+                style="min-width: 260px"
               />
             </div>
           </v-col>
@@ -916,7 +1026,6 @@ const validate = async () => {
 
         <v-row>
           <v-col cols="12">
-            <!-- Select de organización para filtrar roles (solo superadmin) -->
             <template v-if="isSuperadmin">
               <div class="d-flex align-center justify-between mb-2">
                 <v-label>Organización para filtrar roles <span class="text-error">*</span></v-label>
@@ -981,12 +1090,14 @@ const validate = async () => {
               color="primary"
               class="mt-2 mb-4 asignaciones-full-length"
               :hint="
-                scope === 'business_unit_group' ? 'Selección automática para grupos' : `${getAssignmentRoles.length} roles disponibles`
+                scope === 'business_unit_group'
+                  ? 'Selecciona manualmente los roles auditados para el grupo'
+                  : `${getAssignmentRoles.length} roles disponibles`
               "
               persistent-hint
+              :error-messages="fieldErrors.audited"
               :disabled="scope === 'business_unit_group'"
               :readonly="scope === 'business_unit_group'"
-              :error-messages="fieldErrors.audited"
               @update:model-value="clearFieldError('audited')"
               chips
               closable-chips
@@ -1006,9 +1117,7 @@ const validate = async () => {
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
             <v-btn color="primary" class="mt-6" :loading="isLoading" :disabled="isLoading" @click="validate">
-              <template v-slot:loader>
-                <v-progress-circular indeterminate color="white" size="20" />
-              </template>
+              <template v-slot:loader><v-progress-circular indeterminate color="white" size="20" /></template>
               {{ isLoading ? 'Creando Formulario...' : 'Crear Formulario' }}
             </v-btn>
           </v-col>
@@ -1043,15 +1152,16 @@ const validate = async () => {
 .alcance-logo-separator {
   display: none;
 }
-
 .asignaciones-full-length {
   width: 100%;
   min-width: 100%;
   max-width: 100%;
   display: block;
 }
-
 .pb-superadmin-select {
   padding-bottom: 18px;
+}
+.gap-4 {
+  gap: 1.5rem;
 }
 </style>

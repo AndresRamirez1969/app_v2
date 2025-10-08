@@ -553,7 +553,14 @@ const goToIndex = () => {
   router.push('/formularios');
 };
 
-const goToAddFields = () => {
+// INTEGRACIÓN: Refresca el formulario antes de abrir el modal de campos
+const goToAddFields = async () => {
+  try {
+    const res = await axiosInstance.get(`/forms/${formData.value.id}`);
+    formData.value = res.data.data || res.data.form || res.data;
+  } catch (err) {
+    // Maneja el error si lo deseas
+  }
   showAddFieldsModal.value = true;
 };
 

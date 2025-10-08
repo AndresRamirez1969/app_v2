@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { mdiDrag, mdiDelete, mdiPlus, mdiClose, mdiPencil, mdiChevronDown, mdiChevronUp, mdiChevronLeft } from '@mdi/js';
+import { mdiDrag, mdiDelete, mdiPlus, mdiClose, mdiPencil, mdiChevronDown, mdiChevronUp, mdiChevronLeft, mdiScaleBalance } from '@mdi/js';
 import draggable from 'vuedraggable';
 import { AVAILABLE_FIELDS, FIELD_COLOR } from '@/constants/fieldTypes';
 import axiosInstance from '@/utils/axios';
@@ -36,15 +36,68 @@ const dragStarted = ref(false);
 const isSidebarDragging = ref(false);
 
 const saving = ref(false);
-const errorMsg = ref('');
 const existingLabels = ref([]);
 
 const isMobile = ref(false);
 const sidebarDropdownOpen = ref(false);
 
-const showOptionsField = computed(() => {
-  return ['select', 'radio', 'checkbox'].includes(editingField.value.type) && editingField.value.type !== 'semaforo';
+/* =========================
+   Helpers SEMÁFORO (UI <-> API)
+   ========================= */
+const SEMAFORO_FIXED_OPTIONS = ['Alto', 'Medio', 'Bajo'];
+
+const isSemaforoField = (f) => {
+  if (!f) return false;
+  const t = String(f.type || '').toLowerCase();
+  const attrs = f.attributes || {};
+  const opts = Array.isArray(f.options) ? f.options.map((o) => String(o).trim().toLowerCase()) : [];
+
+  // Bandera del backend
+  if (attrs.semaforo === true) return true;
+
+  // Heurística por opciones si vino como "radio"
+  const haveAlto = ['alto', 'alta', 'rojo', 'high'].some((s) => opts.includes(s));
+  const haveMedio = ['medio', 'media', 'amarillo', 'medium'].some((s) => opts.includes(s));
+  const haveBajo = ['bajo', 'baja', 'verde', 'low'].some((s) => opts.includes(s));
+
+  return t === 'semaforo' || (t === 'radio' && haveAlto && haveMedio && haveBajo);
+};
+
+// Forzar representación UI (type: 'semaforo')
+const toSemaforoUI = (f) => ({
+  ...f,
+  type: 'semaforo',
+  options: [...SEMAFORO_FIXED_OPTIONS],
+  attributes: {
+    ...(f.attributes || {}),
+    semaforo: true,
+    semaforo_colors: { Alto: 'red', Medio: 'yellow', Bajo: 'green' }
+  }
 });
+
+// Convertir para backend (type: 'radio')
+const toSemaforoPayload = (payload) => ({
+  ...payload,
+  type: 'radio',
+  options: [...SEMAFORO_FIXED_OPTIONS],
+  attributes: {
+    ...(payload.attributes || {}),
+    semaforo: true,
+    semaforo_colors: { Alto: 'red', Medio: 'yellow', Bajo: 'green' }
+  }
+});
+
+/* =========================
+   UI helpers
+   ========================= */
+
+// Opciones visibles solo para select/radio/checkbox, excepto si detectamos semáforo
+const showOptionsField = computed(() => {
+  const f = editingField.value;
+  const t = String(f?.type || '').toLowerCase();
+  return ['select', 'radio', 'checkbox'].includes(t) && !isSemaforoField(f);
+});
+
 const showGeolocationMode = computed(() => editingField.value.type === 'geolocation');
 const showMaxFilesField = computed(() => false);
 
@@ -76,6 +129,9 @@ if (typeof window !== 'undefined') {
   window.addEventListener('resize', checkMobile);
 }
 
+/* =========================
+   Watchers
+   ========================= */
 watch(editingField, (val) => {
   if (val.type === 'geolocation') {
     editingField.value.is_required = true;
@@ -86,11 +142,7 @@ watch(editingField, (val) => {
   }
   if (['signature', 'image', 'document'].includes(val.type)) {
     if (!editingField.value.attributes) editingField.value.attributes = {};
-    if (editingField.value.attributes.max_files === undefined || editingField.value.attributes.max_files === null) {
-      editingField.value.attributes.max_files = 1;
-    }
-    if (editingField.value.attributes.max_files < 1) editingField.value.attributes.max_files = 1;
-    if (editingField.value.attributes.max_files > 4) editingField.value.attributes.max_files = 4;
+    editingField.value.attributes.max_files = 4; // Siempre máximo 4
   }
   if (!typesWithEvidence.includes(val.type)) {
     editingField.value.has_evidence = false;
@@ -101,24 +153,42 @@ watch(
   () => props.modelValue,
   async (val) => {
     if (val) {
+      // Carga inicial desde props y normaliza Semáforo para UI
       currentFields.value = Array.isArray(props.form?.fields)
-        ? props.form.fields.map((f) => ({
-            ...f,
-            description: f.description || '',
-            attributes:
-              f.type === 'geolocation'
-                ? { ...(f.attributes || {}), mode: (f.attributes && f.attributes.mode) || 'scope' }
-                : f.attributes || {},
-            has_evidence: Boolean(f.has_evidence)
-          }))
+        ? props.form.fields.map((f) => {
+            const base = {
+              ...f,
+              description: f.description || '',
+              attributes:
+                f.type === 'geolocation'
+                  ? { ...(f.attributes || {}), mode: (f.attributes && f.attributes.mode) || 'scope' }
+                  : f.attributes || {},
+              has_evidence: Boolean(f.has_evidence)
+            };
+            return isSemaforoField(base) ? toSemaforoUI(base) : base;
+          })
         : [];
       showEditDialog.value = false;
       editingFieldIndex.value = -1;
       try {
         const response = await axiosInstance.get(`/forms/${props.form.id}`);
-        // Ajuste para soportar distintas estructuras de respuesta
         const data = response.data.form || response.data.data || response.data;
         existingLabels.value = Array.isArray(data.fields) ? data.fields.map((f) => f.label.trim().toLowerCase()) : [];
+        // Normaliza de nuevo por si el GET devuelve distinta forma
+        currentFields.value = Array.isArray(data.fields)
+          ? data.fields.map((f) => {
+              const base = {
+                ...f,
+                description: f.description || '',
+                attributes:
+                  f.type === 'geolocation'
+                    ? { ...(f.attributes || {}), mode: (f.attributes && f.attributes.mode) || 'scope' }
+                    : f.attributes || {},
+                has_evidence: Boolean(f.has_evidence)
+              };
+              return isSemaforoField(base) ? toSemaforoUI(base) : base;
+            })
+          : [];
       } catch {
         existingLabels.value = [];
       }
@@ -131,6 +201,9 @@ watch(
   }
 );
 
+/* =========================
+   Crear / Drag / Drop
+   ========================= */
 const addFieldType = (fieldType) => {
   const newField = {
     id: Date.now() + Math.random(),
@@ -138,27 +211,23 @@ const addFieldType = (fieldType) => {
     description: '',
     type: fieldType.value,
     is_required: fieldType.value === 'geolocation' ? true : false,
-    options: ['select', 'radio', 'checkbox'].includes(fieldType.value) ? ['Opción 1'] : [],
+    options: ['select', 'radio', 'checkbox'].includes(fieldType.value) ? [''] : [],
     order: currentFields.value.length,
     attributes: {},
     hasWeight: false,
-    weight: 0,
+    weight: props.form?.has_rating ? 0 : undefined,
     has_evidence: false
   };
   if (fieldType.value === 'geolocation') {
     newField.attributes = { mode: 'scope' };
   }
   if (['signature', 'image', 'document'].includes(fieldType.value)) {
-    newField.attributes.max_files = 1;
+    newField.attributes.max_files = 4;
   }
   if (fieldType.value === 'semaforo') {
-    newField.options = ['Alto', 'Medio', 'Bajo'];
+    newField.options = [...SEMAFORO_FIXED_OPTIONS];
     newField.attributes.semaforo = true;
-    newField.attributes.semaforo_colors = {
-      Alto: 'red',
-      Medio: 'yellow',
-      Bajo: 'green'
-    };
+    newField.attributes.semaforo_colors = { Alto: 'red', Medio: 'yellow', Bajo: 'green' };
   }
   currentFields.value.push(newField);
 };
@@ -209,20 +278,17 @@ const handleDragEnter = (event) => {
   event.preventDefault();
   isDragOver.value = true;
 };
-
 const handleDragOver = (event) => {
   if (!isSidebarDragging.value) return;
   event.preventDefault();
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
   isDragOver.value = true;
 };
-
 const handleDragLeave = (event) => {
   if (!isSidebarDragging.value) return;
   event.preventDefault();
   isDragOver.value = false;
 };
-
 const handleDrop = (event) => {
   if (!isSidebarDragging.value) return;
   event.preventDefault();
@@ -264,19 +330,20 @@ const removeCurrentField = async (index) => {
   if (typeof field.id === 'number' && Number.isInteger(field.id) && field.id > 0) {
     try {
       saving.value = true;
-      errorMsg.value = '';
       await axiosInstance.delete(`/forms/${props.form.id}/fields/${field.id}`);
     } catch (err) {
-      errorMsg.value = err?.response?.data?.message || 'Error al eliminar campo';
       saving.value = false;
       return;
     }
   }
   currentFields.value.splice(index, 1);
-  currentFields.value.forEach((field, idx) => (field.order = idx));
+  currentFields.value.forEach((f, idx) => (f.order = idx));
   saving.value = false;
 };
 
+/* =========================
+   Editar / Guardar
+   ========================= */
 const editField = (index) => {
   editingFieldIndex.value = index;
   editingField.value = {
@@ -284,6 +351,9 @@ const editField = (index) => {
     description: currentFields.value[index].description || '',
     has_evidence: Boolean(currentFields.value[index].has_evidence)
   };
+  if (typeof editingField.value.type === 'string') {
+    editingField.value.type = editingField.value.type.toLowerCase();
+  }
   if (editingField.value.type === 'geolocation') {
     if (!editingField.value.attributes) editingField.value.attributes = {};
     if (!['scope', 'manual'].includes(editingField.value.attributes.mode)) {
@@ -291,62 +361,115 @@ const editField = (index) => {
     }
     editingField.value.is_required = true;
   }
-  if (
-    ['signature', 'image', 'document'].includes(editingField.value.type) &&
-    (editingField.value.attributes.max_files === undefined || editingField.value.attributes.max_files === null)
-  ) {
-    editingField.value.attributes.max_files = 1;
-  }
   if (['signature', 'image', 'document'].includes(editingField.value.type)) {
-    if (editingField.value.attributes.max_files < 1) editingField.value.attributes.max_files = 1;
-    if (editingField.value.attributes.max_files > 4) editingField.value.attributes.max_files = 4;
+    editingField.value.attributes.max_files = 4;
   }
   if (!typesWithEvidence.includes(editingField.value.type)) {
     editingField.value.has_evidence = false;
   }
-  if (editingField.value.type === 'semaforo') {
-    editingField.value.options = ['Alto', 'Medio', 'Bajo'];
-    editingField.value.attributes = {
-      ...editingField.value.attributes,
-      semaforo: true,
-      semaforo_colors: {
-        Alto: 'red',
-        Medio: 'yellow',
-        Bajo: 'green'
-      }
-    };
+
+  if (isSemaforoField(editingField.value)) {
+    editingField.value = toSemaforoUI(editingField.value);
   }
+
+  // Limpiar errores al abrir el modal
+  clearFieldErrors();
   showEditDialog.value = true;
 };
 
+// --- Validación de campos requeridos ---
+const fieldErrors = ref({
+  label: '',
+  weight: '',
+  options: []
+});
+
+function clearFieldErrors() {
+  fieldErrors.value = {
+    label: '',
+    weight: '',
+    options: []
+  };
+}
+
+const validateEditingField = () => {
+  clearFieldErrors();
+  let valid = true;
+
+  // Etiqueta
+  if (!editingField.value.label || !String(editingField.value.label).trim()) {
+    fieldErrors.value.label = 'La etiqueta es obligatoria';
+    valid = false;
+  }
+
+  // Ponderación
+  if (props.form?.has_rating) {
+    const w = editingField.value.weight;
+    if (w === '' || w === null || isNaN(w)) {
+      fieldErrors.value.weight = 'La ponderación es obligatoria';
+      valid = false;
+    } else if (parseInt(w) < 0) {
+      fieldErrors.value.weight = 'Debe ser mayor o igual a 0';
+      valid = false;
+    } else if (parseInt(w) > maxWeightAvailable.value) {
+      fieldErrors.value.weight = `No puede exceder el máximo permitido (${maxWeightAvailable.value})`;
+      valid = false;
+    }
+  }
+
+  // Opciones para select/radio/checkbox
+  if (showOptionsField.value) {
+    const validOptions = Array.isArray(editingField.value.options)
+      ? editingField.value.options.filter((opt) => typeof opt === 'string' && !!opt.trim())
+      : [];
+    fieldErrors.value.options = [];
+    if (validOptions.length < 1) {
+      // Marcar todos los inputs de opciones en rojo
+      editingField.value.options.forEach((opt, idx) => {
+        fieldErrors.value.options[idx] = !opt || !opt.trim() ? 'La opción es obligatoria' : '';
+      });
+      if (validOptions.length === 0) {
+        fieldErrors.value.options[0] = 'Debes agregar al menos una opción válida';
+      }
+      valid = false;
+    } else {
+      // Limpiar errores de opciones si todo bien
+      fieldErrors.value.options = [];
+    }
+  }
+
+  return valid;
+};
+
 const saveEditedField = () => {
-  if (!editingField.value.label) return;
+  if (!validateEditingField()) return;
+
+  // Normalizaciones por tipo
   if (editingField.value.type === 'geolocation') {
     editingField.value.is_required = true;
     const mode = editingField.value.attributes?.mode;
     if (!['scope', 'manual'].includes(mode)) return;
   }
   if (['signature', 'image', 'document'].includes(editingField.value.type)) {
-    let maxFiles = parseInt(editingField.value.attributes.max_files) || 1;
-    if (maxFiles < 1) maxFiles = 1;
-    if (maxFiles > 4) maxFiles = 4;
-    editingField.value.attributes.max_files = maxFiles;
+    editingField.value.attributes.max_files = 4;
   }
   if (!typesWithEvidence.includes(editingField.value.type)) {
     editingField.value.has_evidence = false;
   }
-  if (editingField.value.type === 'semaforo') {
-    editingField.value.options = ['Alto', 'Medio', 'Bajo'];
-    editingField.value.attributes = {
-      ...editingField.value.attributes,
-      semaforo: true,
-      semaforo_colors: {
-        Alto: 'red',
-        Medio: 'yellow',
-        Bajo: 'green'
-      }
-    };
+
+  if (isSemaforoField(editingField.value)) {
+    editingField.value = toSemaforoPayload(editingField.value);
   }
+
+  if (props.form?.has_rating) {
+    let w = parseInt(editingField.value.weight) || 0;
+    if (w < 0) w = 0;
+    let totalSinActual = totalWeightUsed.value - (currentFields.value[editingFieldIndex.value]?.weight || 0);
+    let maxPermitido = 100 - totalSinActual;
+    if (w > maxPermitido) w = maxPermitido;
+    editingField.value.weight = w;
+  }
+
   if (editingFieldIndex.value >= 0) {
     currentFields.value[editingFieldIndex.value] = { ...editingField.value };
   }
@@ -356,15 +479,16 @@ const saveEditedField = () => {
 
 const addOption = () => {
   if (!editingField.value.options) editingField.value.options = [];
-  editingField.value.options.push(`Opción ${editingField.value.options.length + 1}`);
+  editingField.value.options.push('');
+  fieldErrors.value.options.push('');
 };
-
 const removeOption = (index) => {
   editingField.value.options.splice(index, 1);
+  fieldErrors.value.options.splice(index, 1);
 };
 
 const onCurrentFieldsDragEnd = () => {
-  currentFields.value.forEach((field, index) => (field.order = index));
+  currentFields.value.forEach((f, index) => (f.order = index));
 };
 
 const close = () => {
@@ -372,14 +496,20 @@ const close = () => {
   emit('update:modelValue', false);
 };
 
-const totalWeightUsed = computed(() => currentFields.value.reduce((total, field) => total + (field.weight || 0), 0));
+// --- Ponderación ---
+const totalWeightUsed = computed(() =>
+  props.form?.has_rating ? currentFields.value.reduce((total, f) => total + (parseInt(f.weight) || 0), 0) : 0
+);
+
 const maxWeightAvailable = computed(() => {
+  if (!props.form?.has_rating) return 0;
   let current = 0;
   if (editingFieldIndex.value >= 0 && editingFieldIndex.value < currentFields.value.length) {
-    current = currentFields.value[editingFieldIndex.value]?.weight || 0;
+    current = parseInt(currentFields.value[editingFieldIndex.value]?.weight) || 0;
   }
   return 100 - totalWeightUsed.value + current;
 });
+
 const validateWeight = (w) => {
   const n = parseInt(w) || 0;
   if (n < 0) return 0;
@@ -397,112 +527,79 @@ const triedSaveWithWrongWeight = ref(false);
 const saveCurrentFields = async () => {
   triedSaveWithWrongWeight.value = false;
 
-  if (!currentFields.value.length) {
-    errorMsg.value = 'No hay campos para guardar';
-    return;
-  }
+  if (!currentFields.value.length) return;
+
   const invalid = currentFields.value.some((f) => !f.label);
-  if (invalid) {
-    errorMsg.value = 'Todos los campos deben tener una etiqueta.';
-    return;
-  }
+  if (invalid) return;
 
   const labelIdPairs = currentFields.value.map((f) => ({
     label: f.label.trim().toLowerCase(),
     id: f.id
   }));
-  const hasDuplicate = labelIdPairs.some(
-    (pair, idx) => labelIdPairs.findIndex((p, i) => p.label === pair.label && p.id !== pair.id) !== -1
-  );
-  if (hasDuplicate) {
-    errorMsg.value = 'No se pueden duplicar los nombres de los campos en el mismo formulario.';
-    return;
-  }
+  const hasDuplicate = labelIdPairs.some((pair, idx) => labelIdPairs.findIndex((p) => p.label === pair.label && p.id !== pair.id) !== -1);
+  if (hasDuplicate) return;
 
   for (const f of currentFields.value) {
-    if (['select', 'radio', 'checkbox'].includes(f.type) && f.type !== 'semaforo') {
-      if (!Array.isArray(f.options) || !f.options.length || f.options.some((opt) => typeof opt !== 'string' || !opt.trim())) {
-        errorMsg.value = 'Todos los campos de opciones deben tener al menos una opción válida y no vacía.';
-        return;
-      }
+    if (['select', 'radio', 'checkbox'].includes(f.type) && !isSemaforoField(f)) {
+      const validOptions = Array.isArray(f.options) ? f.options.filter((opt) => typeof opt === 'string' && !!opt.trim()) : [];
+      if (validOptions.length < 1) return;
     }
     if (['signature', 'image', 'document'].includes(f.type)) {
       let maxFiles = parseInt(f.attributes?.max_files) || 1;
-      if (maxFiles < 1 || maxFiles > 4) {
-        errorMsg.value = 'La cantidad máxima de archivos debe ser entre 1 y 4.';
-        return;
-      }
+      if (maxFiles < 1 || maxFiles > 4) return;
     }
     if (f.type === 'geolocation') {
-      if (!['scope', 'manual'].includes(f.attributes?.mode)) {
-        errorMsg.value = 'El campo de geolocalización requiere un modo válido (scope o manual).';
-        return;
-      }
+      if (!['scope', 'manual'].includes(f.attributes?.mode)) return;
+    }
+    if (props.form?.has_rating) {
+      let w = parseInt(f.weight);
+      if (isNaN(w) || w < 0) return;
     }
   }
 
   if (props.form?.has_rating && totalWeightUsed.value !== 100) {
     triedSaveWithWrongWeight.value = true;
-    errorMsg.value = 'La suma de la ponderación debe ser exactamente 100 puntos.';
     return;
   }
 
   try {
     const response = await axiosInstance.get(`/forms/${props.form.id}`);
-    // Ajuste para soportar distintas estructuras de respuesta
     const formData = response.data.form || response.data.data || response.data;
     const status = formData.status;
     const responsesCount = formData.responses_count ?? 0;
-    if (status !== 'draft') {
-      errorMsg.value = 'Solo se pueden agregar o editar campos cuando el formulario está en estado "borrador".';
-      return;
-    }
-    if (responsesCount > 0) {
-      errorMsg.value = 'No se pueden agregar o editar campos porque el formulario ya tiene respuestas.';
-      return;
-    }
+    if (status !== 'draft') return;
+    if (responsesCount > 0) return;
   } catch (e) {
-    errorMsg.value = 'No se pudo validar el estado del formulario.';
     return;
   }
 
   saving.value = true;
-  errorMsg.value = '';
-
   const savedFields = [];
+
   try {
     const backendFieldIds = Array.isArray(props.form?.fields) ? props.form.fields.map((f) => f.id) : [];
 
     for (const f of currentFields.value) {
-      const payload = {
+      let payload = {
         label: f.label,
         description: f.description || '',
         type: f.type,
         is_required: !!f.is_required,
         order: f.order,
         attributes: f.attributes && typeof f.attributes === 'object' ? { ...f.attributes } : {},
-        weight: typeof f.weight === 'number' ? f.weight : 0
+        weight: props.form?.has_rating ? parseInt(f.weight) || 0 : undefined
       };
 
-      if (f.type === 'semaforo') {
-        payload.options = ['Alto', 'Medio', 'Bajo'];
-        payload.attributes.semaforo = true;
-        payload.attributes.semaforo_colors = {
-          Alto: 'red',
-          Medio: 'yellow',
-          Bajo: 'green'
+      if (f.type === 'geolocation') {
+        payload.is_required = true;
+        payload.attributes = {
+          ...payload.attributes,
+          mode: f.attributes && ['scope', 'manual'].includes(f.attributes.mode) ? f.attributes.mode : 'scope'
         };
-      } else if (['select', 'radio', 'checkbox'].includes(f.type)) {
-        payload.options = (f.options || []).filter((opt) => typeof opt === 'string' && !!opt.trim());
-      } else {
-        delete payload.options;
       }
 
       if (['signature', 'image', 'document'].includes(f.type)) {
-        let maxFiles = parseInt(payload.attributes?.max_files) || 1;
-        if (maxFiles < 1) maxFiles = 1;
-        if (maxFiles > 4) maxFiles = 4;
-        payload.attributes.max_files = maxFiles;
+        payload.attributes.max_files = 4;
       } else if (payload.attributes && 'max_files' in payload.attributes) {
         delete payload.attributes.max_files;
       }
@@ -513,12 +610,12 @@ const saveCurrentFields = async () => {
         payload.has_evidence = false;
       }
 
-      if (f.type === 'geolocation') {
-        payload.is_required = true;
-        payload.attributes = {
-          ...payload.attributes,
-          mode: f.attributes && ['scope', 'manual'].includes(f.attributes.mode) ? f.attributes.mode : 'scope'
-        };
+      if (isSemaforoField(f)) {
+        payload = toSemaforoPayload(payload);
+      } else if (['select', 'radio', 'checkbox'].includes(f.type)) {
+        payload.options = (f.options || []).filter((opt) => typeof opt === 'string' && !!opt.trim());
+      } else {
+        delete payload.options;
       }
 
       const isExistingField = backendFieldIds.includes(f.id);
@@ -536,27 +633,30 @@ const saveCurrentFields = async () => {
       const response = await axiosInstance.get(`/forms/${props.form.id}`);
       const data = response.data.form || response.data.data || response.data;
       currentFields.value = Array.isArray(data.fields)
-        ? data.fields.map((f) => ({
-            ...f,
-            description: f.description || '',
-            attributes:
-              f.type === 'geolocation'
-                ? { ...(f.attributes || {}), mode: (f.attributes && f.attributes.mode) || 'scope' }
-                : f.attributes || {},
-            has_evidence: Boolean(f.has_evidence)
-          }))
+        ? data.fields.map((f) => {
+            const base = {
+              ...f,
+              description: f.description || '',
+              attributes:
+                f.type === 'geolocation'
+                  ? { ...(f.attributes || {}), mode: (f.attributes && f.attributes.mode) || 'scope' }
+                  : f.attributes || {},
+              has_evidence: Boolean(f.has_evidence)
+            };
+            return isSemaforoField(base) ? toSemaforoUI(base) : base;
+          })
         : [];
     } catch {
       savedFields.forEach((saved) => {
         const idx = currentFields.value.findIndex((f) => f.id === saved.id);
-        if (idx !== -1) currentFields.value[idx] = { ...saved };
+        if (idx !== -1) currentFields.value[idx] = isSemaforoField(saved) ? toSemaforoUI(saved) : { ...saved };
       });
     }
 
     emit('fields-saved', savedFields);
     close();
   } catch (err) {
-    errorMsg.value = err?.response?.data?.message || 'Error al guardar campos';
+    // No errorMsg global
   } finally {
     saving.value = false;
   }
@@ -578,15 +678,19 @@ const saveCurrentFields = async () => {
           <span class="modal-title">Constructor de Campos</span>
         </div>
         <div class="d-flex align-center">
-          <template v-if="form?.has_rating">
-            <span
-              class="ponderacion-header mr-4"
-              :style="{
-                color: totalWeightUsed === 100 ? '#111' : '#d32f2f',
-                fontWeight: 500
-              }"
-            >
-              Ponderación: {{ totalWeightUsed }} / 100
+          <template v-if="props.form?.has_rating">
+            <span class="ponderacion-header mr-4" :class="{ error: triedSaveWithWrongWeight }">
+              <v-icon
+                :icon="mdiScaleBalance"
+                size="20"
+                :color="triedSaveWithWrongWeight ? '#e53935' : 'black'"
+                class="mr-2"
+                style="margin-right: 8px"
+              />
+              <span :style="{ color: triedSaveWithWrongWeight ? '#e53935' : '#111', fontWeight: 600 }">
+                Ponderación: <b style="margin: 0 4px">{{ totalWeightUsed }}</b
+                >/100
+              </span>
             </span>
           </template>
           <span class="close-icon" @click="close">
@@ -594,7 +698,6 @@ const saveCurrentFields = async () => {
           </span>
         </div>
       </div>
-
       <!-- SIDEBAR DROPDOWN (MOBILE) -->
       <div v-if="isMobile" class="sidebar-dropdown-mobile">
         <v-btn color="grey-lighten-3" variant="flat" class="sidebar-dropdown-btn" @click="sidebarDropdownOpen = !sidebarDropdownOpen" block>
@@ -623,7 +726,6 @@ const saveCurrentFields = async () => {
           </div>
         </transition>
       </div>
-
       <div class="modal-content-row d-flex h-100">
         <div :class="['main-fields-area', showSidebar && !isMobile ? 'with-sidebar' : 'full', 'fields-area-with-footer', 'bg-white']">
           <div
@@ -643,7 +745,6 @@ const saveCurrentFields = async () => {
                 </div>
               </div>
             </div>
-
             <draggable v-model="currentFields" item-key="id" handle=".drag-handle" @end="onCurrentFieldsDragEnd" class="v-list">
               <template #item="{ element: field, index }">
                 <v-card class="mb-3 pa-3" variant="outlined">
@@ -660,6 +761,9 @@ const saveCurrentFields = async () => {
                         <div v-if="field.description" class="text-caption text-grey-darken-2 mt-1">
                           {{ field.description }}
                         </div>
+                        <div v-if="props.form?.has_rating" class="text-caption text-blue-darken-2 mt-1">
+                          Ponderación: {{ parseInt(field.weight) || 0 }}
+                        </div>
                       </div>
                     </div>
                     <div class="d-flex align-center">
@@ -675,8 +779,6 @@ const saveCurrentFields = async () => {
               </template>
             </draggable>
           </div>
-
-          <!-- BOTÓN GUARDAR CAMPOS -->
           <div class="fields-footer d-flex justify-end" :class="{ 'fields-footer-mobile': isMobile }">
             <v-btn
               color="primary"
@@ -690,8 +792,6 @@ const saveCurrentFields = async () => {
             </v-btn>
           </div>
         </div>
-
-        <!-- Sidebar normal (desktop) -->
         <transition name="slide">
           <aside v-if="showSidebar && !isMobile" class="sidebar-fields">
             <v-list class="field-list">
@@ -715,14 +815,12 @@ const saveCurrentFields = async () => {
             </v-list>
           </aside>
         </transition>
-
         <div v-if="!showSidebar && !isMobile" class="show-sidebar-btn-right">
           <v-btn icon @click="showSidebar = true" variant="plain">
             <v-icon icon="mdi-chevron-left" color="grey-darken-2"></v-icon>
           </v-btn>
         </div>
       </div>
-
       <!-- MODAL DE EDICIÓN DE CAMPO -->
       <v-dialog v-model="showEditDialog" max-width="600px" @click:outside="showEditDialog = false">
         <v-card class="pa-0" style="border-radius: 0">
@@ -734,41 +832,72 @@ const saveCurrentFields = async () => {
           </div>
           <v-card-text>
             <v-form ref="editForm" @submit.prevent="saveEditedField">
+              <v-label class="mb-1">Etiqueta del Campo <span style="color: #e53935">*</span></v-label>
               <v-text-field
                 v-model="editingField.label"
-                label="Etiqueta del Campo"
                 variant="outlined"
                 required
                 class="mb-4"
+                :error="!!fieldErrors.label"
+                :rules="[(v) => (!!v && String(v).trim().length > 0) || 'La etiqueta es obligatoria']"
+                :error-messages="fieldErrors.label"
                 @keyup.enter="saveEditedField"
+                hide-details="auto"
               />
+              <v-label class="mb-1">Descripción (opcional)</v-label>
               <v-text-field
                 v-model="editingField.description"
-                label="Descripción (opcional)"
                 variant="outlined"
                 class="mb-4"
                 maxlength="500"
                 counter
+                hide-details="auto"
               />
-              <v-checkbox
-                v-model="editingField.is_required"
-                label="Campo requerido"
-                class="mb-4"
-                color="primary"
-                :disabled="editingField.type === 'geolocation'"
-              />
-
-              <div v-if="typesWithEvidence.includes(editingField.type)">
-                <v-checkbox
-                  v-model="editingField.has_evidence"
-                  label="Requiere evidencia (adjuntar archivo)"
-                  color="primary"
-                  class="mb-4"
+              <div v-if="props.form?.has_rating" class="mb-4">
+                <v-label class="mb-1"> Ponderación de la pregunta <span style="color: #e53935">*</span> </v-label>
+                <v-text-field
+                  v-model.number="editingField.weight"
+                  variant="outlined"
+                  type="number"
+                  min="0"
+                  :max="maxWeightAvailable"
+                  :error="!!fieldErrors.weight || triedSaveWithWrongWeight"
+                  :error-messages="fieldErrors.weight"
+                  @blur="editingField.weight = validateWeight(editingField.weight)"
+                  @input="editingField.weight = validateWeight(editingField.weight)"
+                  class="mb-1"
+                  required
+                  hint="La suma total de todas las preguntas debe ser 100"
+                  persistent-hint
+                  hide-details="auto"
                 />
+                <div class="text-caption text-grey-darken-1">Máximo permitido para esta pregunta: {{ maxWeightAvailable }}</div>
+                <div style="height: 18px"></div>
               </div>
-
+              <!-- RESPONSIVE CHECKBOXES ROW -->
+              <div :class="['d-flex', 'align-center', 'mb-4', 'checkboxes-row', isMobile ? 'flex-column align-stretch' : '']">
+                <v-checkbox
+                  v-model="editingField.is_required"
+                  label="Campo requerido"
+                  color="primary"
+                  :disabled="editingField.type === 'geolocation'"
+                  class="mr-6"
+                  density="comfortable"
+                  hide-details
+                />
+                <template v-if="typesWithEvidence.includes(editingField.type)">
+                  <v-checkbox
+                    v-model="editingField.has_evidence"
+                    label="Requiere evidencia (adjuntar archivo)"
+                    color="primary"
+                    density="comfortable"
+                    hide-details
+                    :class="isMobile ? 'mt-0' : ''"
+                  />
+                </template>
+              </div>
               <div v-if="showGeolocationMode" class="mb-4">
-                <v-label class="text-body-2 font-weight-medium mb-2">Modo de Geolocalización</v-label>
+                <v-label class="mb-1">Modo de Geolocalización</v-label>
                 <v-checkbox
                   :model-value="editingField.attributes.mode === 'manual'"
                   @update:model-value="(val) => (editingField.attributes.mode = val ? 'manual' : 'scope')"
@@ -786,27 +915,29 @@ const saveCurrentFields = async () => {
                   hide-details
                 />
               </div>
-
-              <!-- Semáforo chips -->
-              <div v-if="editingField.type === 'semaforo'" class="mb-4">
-                <v-label class="text-body-2 font-weight-medium mb-2">Opciones del semáforo</v-label>
+              <div style="height: 18px"></div>
+              <div v-if="String(editingField.type).toLowerCase() === 'semaforo' || isSemaforoField(editingField)" class="mb-4">
+                <v-label class="mb-1">Opciones del semáforo</v-label>
                 <div class="semaforo-chips-row">
                   <v-chip style="background: #e53935; color: white; padding-left: 18px; padding-right: 18px">Alto</v-chip>
                   <v-chip style="background: #ffd600; color: black; padding-left: 18px; padding-right: 18px">Medio</v-chip>
                   <v-chip style="background: #43a047; color: white; padding-left: 18px; padding-right: 18px">Bajo</v-chip>
                 </div>
               </div>
-
               <div v-if="showOptionsField" class="mb-4">
-                <v-label class="text-body-2 font-weight-medium mb-2">Opciones</v-label>
-                <div v-for="(option, index) in editingField.options" :key="index" class="option-row mb-2">
+                <v-label class="mb-1"> Opciones <span style="color: #e53935">*</span> </v-label>
+                <div v-for="(option, index) in editingField.options" :key="index" class="option-row mb-1">
                   <v-text-field
                     v-model="editingField.options[index]"
-                    :placeholder="`Opción ${index + 1}`"
                     variant="outlined"
                     density="compact"
                     class="option-input"
+                    :error="!!fieldErrors.options[index]"
+                    :error-messages="fieldErrors.options[index]"
                     @keyup.enter="saveEditedField"
+                    hide-details="auto"
+                    :placeholder="`Opción ${index + 1}`"
+                    :label="''"
                   >
                     <template #append-inner>
                       <v-btn
@@ -822,43 +953,11 @@ const saveCurrentFields = async () => {
                     </template>
                   </v-text-field>
                 </div>
-                <v-btn color="primary" variant="outlined" class="mt-2" @click="addOption">
+                <v-btn color="primary" variant="outlined" class="mt-1" @click="addOption">
                   <v-icon :icon="mdiPlus" class="mr-1"></v-icon>
                   Agregar Opción
                 </v-btn>
               </div>
-
-              <div v-if="form?.has_rating" class="mb-4">
-                <div class="d-flex align-center justify-space-between mb-3">
-                  <v-label class="text-body-1 font-weight-medium">Ponderación de Puntos</v-label>
-                </div>
-                <v-alert type="info" variant="tonal" class="mb-4" density="compact">
-                  Asigna puntos a esta pregunta. El total de todas las preguntas no puede exceder 100 puntos.
-                </v-alert>
-                <v-row>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="editingField.weight"
-                      label="Puntos de la pregunta"
-                      type="number"
-                      variant="outlined"
-                      density="compact"
-                      :min="1"
-                      :max="maxWeightAvailable"
-                      :hint="`Máximo disponible: ${maxWeightAvailable} puntos`"
-                      persistent-hint
-                      @update:model-value="(value) => (editingField.weight = validateWeight(parseInt(value) || 0))"
-                    />
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-alert type="info" variant="tonal" density="compact">
-                      <strong>Peso total usado:</strong> {{ totalWeightUsed }} / 100 puntos
-                    </v-alert>
-                  </v-col>
-                </v-row>
-              </div>
-
-              <v-alert v-if="errorMsg" type="error" class="mt-2">{{ errorMsg }}</v-alert>
             </v-form>
           </v-card-text>
           <v-card-actions class="px-4 pb-4 pt-0 d-flex justify-end">
@@ -871,6 +970,31 @@ const saveCurrentFields = async () => {
 </template>
 
 <style scoped>
+.v-label {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #222;
+  margin-bottom: 2px;
+  display: block;
+}
+.mb-4 {
+  margin-bottom: 1.1rem !important;
+}
+.d-flex.align-center.mb-4.checkboxes-row {
+  margin-bottom: 0.7rem !important;
+  margin-top: -0.3rem !important;
+}
+.v-input.mb-2,
+.mb-2 {
+  margin-bottom: 8px !important;
+}
+.v-input.mb-1,
+.mb-1 {
+  margin-bottom: 4px !important;
+}
+.field-label {
+  display: none;
+}
 .modal-card {
   height: 100vh;
   display: flex;
@@ -909,6 +1033,27 @@ const saveCurrentFields = async () => {
   cursor: pointer;
   display: flex;
   align-items: center;
+}
+
+.ponderacion-header {
+  display: inline-flex;
+  align-items: center;
+  background: #e3f2fd;
+  border-radius: 999px;
+  padding: 4px 16px 4px 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 4px rgba(33, 150, 243, 0.08);
+  border: 1.5px solid #bbdefb;
+  transition:
+    color 0.2s,
+    border-color 0.2s,
+    background 0.2s;
+}
+.ponderacion-header.error {
+  background: #ffebee;
+  border-color: #ffcdd2;
 }
 
 .modal-content-row {
@@ -987,7 +1132,6 @@ const saveCurrentFields = async () => {
   flex: 1 1 auto;
   overflow-y: auto;
 }
-
 .field-type-row {
   cursor: grab;
   border-radius: 6px;
@@ -1028,7 +1172,6 @@ const saveCurrentFields = async () => {
   background-color: #f0f8ff !important;
   border: 2px dashed #2196f3 !important;
   border-radius: 12px;
-  transform: none;
   box-shadow: 0 4px 20px rgba(33, 150, 243, 0.15);
 }
 .drop-zone-mobile {
@@ -1038,10 +1181,7 @@ const saveCurrentFields = async () => {
 
 .empty-fields-container.center-middle {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1062,8 +1202,6 @@ const saveCurrentFields = async () => {
   margin-bottom: 0.5em;
   width: 100%;
   text-align: center;
-  max-width: 100%;
-  word-break: break-word;
 }
 .empty-fields-title-mobile {
   font-size: 1.1rem;
@@ -1077,7 +1215,6 @@ const saveCurrentFields = async () => {
   white-space: nowrap;
   width: 100%;
   text-align: center;
-  max-width: 100%;
   overflow-x: auto;
 }
 .empty-fields-desc.empty-fields-desc-mobile {
@@ -1178,42 +1315,37 @@ const saveCurrentFields = async () => {
   border-color: #bdbdbd;
 }
 
-/* ---------- Opciones (ancho completo y botón integrado) ---------- */
+/* ---------- Opciones (inputs) ---------- */
 .option-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding-bottom: 10px;
 }
-
 .option-input {
   flex: 1 1 auto;
-  min-width: 0; /* clave para que el input pueda ocupar todo el ancho en flex */
+  min-width: 0;
 }
-
-/* Pequeños ajustes de espaciado del slot de Vuetify */
 :deep(.option-input .v-input__append) {
   margin-inline-start: 4px;
 }
 .option-delete-icon {
   margin-left: 4px;
-} /* opcional, para separar del borde del input */
+}
 
+/* Chips de vista previa en el editor */
 .semaforo-chips-row {
   display: flex;
-  flex-direction: row;
   gap: 12px;
   padding: 4px 0;
 }
 
-/* ----------- Mobile ----------- */
+/* ---------- Mobile ---------- */
 @media (max-width: 900px) {
   .modal-header {
     padding: 12px 8px !important;
     min-height: 48px;
     background: #f8f9fa;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-between !important;
   }
   .modal-title-container.center-mobile {
     justify-content: flex-start !important;
@@ -1221,7 +1353,6 @@ const saveCurrentFields = async () => {
     padding-left: 8px;
   }
   .close-icon {
-    align-self: unset;
     margin-top: 0;
     margin-left: 8px;
   }
@@ -1239,29 +1370,13 @@ const saveCurrentFields = async () => {
     display: block !important;
     width: 100vw;
     padding: 0 8px 8px 8px;
-    background: transparent !important;
-    border-top: none;
-    box-shadow: none;
-    min-height: 0;
-    margin-bottom: 0;
   }
   .sidebar-dropdown-btn {
     width: 100%;
-    margin: 0;
-    text-align: left;
-    justify-content: flex-start;
     background: #fff !important;
     border-radius: 8px;
-    color: #222 !important;
-    font-weight: 500;
-    font-size: 1rem;
-    box-shadow: none !important;
     border: 1px solid #e0e0e0;
     min-height: 48px;
-    display: flex;
-    align-items: center;
-    margin-top: 16px;
-    position: relative;
   }
   .sidebar-dropdown-label {
     flex: 1 1 auto;
@@ -1282,8 +1397,6 @@ const saveCurrentFields = async () => {
     overflow-y: auto;
     padding: 8px 0;
     z-index: 200;
-    position: relative;
-    animation: dropdown-fade-in 0.18s;
   }
   .main-fields-area {
     margin-top: 16px;
@@ -1295,7 +1408,6 @@ const saveCurrentFields = async () => {
     left: 0;
     width: 100vw;
     justify-content: center;
-    background: transparent;
   }
   .fields-footer {
     position: fixed !important;
@@ -1303,11 +1415,9 @@ const saveCurrentFields = async () => {
     right: 0;
     left: 0;
     width: 100vw !important;
-    background: linear-gradient(to top, #fff 90%, rgba(255, 255, 255, 0));
     padding: 12px 16px 12px 0 !important;
     z-index: 100;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
-    justify-content: flex-end !important;
   }
   .guardar-campos-btn {
     min-width: 180px;
@@ -1319,20 +1429,6 @@ const saveCurrentFields = async () => {
   .empty-fields-container.center-middle {
     min-height: 180px;
     padding: 0 12px;
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .empty-fields-explanation-group {
-    width: 100%;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
   }
 }
 @media (max-width: 600px) {
@@ -1355,13 +1451,6 @@ const saveCurrentFields = async () => {
   .sidebar-dropdown-mobile {
     padding: 0 2px 8px 2px;
   }
-  .sidebar-fields {
-    min-height: 120px;
-    padding-bottom: 8px;
-  }
-  .field-list {
-    padding: 0 2px;
-  }
   .fields-footer {
     padding: 12px 4px 12px 0 !important;
   }
@@ -1371,9 +1460,16 @@ const saveCurrentFields = async () => {
     display: none !important;
   }
 }
-.ponderacion-header {
-  display: inline-block;
-  min-width: 120px;
-  text-align: right;
+@media (max-width: 900px) {
+  .checkboxes-row.flex-column {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0 !important;
+  }
+  .checkboxes-row.flex-column .v-checkbox {
+    margin-right: 0 !important;
+    margin-bottom: 0.2rem !important;
+    width: 100%;
+  }
 }
 </style>
