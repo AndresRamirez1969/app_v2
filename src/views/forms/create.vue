@@ -156,7 +156,8 @@ const groupBusinessOptions = computed(() => {
   return businesses.value;
 });
 const groupGroupOptions = computed(() => {
-  if (isSuperadmin.value && scope.value === 'business_unit_group') {
+  // Filtrar por empresa seleccionada (selectedGroupBusiness)
+  if ((isSuperadmin.value || isAdmin.value) && scope.value === 'business_unit_group') {
     const bizId = selectedGroupBusiness.value;
     if (!bizId) return [];
     return groups.value.filter((g) => Number(g.business_id) === Number(bizId));
@@ -186,6 +187,52 @@ const getScopeLogo = () => {
   }
   return null;
 };
+
+// --- INTEGRACIÓN: Control de disponibilidad de logo de alcance ---
+const scopeLogoAvailable = ref(true);
+const scopeLogoError = ref('');
+
+// Función para verificar si el alcance tiene logo disponible
+const checkScopeLogo = () => {
+  let logoUrl = getScopeLogo();
+  if (!logoUrl) {
+    scopeLogoAvailable.value = false;
+    scopeLogoError.value =
+      'El alcance seleccionado no cuenta con logo. Ingresa uno manualmente o edita el registro del alcance para agregar un logo.';
+    reuseLogo.value = false;
+  } else {
+    scopeLogoAvailable.value = true;
+    scopeLogoError.value = '';
+  }
+};
+
+// Watch para validar cada vez que cambian los selects relevantes o el scope
+watch(
+  [
+    scope,
+    selectedOrganization,
+    selectedBusinessOrganization,
+    businessId,
+    businessUnitId,
+    selectedGroupOrganization,
+    selectedGroupBusiness,
+    groupId
+  ],
+  () => {
+    if (reuseLogo.value) checkScopeLogo();
+    else {
+      scopeLogoAvailable.value = true;
+      scopeLogoError.value = '';
+    }
+  }
+);
+
+// Watch para deshabilitar reuseLogo si no hay logo disponible
+watch(reuseLogo, (val) => {
+  if (val) checkScopeLogo();
+});
+
+// --- FIN INTEGRACIÓN LOGO ---
 
 const goBack = () => router.push('/formularios');
 
@@ -233,7 +280,14 @@ const validateField = (fieldName, value) => {
       }
       break;
     case 'logo':
-      if (scope.value === 'business_unit_group' && reuseLogo.value) break;
+      if (reuseLogo.value) {
+        // Si reuseLogo está activo, pero no hay logo disponible, no permitir
+        if (!scopeLogoAvailable.value) {
+          fieldErrors.logo = scopeLogoError.value;
+          return false;
+        }
+        break;
+      }
       if (!reuseLogo.value && (!value || (Array.isArray(value) && value.length === 0))) {
         fieldErrors.logo = 'El logo es obligatorio';
         return false;
@@ -372,10 +426,14 @@ const fetchBusinessUnits = async (searchText = '') => {
       const res = await axiosInstance.get('/business-units', { params });
       businessUnits.value = res.data.data
         .filter((unit) => {
+          // Filtrar por empresa seleccionada
+          if (Number(unit.business_id) !== Number(businessIdFilter)) return false;
           if (isSuperadmin.value) return true;
           return unit.organization_id === user.value?.organization_id;
         })
         .map((businessUnit) => ({ ...businessUnit, customLabel: `${businessUnit.folio} - ${businessUnit.name}` }));
+    } else {
+      businessUnits.value = [];
     }
   } catch (err) {
     businessUnits.value = [];
@@ -499,6 +557,12 @@ watch(scope, async (newScope, oldScope) => {
   reuseLogo.value = false;
 });
 
+watch([scope, isSponsor], ([newScope, sponsor]) => {
+  if ((newScope === 'business' || newScope === 'business_unit') && sponsor) {
+    businessId.value = userBusinesses.value;
+  }
+});
+
 watch(selectedOrganization, async (orgId) => {
   if (isSuperadmin.value && orgId) {
     await fetchBusinesses();
@@ -536,7 +600,19 @@ watch(logo, (newLogo) => {
 
 watch([scope, businessId, businessUnitId, groupId, selectedOrganization, reuseLogo], async () => {
   if (reuseLogo.value) {
-    const logoUrl = getScopeLogo();
+    let logoUrl = null;
+    if (scope.value === 'organization') {
+      // Superadmin: usa la seleccionada, Admin: usa la suya
+      if (isSuperadmin.value && selectedOrganization.value) {
+        const org = organizationOptions.value.find((o) => Number(o.value) === Number(selectedOrganization.value));
+        logoUrl = org?.logo || null;
+      } else if (isAdmin.value && userOrganization.value) {
+        const org = organizationOptions.value.find((o) => Number(o.value) === Number(userOrganization.value));
+        logoUrl = org?.logo || null;
+      }
+    } else {
+      logoUrl = getScopeLogo();
+    }
     profilePreview.value = logoUrl || null;
     logo.value = null;
     return;
@@ -553,6 +629,22 @@ watch([scope, businessId, businessUnitId, groupId, selectedOrganization, reuseLo
   }
 });
 
+// --- INTEGRACIÓN: Forzar carga de ubicaciones para sponsor cuando selecciona "Ubicación" ---
+watch([scope, businessId], async ([newScope, newBusinessId], [oldScope, oldBusinessId]) => {
+  if (newScope === 'business_unit' && isSponsor.value && newBusinessId && (oldScope !== 'business_unit' || !oldBusinessId)) {
+    await fetchBusinessUnits();
+  }
+});
+// --- FIN INTEGRACIÓN ---
+
+// --- INTEGRACIÓN EXTRA: Forzar carga inicial si ya está seteado el businessId (caso sponsor) ---
+watch(scope, async (newScope) => {
+  if (newScope === 'business_unit' && isSponsor.value && businessId.value) {
+    await fetchBusinessUnits();
+  }
+});
+// --- FIN INTEGRACIÓN EXTRA ---
+
 const isLoading = ref(false);
 
 onMounted(async () => {
@@ -561,6 +653,19 @@ onMounted(async () => {
   await fetchBusinesses();
   await fetchGroups();
   if (isAdmin.value || isSponsor.value) await fetchOrgRolesForAdmin();
+
+  if (isAdmin.value && userOrganization.value && organizationOptions.value.length === 0) {
+    const res = await axiosInstance.get(`/organizations/${userOrganization.value}`);
+    const org = res.data.data;
+    organizationOptions.value = [
+      {
+        ...org,
+        title: `${org.folio} - ${org.legal_name}`,
+        value: org.id,
+        logo: org.logo || null
+      }
+    ];
+  }
 });
 
 const validate = async () => {
@@ -775,7 +880,19 @@ const validate = async () => {
                 />
               </div>
               <v-label>Empresa <span class="text-error">*</span></v-label>
+              <!-- Sponsor: input oculto, valor automático -->
+              <v-text-field
+                v-if="isSponsor"
+                :model-value="userBusinesses"
+                variant="outlined"
+                color="primary"
+                class="mt-2 alcance-select"
+                readonly
+                hide-details
+                style="display: none"
+              />
               <v-select
+                v-else
                 v-model="businessId"
                 :items="businessOptions"
                 item-title="customLabel"
@@ -822,7 +939,7 @@ const validate = async () => {
                   "
                 />
               </div>
-              <v-label v-if="!isSponsor">Empresa <span class="text-error">*</span></v-label>
+              <!-- Sponsor: input oculto, valor automático -->
               <v-text-field
                 v-if="isSponsor"
                 :model-value="userBusinesses"
@@ -833,6 +950,7 @@ const validate = async () => {
                 hide-details
                 style="display: none"
               />
+              <v-label v-if="!isSponsor">Empresa <span class="text-error">*</span></v-label>
               <v-select
                 v-if="!isSponsor"
                 v-model="businessId"
@@ -897,7 +1015,8 @@ const validate = async () => {
                   :error-messages="fieldErrors.groupOrganization"
                 />
               </div>
-              <div v-if="isSuperadmin" class="mb-2">
+              <!-- Mostrar select de empresa para superadmin y admin -->
+              <div v-if="isSuperadmin || isAdmin" class="mb-2">
                 <v-label>Empresa <span class="text-error">*</span></v-label>
                 <v-select
                   v-model="selectedGroupBusiness"
@@ -935,7 +1054,7 @@ const validate = async () => {
             <!-- Logo -->
             <div v-if="scope" class="mt-4">
               <v-file-input
-                v-if="!((reuseLogo && scope === 'business_unit_group') || (reuseLogo && scope === 'business_unit'))"
+                v-if="!reuseLogo"
                 v-model="logo"
                 variant="outlined"
                 color="primary"
@@ -950,9 +1069,14 @@ const validate = async () => {
               />
               <div class="d-flex align-center mb-2 logo-checkbox">
                 <v-checkbox
-                  v-if="scope === 'business_unit_group'"
                   v-model="reuseLogo"
-                  :label="'Reutilizar logo de la empresa del grupo seleccionado'"
+                  :label="
+                    scope === 'business_unit_group'
+                      ? 'Reutilizar logo de la empresa del grupo seleccionado'
+                      : scope === 'business_unit'
+                        ? 'Reutilizar logo de la empresa de la ubicación seleccionada'
+                        : 'Reutilizar logo del alcance seleccionado'
+                  "
                   color="primary"
                   hide-details
                   class="mr-2"
@@ -960,31 +1084,16 @@ const validate = async () => {
                   :ripple="false"
                   :true-value="true"
                   :false-value="false"
+                  :disabled="!scopeLogoAvailable"
                 />
-                <v-checkbox
-                  v-else-if="scope === 'business_unit'"
-                  v-model="reuseLogo"
-                  :label="'Reutilizar logo de la empresa de la ubicación seleccionada'"
-                  color="primary"
-                  hide-details
-                  class="mr-2"
-                  style="border-radius: 8px"
-                  :ripple="false"
-                  :true-value="true"
-                  :false-value="false"
-                />
-                <v-checkbox
-                  v-else
-                  v-model="reuseLogo"
-                  :label="'Reutilizar logo del alcance seleccionado'"
-                  color="primary"
-                  hide-details
-                  class="mr-2"
-                  style="border-radius: 8px"
-                  :ripple="false"
-                  :true-value="true"
-                  :false-value="false"
-                />
+              </div>
+              <!-- Mensaje de error en rojo debajo del checkbox, alineado a la derecha -->
+              <div
+                v-if="!scopeLogoAvailable"
+                class="text-error"
+                style="margin-top: -8px; margin-bottom: 8px; font-size: 0.95rem; margin-left: 36px"
+              >
+                {{ scopeLogoError }}
               </div>
             </div>
 

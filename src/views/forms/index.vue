@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useDisplay } from 'vuetify';
 import { mdiPlus, mdiHelpCircleOutline } from '@mdi/js';
@@ -10,11 +10,13 @@ import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const forms = ref([]);
-const filteredForms = ref([]);
+const totalItems = ref(0);
 const { mdAndDown } = useDisplay();
 
 const searchText = ref('');
 const filterOptions = ref({});
+const page = ref(1);
+const itemsPerPage = ref(10);
 
 const auth = useAuthStore();
 const canView = ref(false);
@@ -25,6 +27,28 @@ function hasPermission(permission) {
   return Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission);
 }
 
+const fetchForms = async () => {
+  isLoading.value = true;
+  try {
+    const params = {
+      ...filterOptions.value,
+      search: searchText.value,
+      page: page.value,
+      per_page: itemsPerPage.value
+    };
+    const { data } = await axios.get('/forms', { params });
+    // Laravel paginator: data.data = items, data.meta.total = total
+    forms.value = data.data;
+    totalItems.value = data.meta?.total || data.total || 0;
+  } catch (error) {
+    console.error('Error fetching forms:', error);
+    forms.value = [];
+    totalItems.value = 0;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 onMounted(async () => {
   if (!hasPermission('form.viewAny')) {
     canView.value = false;
@@ -33,16 +57,7 @@ onMounted(async () => {
   }
   canView.value = true;
   canCreate.value = hasPermission('form.create');
-  try {
-    isLoading.value = true;
-    const { data } = await axios.get('/forms');
-    forms.value = data.data;
-    filteredForms.value = data.data;
-  } catch (error) {
-    console.error('Error fetching forms:', error);
-  } finally {
-    isLoading.value = false;
-  }
+  await fetchForms();
 });
 
 const goToCreate = () => {
@@ -51,68 +66,19 @@ const goToCreate = () => {
 
 function handleSearch(text) {
   searchText.value = text;
-  applyFilters();
+  page.value = 1;
+  fetchForms();
 }
 
 async function handleFilter(filters) {
   filterOptions.value = filters;
-  try {
-    const { data } = await axios.get('/forms', { params: filters });
-    filteredForms.value = data.data;
-  } catch (error) {
-    console.error('Error fetching filtered forms:', error);
-    filteredForms.value = [];
-  }
+  page.value = 1;
+  await fetchForms();
 }
 
-function applyFilters() {
-  let result = forms.value;
-
-  // Buscar por nombre y folio
-  if (searchText.value) {
-    const q = searchText.value.toLowerCase();
-    result = result.filter(
-      (form) => (form.name && form.name.toLowerCase().includes(q)) || (form.folio && form.folio.toLowerCase().includes(q))
-    );
-  }
-
-  // Filtro por status
-  if (filterOptions.value.status) {
-    result = result.filter((form) => form.status === filterOptions.value.status);
-  }
-
-  // Filtro por business_unit_id
-  if (filterOptions.value.business_unit_id) {
-    result = result.filter((form) => form.business_unit_id === filterOptions.value.business_unit_id);
-  }
-
-  // Filtro por supervisor_role_id
-  if (filterOptions.value.supervisor_role_id) {
-    result = result.filter((form) => form.supervisor_role_id === filterOptions.value.supervisor_role_id);
-  }
-
-  // Filtro por user_role_ids (auditor_role_ids)
-  if (filterOptions.value.user_role_ids && Array.isArray(filterOptions.value.user_role_ids)) {
-    result = result.filter(
-      (form) => form.auditor_role_ids && filterOptions.value.user_role_ids.some((roleId) => form.auditor_role_ids.includes(roleId))
-    );
-  }
-
-  // Filtro por fecha exacta (si quieres igualar backend)
-  if (filterOptions.value.created_at) {
-    result = result.filter((form) => form.created_at && form.created_at.slice(0, 10) === filterOptions.value.created_at);
-  } else {
-    // Si prefieres rango, mantén tu lógica actual
-    if (filterOptions.value.createdAtStart) {
-      result = result.filter((form) => form.created_at && form.created_at >= filterOptions.value.createdAtStart);
-    }
-    if (filterOptions.value.createdAtEnd) {
-      result = result.filter((form) => form.created_at && form.created_at <= filterOptions.value.createdAtEnd);
-    }
-  }
-
-  filteredForms.value = result;
-}
+watch(page, () => {
+  fetchForms();
+});
 </script>
 
 <template>
@@ -140,7 +106,15 @@ function applyFilters() {
 
       <v-row>
         <v-col>
-          <FormList :items="filteredForms" :isMobile="mdAndDown" :isLoading="isLoading" />
+          <FormList
+            :items="forms"
+            :isMobile="mdAndDown"
+            :isLoading="isLoading"
+            :page="page"
+            :itemsPerPage="itemsPerPage"
+            :totalItems="totalItems"
+            @update:page="page = $event"
+          />
         </v-col>
       </v-row>
     </v-container>

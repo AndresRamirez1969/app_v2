@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import FormTableMeta from './FormTableMeta.vue';
 import StatusChip from '@/components/status/StatusChip.vue';
@@ -11,39 +11,28 @@ const props = defineProps({
   items: Array,
   isLoading: Boolean,
   totalItems: Number,
-  isMobile: Boolean
+  isMobile: Boolean,
+  page: Number,
+  itemsPerPage: Number
 });
 
+const emit = defineEmits(['update:page', 'formUpdated']);
+
 const isMobile = computed(() => props.isMobile ?? window.innerWidth < 1024);
-const handleResize = () => {
-  if (props.isMobile === undefined) {
-    isMobile.value = window.innerWidth < 1024;
-  }
-};
-onMounted(() => {
-  if (props.isMobile === undefined) {
-    window.addEventListener('resize', handleResize);
-  }
-});
-onUnmounted(() => {
-  if (props.isMobile === undefined) {
-    window.removeEventListener('resize', handleResize);
-  }
-});
 
 const router = useRouter();
 const toast = useToast();
 
 const sortBy = ref('folio');
 const sortDesc = ref(false);
-const page = ref(1);
-const itemsPerPage = ref(10);
 
-const pageCount = computed(() => {
-  const total = Number(props.totalItems || (props.items?.length ?? 0));
-  const perPage = Number(itemsPerPage.value || 10);
-  const len = Math.ceil(total / perPage);
-  return Math.max(1, len || 1);
+// Sin paginación local, solo usamos los items que llegan del backend
+const sortedItems = computed(() => {
+  return [...(props.items || [])].sort((a, b) => {
+    let aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
+    let bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
+    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
+  });
 });
 
 const toggleSort = (column) => {
@@ -54,20 +43,6 @@ const toggleSort = (column) => {
     sortDesc.value = false;
   }
 };
-
-const sortedItems = computed(() => {
-  return [...(props.items || [])].sort((a, b) => {
-    let aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
-    let bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
-    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
-  });
-});
-
-const paginatedItems = computed(() => {
-  const start = (page.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return sortedItems.value.slice(start, end);
-});
 
 const goToShow = (form) => router.push({ path: `/formularios/${form.id}` });
 const goToEdit = (form) => router.push({ path: `/formularios/editar/${form.id}` });
@@ -114,8 +89,6 @@ function getFrecuencia(form) {
   return form.frequency || '—';
 }
 
-const emit = defineEmits(['formUpdated']);
-
 const changeFormStatus = async (form, targetStatus) => {
   if (form.status === 'draft' && targetStatus === 'active' && form.fields && form.fields.length === 0) {
     toast.error('No se puede publicar un formulario sin campos');
@@ -152,7 +125,7 @@ function hasResponses(form) {
     </div>
 
     <template v-else>
-      <div v-if="!paginatedItems.length" class="text-center py-8">
+      <div v-if="!sortedItems.length" class="text-center py-8">
         <v-icon size="64" color="grey lighten-1">mdi-file-document-outline</v-icon>
         <p class="mt-4 text-h6 text-grey-darken-1">No existen formularios</p>
         <p class="text-body-2 text-grey">No se encontraron formularios con los filtros aplicados</p>
@@ -160,7 +133,7 @@ function hasResponses(form) {
 
       <template v-else-if="isMobile">
         <v-card
-          v-for="form in paginatedItems"
+          v-for="form in sortedItems"
           :key="form.id"
           class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
           @click="goToShow(form)"
@@ -195,18 +168,25 @@ function hasResponses(form) {
           </div>
         </v-card>
         <div class="d-flex flex-column align-center mt-4">
-          <v-pagination v-model="page" :length="pageCount" :total-visible="1" color="primary" />
+          <v-pagination
+            v-model="props.page"
+            :length="Math.max(1, Math.ceil((props.totalItems || (props.items?.length ?? 0)) / (props.itemsPerPage || 10)))"
+            :total-visible="1"
+            color="primary"
+            @update:modelValue="(val) => emit('update:page', val)"
+          />
         </div>
       </template>
 
       <template v-else>
         <FormTableMeta
-          :items="paginatedItems"
-          :page="page"
-          :itemsPerPage="itemsPerPage"
+          :items="sortedItems"
+          :page="props.page"
+          :itemsPerPage="props.itemsPerPage"
           :sortBy="sortBy"
           :sortDesc="sortDesc"
-          @update:page="page = $event"
+          :totalItems="props.totalItems"
+          @update:page="(val) => emit('update:page', val)"
           @sort="toggleSort"
         >
           <template #sort-icon="{ column }">
@@ -215,8 +195,8 @@ function hasResponses(form) {
             </v-icon>
           </template>
           <template #rows>
-            <template v-if="paginatedItems.length">
-              <tr v-for="form in paginatedItems" :key="form.id" @click="goToShow(form)" class="row-clickable" style="cursor: pointer">
+            <template v-if="sortedItems.length">
+              <tr v-for="form in sortedItems" :key="form.id" @click="goToShow(form)" class="row-clickable" style="cursor: pointer">
                 <td>
                   <router-link :to="`/formularios/${form.id}`" class="text-primary" @click.stop style="text-decoration: underline">
                     {{ form.folio }}

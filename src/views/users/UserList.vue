@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axiosInstance from '@/utils/axios';
 import UserTableMeta from './UserTableMeta.vue';
@@ -10,16 +10,14 @@ import { useAuthStore } from '@/stores/auth';
 const props = defineProps({
   items: Array,
   isLoading: Boolean,
-  totalItems: Number
+  totalItems: Number,
+  page: Number,
+  itemsPerPage: Number,
+  isMobile: Boolean
 });
+const emit = defineEmits(['update:page']);
 
-// Cambia el breakpoint a 1024px (iPad y abajo)
-const isMobile = ref(window.innerWidth < 1024);
-const handleResize = () => {
-  isMobile.value = window.innerWidth < 1024;
-};
-onMounted(() => window.addEventListener('resize', handleResize));
-onUnmounted(() => window.removeEventListener('resize', handleResize));
+const isMobile = computed(() => props.isMobile ?? window.innerWidth < 1024);
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -68,15 +66,6 @@ const canToggleStatusAny = computed(() => {
 
 const sortBy = ref('id');
 const sortDesc = ref(false);
-const page = ref(1);
-const itemsPerPage = ref(10);
-
-const pageCount = computed(() => {
-  const total = Number(props.totalItems || filteredItems.value.length || 0);
-  const perPage = Number(itemsPerPage.value || 10);
-  const len = Math.ceil(total / perPage);
-  return Math.max(1, len || 1);
-});
 
 const toggleSort = (column) => {
   if (sortBy.value === column) {
@@ -107,16 +96,21 @@ const sortedItems = computed(() => {
   });
 });
 
-const paginatedItems = computed(() => {
-  const start = (page.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return sortedItems.value.slice(start, end);
+// Proxy para mantener sincronía con el padre y evitar undefined/null
+const pageProxy = computed({
+  get: () => Number(props.page) || 1,
+  set: (val) => emit('update:page', val)
+});
+
+const pageCount = computed(() => {
+  const total = Number(props.totalItems || sortedItems.value.length || 0);
+  const perPage = Number(props.itemsPerPage || 10);
+  return Math.max(1, Math.ceil(total / perPage));
 });
 
 const goToEdit = (user) => router.push({ path: `/usuarios/editar/${user.id}` });
 const goToShow = (user) => router.push({ path: `/usuarios/${user.id}` });
 
-// --- Integración de cambio de status igual que en show.vue ---
 const loadingUserStatus = ref({});
 const toggleStatus = async (targetUser) => {
   if (!canToggleStatus(targetUser)) return;
@@ -124,7 +118,6 @@ const toggleStatus = async (targetUser) => {
   const isActive = targetUser.status === 'activa' || targetUser.status === 'active';
   const newStatus = isActive ? 'inactive' : 'active';
   try {
-    // Igual que en show.vue: PUT /users/:id con { status }
     const res = await axiosInstance.put(`/users/${targetUser.id}`, {
       status: newStatus
     });
@@ -136,7 +129,6 @@ const toggleStatus = async (targetUser) => {
   }
 };
 
-// Función para obtener el valor de "Pertenece A" y el link
 function getBelongsTo(user) {
   if (user.business_unit) {
     return {
@@ -169,7 +161,7 @@ function getBelongsTo(user) {
     </div>
 
     <template v-else>
-      <div v-if="!paginatedItems.length" class="text-center py-8">
+      <div v-if="!sortedItems.length" class="text-center py-8">
         <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
         <p class="mt-4 text-h6 text-grey-darken-1">No existen usuarios</p>
         <p class="text-body-2 text-grey">No se encontraron usuarios con los filtros aplicados</p>
@@ -178,7 +170,7 @@ function getBelongsTo(user) {
       <!-- MODO MÓVIL (iPad y abajo) -->
       <template v-else-if="isMobile">
         <v-card
-          v-for="user in paginatedItems"
+          v-for="user in sortedItems"
           :key="user.id"
           class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
           @click="canView ? goToShow(user) : undefined"
@@ -278,20 +270,20 @@ function getBelongsTo(user) {
         </v-card>
 
         <div class="d-flex flex-column align-center mt-4">
-          <v-pagination v-model="page" :length="pageCount" :total-visible="1" color="primary" />
+          <v-pagination v-model="pageProxy" :length="pageCount" :total-visible="1" color="primary" />
         </div>
       </template>
 
       <!-- MODO DESKTOP -->
       <template v-else>
         <UserTableMeta
-          :items="paginatedItems"
+          :items="sortedItems"
           :totalItems="props.totalItems"
-          :page="page"
-          :itemsPerPage="itemsPerPage"
+          :page="props.page"
+          :itemsPerPage="props.itemsPerPage"
           :sortBy="sortBy"
           :sortDesc="sortDesc"
-          @update:page="page = $event"
+          @update:page="(val) => emit('update:page', val)"
           @sort="toggleSort"
         >
           <template #sort-icon="{ column }">
@@ -300,9 +292,9 @@ function getBelongsTo(user) {
             </v-icon>
           </template>
           <template #rows>
-            <template v-if="paginatedItems.length">
+            <template v-if="sortedItems.length">
               <tr
-                v-for="user in paginatedItems"
+                v-for="user in sortedItems"
                 :key="user.id"
                 @click="canView ? goToShow(user) : undefined"
                 :class="['row-clickable', { 'row-disabled': !canView }]"

@@ -1,4 +1,6 @@
 <script setup>
+import { ref, computed, watch } from 'vue';
+
 const props = defineProps({
   items: {
     type: Array,
@@ -7,9 +9,31 @@ const props = defineProps({
   page: Number,
   itemsPerPage: Number,
   sortBy: String,
-  sortDesc: Boolean
+  sortDesc: Boolean,
+  totalItems: Number
 });
 const emit = defineEmits(['update:page', 'sort']);
+
+// Control local de la página para el paginador
+const localPage = ref(props.page || 1);
+
+watch(
+  () => props.page,
+  (val) => {
+    if (val !== localPage.value) localPage.value = val;
+  }
+);
+
+watch(localPage, (val) => {
+  if (val !== props.page) emit('update:page', val);
+});
+
+// Calcula el total de páginas usando totalItems si está disponible
+const pageCount = computed(() => {
+  const total = Number(props.totalItems ?? props.items?.length ?? 0);
+  const perPage = Number(props.itemsPerPage || 10);
+  return Math.max(1, Math.ceil(total / perPage));
+});
 </script>
 
 <template>
@@ -43,11 +67,11 @@ const emit = defineEmits(['update:page', 'sort']);
     </v-table>
     <div class="d-flex justify-center mt-4">
       <v-pagination
-        v-model="props.page"
-        :length="Math.ceil((props.items?.length || 1) / props.itemsPerPage)"
-        total-visible="7"
+        v-model="localPage"
+        :length="pageCount"
+        :total-visible="7"
         color="primary"
-        @update:modelValue="emit('update:page', $event)"
+        @update:modelValue="(val) => emit('update:page', val)"
       />
     </div>
   </div>

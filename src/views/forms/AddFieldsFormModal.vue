@@ -52,10 +52,8 @@ const isSemaforoField = (f) => {
   const attrs = f.attributes || {};
   const opts = Array.isArray(f.options) ? f.options.map((o) => String(o).trim().toLowerCase()) : [];
 
-  // Bandera del backend
   if (attrs.semaforo === true) return true;
 
-  // Heurística por opciones si vino como "radio"
   const haveAlto = ['alto', 'alta', 'rojo', 'high'].some((s) => opts.includes(s));
   const haveMedio = ['medio', 'media', 'amarillo', 'medium'].some((s) => opts.includes(s));
   const haveBajo = ['bajo', 'baja', 'verde', 'low'].some((s) => opts.includes(s));
@@ -63,7 +61,6 @@ const isSemaforoField = (f) => {
   return t === 'semaforo' || (t === 'radio' && haveAlto && haveMedio && haveBajo);
 };
 
-// Forzar representación UI (type: 'semaforo')
 const toSemaforoUI = (f) => ({
   ...f,
   type: 'semaforo',
@@ -75,7 +72,6 @@ const toSemaforoUI = (f) => ({
   }
 });
 
-// Convertir para backend (type: 'radio')
 const toSemaforoPayload = (payload) => ({
   ...payload,
   type: 'radio',
@@ -90,8 +86,6 @@ const toSemaforoPayload = (payload) => ({
 /* =========================
    UI helpers
    ========================= */
-
-// Opciones visibles solo para select/radio/checkbox, excepto si detectamos semáforo
 const showOptionsField = computed(() => {
   const f = editingField.value;
   const t = String(f?.type || '').toLowerCase();
@@ -142,7 +136,7 @@ watch(editingField, (val) => {
   }
   if (['signature', 'image', 'document'].includes(val.type)) {
     if (!editingField.value.attributes) editingField.value.attributes = {};
-    editingField.value.attributes.max_files = 4; // Siempre máximo 4
+    editingField.value.attributes.max_files = 4;
   }
   if (!typesWithEvidence.includes(val.type)) {
     editingField.value.has_evidence = false;
@@ -153,7 +147,6 @@ watch(
   () => props.modelValue,
   async (val) => {
     if (val) {
-      // Carga inicial desde props y normaliza Semáforo para UI
       currentFields.value = Array.isArray(props.form?.fields)
         ? props.form.fields.map((f) => {
             const base = {
@@ -174,7 +167,6 @@ watch(
         const response = await axiosInstance.get(`/forms/${props.form.id}`);
         const data = response.data.form || response.data.data || response.data;
         existingLabels.value = Array.isArray(data.fields) ? data.fields.map((f) => f.label.trim().toLowerCase()) : [];
-        // Normaliza de nuevo por si el GET devuelve distinta forma
         currentFields.value = Array.isArray(data.fields)
           ? data.fields.map((f) => {
               const base = {
@@ -372,12 +364,10 @@ const editField = (index) => {
     editingField.value = toSemaforoUI(editingField.value);
   }
 
-  // Limpiar errores al abrir el modal
   clearFieldErrors();
   showEditDialog.value = true;
 };
 
-// --- Validación de campos requeridos ---
 const fieldErrors = ref({
   label: '',
   weight: '',
@@ -396,13 +386,11 @@ const validateEditingField = () => {
   clearFieldErrors();
   let valid = true;
 
-  // Etiqueta
   if (!editingField.value.label || !String(editingField.value.label).trim()) {
     fieldErrors.value.label = 'La etiqueta es obligatoria';
     valid = false;
   }
 
-  // Ponderación
   if (props.form?.has_rating) {
     const w = editingField.value.weight;
     if (w === '' || w === null || isNaN(w)) {
@@ -417,23 +405,20 @@ const validateEditingField = () => {
     }
   }
 
-  // Opciones para select/radio/checkbox
   if (showOptionsField.value) {
     const validOptions = Array.isArray(editingField.value.options)
       ? editingField.value.options.filter((opt) => typeof opt === 'string' && !!opt.trim())
       : [];
     fieldErrors.value.options = [];
     if (validOptions.length < 1) {
-      // Marcar todos los inputs de opciones en rojo
       editingField.value.options.forEach((opt, idx) => {
         fieldErrors.value.options[idx] = !opt || !opt.trim() ? 'La opción es obligatoria' : '';
       });
       if (validOptions.length === 0) {
-        fieldErrors.value.options[0] = 'Debes agregar al menos una opción válida';
+        editingField.value.options[0] = 'Debes agregar al menos una opción válida';
       }
       valid = false;
     } else {
-      // Limpiar errores de opciones si todo bien
       fieldErrors.value.options = [];
     }
   }
@@ -444,7 +429,6 @@ const validateEditingField = () => {
 const saveEditedField = () => {
   if (!validateEditingField()) return;
 
-  // Normalizaciones por tipo
   if (editingField.value.type === 'geolocation') {
     editingField.value.is_required = true;
     const mode = editingField.value.attributes?.mode;
@@ -496,7 +480,6 @@ const close = () => {
   emit('update:modelValue', false);
 };
 
-// --- Ponderación ---
 const totalWeightUsed = computed(() =>
   props.form?.has_rating ? currentFields.value.reduce((total, f) => total + (parseInt(f.weight) || 0), 0) : 0
 );
@@ -698,6 +681,7 @@ const saveCurrentFields = async () => {
           </span>
         </div>
       </div>
+
       <!-- SIDEBAR DROPDOWN (MOBILE) -->
       <div v-if="isMobile" class="sidebar-dropdown-mobile">
         <v-btn color="grey-lighten-3" variant="flat" class="sidebar-dropdown-btn" @click="sidebarDropdownOpen = !sidebarDropdownOpen" block>
@@ -726,6 +710,7 @@ const saveCurrentFields = async () => {
           </div>
         </transition>
       </div>
+
       <div class="modal-content-row d-flex h-100">
         <div :class="['main-fields-area', showSidebar && !isMobile ? 'with-sidebar' : 'full', 'fields-area-with-footer', 'bg-white']">
           <div
@@ -745,6 +730,7 @@ const saveCurrentFields = async () => {
                 </div>
               </div>
             </div>
+
             <draggable v-model="currentFields" item-key="id" handle=".drag-handle" @end="onCurrentFieldsDragEnd" class="v-list">
               <template #item="{ element: field, index }">
                 <v-card class="mb-3 pa-3" variant="outlined">
@@ -779,7 +765,15 @@ const saveCurrentFields = async () => {
               </template>
             </draggable>
           </div>
-          <div class="fields-footer d-flex justify-end" :class="{ 'fields-footer-mobile': isMobile }">
+
+          <!-- Footer SIEMPRE visible y flotante -->
+          <div
+            class="fields-footer d-flex justify-end"
+            :class="{
+              'fields-footer-mobile': isMobile,
+              'fields-footer-right-offset': !isMobile && showSidebar
+            }"
+          >
             <v-btn
               color="primary"
               variant="flat"
@@ -792,6 +786,7 @@ const saveCurrentFields = async () => {
             </v-btn>
           </div>
         </div>
+
         <transition name="slide">
           <aside v-if="showSidebar && !isMobile" class="sidebar-fields">
             <v-list class="field-list">
@@ -815,12 +810,14 @@ const saveCurrentFields = async () => {
             </v-list>
           </aside>
         </transition>
+
         <div v-if="!showSidebar && !isMobile" class="show-sidebar-btn-right">
           <v-btn icon @click="showSidebar = true" variant="plain">
             <v-icon icon="mdi-chevron-left" color="grey-darken-2"></v-icon>
           </v-btn>
         </div>
       </div>
+
       <!-- MODAL DE EDICIÓN DE CAMPO -->
       <v-dialog v-model="showEditDialog" max-width="600px" @click:outside="showEditDialog = false">
         <v-card class="pa-0" style="border-radius: 0">
@@ -874,7 +871,6 @@ const saveCurrentFields = async () => {
                 <div class="text-caption text-grey-darken-1">Máximo permitido para esta pregunta: {{ maxWeightAvailable }}</div>
                 <div style="height: 18px"></div>
               </div>
-              <!-- RESPONSIVE CHECKBOXES ROW -->
               <div :class="['d-flex', 'align-center', 'mb-4', 'checkboxes-row', isMobile ? 'flex-column align-stretch' : '']">
                 <v-checkbox
                   v-model="editingField.is_required"
@@ -1085,18 +1081,28 @@ const saveCurrentFields = async () => {
   max-width: 100%;
 }
 
+/* ------- Aumenta espacio al final para no tapar la última card ------- */
 .fields-area-with-footer {
-  padding-bottom: 80px;
+  padding-bottom: 140px; /* antes 80px */
 }
+
+/* ------- BOTÓN FLOTANTE (desktop) ------- */
 .fields-footer {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  padding: 24px 24px 24px 0;
-  background: linear-gradient(to top, #fff 90%, rgba(255, 255, 255, 0));
-  z-index: 10;
+  position: fixed; /* ahora relativo al viewport */
+  bottom: 24px;
+  right: 24px;
+  width: auto;
+  padding: 0;
+  background: transparent;
+  z-index: 1000;
 }
+
+/* Cuando el sidebar esté abierto, lo corremos para no quedar debajo (320 + 24) */
+.fields-footer-right-offset {
+  right: 344px;
+}
+
+/* ------- Variante móvil: barra completa al fondo ------- */
 .fields-footer-mobile {
   position: fixed !important;
   bottom: 0;
@@ -1105,10 +1111,11 @@ const saveCurrentFields = async () => {
   width: 100vw !important;
   background: linear-gradient(to top, #fff 90%, rgba(255, 255, 255, 0));
   padding: 12px 16px 12px 0 !important;
-  z-index: 100;
+  z-index: 1000;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
   justify-content: flex-end !important;
 }
+
 .guardar-campos-btn {
   min-width: 180px;
 }
@@ -1409,15 +1416,10 @@ const saveCurrentFields = async () => {
     width: 100vw;
     justify-content: center;
   }
+  /* en mobile la barra inferior ya usa fields-footer-mobile */
   .fields-footer {
-    position: fixed !important;
-    bottom: 0;
-    right: 0;
-    left: 0;
-    width: 100vw !important;
-    padding: 12px 16px 12px 0 !important;
-    z-index: 100;
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+    right: 0 !important;
+    bottom: 0 !important;
   }
   .guardar-campos-btn {
     min-width: 180px;
@@ -1450,9 +1452,6 @@ const saveCurrentFields = async () => {
   }
   .sidebar-dropdown-mobile {
     padding: 0 2px 8px 2px;
-  }
-  .fields-footer {
-    padding: 12px 4px 12px 0 !important;
   }
 }
 @media (min-width: 901px) {
