@@ -13,9 +13,11 @@ const props = defineProps({
   totalItems: Number,
   page: Number,
   itemsPerPage: Number,
-  isMobile: Boolean
+  isMobile: Boolean,
+  sortBy: String,
+  sortDesc: Boolean
 });
-const emit = defineEmits(['update:page']);
+const emit = defineEmits(['update:page', 'sort']);
 
 const isMobile = computed(() => props.isMobile ?? window.innerWidth < 1024);
 
@@ -64,46 +66,11 @@ const canToggleStatusAny = computed(() => {
   return (isSuperadmin.value || isAdmin.value || isSponsor.value) && canEdit.value;
 });
 
-const sortBy = ref('id');
-const sortDesc = ref(false);
-
-const toggleSort = (column) => {
-  if (sortBy.value === column) {
-    sortDesc.value = !sortDesc.value;
-  } else {
-    sortBy.value = column;
-    sortDesc.value = false;
-  }
-};
-
-const sortedItems = computed(() => {
-  return [...filteredItems.value].sort((a, b) => {
-    let aVal, bVal;
-    if (sortBy.value === 'role') {
-      aVal = (a.roles?.[0]?.name || '').toLowerCase();
-      bVal = (b.roles?.[0]?.name || '').toLowerCase();
-    } else if (sortBy.value === 'status') {
-      aVal = (a.status || '').toLowerCase();
-      bVal = (b.status || '').toLowerCase();
-    } else if (sortBy.value === 'profile_picture') {
-      aVal = a.profile_picture || '';
-      bVal = b.profile_picture || '';
-    } else {
-      aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
-      bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
-    }
-    return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
-  });
-});
-
-// Proxy para mantener sincronía con el padre y evitar undefined/null
-const pageProxy = computed({
-  get: () => Number(props.page) || 1,
-  set: (val) => emit('update:page', val)
-});
+// El sort y paginación se hacen en el backend, así que solo filtramos superadmins aquí
+const displayedItems = computed(() => filteredItems.value);
 
 const pageCount = computed(() => {
-  const total = Number(props.totalItems || sortedItems.value.length || 0);
+  const total = Number(props.totalItems || displayedItems.value.length || 0);
   const perPage = Number(props.itemsPerPage || 10);
   return Math.max(1, Math.ceil(total / perPage));
 });
@@ -161,7 +128,7 @@ function getBelongsTo(user) {
     </div>
 
     <template v-else>
-      <div v-if="!sortedItems.length" class="text-center py-8">
+      <div v-if="!displayedItems.length" class="text-center py-8">
         <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
         <p class="mt-4 text-h6 text-grey-darken-1">No existen usuarios</p>
         <p class="text-body-2 text-grey">No se encontraron usuarios con los filtros aplicados</p>
@@ -170,7 +137,7 @@ function getBelongsTo(user) {
       <!-- MODO MÓVIL (iPad y abajo) -->
       <template v-else-if="isMobile">
         <v-card
-          v-for="user in sortedItems"
+          v-for="user in displayedItems"
           :key="user.id"
           class="mb-4 pa-3 elevation-1 rounded-lg row-clickable"
           @click="canView ? goToShow(user) : undefined"
@@ -271,11 +238,11 @@ function getBelongsTo(user) {
 
         <div class="d-flex flex-column align-center mt-4">
           <v-pagination
-            v-model="pageProxy"
+            :model-value="props.page"
             :length="pageCount"
             :total-visible="1"
             color="primary"
-            @update:modelValue="emit('update:page', $event)"
+            @update:modelValue="(val) => emit('update:page', val)"
           />
         </div>
       </template>
@@ -283,24 +250,24 @@ function getBelongsTo(user) {
       <!-- MODO DESKTOP -->
       <template v-else>
         <UserTableMeta
-          :items="sortedItems"
+          :items="displayedItems"
           :totalItems="props.totalItems"
           :page="props.page"
           :itemsPerPage="props.itemsPerPage"
-          :sortBy="sortBy"
-          :sortDesc="sortDesc"
+          :sortBy="props.sortBy"
+          :sortDesc="props.sortDesc"
           @update:page="(val) => emit('update:page', val)"
-          @sort="toggleSort"
+          @sort="(col) => emit('sort', col)"
         >
           <template #sort-icon="{ column }">
-            <v-icon v-if="sortBy === column" size="16" class="ml-1">
-              {{ sortDesc ? mdiChevronDown : mdiChevronUp }}
+            <v-icon v-if="props.sortBy === column" size="16" class="ml-1">
+              {{ props.sortDesc ? mdiChevronDown : mdiChevronUp }}
             </v-icon>
           </template>
           <template #rows>
-            <template v-if="sortedItems.length">
+            <template v-if="displayedItems.length">
               <tr
-                v-for="user in sortedItems"
+                v-for="user in displayedItems"
                 :key="user.id"
                 @click="canView ? goToShow(user) : undefined"
                 :class="['row-clickable', { 'row-disabled': !canView }]"

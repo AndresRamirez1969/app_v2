@@ -21,9 +21,11 @@ const canCreate = ref(false);
 const isLoading = ref(false);
 
 const currentPage = ref(1);
-// Cambia a 10 por página
 const perPage = ref(10);
 const total = ref(0);
+
+const sortBy = ref('id');
+const sortDesc = ref(false);
 
 function hasPermission(permission) {
   return Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission);
@@ -37,6 +39,8 @@ async function fetchUsers() {
         page: currentPage.value,
         per_page: perPage.value,
         search: searchText.value,
+        sort_by: sortBy.value,
+        sort_desc: sortDesc.value ? 1 : 0,
         ...filterOptions.value
       }
     });
@@ -62,7 +66,13 @@ onMounted(async () => {
   await fetchUsers();
 });
 
-watch([currentPage, searchText, filterOptions], fetchUsers);
+watch(
+  [currentPage, searchText, filterOptions, sortBy, sortDesc],
+  () => {
+    fetchUsers();
+  },
+  { deep: true }
+);
 
 const goToCreate = () => {
   router.push('/usuarios/crear');
@@ -77,6 +87,21 @@ async function handleFilter(filters) {
   filterOptions.value = filters;
   currentPage.value = 1;
 }
+
+function handleSort(column) {
+  if (sortBy.value === column) {
+    sortDesc.value = !sortDesc.value;
+  } else {
+    sortBy.value = column;
+    sortDesc.value = false;
+  }
+  currentPage.value = 1;
+}
+
+// Puedes dejar este watch para debug si lo necesitas
+// watch(currentPage, (val) => {
+//   console.log('currentPage is now:', val, typeof val);
+// });
 </script>
 
 <template>
@@ -111,9 +136,11 @@ async function handleFilter(filters) {
             :totalItems="total"
             :page="currentPage"
             :itemsPerPage="perPage"
+            :sortBy="sortBy"
+            :sortDesc="sortDesc"
             @update:page="
               (val) => {
-                currentPage.value = val;
+                currentPage = Number(val);
               }
             "
           />

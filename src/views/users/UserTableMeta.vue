@@ -4,11 +4,20 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  page: Number,
-  itemsPerPage: Number,
+  page: {
+    type: Number,
+    default: 1
+  },
+  itemsPerPage: {
+    type: Number,
+    default: 10
+  },
   sortBy: String,
   sortDesc: Boolean,
-  totalItems: Number
+  totalItems: {
+    type: Number,
+    default: 0
+  }
 });
 const emit = defineEmits(['update:page', 'sort']);
 </script>
@@ -52,11 +61,11 @@ const emit = defineEmits(['update:page', 'sort']);
     </v-table>
     <div class="d-flex justify-center mt-4">
       <v-pagination
-        v-model="props.page"
+        :model-value="props.page"
         :length="Math.max(1, Math.ceil((props.totalItems || 1) / props.itemsPerPage))"
         total-visible="7"
         color="primary"
-        @update:modelValue="emit('update:page', $event)"
+        @update:modelValue="(val) => emit('update:page', val)"
       />
     </div>
   </div>
