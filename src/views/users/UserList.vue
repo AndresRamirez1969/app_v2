@@ -270,7 +270,13 @@ function getBelongsTo(user) {
         </v-card>
 
         <div class="d-flex flex-column align-center mt-4">
-          <v-pagination v-model="pageProxy" :length="pageCount" :total-visible="1" color="primary" />
+          <v-pagination
+            v-model="pageProxy"
+            :length="pageCount"
+            :total-visible="1"
+            color="primary"
+            @update:modelValue="emit('update:page', $event)"
+          />
         </div>
       </template>
 

@@ -21,7 +21,8 @@ const canCreate = ref(false);
 const isLoading = ref(false);
 
 const currentPage = ref(1);
-const perPage = ref(20);
+// Cambia a 10 por página
+const perPage = ref(10);
 const total = ref(0);
 
 function hasPermission(permission) {
