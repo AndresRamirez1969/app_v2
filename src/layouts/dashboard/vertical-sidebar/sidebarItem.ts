@@ -89,6 +89,11 @@ const sidebarItem: menu[] = [
       }
     ]
   }
+  // {
+  //   title: 'Reportes DW',
+  //   icon: FolderOpenOutlined,
+  //   to: '/reportes-dw'
+  // }
 ];
 
 export default sidebarItem;

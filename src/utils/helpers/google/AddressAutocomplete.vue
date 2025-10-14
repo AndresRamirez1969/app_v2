@@ -1,5 +1,10 @@
 <template>
   <div class="address-fields">
+    <!-- Mensaje si no hay permiso de ubicación -->
+    <div v-if="isCreate && !geoPermissionGranted" class="text-error" style="margin-bottom: 12px">
+      Debes permitir el acceso a tu ubicación en el navegador para usar esta función.
+    </div>
+
     <!-- Calle con botón de búsqueda Google Maps -->
     <div class="field-group single" style="position: relative">
       <v-text-field
@@ -145,7 +150,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick, computed } from 'vue';
+import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue';
 
 const props = defineProps({
   placeholder: { type: String, default: '' },
@@ -157,6 +162,7 @@ const props = defineProps({
 const emit = defineEmits(['update:parsedAddress']);
 
 const isCreate = computed(() => (props.mode || 'edit') === 'create');
+const geoPermissionGranted = computed(() => localStorage.getItem('geo_permission_granted') === '1');
 
 const autocompleteInput = ref(null);
 const autocomplete = ref(null);
@@ -452,27 +458,8 @@ function initCreateFlow() {
     return;
   }
 
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        fields.value.latitude = lat;
-        fields.value.longitude = lng;
-        localStorage.setItem('geo_lat', String(lat));
-        localStorage.setItem('geo_lng', String(lng));
-        bootMapVisual({ lat, lng });
-        setMarkerPosition({ lat, lng }, true);
-        emit('update:parsedAddress', { ...fields.value });
-      },
-      () => {
-        bootMapVisual({ lat: 19.4326, lng: -99.1332 });
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
-  } else {
-    bootMapVisual({ lat: 19.4326, lng: -99.1332 });
-  }
+  // Ya no se pide permiso aquí, solo se intenta obtener la ubicación en tiempo real si está disponible
+  bootMapVisual({ lat: 19.4326, lng: -99.1332 });
 }
 
 /* ====== Watchers ====== */
@@ -601,6 +588,9 @@ watch(
   { immediate: true }
 );
 
+/* ====== Geolocation Watcher ====== */
+let geoWatchId = null;
+
 onMounted(() => {
   nextTick(() => {
     ensureGeocoder();
@@ -621,7 +611,34 @@ onMounted(() => {
       bootMapVisual({ lat: 19.4326, lng: -99.1332 });
       emit('update:parsedAddress', { ...fields.value });
     }
+
+    // Watcher SIEMPRE actualiza el marcador y mapa en tiempo real en modo create
+    if (isCreate.value && geoPermissionGranted.value && navigator.geolocation) {
+      geoWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          // SIEMPRE actualiza la ubicación y el marcador en tiempo real en modo create
+          fields.value.latitude = lat;
+          fields.value.longitude = lng;
+          setMarkerPosition({ lat, lng }, true);
+          emit('update:parsedAddress', { ...fields.value });
+        },
+        (err) => {
+          // No hacer nada si falla, ya que el permiso ya fue otorgado en login
+        },
+        { enableHighAccuracy: true }
+      );
+    }
   });
+});
+
+onUnmounted(() => {
+  // Detener watcher de geolocalización al salir de la pantalla
+  if (geoWatchId !== null) {
+    navigator.geolocation.clearWatch(geoWatchId);
+    geoWatchId = null;
+  }
 });
 </script>
 

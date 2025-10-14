@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
@@ -20,35 +20,50 @@ const showPassword = ref(false);
 const emailRules = [(v: string) => !!v || 'El correo es obligatorio', (v: string) => /.+@.+\..+/.test(v) || 'Correo no válido'];
 const passwordRules = [(v: string) => !!v || 'La contraseña es obligatoria'];
 
-// Solicitar geolocalización cada vez que inicia sesión
-const requestGeolocationOnLogin = () => {
+// Mostrar estado de permiso de geolocalización
+const geoGranted = computed(() => localStorage.getItem('geo_permission_granted') === '1');
+const geoLat = computed(() => localStorage.getItem('geo_lat'));
+const geoLng = computed(() => localStorage.getItem('geo_lng'));
+
+// --- INICIO: Integración para pedir geolocalización solo una vez, pero NO bloquear acceso si no acepta ---
+async function requestGeolocationOnce(): Promise<void> {
+  // Si ya tenemos permiso, no volvemos a pedirlo
+  if (localStorage.getItem('geo_permission_granted') === '1') {
+    return;
+  }
   return new Promise<void>((resolve) => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           localStorage.setItem('geo_lat', String(pos.coords.latitude));
           localStorage.setItem('geo_lng', String(pos.coords.longitude));
+          localStorage.setItem('geo_permission_granted', '1');
           resolve();
         },
         () => {
-          // Si el usuario rechaza o falla, limpiamos las coordenadas
+          // Si el usuario no acepta, solo mostramos un warning pero NO bloqueamos el acceso
           localStorage.removeItem('geo_lat');
           localStorage.removeItem('geo_lng');
+          localStorage.removeItem('geo_permission_granted');
           resolve();
         }
       );
     } else {
+      toast.warning('Tu navegador no soporta geolocalización.');
       resolve();
     }
   });
-};
+}
+// --- FIN ---
 
 const login = async () => {
   try {
     isLoading.value = true;
     await auth.login(email.value, password.value);
-    // Pedir geolocalización después de login exitoso y esperar antes de redirigir
-    await requestGeolocationOnLogin();
+
+    // Pedir geolocalización después del login, pero NO bloquear acceso si no acepta
+    await requestGeolocationOnce();
+
     const roles = auth.user?.roles || [];
     const isAdmin = roles.includes('admin');
     const hasOrg = !!auth.user?.organization_id;
@@ -58,7 +73,7 @@ const login = async () => {
     } else {
       router.push('/dashboard');
     }
-  } catch (err) {
+  } catch (err: any) {
     toast.error('Credenciales inválidas');
     console.error('Login error:', err);
   } finally {

@@ -5,6 +5,7 @@ import { VCard, VCardText } from 'vuetify/components';
 import VueApexCharts from 'vue3-apexcharts';
 import { useAuthStore } from '@/stores/auth';
 import AnalyticsReport from './components/AnalyticsReport.vue';
+import { useToast } from 'vue-toastification';
 
 const today = new Date();
 const dd = String(today.getDate());
@@ -333,16 +334,97 @@ const selectedFormForAnalytics = computed(() => {
   return selectedFormDetails.value.form;
 });
 
+// --- INICIO: Advertencia de geolocalización con botón ---
+const toast = useToast();
+const geoPermissionWarning = ref(false);
+
+const checkGeoPermission = async () => {
+  // Si ya está aceptado en localStorage, nunca mostrar el warning
+  if (localStorage.getItem('geo_permission_granted') === '1') {
+    geoPermissionWarning.value = false;
+    return;
+  }
+  // Soporte para navegadores que no implementan navigator.permissions
+  if (navigator.permissions && navigator.permissions.query) {
+    try {
+      const status = await navigator.permissions.query({ name: 'geolocation' });
+      geoPermissionWarning.value = status.state !== 'granted';
+      // Revalidación automática si el usuario cambia el permiso en tiempo real
+      status.onchange = () => {
+        if (status.state === 'granted') {
+          localStorage.setItem('geo_permission_granted', '1');
+          geoPermissionWarning.value = false;
+        } else {
+          localStorage.removeItem('geo_permission_granted');
+          geoPermissionWarning.value = true;
+        }
+      };
+    } catch {
+      // Si ocurre un error, fallback a localStorage
+      geoPermissionWarning.value = localStorage.getItem('geo_permission_granted') !== '1';
+    }
+  } else {
+    // Fallback para navegadores antiguos: solo mostramos el warning si no está en localStorage
+    geoPermissionWarning.value = localStorage.getItem('geo_permission_granted') !== '1';
+    // Opcional: puedes mostrar un toast informativo
+    toast.info('Tu navegador no soporta la detección automática de permisos de ubicación. Si ya diste permiso, recarga la página.');
+  }
+};
+
+const requestGeolocation = () => {
+  if (typeof window !== 'undefined' && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        localStorage.setItem('geo_lat', String(pos.coords.latitude));
+        localStorage.setItem('geo_lng', String(pos.coords.longitude));
+        localStorage.setItem('geo_permission_granted', '1');
+        geoPermissionWarning.value = false;
+        toast.success('Permiso de ubicación aceptado.');
+      },
+      () => {
+        localStorage.removeItem('geo_lat');
+        localStorage.removeItem('geo_lng');
+        localStorage.removeItem('geo_permission_granted');
+        geoPermissionWarning.value = true;
+        toast.warning('No se otorgó permiso de ubicación.');
+      }
+    );
+  } else {
+    toast.warning('Tu navegador no soporta geolocalización.');
+  }
+};
+
 onMounted(() => {
   fetchForms();
   if (isSuperadmin.value) {
     fetchOrganizations();
   }
+  checkGeoPermission();
 });
+// --- FIN: Advertencia de geolocalización con botón ---
 </script>
 
 <template>
   <v-container fluid>
+    <!-- Warning de geolocalización con botón -->
+    <v-alert
+      v-if="geoPermissionWarning"
+      type="warning"
+      variant="tonal"
+      class="mb-4 text-left geo-warning"
+      border="start"
+      prominent
+      icon="mdi-map-marker-off"
+    >
+      <div class="d-flex align-center">
+        <div class="flex-grow-1">
+          <strong>Advertencia:</strong> No has aceptado el permiso de ubicación. Varias funcionalidades de la plataforma pueden no funcionar
+          correctamente hasta que lo permitas en tu navegador.
+        </div>
+        <v-btn color="warning" variant="outlined" class="ml-4" @click="requestGeolocation"> Permitir ubicación </v-btn>
+      </div>
+    </v-alert>
+
     <!-- Header -->
     <v-row class="mb-4">
       <v-col cols="12">
@@ -528,5 +610,10 @@ onMounted(() => {
 }
 .error--text {
   color: #f44336;
+}
+/* Solo dejamos layout, quitamos color de fondo/texto para warning */
+.geo-warning {
+  text-align: left !important;
+  padding-left: 24px;
 }
 </style>

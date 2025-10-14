@@ -195,7 +195,7 @@
               <td>{{ formatFrequency(formData?.frequency) }}</td>
             </tr>
             <tr>
-              <td class="font-weight-bold text-subtitle-1" style="width: 1%; white-space: nowrap">¿Tiene rating?</td>
+              <td class="font-weight-bold text-subtitle-1" style="width: 1%; white-space: nowrap">¿Tiene ponderación?</td>
               <td>{{ formData?.has_rating ? 'Sí' : 'No' }}</td>
             </tr>
             <tr>

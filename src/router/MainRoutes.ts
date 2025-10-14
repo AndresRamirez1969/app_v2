@@ -232,6 +232,16 @@ const MainRoutes = {
       path: '/formulario/:id/llenar',
       component: () => import('@/views/form_assignment/AnswerForm.vue')
     }
+    // {
+    //   name: 'Reports DW',
+    //   path: '/reportes-dw',
+    //   component: () => import('@/views/reports-dw/RFormIndex.vue')
+    // },
+    // {
+    //   name: 'Report Answers DW',
+    //   path: '/reportes-dw/respuestas/:formId',
+    //   component: () => import('@/views/reports-dw/RFormAnswerList.vue')
+    // }
   ]
 };
 

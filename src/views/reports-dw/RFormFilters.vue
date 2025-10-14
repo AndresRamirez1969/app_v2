@@ -10,13 +10,6 @@ const emit = defineEmits(['search', 'filter']);
 const search = ref('');
 const dialog = ref(false);
 
-const status = ref(null);
-const statusOptions = [
-  { title: 'Borrador', value: 'draft' },
-  { title: 'Publicado', value: 'active' },
-  { title: 'Archivado', value: 'archived' }
-];
-
 const createdAtStart = ref(null);
 const createdAtEnd = ref(null);
 const menuCreatedStart = ref(false);
@@ -162,7 +155,6 @@ watch(search, (val) => {
 
 const hasActiveFilters = computed(
   () =>
-    !!status.value ||
     !!createdAtStart.value ||
     !!createdAtEnd.value ||
     (canShowOrganizationFilter.value && !!selectedOrganization.value) ||
@@ -186,7 +178,6 @@ function applyFilters() {
     organization_id: canShowOrganizationFilter.value ? selectedOrganization.value : null,
     business_id: canShowBusinessFilter.value ? selectedBusiness.value : null,
     business_unit_id: canShowBusinessUnitFilter.value ? selectedBusinessUnit.value : null,
-    status: status.value,
     createdAtStart: formatDateOnly(createdAtStart.value),
     createdAtEnd: formatDateOnly(createdAtEnd.value)
   });
@@ -194,7 +185,6 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  status.value = null;
   createdAtStart.value = null;
   createdAtEnd.value = null;
   if (canShowOrganizationFilter.value) {
@@ -213,7 +203,6 @@ function clearFilters() {
     organization_id: null,
     business_id: null,
     business_unit_id: null,
-    status: null,
     createdAtStart: null,
     createdAtEnd: null
   });
@@ -288,19 +277,6 @@ function clearFilters() {
         </v-btn>
         <v-card-title class="font-weight-bold">Filtros avanzados</v-card-title>
         <v-card-text class="pb-0">
-          <div class="mb-3">
-            <v-select
-              v-model="status"
-              :items="statusOptions"
-              label="Estado"
-              clearable
-              hide-details
-              variant="outlined"
-              color="primary"
-              class="mb-3 filter-padding"
-            />
-          </div>
-
           <div class="mb-3" v-if="canShowOrganizationFilter">
             <v-autocomplete
               v-model="selectedOrganization"

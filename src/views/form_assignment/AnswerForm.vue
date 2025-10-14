@@ -474,7 +474,7 @@
 
 <script setup>
 import axiosInstance from '@/utils/axios';
-import { ref, onMounted, computed, reactive, watch } from 'vue';
+import { ref, onMounted, computed, reactive, watch, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { mdiArrowLeft, mdiCheck, mdiMapMarkerOff } from '@mdi/js';
 import { FIELD_TYPES, getFieldProps } from '@/constants/constants';
@@ -661,9 +661,60 @@ const showForm = async () => {
   }
 };
 
+// --- INICIO: Watcher de geolocalización para campos scope + integración backend ---
+let geoWatchId = null;
+
 onMounted(() => {
   showForm();
+
+  // Si el formulario tiene campo de geolocalización con scope, activa el watcher
+  // (Esto se activa después de cargar el formulario)
+  watch(
+    form,
+    (newForm) => {
+      const geoField = newForm?.fields?.find((f) => f.type === 'geolocation' && f.attributes?.mode === 'scope');
+      if (geoField && navigator.geolocation) {
+        // Si ya hay un watcher, no lo vuelvas a activar
+        if (geoWatchId !== null) return;
+        geoWatchId = navigator.geolocation.watchPosition(
+          async (pos) => {
+            userLocation.value = {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude
+            };
+            // --- INTEGRACIÓN: Enviar ubicación al backend ---
+            try {
+              await axiosInstance.post('/user/location', {
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+                recorded_at: new Date().toISOString()
+              });
+            } catch (e) {
+              // Opcional: puedes mostrar un toast o solo loguear
+              // toast.warning('No se pudo registrar la ubicación en el backend');
+              console.error('No se pudo guardar la ubicación del usuario:', e);
+            }
+            // --- FIN INTEGRACIÓN ---
+          },
+          (err) => {
+            geoCheckError.value = 'No se pudo obtener tu ubicación en tiempo real.';
+          },
+          { enableHighAccuracy: true }
+        );
+      }
+    },
+    { immediate: true }
+  );
 });
+
+onUnmounted(() => {
+  if (geoWatchId !== null) {
+    navigator.geolocation.clearWatch(geoWatchId);
+    geoWatchId = null;
+  }
+});
+// --- FIN: Watcher de geolocalización para campos scope + integración backend ---
 
 watch(
   () => ({ ...formData }),
