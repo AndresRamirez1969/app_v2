@@ -179,7 +179,7 @@
                               :key="fileVersion[`evidence-${field.id}`] || 0"
                               :model-value="evidenceData[field.id] || []"
                               accept="image/jpeg,image/png,image/jpg"
-                              capture="environment"
+                              capture
                               multiple
                               :counter="true"
                               :show-size="true"
@@ -251,7 +251,7 @@
                               :key="fileVersion[field.id] || 0"
                               :model-value="fileData[field.id] || []"
                               accept="image/*"
-                              capture="environment"
+                              capture
                               multiple
                               :counter="true"
                               :show-size="true"
