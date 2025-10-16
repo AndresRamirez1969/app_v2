@@ -188,7 +188,7 @@
                               :chips="true"
                               :clearable="true"
                               label="Adjuntar evidencia"
-                              :messages="['Solo se permiten imágenes: JPG, JPEG, PNG. Máx total: 5MB.']"
+                              :messages="['Solo se permiten imágenes: JPG, JPEG, PNG. Máx total: 20MB.']"
                               @change="onEvidenceSelected(field.id, $event)"
                               @click:clear="
                                 () => {
@@ -247,11 +247,11 @@
                         <template v-else>
                           <!-- Campo Imagen -->
                           <div v-if="field.type === 'image'" class="d-flex flex-column align-stretch">
+                            <!-- Input tradicional (siempre visible) -->
                             <v-file-input
                               :key="fileVersion[field.id] || 0"
                               :model-value="fileData[field.id] || []"
                               accept="image/*"
-                              capture
                               multiple
                               :counter="true"
                               :show-size="true"
@@ -268,7 +268,31 @@
                               class="w-100"
                               @click:clear="clearFiles(field.id)"
                             />
-                            <!-- Previsualización de imágenes debajo del input, alineadas a la derecha del field -->
+
+                            <!-- Botón adicional para tomar foto (solo en móvil) -->
+                            <v-btn
+                              v-if="isMobile"
+                              variant="outlined"
+                              color="primary"
+                              :prepend-icon="mdiCamera"
+                              @click="triggerCamera(field.id)"
+                              class="w-100 mt-2"
+                            >
+                              Tomar foto con cámara
+                            </v-btn>
+
+                            <!-- Input oculto para cámara (solo en móvil) -->
+                            <input
+                              v-if="isMobile"
+                              :ref="`camera-${field.id}`"
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              style="display: none"
+                              @change="onCameraCapture(field.id, $event)"
+                            />
+
+                            <!-- Previsualización de imágenes -->
                             <div v-if="fileData[field.id]?.length" class="d-flex flex-wrap mt-3 image-preview-row">
                               <div
                                 v-for="(file, idx) in fileData[field.id]"
@@ -478,7 +502,7 @@
 import axiosInstance from '@/utils/axios';
 import { ref, onMounted, computed, reactive, watch, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { mdiArrowLeft, mdiCheck, mdiMapMarkerOff } from '@mdi/js';
+import { mdiArrowLeft, mdiCheck, mdiMapMarkerOff, mdiCamera } from '@mdi/js';
 import { FIELD_TYPES, getFieldProps } from '@/constants/constants';
 import { useToast } from 'vue-toastification';
 import { convertoToString } from '@/utils/helpers/formHelper';
@@ -515,6 +539,10 @@ const fileVersion = ref({});
 const bumpVersion = (key) => {
   fileVersion.value[key] = (fileVersion.value[key] || 0) + 1;
 };
+
+const isMobile = computed(() => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+});
 
 const SEMAFORO_COLORS = { Alto: '#e53935', Medio: '#ffd600', Bajo: '#43a047' };
 const SEMAFORO_PASTEL = { Alto: '#ffebee', Medio: '#fffde7', Bajo: '#e8f5e9' };
@@ -570,6 +598,31 @@ const chipStyleFilled = (option, isSelected) => {
 const visibleFields = computed(
   () => form.value?.fields?.filter((f) => !(f.type === 'geolocation' && f.attributes?.mode === 'scope')) || []
 );
+
+const triggerCamera = (fieldId) => {
+  const cameraInput = document.querySelector(`input[ref="camera-${fieldId}"]`);
+  if (cameraInput) cameraInput.click();
+};
+
+const onCameraCapture = (fieldId, evt) => {
+  let capturedFiles = normalizeEventFiles(evt);
+  if (capturedFiles.length === 0) return;
+
+  const field = form.value.fields.find((f) => f.id == fieldId);
+  const maxFiles = field?.attributes?.max_files || 4;
+
+  const current = Array.isArray(fileData[fieldId]) ? fileData[fieldId] : [];
+  let combined = [...current, ...capturedFiles];
+
+  combined = combined.filter((f, idx, arr) => f && arr.findIndex((x) => x && x.name === f.name && x.size === f.size) === idx);
+
+  combined = combined.slice(0, maxFiles);
+
+  fileData[fieldId] = [...combined];
+  formData[fieldId] = combined.map((f) => f?.name);
+
+  bumpVersion(fieldId);
+};
 
 // --- INTEGRACIÓN PARA FILTRAR EVIDENCIA (IMÁGENES) ---
 const filteredEvidence = (fieldId) => {
