@@ -60,27 +60,22 @@ const getReports = async () => {
   try {
     // Obtener información del formulario
     const formRes = await axiosInstance.get(`/forms/${formId}`);
-    form.value = formRes.data;
+    form.value = formRes.data.form;
 
     // Usar la función helper
     const params = getFilterParams(true);
 
     console.log('Params being sent:', params);
 
-    const responsesRes = await axiosInstance.get(`/forms/${formId}/responses`, { params });
+    const responsesRes = await axiosInstance.get(`/forms/${formId}/responses/reports`, { params });
     console.log('API response:', responsesRes.data);
 
-    const responseData = responsesRes.data.data || responsesRes.data;
-    
-    responses.value = responseData.form?.user_responses || [];
-    console.log('Responses:', responses.value);
-    
-    // Obtener el total de respuestas
-    totalResponses.value = responseData.form?.user_responses?.total || responseData.total || 0;
-    
-  } catch (err) {
-    console.error('Error fetching reports:', err);
-    toast.error('Error al cargar los reportes');
+    // Acceder a la propiedad response de cada elemento del array responses
+    responses.value = responsesRes.data.responses.map((item) => item.response) || [];
+
+    console.log('Responses after assignment:', responses.value);
+  } catch (error) {
+    console.error('Error fetching reports:', error);
   } finally {
     isLoading.value = false;
   }

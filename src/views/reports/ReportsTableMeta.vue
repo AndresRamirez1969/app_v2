@@ -26,8 +26,8 @@ const emit = defineEmits(['update:page', 'sort']);
             <slot name="sort-icon" :column="'name'" />
           </th>
           <th class="cursor-pointer name-header">
-            Respuestas
-            <slot name="sort-icon" :column="'answers'" />
+            Respuestas Totales
+            <slot name="sort-icon" :column="'responses_count'" />
           </th>
           <th @click="emit('sort', 'created_at')" class="cursor-pointer date-header">
             Fecha de Creación
@@ -45,11 +45,11 @@ const emit = defineEmits(['update:page', 'sort']);
     </v-table>
     <div class="d-flex justify-center mt-4">
       <v-pagination
-        v-model="props.page"
+        :model-value="props.page"
         :length="Math.ceil((props.items?.length || 1) / props.itemsPerPage)"
         total-visible="7"
         color="primary"
-        @update:modelValue="emit('update:page', $event)"
+        @update:model-value="emit('update:page', $event)"
       />
     </div>
   </div>

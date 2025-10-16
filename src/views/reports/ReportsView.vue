@@ -87,7 +87,7 @@ const getScopeLabel = (scope) => {
             <v-col cols="12">
               <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <router-link :to="`/formulario/${form.id}`" @click.stop style="text-decoration: underline">
+                  <router-link :to="`/reportes/${form.id}`" @click.stop style="text-decoration: underline">
                     {{ form.folio }}
                   </router-link>
                 </div>
@@ -119,12 +119,12 @@ const getScopeLabel = (scope) => {
             <template v-if="paginatedItems.length">
               <tr v-for="form in paginatedItems" :key="form.id" @click="viewForm(form)" class="row-clickable" style="cursor: pointer">
                 <td class="folio-cell">
-                  <router-link :to="`/formulario/${form.id}`" @click.stop style="text-decoration: underline">
+                  <router-link :to="`/reportes/${form.id}`" @click.stop style="text-decoration: underline">
                     {{ form.folio }}
                   </router-link>
                 </td>
                 <td class="name-cell">{{ form.name }}</td>
-                <td class="answers-cell">{{ form.responses?.length || 0 }}/{{ form.assignments?.length || 0 }}</td>
+                <td class="responses-cell">{{ form.responses_count || 0 }}</td>
                 <td class="date-cell">{{ formatDate(form.created_at) }}</td>
                 <td class="scope-cell">{{ getScopeLabel(form.assignment_scope) }}</td>
               </tr>
@@ -145,7 +145,7 @@ const getScopeLabel = (scope) => {
 .folio-cell,
 .name-cell,
 .status-cell,
-.answers-cell,
+.responses-cell,
 .date-cell,
 .scope-cell {
   padding: 12px 16px;

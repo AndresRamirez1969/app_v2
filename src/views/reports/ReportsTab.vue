@@ -74,18 +74,18 @@
         <ReportsView :items="forms.data" :isMobile="isMobile" :isLoading="isLoading" @formUpdated="fetchForms" />
       </v-col>
     </v-row>
-    <v-row class="mb-4 px-3">
+    <!-- <v-row class="mb-4 px-3">
       <v-col cols="12">
         <ReportCards :items="forms.data" />
       </v-col>
-    </v-row>
+    </v-row> -->
   </v-container>
 </template>
 
 <script setup>
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import ReportsView from './ReportsView.vue';
-import ReportCards from './components/ReportCards.vue';
+//import ReportCards from './components/ReportCards.vue';
 import axiosInstance from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
 import debounce from 'lodash/debounce';
