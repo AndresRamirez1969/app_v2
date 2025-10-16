@@ -284,7 +284,7 @@
                             <!-- Input oculto para cámara (solo en móvil) -->
                             <input
                               v-if="isMobile"
-                              :ref="`camera-${field.id}`"
+                              :id="`camera-${field.id}`"
                               type="file"
                               accept="image/*"
                               capture="environment"
@@ -600,8 +600,10 @@ const visibleFields = computed(
 );
 
 const triggerCamera = (fieldId) => {
-  const cameraInput = document.querySelector(`input[ref="camera-${fieldId}"]`);
-  if (cameraInput) cameraInput.click();
+  const cameraInput = document.getElementById(`camera-${fieldId}`);
+  if (cameraInput) {
+    cameraInput.click();
+  }
 };
 
 const onCameraCapture = (fieldId, evt) => {
