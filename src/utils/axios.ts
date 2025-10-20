@@ -10,7 +10,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     const authStore = useAuthStore();
-    
+
     // Verificar si el token ha expirado antes de hacer la petición
     if (!authStore.checkTokenExpiration()) {
       // Si el token expiró, cancelar la petición
@@ -32,18 +32,18 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     const authStore = useAuthStore();
-    
+
     // Manejar token expirado o inválido
     if (
       error.response &&
       (error.response.status === 401 || // Unauthorized
-       error.response.status === 403) && // Forbidden
+        error.response.status === 403) && // Forbidden
       (error.response.data?.message?.includes('token') ||
-       error.response.data?.message?.includes('expired') ||
-       error.response.data?.message?.includes('invalid'))
+        error.response.data?.message?.includes('expired') ||
+        error.response.data?.message?.includes('invalid'))
     ) {
       authStore.logout();
-      
+
       // Redirigir al login solo si no está ya ahí
       if (router.currentRoute.value.name !== 'Login') {
         router.push('/login');
@@ -62,7 +62,7 @@ axiosInstance.interceptors.response.use(
         router.push('/login');
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
