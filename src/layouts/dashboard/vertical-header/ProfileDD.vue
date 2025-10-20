@@ -15,7 +15,8 @@ import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 
 // Variable de entorno para la URL de Horizon
-const horizonUrl = import.meta.env.VITE_HORIZON_URL || 'http://localhost:8000/horizon';
+// const horizonUrl = import.meta.env.VITE_HORIZON_URL || 'http://localhost:8000/horizon';
+const horizonUrl = import.meta.env.VITE_HORIZON_URL;
 
 const tab = ref(null);
 const authStore = useAuthStore();
