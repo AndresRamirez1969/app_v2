@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+// icons
 import {
   LogoutOutlined,
   UserOutlined,
@@ -13,10 +14,6 @@ import {
 } from '@ant-design/icons-vue';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
-
-// Variable de entorno para la URL de Horizon
-// const horizonUrl = import.meta.env.VITE_HORIZON_URL || 'http://localhost:8000/horizon';
-const horizonUrl = import.meta.env.VITE_HORIZON_URL;
 
 const tab = ref(null);
 const authStore = useAuthStore();
@@ -36,7 +33,7 @@ const hasBusinessUnitViewAny = computed(() => permissions.value.includes('busine
 const hasBusinessUnitId = computed(() => !!authStore.user?.business_unit_id);
 const hasBusinessUnitView = computed(() => permissions.value.includes('businessUnit.view'));
 
-// Mostrar en ProfileDD solo si NO es superadmin y NO tiene el permiso viewAny
+// Mostrar  en ProfileDD solo si NO es superadmin y NO tiene el permiso viewAny
 const showOrgDwProfile = computed(() => {
   return !userRoles.value.includes('superadmin') && !hasOrgViewAny.value;
 });
@@ -95,15 +92,13 @@ const handleLogout = async () => {
   router.push('/login');
 };
 
-// Solo superadmin puede ver el acceso a Horizon
-const isSuperAdmin = computed(() => userRoles.value.includes('superadmin'));
+// --- INICIO: Botón Acceso a Horizon ---
+const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
-// Acción para el botón Horizon: abre Horizon pasando el Bearer Token como query param
-function goToHorizon() {
-  const token = authStore.token || localStorage.getItem('token');
-  if (!token) return;
-  window.open(`${horizonUrl}?token=${token}`, '_blank');
+function goToHorizonLogin() {
+  window.open(`${backendUrl}/horizon-login`, '_blank');
 }
+// --- FIN: Botón Acceso a Horizon ---
 </script>
 
 <template>
@@ -127,14 +122,6 @@ function goToHorizon() {
               <UserOutlined :style="{ fontSize: '14px' }" class="mr-4" />
             </template>
             <v-list-item-title class="text-h6"> Ver Perfil</v-list-item-title>
-          </v-list-item>
-
-          <!-- Botón Horizon solo para superadmin -->
-          <v-list-item v-if="isSuperAdmin" @click="goToHorizon" color="primary" rounded="0" value="Horizon">
-            <template v-slot:prepend>
-              <ApartmentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
-            </template>
-            <v-list-item-title class="text-h6"> Horizon </v-list-item-title>
           </v-list-item>
 
           <!-- Organizaciones  -->
@@ -180,6 +167,14 @@ function goToHorizon() {
               <EnvironmentOutlined :style="{ fontSize: '14px' }" class="mr-4" />
             </template>
             <v-list-item-title class="text-h6"> Ubicaciones</v-list-item-title>
+          </v-list-item>
+
+          <!-- Botón Acceso a Horizon -->
+          <v-list-item @click="goToHorizonLogin" color="primary" rounded="0" value="AccesoHorizon">
+            <template v-slot:prepend>
+              <LockOutlined :style="{ fontSize: '14px' }" class="mr-4" />
+            </template>
+            <v-list-item-title class="text-h6">Acceso a Horizon</v-list-item-title>
           </v-list-item>
 
           <v-list-item @click="handleLogout" color="secondary" rounded="0">
