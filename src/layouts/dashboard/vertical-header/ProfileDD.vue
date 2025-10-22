@@ -44,6 +44,9 @@ const showBusinessUnitDwProfile = computed(() => {
   return !userRoles.value.includes('superadmin') && !hasBusinessUnitViewAny.value;
 });
 
+// Mostrar botón Horizon solo a superadmin
+const showHorizonButton = computed(() => userRoles.value.includes('superadmin'));
+
 // Lógica de rutas y disabled
 function getOrgRoute() {
   if (hasOrgId.value) {
@@ -169,8 +172,8 @@ function goToHorizonLogin() {
             <v-list-item-title class="text-h6"> Ubicaciones</v-list-item-title>
           </v-list-item>
 
-          <!-- Botón Acceso a Horizon -->
-          <v-list-item @click="goToHorizonLogin" color="primary" rounded="0" value="AccesoHorizon">
+          <!-- Botón Acceso a Horizon SOLO para superadmin -->
+          <v-list-item v-if="showHorizonButton" @click="goToHorizonLogin" color="primary" rounded="0" value="AccesoHorizon">
             <template v-slot:prepend>
               <LockOutlined :style="{ fontSize: '14px' }" class="mr-4" />
             </template>

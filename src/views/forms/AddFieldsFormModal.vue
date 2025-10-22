@@ -41,6 +41,8 @@ const existingLabels = ref([]);
 const isMobile = ref(false);
 const sidebarDropdownOpen = ref(false);
 
+const errorMsg = ref(''); // NUEVO: mensaje de error global
+
 /* =========================
    Helpers SEMÁFORO (UI <-> API)
    ========================= */
@@ -191,6 +193,28 @@ watch(
       existingLabels.value = [];
     }
   }
+);
+
+/* =========================
+   Limpiar error de duplicados automáticamente
+   ========================= */
+function isDuplicateLabel(field, idx) {
+  if (!field.label) return false;
+  const label = String(field.label).trim().toLowerCase();
+  return currentFields.value.filter((f, i) => i !== idx && String(f.label).trim().toLowerCase() === label).length > 0;
+}
+
+watch(
+  currentFields,
+  (fields) => {
+    if (
+      errorMsg.value === 'No puede haber preguntas con la misma etiqueta.' &&
+      !fields.some((field, idx) => isDuplicateLabel(field, idx))
+    ) {
+      errorMsg.value = '';
+    }
+  },
+  { deep: true }
 );
 
 /* =========================
@@ -399,10 +423,8 @@ const validateEditingField = () => {
     } else if (parseInt(w) < 0) {
       fieldErrors.value.weight = 'Debe ser mayor o igual a 0';
       valid = false;
-    } else if (parseInt(w) > maxWeightAvailable.value) {
-      fieldErrors.value.weight = `No puede exceder el máximo permitido (${maxWeightAvailable.value})`;
-      valid = false;
     }
+    // No hay validación de máximo
   }
 
   if (showOptionsField.value) {
@@ -445,15 +467,6 @@ const saveEditedField = () => {
     editingField.value = toSemaforoPayload(editingField.value);
   }
 
-  if (props.form?.has_rating) {
-    let w = parseInt(editingField.value.weight) || 0;
-    if (w < 0) w = 0;
-    let totalSinActual = totalWeightUsed.value - (currentFields.value[editingFieldIndex.value]?.weight || 0);
-    let maxPermitido = 100 - totalSinActual;
-    if (w > maxPermitido) w = maxPermitido;
-    editingField.value.weight = w;
-  }
-
   if (editingFieldIndex.value >= 0) {
     currentFields.value[editingFieldIndex.value] = { ...editingField.value };
   }
@@ -478,25 +491,22 @@ const onCurrentFieldsDragEnd = () => {
 const close = () => {
   currentFields.value = [];
   emit('update:modelValue', false);
+  errorMsg.value = ''; // limpiar error al cerrar
 };
 
 const totalWeightUsed = computed(() =>
   props.form?.has_rating ? currentFields.value.reduce((total, f) => total + (parseInt(f.weight) || 0), 0) : 0
 );
 
+// No hay límite máximo
 const maxWeightAvailable = computed(() => {
   if (!props.form?.has_rating) return 0;
-  let current = 0;
-  if (editingFieldIndex.value >= 0 && editingFieldIndex.value < currentFields.value.length) {
-    current = parseInt(currentFields.value[editingFieldIndex.value]?.weight) || 0;
-  }
-  return 100 - totalWeightUsed.value + current;
+  return undefined;
 });
 
 const validateWeight = (w) => {
   const n = parseInt(w) || 0;
   if (n < 0) return 0;
-  if (n > maxWeightAvailable.value) return maxWeightAvailable.value;
   return n;
 };
 
@@ -509,40 +519,58 @@ const triedSaveWithWrongWeight = ref(false);
 
 const saveCurrentFields = async () => {
   triedSaveWithWrongWeight.value = false;
+  errorMsg.value = ''; // limpiar error antes de intentar guardar
 
-  if (!currentFields.value.length) return;
+  if (!currentFields.value.length) {
+    errorMsg.value = 'Debes agregar al menos una pregunta.';
+    return;
+  }
 
   const invalid = currentFields.value.some((f) => !f.label);
-  if (invalid) return;
+  if (invalid) {
+    errorMsg.value = 'Todas las preguntas deben tener una etiqueta.';
+    return;
+  }
 
   const labelIdPairs = currentFields.value.map((f) => ({
     label: f.label.trim().toLowerCase(),
     id: f.id
   }));
   const hasDuplicate = labelIdPairs.some((pair, idx) => labelIdPairs.findIndex((p) => p.label === pair.label && p.id !== pair.id) !== -1);
-  if (hasDuplicate) return;
+  if (hasDuplicate) {
+    errorMsg.value = 'No puede haber preguntas con la misma etiqueta.';
+    return;
+  }
 
   for (const f of currentFields.value) {
     if (['select', 'radio', 'checkbox'].includes(f.type) && !isSemaforoField(f)) {
       const validOptions = Array.isArray(f.options) ? f.options.filter((opt) => typeof opt === 'string' && !!opt.trim()) : [];
-      if (validOptions.length < 1) return;
+      if (validOptions.length < 1) {
+        errorMsg.value = 'Las preguntas tipo selección deben tener al menos una opción válida.';
+        return;
+      }
     }
     if (['signature', 'image', 'document'].includes(f.type)) {
       let maxFiles = parseInt(f.attributes?.max_files) || 1;
-      if (maxFiles < 1 || maxFiles > 4) return;
+      if (maxFiles < 1 || maxFiles > 4) {
+        errorMsg.value = 'El número de archivos permitidos debe estar entre 1 y 4.';
+        return;
+      }
     }
     if (f.type === 'geolocation') {
-      if (!['scope', 'manual'].includes(f.attributes?.mode)) return;
+      if (!['scope', 'manual'].includes(f.attributes?.mode)) {
+        errorMsg.value = 'El modo de geolocalización es inválido.';
+        return;
+      }
     }
     if (props.form?.has_rating) {
       let w = parseInt(f.weight);
-      if (isNaN(w) || w < 0) return;
+      if (isNaN(w) || w < 0) {
+        errorMsg.value = 'La ponderación de todas las preguntas debe ser mayor o igual a 0.';
+        return;
+      }
+      // No hay validación de máximo
     }
-  }
-
-  if (props.form?.has_rating && totalWeightUsed.value !== 100) {
-    triedSaveWithWrongWeight.value = true;
-    return;
   }
 
   try {
@@ -550,9 +578,16 @@ const saveCurrentFields = async () => {
     const formData = response.data.form || response.data.data || response.data;
     const status = formData.status;
     const responsesCount = formData.responses_count ?? 0;
-    if (status !== 'draft') return;
-    if (responsesCount > 0) return;
+    if (status !== 'draft') {
+      errorMsg.value = 'El formulario ya no está en estado borrador.';
+      return;
+    }
+    if (responsesCount > 0) {
+      errorMsg.value = 'El formulario ya tiene respuestas y no puede ser editado.';
+      return;
+    }
   } catch (e) {
+    errorMsg.value = 'No se pudo validar el estado del formulario. Intenta de nuevo.';
     return;
   }
 
@@ -569,9 +604,14 @@ const saveCurrentFields = async () => {
         type: f.type,
         is_required: !!f.is_required,
         order: f.order,
-        attributes: f.attributes && typeof f.attributes === 'object' ? { ...f.attributes } : {},
-        weight: props.form?.has_rating ? parseInt(f.weight) || 0 : undefined
+        attributes: f.attributes && typeof f.attributes === 'object' ? { ...f.attributes } : {}
       };
+
+      if (props.form?.has_rating) {
+        payload.weight = parseInt(f.weight) || 0;
+      }
+
+      console.log('Payload a enviar:', payload);
 
       if (f.type === 'geolocation') {
         payload.is_required = true;
@@ -603,12 +643,18 @@ const saveCurrentFields = async () => {
 
       const isExistingField = backendFieldIds.includes(f.id);
 
-      if (isExistingField) {
-        const { data } = await axiosInstance.put(`/forms/${props.form.id}/fields/${f.id}`, payload);
-        savedFields.push(data.field);
-      } else {
-        const { data } = await axiosInstance.post(`/forms/${props.form.id}/fields`, payload);
-        savedFields.push(data.field);
+      try {
+        if (isExistingField) {
+          const { data } = await axiosInstance.put(`/forms/${props.form.id}/fields/${f.id}`, payload);
+          savedFields.push(data.field);
+        } else {
+          const { data } = await axiosInstance.post(`/forms/${props.form.id}/fields`, payload);
+          savedFields.push(data.field);
+        }
+      } catch (err) {
+        errorMsg.value = 'Ocurrió un error al guardar una pregunta. Revisa tu conexión o intenta de nuevo.';
+        saving.value = false;
+        return;
       }
     }
 
@@ -639,7 +685,7 @@ const saveCurrentFields = async () => {
     emit('fields-saved', savedFields);
     close();
   } catch (err) {
-    // No errorMsg global
+    errorMsg.value = 'Ocurrió un error inesperado al guardar. Intenta de nuevo.';
   } finally {
     saving.value = false;
   }
@@ -671,8 +717,7 @@ const saveCurrentFields = async () => {
                 style="margin-right: 8px"
               />
               <span :style="{ color: triedSaveWithWrongWeight ? '#e53935' : '#111', fontWeight: 600 }">
-                Ponderación: <b style="margin: 0 4px">{{ totalWeightUsed }}</b
-                >/100
+                Ponderación: <b style="margin: 0 4px">{{ totalWeightUsed }}</b>
               </span>
             </span>
           </template>
@@ -680,6 +725,11 @@ const saveCurrentFields = async () => {
             <v-icon :icon="mdiClose" color="grey-darken-2" size="28"></v-icon>
           </span>
         </div>
+      </div>
+
+      <!-- MENSAJE DE ERROR GLOBAL -->
+      <div v-if="errorMsg" class="global-error-msg">
+        <div class="custom-error-msg">{{ errorMsg }}</div>
       </div>
 
       <!-- SIDEBAR DROPDOWN (MOBILE) -->
@@ -733,7 +783,7 @@ const saveCurrentFields = async () => {
 
             <draggable v-model="currentFields" item-key="id" handle=".drag-handle" @end="onCurrentFieldsDragEnd" class="v-list">
               <template #item="{ element: field, index }">
-                <v-card class="mb-3 pa-3" variant="outlined">
+                <v-card class="mb-3 pa-3" variant="outlined" :class="{ 'duplicate-field': isDuplicateLabel(field, index) }">
                   <div class="d-flex align-center justify-space-between">
                     <div class="d-flex align-center">
                       <v-icon class="mr-2 drag-handle" :icon="mdiDrag" color="grey" size="24"></v-icon>
@@ -750,6 +800,7 @@ const saveCurrentFields = async () => {
                         <div v-if="props.form?.has_rating" class="text-caption text-blue-darken-2 mt-1">
                           Ponderación: {{ parseInt(field.weight) || 0 }}
                         </div>
+                        <div v-if="isDuplicateLabel(field, index)" class="text-caption duplicate-label-warning mt-1">Nombre duplicado</div>
                       </div>
                     </div>
                     <div class="d-flex align-center">
@@ -835,9 +886,9 @@ const saveCurrentFields = async () => {
                 variant="outlined"
                 required
                 class="mb-4"
-                :error="!!fieldErrors.label"
+                :error="!!fieldErrors.label || isDuplicateLabel(editingField, editingFieldIndex)"
                 :rules="[(v) => (!!v && String(v).trim().length > 0) || 'La etiqueta es obligatoria']"
-                :error-messages="fieldErrors.label"
+                :error-messages="isDuplicateLabel(editingField, editingFieldIndex) ? 'Nombre duplicado' : fieldErrors.label"
                 @keyup.enter="saveEditedField"
                 hide-details="auto"
               />
@@ -864,11 +915,8 @@ const saveCurrentFields = async () => {
                   @input="editingField.weight = validateWeight(editingField.weight)"
                   class="mb-1"
                   required
-                  hint="La suma total de todas las preguntas debe ser 100"
-                  persistent-hint
                   hide-details="auto"
                 />
-                <div class="text-caption text-grey-darken-1">Máximo permitido para esta pregunta: {{ maxWeightAvailable }}</div>
                 <div style="height: 18px"></div>
               </div>
               <div :class="['d-flex', 'align-center', 'mb-4', 'checkboxes-row', isMobile ? 'flex-column align-stretch' : '']">
@@ -966,6 +1014,17 @@ const saveCurrentFields = async () => {
 </template>
 
 <style scoped>
+.custom-error-msg {
+  color: #e53935;
+  background: #ffebee;
+  border-left: 4px solid #e53935;
+  padding: 12px 18px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 0;
+  display: block;
+}
 .v-label {
   font-size: 0.92rem;
   font-weight: 500;
@@ -1050,6 +1109,14 @@ const saveCurrentFields = async () => {
 .ponderacion-header.error {
   background: #ffebee;
   border-color: #ffcdd2;
+}
+
+.global-error-msg {
+  padding: 0 24px 0 24px;
+  margin-top: 8px;
+  margin-bottom: 0;
+  z-index: 1001;
+  position: relative;
 }
 
 .modal-content-row {
@@ -1345,6 +1412,20 @@ const saveCurrentFields = async () => {
   display: flex;
   gap: 12px;
   padding: 4px 0;
+}
+
+/* Duplicado */
+.duplicate-field {
+  border: 2px solid #e53935 !important;
+  background: #ffebee !important;
+  transition:
+    border 0.2s,
+    background 0.2s;
+}
+.duplicate-label-warning {
+  color: #e53935 !important;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 /* ---------- Mobile ---------- */
