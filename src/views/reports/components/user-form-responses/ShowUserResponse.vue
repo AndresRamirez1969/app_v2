@@ -56,15 +56,24 @@ const exportResponse = async (responseId) => {
   }
 };
 
-const formatDate = (dateString) => {
-  if (!dateString) return '—';
-  return new Date(dateString).toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+const hasEvidenceFiles = (fieldId) => {
+  const response = userResponse.value.field_responses?.find((r) => r.form_field_id === fieldId);
+  if (!response) return false;
+
+  const evidenceFiles = response.evidence_files;
+  if (!evidenceFiles) return false;
+
+  // Si es un array, verificar que no esté vacío
+  if (Array.isArray(evidenceFiles)) {
+    return evidenceFiles.length > 0;
+  }
+
+  // Si es un string, verificar que no esté vacío
+  if (typeof evidenceFiles === 'string') {
+    return evidenceFiles.trim() !== '';
+  }
+
+  return false;
 };
 
 const getFieldValueForDisplay = (fieldId, fieldType) => {
@@ -76,23 +85,28 @@ const getFieldValueForDisplay = (fieldId, fieldType) => {
 
   console.log(`Campo ${fieldId} (${fieldType}):`, response);
 
-  if (fieldType === 'file' || fieldType === 'signature') {
+  if (fieldType === 'image' || fieldType === 'signature') {
     let value = response.value;
     console.log(`Valor del campo ${fieldType}:`, value);
 
     // Si el valor es un string JSON (array), parsearlo
-    if (typeof value === 'string' && value.startsWith('[')) {
+    if (typeof value === 'string') {
       try {
-        value = JSON.parse(value);
+        // Intentar parsear como JSON
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          return parsed.length > 0 ? parsed[0] : null; // Devolver la primera imagen
+        }
+        return parsed;
       } catch (e) {
-        console.error('Error parsing JSON:', e);
-        return null;
+        // Si no es JSON válido, tratar como string simple
+        console.log('No es JSON válido, tratando como string simple');
       }
     }
 
-    // Si es un array, devolver el primer elemento o el array completo
+    // Si es un array, devolver el primer elemento
     if (Array.isArray(value)) {
-      return value.length > 0 ? value : null;
+      return value.length > 0 ? value[0] : null;
     }
 
     // Si el valor es una URL completa, úsala directamente
@@ -100,9 +114,8 @@ const getFieldValueForDisplay = (fieldId, fieldType) => {
       return value;
     }
 
-    // Si es solo un nombre de archivo, construye la URL completa de S3
     if (value && !value.startsWith('http')) {
-      const s3BaseUrl = 'https://tasker-v2-bucket.s3.us-east-2.amazonaws.com/';
+      const s3BaseUrl = 'https://tasker-v2-dev.s3.amazonaws.com/';
       return s3BaseUrl + value;
     }
 
@@ -112,41 +125,55 @@ const getFieldValueForDisplay = (fieldId, fieldType) => {
   return response.value || '—';
 };
 
-// Nueva función para obtener todos los archivos de un campo
 const getFieldFiles = (fieldId, fieldType) => {
   const response = userResponse.value.field_responses?.find((r) => r.form_field_id === fieldId);
   if (!response) return [];
 
-  if (fieldType === 'file' || fieldType === 'signature') {
+  if (fieldType === 'image' || fieldType === 'signature') {
     let value = response.value;
+    let evidenceFiles = response.evidence_files;
+    let allFiles = [];
 
-    // Si el valor es un string JSON (array), parsearlo
-    if (typeof value === 'string' && value.startsWith('[')) {
+    if (typeof value === 'string') {
       try {
-        value = JSON.parse(value);
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          allFiles = [...allFiles, ...parsed];
+        } else {
+          allFiles.push(parsed);
+        }
       } catch (e) {
         console.error('Error parsing JSON:', e);
-        return [];
+        allFiles.push(value);
+      }
+    } else if (Array.isArray(value)) {
+      allFiles = [...allFiles, ...value];
+    } else if (value && (value.startsWith('http://') || value.startsWith('https://'))) {
+      allFiles.push(value);
+    } else if (value && !value.startsWith('http')) {
+      const s3BaseUrl = 'https://tasker-v2-dev.s3.amazonaws.com/';
+      allFiles.push(s3BaseUrl + value);
+    }
+
+    if (evidenceFiles) {
+      if (typeof evidenceFiles === 'string') {
+        try {
+          const parsed = JSON.parse(evidenceFiles);
+          if (Array.isArray(parsed)) {
+            allFiles = [...allFiles, ...parsed];
+          } else {
+            allFiles.push(parsed);
+          }
+        } catch (e) {
+          console.error('Error parsing evidence_files JSON:', e);
+          allFiles.push(evidenceFiles);
+        }
+      } else if (Array.isArray(evidenceFiles)) {
+        allFiles = [...allFiles, ...evidenceFiles];
       }
     }
 
-    // Si es un array, devolverlo
-    if (Array.isArray(value)) {
-      return value;
-    }
-
-    // Si es un string, convertirlo a array
-    if (value && (value.startsWith('http://') || value.startsWith('https://'))) {
-      return [value];
-    }
-
-    // Si es solo un nombre de archivo, construir la URL completa
-    if (value && !value.startsWith('http')) {
-      const s3BaseUrl = 'https://tasker-v2-bucket.s3.us-east-2.amazonaws.com/';
-      return [s3BaseUrl + value];
-    }
-
-    return [];
+    return [...new Set(allFiles)];
   }
 
   return [];
@@ -208,30 +235,34 @@ onMounted(() => {
                     </v-card-title>
                     <v-card-text class="pt-0">
                       <!-- Para campos de archivo o firma -->
-                      <div v-if="field.type === 'signature' || field.type === 'file'">
+                      <div v-if="field.type === 'signature' || field.type === 'image' || hasEvidenceFiles(field.id)">
                         <div v-if="getFieldFiles(field.id, field.type).length > 0">
-                          <!-- Si hay múltiples archivos, mostrar todos -->
+                          <!-- Si hay múltiples archivos, mostrar todos en una galería -->
                           <div v-if="getFieldFiles(field.id, field.type).length > 1" class="d-flex flex-wrap gap-2">
-                            <v-img
-                              v-for="(fileUrl, index) in getFieldFiles(field.id, field.type)"
-                              :key="index"
-                              :src="fileUrl"
-                              :alt="`Archivo ${index + 1}`"
-                              class="mb-2"
-                              max-height="200"
-                              max-width="200"
-                              contain
-                            />
+                            <div v-for="(fileUrl, index) in getFieldFiles(field.id, field.type)" :key="index" class="image-container">
+                              <v-img
+                                :src="fileUrl"
+                                :alt="`Archivo ${index + 1}`"
+                                class="mb-2"
+                                max-height="500"
+                                max-width="500"
+                                contain
+                                @error="console.error('Error loading image:', fileUrl)"
+                              />
+                              <p class="text-caption text-center">{{ `Imagen ${index + 1}` }}</p>
+                            </div>
                           </div>
                           <!-- Si hay un solo archivo, mostrar normalmente -->
-                          <v-img
-                            v-else
-                            :src="getFieldValueForDisplay(field.id, field.type)"
-                            alt="Firma o archivo"
-                            class="mb-2"
-                            max-height="200"
-                            contain
-                          />
+                          <div v-else class="single-image-container">
+                            <v-img
+                              :src="getFieldValueForDisplay(field.id, field.type)"
+                              alt="Firma o archivo"
+                              class="mb-2"
+                              max-height="500"
+                              contain
+                              @error="console.error('Error loading image:', getFieldValueForDisplay(field.id, field.type))"
+                            />
+                          </div>
                         </div>
                         <div v-else class="text-center py-4">
                           <v-icon size="48" color="grey">mdi-file-image</v-icon>
@@ -251,3 +282,24 @@ onMounted(() => {
     </v-row>
   </v-container>
 </template>
+
+<style scoped>
+.image-container {
+  border: 1px solid #e0e0e0;
+  border-radius: 2px;
+  padding: 4px;
+  background: #fafafa;
+  min-width: 500px;
+  min-height: 500px;
+}
+
+.single-image-container {
+  text-align: center;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 4px;
+  background: #fafafa;
+  min-width: 450px;
+  min-height: 200px;
+}
+</style>

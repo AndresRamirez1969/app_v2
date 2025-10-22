@@ -6,6 +6,7 @@ import VueApexCharts from 'vue3-apexcharts';
 import { useAuthStore } from '@/stores/auth';
 import AnalyticsReport from './components/AnalyticsReport.vue';
 import { useToast } from 'vue-toastification';
+import { mdiCalendar } from '@mdi/js';
 
 const today = new Date();
 const dd = String(today.getDate());
@@ -14,10 +15,12 @@ const yyyy = today.getFullYear();
 const todayFormatted = `${yyyy}-${mm}-${dd}`;
 const forms = ref({ data: [], last_page: 1 });
 const isLoading = ref(false);
-const filters = ref({ date: null });
+const filters = ref({
+  dateRange: null
+});
 const dateMenu = ref(false);
 const currentPage = ref(1);
-const dateRange = ref('');
+const dateRangeText = ref('');
 
 const auth = useAuthStore();
 const roles = computed(() => auth.user?.roles || []);
@@ -58,22 +61,26 @@ const formatDateForAPI = (date) => {
 };
 
 const clearDateFilter = () => {
-  filters.value.date = null;
-  dateRange.value = '';
-  fetchForms();
+  filters.value.dateRange = null;
+  dateRangeText.value = '';
   if (selectedFormId.value) {
     fetchFormStatus(selectedFormId.value);
   }
 };
 
-const onDateChange = (date) => {
+const onDateRangeChange = (dateRange) => {
   dateMenu.value = false;
-  if (date) {
-    dateRange.value = formatDateForAPI(date);
+  if (dateRange && dateRange.length === 2) {
+    const [start, end] = dateRange;
+    dateRangeText.value = `${formatDateForAPI(start)} - ${formatDateForAPI(end)}`;
+    filters.value.dateRange = {
+      start: formatDateForAPI(start),
+      end: formatDateForAPI(end)
+    };
   } else {
-    dateRange.value = '';
+    dateRangeText.value = '';
+    filters.value.dateRange = null;
   }
-  fetchForms();
   if (selectedFormId.value) {
     fetchFormStatus(selectedFormId.value);
   }
@@ -99,10 +106,6 @@ const fetchForms = async () => {
   try {
     const params = { page: currentPage.value, ...getOrgParams() };
 
-    if (dateRange.value) {
-      params.submitted_at = dateRange.value;
-    }
-
     const res = await axiosInstance.get('/forms', { params: params });
     forms.value = res.data;
     console.log('Forms', forms.value);
@@ -119,8 +122,10 @@ const fetchFormStatus = async (formId) => {
   isLoadingFormDetails.value = true;
   try {
     const params = { ...getOrgParams() };
-    if (dateRange.value) {
-      params.submitted_at = dateRange.value;
+
+    if (filters.value.dateRange) {
+      params.start_date = filters.value.dateRange.start;
+      params.end_date = filters.value.dateRange.end;
     }
 
     const res = await axiosInstance.get(`/forms/${formId}/responses`, { params: params });
@@ -140,6 +145,13 @@ watch(selectedOrgForDashboard, () => {
   fetchForms();
 });
 
+const getDateFilterText = () => {
+  if (filters.value.dateRange) {
+    return ` (${filters.value.dateRange.start} - ${filters.value.dateRange.end})`;
+  }
+  return '';
+};
+
 // Calcular estadísticas de formularios generales
 const formStats = computed(() => {
   const allForms = forms.value.data || [];
@@ -152,18 +164,8 @@ const formStats = computed(() => {
     return { total: 0, withResponses: 0, withoutResponses: 0 };
   }
 
-  if (dateRange.value) {
-    allForms.forEach((form) => {
-      if ((form.responses_count || 0) > 0) {
-        withResponses++;
-      } else {
-        withoutResponses++;
-      }
-    });
-  } else {
-    withResponses = allForms.filter((f) => (f.responses_count || 0) > 0).length;
-    withoutResponses = allForms.filter((f) => (f.responses_count || 0) === 0).length;
-  }
+  withResponses = allForms.filter((f) => (f.responses_count || 0) > 0).length;
+  withoutResponses = allForms.filter((f) => (f.responses_count || 0) === 0).length;
 
   return { total, withResponses, withoutResponses };
 });
@@ -195,11 +197,11 @@ const fieldResponseStats = computed(() => {
   let userResponses = selectedFormDetails.value.form.user_responses || [];
 
   // Filtrar respuestas por fecha de submitted_at si hay filtro activo
-  if (dateRange.value) {
+  if (filters.value.dateRange) {
     userResponses = userResponses.filter((response) => {
       if (!response.submitted_at) return false;
       const responseDate = formatDateForAPI(response.submitted_at);
-      return responseDate === dateRange.value;
+      return responseDate >= filters.value.dateRange.start && responseDate <= filters.value.dateRange.end;
     });
   }
 
@@ -276,7 +278,7 @@ const getChartOptionsForField = (fieldStat) => {
     },
     yaxis: { title: { text: 'Cantidad de Respuestas' } },
     title: {
-      text: `${fieldStat.fieldLabel}${dateRange.value ? ` (${dateRange.value})` : ''}`,
+      text: `${fieldStat.fieldLabel}${getDateFilterText()}`,
       align: 'left',
       style: { fontSize: '16px', fontWeight: 600 }
     },
@@ -300,7 +302,7 @@ const chartOptions = computed(() => ({
   colors: ['#1976d2', '#4caf50', '#f44336'],
   tooltip: { y: { formatter: (val) => `${val} formulario${val !== 1 ? 's' : ''}` } },
   title: {
-    text: `Estado General de Formularios${dateRange.value ? ` (${dateRange.value})` : ''}`,
+    text: `Estado General de Formularios${getDateFilterText()}`,
     align: 'left',
     style: { fontSize: '18px', fontWeight: 600 }
   }
@@ -434,14 +436,14 @@ onMounted(() => {
             <p class="text-body-1 text-grey-darken-1">Hoy es {{ todayFormatted }}</p>
           </div>
           <div class="d-flex align-center" style="min-width: 300px">
-            <!-- Filtro de fecha -->
+            <!-- Filtro por rango de fechas -->
             <v-menu v-model="dateMenu" :close-on-content-click="false" transition="scale-transition" offset-y min-width="auto">
               <template #activator="{ props }">
                 <v-text-field
                   v-bind="props"
-                  v-model="dateRange"
-                  placeholder="Filtrar por fecha (vacio para ver todos)"
-                  :prepend-inner-icon="mdiCalendar"
+                  v-model="dateRangeText"
+                  placeholder="Seleccionar rango de fechas (vacío para ver todos)"
+                  :prepend-inner-icon="mdiCalendarRange"
                   readonly
                   clearable
                   density="compact"
@@ -451,10 +453,10 @@ onMounted(() => {
                   @click:clear="clearDateFilter"
                 />
               </template>
-
               <v-date-picker
-                v-model="filters.date"
-                @update:model-value="onDateChange"
+                v-model="filters.dateRange"
+                range
+                @update:model-value="onDateRangeChange"
                 :max="new Date().toISOString().substr(0, 10)"
                 locale="es"
               />
