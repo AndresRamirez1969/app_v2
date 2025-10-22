@@ -608,7 +608,7 @@ const saveCurrentFields = async () => {
       };
 
       if (props.form?.has_rating) {
-        payload.weight = parseInt(f.weight) || 0;
+        payload.weight = Number.isFinite(Number(f.weight)) ? parseInt(f.weight) : 0;
       }
 
       console.log('Payload a enviar:', payload);
