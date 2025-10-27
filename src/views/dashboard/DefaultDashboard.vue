@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth';
 import AnalyticsReport from './components/AnalyticsReport.vue';
 import { useToast } from 'vue-toastification';
 import { mdiCalendar } from '@mdi/js';
+import GeolocationMap from '@/utils/helpers/google/GeolocationMap.vue';
 
 const today = new Date();
 const dd = String(today.getDate());
@@ -188,6 +189,53 @@ const selectAndCheckboxFields = computed(() => {
   console.log('Fields', fields);
   return fields.filter((field) => field.type === 'select' || field.type === 'checkbox');
 });
+
+const geolocationFields = computed(() => {
+  if (!selectedFormDetails.value) return [];
+  const fields = selectedFormDetails.value.form.fields || [];
+  return fields.filter((field) => field.type === 'geolocation');
+});
+
+const geolocationResponses = (fieldId) => {
+  const locations = [];
+
+  let responses = selectedFormDetails.value.form.user_responses || [];
+
+  if (filters.value.dateRange) {
+    responses = responses.filter((response) => {
+      if (!response.submitted_at) return false;
+      const responseDate = formatDateForAPI(response.submitted_at);
+      return responseDate >= filters.value.dateRange.start && responseDate <= filters.value.dateRange.end;
+    });
+  }
+
+  responses.forEach((response) => {
+    const fieldResponse = response.field_responses?.find((fr) => fr.field_id === fieldId && fr.value);
+
+    if (fieldResponse && fieldResponse.value) {
+      try {
+        const locationData = JSON.parse(fieldResponse.value);
+        if (locationData.latitude && locationData.longitude) {
+          locations.push({
+            lat: parseFloat(locationData.latitude),
+            lng: parseFloat(locationData.longitude),
+            address:
+              [locationData.street, locationData.outdoor_number, locationData.city]
+                .filter(Boolean)
+                .join(' ')
+                .replace(/ +,/g, ',')
+                .replace(/ ,/g, ',')
+                .trim() || ''
+          });
+        }
+      } catch (e) {
+        console.error('Error parsing location data:', e);
+      }
+    }
+  });
+
+  return locations;
+};
 
 // Contar respuestas por cada campo de select/checkbox
 const fieldResponseStats = computed(() => {
@@ -541,41 +589,69 @@ onMounted(() => {
               <p class="mt-2">Cargando detalles del formulario...</p>
             </div>
 
-            <!-- Gráficas de campos select/checkbox -->
-            <div v-else-if="selectedFormDetails && fieldResponseStats.length > 0">
-              <v-row>
-                <v-col
-                  v-for="fieldStat in fieldResponseStats"
-                  :key="fieldStat.fieldId"
-                  cols="12"
-                  :md="fieldResponseStats.length === 1 ? 12 : 6"
-                >
-                  <v-card variant="outlined" class="mb-4">
+            <!-- Mostrar contenido cuando hay detalles cargados -->
+            <div v-else-if="selectedFormDetails">
+              <!-- Mapas de geolocalización -->
+              <v-row v-if="geolocationFields.length > 0" class="mb-6">
+                <v-col cols="12">
+                  <v-card elevation="2">
                     <v-card-text>
-                      <div class="d-flex justify-space-between align-center mb-2">
-                        <div>
-                          <v-chip size="small" :color="fieldStat.fieldType === 'select' ? 'primary' : 'success'" class="mb-2">
-                            {{ fieldStat.fieldType === 'select' ? 'Selección' : 'Múltiple' }}
-                          </v-chip>
-                          <div class="text-caption text-grey">Total de respuestas: {{ fieldStat.totalResponses }}</div>
-                        </div>
+                      <h3 class="text-h5 font-weight-bold mb-4">Mapas de Geolocalización{{ getDateFilterText() }}</h3>
+
+                      <div v-for="field in geolocationFields" :key="field.id" class="mb-6">
+                        <v-card variant="outlined">
+                          <v-card-title class="text-subtitle-1">
+                            {{ field.label }}
+                            <v-chip size="small" color="info" class="ml-2">
+                              {{ geolocationResponses(field.id).length }} ubicaciones
+                            </v-chip>
+                          </v-card-title>
+                          <v-card-text>
+                            <GeolocationMap :locations="geolocationResponses(field.id)" height="500px" />
+                          </v-card-text>
+                        </v-card>
                       </div>
-                      <VueApexCharts
-                        type="bar"
-                        height="300"
-                        :options="getChartOptionsForField(fieldStat)"
-                        :series="getChartSeriesForField(fieldStat)"
-                      />
                     </v-card-text>
                   </v-card>
                 </v-col>
               </v-row>
-            </div>
 
-            <!-- Mensaje cuando el formulario no tiene campos select/checkbox -->
-            <div v-else-if="selectedFormDetails && fieldResponseStats.length === 0" class="text-center py-8 text-grey">
-              <v-icon size="48" color="grey-lighten-1">mdi-chart-box-outline</v-icon>
-              <p class="mt-2">Este formulario no tiene campos de tipo selección o múltiple</p>
+              <!-- Gráficas de campos select/checkbox -->
+              <div v-if="fieldResponseStats.length > 0">
+                <v-row>
+                  <v-col
+                    v-for="fieldStat in fieldResponseStats"
+                    :key="fieldStat.fieldId"
+                    cols="12"
+                    :md="fieldResponseStats.length === 1 ? 12 : 6"
+                  >
+                    <v-card variant="outlined" class="mb-4">
+                      <v-card-text>
+                        <div class="d-flex justify-space-between align-center mb-2">
+                          <div>
+                            <v-chip size="small" :color="fieldStat.fieldType === 'select' ? 'primary' : 'success'" class="mb-2">
+                              {{ fieldStat.fieldType === 'select' ? 'Selección' : 'Múltiple' }}
+                            </v-chip>
+                            <div class="text-caption text-grey">Total de respuestas: {{ fieldStat.totalResponses }}</div>
+                          </div>
+                        </div>
+                        <VueApexCharts
+                          type="bar"
+                          height="300"
+                          :options="getChartOptionsForField(fieldStat)"
+                          :series="getChartSeriesForField(fieldStat)"
+                        />
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </div>
+
+              <!-- Mensaje cuando no hay campos para mostrar -->
+              <div v-if="geolocationFields.length === 0 && fieldResponseStats.length === 0" class="text-center py-8 text-grey">
+                <v-icon size="48" color="grey-lighten-1">mdi-chart-box-outline</v-icon>
+                <p class="mt-2">Este formulario no tiene campos de tipo selección, múltiple o geolocalización</p>
+              </div>
             </div>
 
             <!-- Mensaje cuando no hay formulario seleccionado -->

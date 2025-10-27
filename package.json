@@ -24,6 +24,7 @@
     "@formkit/pro": "^0.127.23",
     "@formkit/themes": "^1.6.9",
     "@formkit/vue": "^1.6.9",
+    "@googlemaps/js-api-loader": "^2.0.1",
     "@mdi/font": "^7.4.47",
     "@mdi/js": "^7.4.47",
     "@selemondev/vue3-signature-pad": "^1.4.0",
