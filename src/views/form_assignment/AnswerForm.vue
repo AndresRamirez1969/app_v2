@@ -508,6 +508,7 @@ import { useToast } from 'vue-toastification';
 import { convertoToString } from '@/utils/helpers/formHelper';
 import SignaturePad from '@/styles/SignaturePad.vue';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
+import imageCompression from 'browser-image-compression';
 
 const toast = useToast();
 const router = useRouter();
@@ -606,7 +607,7 @@ const triggerCamera = (fieldId) => {
   }
 };
 
-const onCameraCapture = (fieldId, evt) => {
+const onCameraCapture = async (fieldId, evt) => {
   let capturedFiles = normalizeEventFiles(evt);
   if (capturedFiles.length === 0) return;
 
@@ -614,6 +615,17 @@ const onCameraCapture = (fieldId, evt) => {
   const maxFiles = field?.attributes?.max_files || 4;
 
   const current = Array.isArray(fileData[fieldId]) ? fileData[fieldId] : [];
+
+  // Comprimir fotos capturadas
+  capturedFiles = await Promise.all(
+    capturedFiles.map((file) => {
+      if (file && file.type && file.type.startsWith('image/')) {
+        return compressImage(file);
+      }
+      return file;
+    })
+  );
+
   let combined = [...current, ...capturedFiles];
 
   combined = combined.filter((f, idx, arr) => f && arr.findIndex((x) => x && x.name === f.name && x.size === f.size) === idx);
@@ -793,24 +805,55 @@ const normalizeEventFiles = (evt) => {
 };
 
 const getImagePreview = (file) => {
-  if (!file) return '';
-  if (file.previewUrl) return file.previewUrl;
+  if (!file) {
+    return '';
+  }
+
+  if (file.previewUrl) {
+    return file.previewUrl;
+  }
+
   if (file instanceof File) {
     const url = URL.createObjectURL(file);
-    file.previewUrl = url;
+
+    Object.defineProperty(file, 'previewUrl', {
+      value: url,
+      writable: true,
+      configurable: true
+    });
+
     return url;
   }
-  if (typeof file === 'object' && file.url) return file.url;
-  if (typeof file === 'string') return file;
+
+  if (typeof file === 'object' && file.url) {
+    return file.url;
+  }
+  if (typeof file === 'string') {
+    return file;
+  }
+  console.log('no se pudo obtener previewUrl');
   return '';
 };
 
-const onFilesSelected = (fieldId, evt) => {
+const onFilesSelected = async (fieldId, evt) => {
   let selected = normalizeEventFiles(evt);
   const field = form.value.fields.find((f) => f.id == fieldId);
   const maxFiles = field?.attributes?.max_files || (field.type === 'document' ? 2 : 4);
 
   const current = Array.isArray(fileData[fieldId]) ? fileData[fieldId] : [];
+
+  // Comprimir imágenes antes de agregarlas
+  if (field.type === 'image' || field.type === 'file') {
+    selected = await Promise.all(
+      selected.map((file) => {
+        if (file && file.type && file.type.startsWith('image/')) {
+          return compressImage(file);
+        }
+        return file;
+      })
+    );
+  }
+
   let combined = [...current, ...selected];
 
   combined = combined.filter((f, idx, arr) => f && arr.findIndex((x) => x && x.name === f.name && x.size === f.size) === idx);
@@ -839,7 +882,7 @@ const clearFiles = (fieldId) => {
   bumpVersion(fieldId);
 };
 
-const onEvidenceSelected = (fieldId, evt) => {
+const onEvidenceSelected = async (fieldId, evt) => {
   let selected = normalizeEventFiles(evt);
   const maxFiles = 4;
 
@@ -858,6 +901,16 @@ const onEvidenceSelected = (fieldId, evt) => {
       }
       return file;
     });
+
+  // Comprimir todas las imágenes de evidencia
+  selected = await Promise.all(
+    selected.map((file) => {
+      if (file && file.type && file.type.startsWith('image/')) {
+        return compressImage(file);
+      }
+      return file;
+    })
+  );
 
   const current = Array.isArray(evidenceData[fieldId]) ? evidenceData[fieldId] : [];
   let combined = [...current, ...selected];
@@ -886,6 +939,28 @@ const imageModal = reactive({
 const openImageModal = (src) => {
   imageModal.src = src;
   imageModal.open = true;
+};
+
+const compressImage = async (file) => {
+  const options = {
+    maxSizeMB: 1,
+    maxWidthOrHeight: 1920,
+    useWebWorker: true,
+    fileType: file.type
+  };
+
+  try {
+    const compressedFile = await imageCompression(file, options);
+
+    if (!compressedFile.previewUrl) {
+      compressedFile.previewUrl = URL.createObjectURL(compressedFile);
+    }
+
+    return compressedFile;
+  } catch (error) {
+    console.error('Error al comprimir imagen:', error);
+    return file;
+  }
 };
 
 const handleSignature = (fieldId, signatureBlob) => {
