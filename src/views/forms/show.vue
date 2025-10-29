@@ -65,6 +65,12 @@
                 </template>
                 <v-list-item-title>Borrador</v-list-item-title>
               </v-list-item>
+              <v-list-item v-if="isSuperadmin" @click="deleteFormResponses">
+                <template #prepend>
+                  <v-icon :icon="mdiDelete" size="18" />
+                </template>
+                <v-list-item-title>Borrar Respuestas</v-list-item-title>
+              </v-list-item>
             </v-list>
           </v-menu>
           <v-menu location="bottom end" v-else>
@@ -486,7 +492,7 @@ import {
   mdiDotsHorizontal,
   mdiPlus,
   mdiFormTextbox,
-  mdiEye,
+  mdiDelete,
   mdiPublish,
   mdiArchive
 } from '@mdi/js';
@@ -494,13 +500,14 @@ import StatusChip from '@/components/status/StatusChip.vue';
 import { useAuthStore } from '@/stores/auth';
 import AddFieldsFormModal from './AddFieldsFormModal.vue';
 import { AVAILABLE_FIELDS, FIELD_COLOR } from '@/constants/fieldTypes';
+import { useToast } from 'vue-toastification';
 
 const router = useRouter();
 const route = useRoute();
 const { mdAndDown } = useDisplay();
 const formData = ref(null);
 const auth = useAuthStore();
-
+const toast = useToast();
 const showAddFieldsModal = ref(false);
 const showForm = ref(true);
 
@@ -689,6 +696,22 @@ const changeFormStatus = async (targetStatus) => {
       alert(error.response.data.message);
     } else {
       alert('Error al actualizar el estado del formulario');
+    }
+  }
+};
+
+const deleteFormResponses = async () => {
+  try {
+    const res = await axiosInstance.delete(`/forms/${formData.value.id}/responses`);
+    if (res.data && res.data.form) {
+      formData.value.status = res.data.form.status;
+    }
+    toast.success('Respuestas borradas correctamente');
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      alert(error.response.data.message);
+    } else {
+      alert('Error al borrar las respuestas del formulario');
     }
   }
 };
