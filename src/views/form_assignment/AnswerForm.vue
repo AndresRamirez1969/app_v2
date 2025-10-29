@@ -942,6 +942,8 @@ const openImageModal = (src) => {
 };
 
 const compressImage = async (file) => {
+  console.log('Compresión de archivo:', file.name, file.type);
+
   const options = {
     maxSizeMB: 1,
     maxWidthOrHeight: 1920,
@@ -950,13 +952,27 @@ const compressImage = async (file) => {
   };
 
   try {
-    const compressedFile = await imageCompression(file, options);
+    const compressedBlob = await imageCompression(file, options);
 
-    if (!compressedFile.previewUrl) {
-      compressedFile.previewUrl = URL.createObjectURL(compressedFile);
+    const originalName = file.name;
+    const mimeType = file.type;
+
+    const finalFile = new File([compressedBlob], originalName, {
+      type: mimeType,
+      lastModified: Date.now()
+    });
+
+    if (!finalFile.previewUrl) {
+      finalFile.previewUrl = URL.createObjectURL(finalFile);
     }
 
-    return compressedFile;
+    console.log('Archivo comprimido:', {
+      nombre: finalFile.name,
+      tamaño: finalFile.size,
+      tipo: finalFile.type
+    });
+
+    return finalFile;
   } catch (error) {
     console.error('Error al comprimir imagen:', error);
     return file;
