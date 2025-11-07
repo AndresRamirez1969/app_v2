@@ -110,7 +110,7 @@
       <v-btn color="primary" class="mt-4" @click="showForm">Reintentar</v-btn>
     </div>
 
-    <!-- Segunda fila: preguntas (cada pregunta en su propio card) -->
+    <!-- Segunda fila: preguntas (cada pregunta en su propio card o grupo) -->
     <template v-else>
       <v-row>
         <v-col cols="12">
@@ -120,348 +120,770 @@
               <p class="mt-4">Cargando formulario...</p>
             </div>
 
-            <div v-else-if="form && form.fields && form.fields.length">
-              <div v-for="(field, index) in visibleFields" :key="field.id" class="mb-4">
-                <v-card class="rounded-lg elevation-1 pa-0 card-business-unit">
-                  <v-row no-gutters>
-                    <v-col
-                      cols="auto"
-                      class="d-flex align-center justify-center question-number-desktop"
-                      style="min-width: 48px; max-width: 64px; background: #f5f5f5"
-                    >
-                      <div class="text-h6 font-weight-bold" style="width: 100%; text-align: center">
-                        {{ index + 1 }}
-                      </div>
-                    </v-col>
-                    <v-col>
-                      <div class="question-number-mobile mb-2">
-                        <div class="text-h6 font-weight-bold question-number-mobile-inner">
-                          {{ index + 1 }}
+            <div v-else-if="orderedFieldsAndGroups.length">
+              <div v-for="(item, idx) in orderedFieldsAndGroups" :key="item.key" class="mb-4">
+                <!-- Pregunta suelta -->
+                <template v-if="item.type === 'field'">
+                  <v-card class="rounded-lg elevation-1 pa-0 card-business-unit">
+                    <v-row no-gutters>
+                      <v-col
+                        cols="auto"
+                        class="d-flex align-center justify-center question-number-desktop"
+                        style="min-width: 48px; max-width: 64px; background: #f5f5f5"
+                      >
+                        <div class="text-h6 font-weight-bold" style="width: 100%; text-align: center">
+                          {{ idx + 1 }}
                         </div>
-                      </div>
-                      <v-card-text>
-                        <v-label class="mb-2 field-label">
-                          {{ field.label }}
-                          <span v-if="field.is_required" class="required-asterisk">*</span>
-                          <span v-if="field.score" class="ml-2 text-caption text-grey" style="font-weight: normal">
-                            ({{ field.score }} pts)
-                          </span>
-                        </v-label>
-
-                        <div
-                          v-if="field.description"
-                          class="field-description mb-2"
-                          style="white-space: pre-line; display: flex; align-items: flex-start; gap: 0.4em"
-                        >
-                          <v-icon size="16" color="grey" class="mr-1">mdi-information-outline</v-icon>
-                          {{ field.description }}
+                      </v-col>
+                      <v-col>
+                        <div class="question-number-mobile mb-2">
+                          <div class="text-h6 font-weight-bold question-number-mobile-inner">
+                            {{ idx + 1 }}
+                          </div>
                         </div>
+                        <v-card-text>
+                          <v-label class="mb-2 field-label">
+                            {{ item.field.label }}
+                            <span v-if="item.field.is_required" class="required-asterisk">*</span>
+                            <span v-if="item.field.score" class="ml-2 text-caption text-grey" style="font-weight: normal">
+                              ({{ item.field.score }} pts)
+                            </span>
+                          </v-label>
 
-                        <!-- Si el campo requiere evidencia -->
-                        <template v-if="field.has_evidence">
-                          <div class="mb-4">
-                            <component
-                              :key="'field-' + field.id"
-                              v-if="
-                                field.type !== 'image' &&
-                                field.type !== 'document' &&
-                                field.type !== 'signature' &&
-                                field.type !== 'geolocation'
-                              "
-                              :is="FIELD_TYPES(field)"
-                              v-bind="{ ...getFieldProps(field), label: undefined }"
-                              v-model="formData[field.id]"
-                              :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
-                            />
-                          </div>
-                          <div>
-                            <v-file-input
-                              :key="fileVersion[`evidence-${field.id}`] || 0"
-                              :model-value="evidenceData[field.id] || []"
-                              accept="image/jpeg,image/png,image/jpg"
-                              capture
-                              multiple
-                              :counter="true"
-                              :show-size="true"
-                              :rules="[(v) => !field.is_required || evidenceData[field.id]?.length >= 1 || '']"
-                              variant="outlined"
-                              :chips="true"
-                              :clearable="true"
-                              label="Adjuntar evidencia"
-                              :messages="['Solo se permiten imágenes: JPG, JPEG, PNG. Máx total: 20MB.']"
-                              @change="onEvidenceSelected(field.id, $event)"
-                              @click:clear="
-                                () => {
-                                  evidenceData[field.id] = [];
-                                  bumpVersion(`evidence-${field.id}`);
-                                }
-                              "
-                            />
-                            <!-- Previsualización de imágenes de evidencia -->
-                            <div v-if="filteredEvidence(field.id).length" class="d-flex flex-wrap mt-3 image-preview-row">
-                              <div
-                                v-for="(file, idx) in filteredEvidence(field.id)"
-                                :key="'evidence-' + (file?.name || file?.url || file) + idx"
-                                style="position: relative; width: 120px; height: 120px; cursor: pointer"
-                                @click="openImageModal(getImagePreview(file))"
-                              >
-                                <img
-                                  :src="getImagePreview(file)"
-                                  :alt="file.name || 'evidencia'"
-                                  style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
-                                />
-                                <!-- Eliminada la tachita de eliminar -->
-                              </div>
-                            </div>
-                            <!-- Imágenes del campo imagen (cuando el campo es tipo imagen y tiene evidencia) -->
-                            <div
-                              v-if="field.type === 'image' && fileData[field.id]?.length"
-                              class="d-flex flex-wrap mt-3 image-preview-row"
-                            >
-                              <div
-                                v-for="(file, idx) in fileData[field.id]"
-                                :key="'file-' + (file?.name || idx)"
-                                style="position: relative; width: 120px; height: 120px; cursor: pointer"
-                                @click="openImageModal(getImagePreview(file))"
-                              >
-                                <img
-                                  :src="getImagePreview(file)"
-                                  :alt="file?.name"
-                                  style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
-                                />
-                                <v-btn
-                                  icon
-                                  size="x-small"
-                                  color="red"
-                                  style="position: absolute; top: 2px; right: 2px; z-index: 2; background: #fff"
-                                  @click.stop="removeFile(field.id, idx)"
-                                >
-                                  <v-icon size="16">mdi-close</v-icon>
-                                </v-btn>
-                              </div>
-                            </div>
-                          </div>
-                        </template>
-
-                        <!-- Si no tiene evidencia, render normal -->
-                        <template v-else>
-                          <!-- Campo Imagen -->
-                          <div v-if="field.type === 'image'" class="d-flex flex-column align-stretch">
-                            <!-- Input tradicional (siempre visible) -->
-                            <v-file-input
-                              :key="fileVersion[field.id] || 0"
-                              :model-value="fileData[field.id] || []"
-                              accept="image/*"
-                              multiple
-                              :counter="true"
-                              :show-size="true"
-                              :rules="[
-                                (v) =>
-                                  !field.is_required ||
-                                  (fileData[field.id]?.length >= 1 && fileData[field.id]?.length <= (field.attributes?.max_files || 4)) ||
-                                  ''
-                              ]"
-                              @change="onFilesSelected(field.id, $event)"
-                              variant="outlined"
-                              :chips="true"
-                              :clearable="true"
-                              class="w-100"
-                              @click:clear="clearFiles(field.id)"
-                            />
-
-                            <!-- Botón adicional para tomar foto (solo en móvil) -->
-                            <v-btn
-                              v-if="isMobile"
-                              variant="outlined"
-                              color="primary"
-                              :prepend-icon="mdiCamera"
-                              @click="triggerCamera(field.id)"
-                              class="w-100 mt-2"
-                            >
-                              Tomar foto con cámara
-                            </v-btn>
-
-                            <!-- Input oculto para cámara (solo en móvil) -->
-                            <input
-                              v-if="isMobile"
-                              :id="`camera-${field.id}`"
-                              type="file"
-                              accept="image/*"
-                              capture="environment"
-                              style="display: none"
-                              @change="onCameraCapture(field.id, $event)"
-                            />
-
-                            <!-- Previsualización de imágenes -->
-                            <div v-if="fileData[field.id]?.length" class="d-flex flex-wrap mt-3 image-preview-row">
-                              <div
-                                v-for="(file, idx) in fileData[field.id]"
-                                :key="file?.name + idx"
-                                style="position: relative; width: 120px; height: 120px; cursor: pointer"
-                                @click="openImageModal(getImagePreview(file))"
-                              >
-                                <img
-                                  :src="getImagePreview(file)"
-                                  :alt="file?.name"
-                                  style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
-                                />
-                              </div>
-                            </div>
+                          <div
+                            v-if="item.field.description"
+                            class="field-description mb-2"
+                            style="white-space: pre-line; display: flex; align-items: flex-start; gap: 0.4em"
+                          >
+                            <v-icon size="16" color="grey" class="mr-1">mdi-information-outline</v-icon>
+                            {{ item.field.description }}
                           </div>
 
-                          <!-- Campo Documento -->
-                          <div v-else-if="field.type === 'document'" class="d-flex align-center">
-                            <v-file-input
-                              :key="fileVersion[field.id] || 0"
-                              :model-value="fileData[field.id] || []"
-                              accept="application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                              multiple
-                              :counter="true"
-                              :show-size="true"
-                              :rules="[
-                                (v) =>
-                                  !field.is_required ||
-                                  (fileData[field.id]?.length >= 1 && fileData[field.id]?.length <= (field.attributes?.max_files || 2)) ||
-                                  ''
-                              ]"
-                              @change="onFilesSelected(field.id, $event)"
-                              variant="outlined"
-                              :chips="true"
-                              :clearable="true"
-                              class="flex-grow-1"
-                              @click:clear="clearFiles(field.id)"
-                            />
-                          </div>
-
-                          <!-- Campo Checkbox -->
-                          <div v-else-if="field.type === 'checkbox'">
-                            <div class="checkbox-group">
-                              <v-checkbox
-                                v-for="option in field.options"
-                                :key="option"
-                                :label="option"
-                                :value="option"
-                                v-model="formData[field.id]"
-                                class="ml-4"
+                          <!-- Si el campo requiere evidencia -->
+                          <template v-if="item.field.has_evidence">
+                            <div class="mb-4">
+                              <component
+                                :key="'field-' + item.field.id"
+                                v-if="
+                                  item.field.type !== 'image' &&
+                                  item.field.type !== 'document' &&
+                                  item.field.type !== 'signature' &&
+                                  item.field.type !== 'geolocation'
+                                "
+                                :is="FIELD_TYPES(item.field)"
+                                v-bind="{ ...getFieldProps(item.field), label: undefined }"
+                                v-model="formData[item.field.id]"
+                                :rules="item.field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
                               />
                             </div>
-                            <div v-if="triedSubmit && field.is_required && !formData[field.id]?.length" class="text-caption text-red mt-1">
-                              Este campo es requerido
-                            </div>
-                          </div>
-
-                          <!-- Campo Firma -->
-                          <div v-else-if="field.type === 'signature'">
-                            <div class="signature-container">
-                              <SignaturePad
-                                :ref="
-                                  (el) => {
-                                    if (el) signatureRefs[field.id] = [el];
+                            <div>
+                              <v-file-input
+                                :key="fileVersion[`evidence-${item.field.id}`] || 0"
+                                :model-value="evidenceData[item.field.id] || []"
+                                accept="image/jpeg,image/png,image/jpg"
+                                capture
+                                multiple
+                                :counter="true"
+                                :show-size="true"
+                                :rules="[(v) => !item.field.is_required || evidenceData[item.field.id]?.length >= 1 || '']"
+                                variant="outlined"
+                                :chips="true"
+                                :clearable="true"
+                                label="Adjuntar evidencia"
+                                :messages="['Solo se permiten imágenes: JPG, JPEG, PNG. Máx total: 20MB.']"
+                                @change="onEvidenceSelected(item.field.id, $event)"
+                                @click:clear="
+                                  () => {
+                                    evidenceData[item.field.id] = [];
+                                    bumpVersion(`evidence-${item.field.id}`);
                                   }
                                 "
-                                @signature-changed="(signatureBlob) => handleSignature(field.id, signatureBlob)"
                               />
-                              <div class="d-flex flex-wrap justify-end mt-2" v-if="signatureData[field.id]?.length">
-                                <div class="mr-2 mb-2" v-for="(file, idx) in signatureData[field.id]" :key="idx">
-                                  <v-chip
-                                    color="green"
-                                    class="mr-1"
-                                    size="small"
-                                    closable
-                                    :ripple="false"
-                                    @mousedown.stop.prevent
-                                    @click:close.stop="handleClearSignature(field.id, idx)"
+                              <!-- Previsualización de imágenes de evidencia -->
+                              <div v-if="filteredEvidence(item.field.id).length" class="d-flex flex-wrap mt-3 image-preview-row">
+                                <div
+                                  v-for="(file, idx) in filteredEvidence(item.field.id)"
+                                  :key="'evidence-' + (file?.name || file?.url || file) + idx"
+                                  style="position: relative; width: 120px; height: 120px; cursor: pointer"
+                                  @click="openImageModal(getImagePreview(file))"
+                                >
+                                  <img
+                                    :src="getImagePreview(file)"
+                                    :alt="file.name || 'evidencia'"
+                                    style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
+                                  />
+                                </div>
+                              </div>
+                              <!-- Imágenes del campo imagen (cuando el campo es tipo imagen y tiene evidencia) -->
+                              <div
+                                v-if="item.field.type === 'image' && fileData[item.field.id]?.length"
+                                class="d-flex flex-wrap mt-3 image-preview-row"
+                              >
+                                <div
+                                  v-for="(file, idx) in fileData[item.field.id]"
+                                  :key="'file-' + (file?.name || idx)"
+                                  style="position: relative; width: 120px; height: 120px; cursor: pointer"
+                                  @click="openImageModal(getImagePreview(file))"
+                                >
+                                  <img
+                                    :src="getImagePreview(file)"
+                                    :alt="file?.name"
+                                    style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
+                                  />
+                                  <v-btn
+                                    icon
+                                    size="x-small"
+                                    color="red"
+                                    style="position: absolute; top: 2px; right: 2px; z-index: 2; background: #fff"
+                                    @click.stop="removeFile(item.field.id, idx)"
                                   >
-                                    <span>{{ file.name }}</span>
-                                  </v-chip>
+                                    <v-icon size="16">mdi-close</v-icon>
+                                  </v-btn>
                                 </div>
                               </div>
                             </div>
-                            <div
-                              v-if="triedSubmit && field.is_required && (!signatureData[field.id] || signatureData[field.id].length < 1)"
-                              class="text-caption text-red mt-1"
-                            >
-                              Adjunta al menos una firma
-                            </div>
-                          </div>
+                          </template>
 
-                          <!-- Campo Semáforo (chips, texto centrado) -->
-                          <div v-else-if="isSemaforo(field)">
-                            <div class="semaforo-chips-row">
-                              <v-chip
-                                v-for="option in field.options"
-                                :key="option"
-                                pill
-                                variant="flat"
-                                class="semaforo-chip"
-                                :style="chipStyleFilled(option, formData[field.id] === option)"
-                                @click="formData[field.id] = option"
-                                :ripple="false"
+                          <!-- Si no tiene evidencia, render normal -->
+                          <template v-else>
+                            <!-- Campo Imagen -->
+                            <div v-if="item.field.type === 'image'" class="d-flex flex-column align-stretch">
+                              <v-file-input
+                                :key="fileVersion[item.field.id] || 0"
+                                :model-value="fileData[item.field.id] || []"
+                                accept="image/*"
+                                multiple
+                                :counter="true"
+                                :show-size="true"
+                                :rules="[
+                                  (v) =>
+                                    !item.field.is_required ||
+                                    (fileData[item.field.id]?.length >= 1 &&
+                                      fileData[item.field.id]?.length <= (item.field.attributes?.max_files || 4)) ||
+                                    ''
+                                ]"
+                                @change="onFilesSelected(item.field.id, $event)"
+                                variant="outlined"
+                                :chips="true"
+                                :clearable="true"
+                                class="w-100"
+                                @click:clear="clearFiles(item.field.id)"
+                              />
+
+                              <v-btn
+                                v-if="isMobile"
+                                variant="outlined"
+                                color="primary"
+                                :prepend-icon="mdiCamera"
+                                @click="triggerCamera(item.field.id)"
+                                class="w-100 mt-2"
                               >
-                                <span class="semaforo-chip-grid">
-                                  <span class="semaforo-check-left"></span>
-                                  <span class="semaforo-text">{{ option }}</span>
-                                  <span class="semaforo-check-right">
-                                    <v-icon v-if="formData[field.id] === option" size="16">mdi-check</v-icon>
+                                Tomar foto con cámara
+                              </v-btn>
+
+                              <input
+                                v-if="isMobile"
+                                :id="`camera-${item.field.id}`"
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                style="display: none"
+                                @change="onCameraCapture(item.field.id, $event)"
+                              />
+
+                              <div v-if="fileData[item.field.id]?.length" class="d-flex flex-wrap mt-3 image-preview-row">
+                                <div
+                                  v-for="(file, idx) in fileData[item.field.id]"
+                                  :key="file?.name + idx"
+                                  style="position: relative; width: 120px; height: 120px; cursor: pointer"
+                                  @click="openImageModal(getImagePreview(file))"
+                                >
+                                  <img
+                                    :src="getImagePreview(file)"
+                                    :alt="file?.name"
+                                    style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <!-- Campo Documento -->
+                            <div v-else-if="item.field.type === 'document'" class="d-flex align-center">
+                              <v-file-input
+                                :key="fileVersion[item.field.id] || 0"
+                                :model-value="fileData[item.field.id] || []"
+                                accept="application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                                multiple
+                                :counter="true"
+                                :show-size="true"
+                                :rules="[
+                                  (v) =>
+                                    !item.field.is_required ||
+                                    (fileData[item.field.id]?.length >= 1 &&
+                                      fileData[item.field.id]?.length <= (item.field.attributes?.max_files || 2)) ||
+                                    ''
+                                ]"
+                                @change="onFilesSelected(item.field.id, $event)"
+                                variant="outlined"
+                                :chips="true"
+                                :clearable="true"
+                                class="flex-grow-1"
+                                @click:clear="clearFiles(item.field.id)"
+                              />
+                            </div>
+
+                            <!-- Campo Checkbox -->
+                            <div v-else-if="item.field.type === 'checkbox'">
+                              <div class="checkbox-group">
+                                <v-checkbox
+                                  v-for="option in item.field.options"
+                                  :key="option"
+                                  :label="option"
+                                  :value="option"
+                                  v-model="formData[item.field.id]"
+                                  class="ml-4"
+                                />
+                              </div>
+                              <div
+                                v-if="triedSubmit && item.field.is_required && !formData[item.field.id]?.length"
+                                class="text-caption text-red mt-1"
+                              >
+                                Este campo es requerido
+                              </div>
+                            </div>
+
+                            <!-- Campo Firma -->
+                            <div v-else-if="item.field.type === 'signature'">
+                              <div class="signature-container">
+                                <SignaturePad
+                                  :ref="
+                                    (el) => {
+                                      if (el) signatureRefs[item.field.id] = [el];
+                                    }
+                                  "
+                                  @signature-changed="(signatureBlob) => handleSignature(item.field.id, signatureBlob)"
+                                />
+                                <div class="d-flex flex-wrap justify-end mt-2" v-if="signatureData[item.field.id]?.length">
+                                  <div class="mr-2 mb-2" v-for="(file, idx) in signatureData[item.field.id]" :key="idx">
+                                    <v-chip
+                                      color="green"
+                                      class="mr-1"
+                                      size="small"
+                                      closable
+                                      :ripple="false"
+                                      @mousedown.stop.prevent
+                                      @click:close.stop="handleClearSignature(item.field.id, idx)"
+                                    >
+                                      <span>{{ file.name }}</span>
+                                    </v-chip>
+                                  </div>
+                                </div>
+                              </div>
+                              <div
+                                v-if="
+                                  triedSubmit &&
+                                  item.field.is_required &&
+                                  (!signatureData[item.field.id] || signatureData[item.field.id].length < 1)
+                                "
+                                class="text-caption text-red mt-1"
+                              >
+                                Adjunta al menos una firma
+                              </div>
+                            </div>
+
+                            <!-- Campo Semáforo (chips, texto centrado) -->
+                            <div v-else-if="isSemaforo(item.field)">
+                              <div class="semaforo-chips-row">
+                                <v-chip
+                                  v-for="option in item.field.options"
+                                  :key="option"
+                                  pill
+                                  variant="flat"
+                                  class="semaforo-chip"
+                                  :style="chipStyleFilled(option, formData[item.field.id] === option)"
+                                  @click="formData[item.field.id] = option"
+                                  :ripple="false"
+                                >
+                                  <span class="semaforo-chip-grid">
+                                    <span class="semaforo-check-left"></span>
+                                    <span class="semaforo-text">{{ option }}</span>
+                                    <span class="semaforo-check-right">
+                                      <v-icon v-if="formData[item.field.id] === option" size="16">mdi-check</v-icon>
+                                    </span>
                                   </span>
-                                </span>
-                              </v-chip>
+                                </v-chip>
+                              </div>
+                              <div
+                                v-if="triedSubmit && item.field.is_required && !formData[item.field.id]"
+                                class="text-caption text-red mt-1"
+                              >
+                                Este campo es requerido
+                              </div>
                             </div>
-                            <div v-if="triedSubmit && field.is_required && !formData[field.id]" class="text-caption text-red mt-1">
-                              Este campo es requerido
+
+                            <!-- Campo Radio (cuando NO es semáforo) -->
+                            <div v-else-if="item.field.type === 'radio'">
+                              <v-radio-group
+                                v-model="formData[item.field.id]"
+                                :rules="item.field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
+                              >
+                                <v-radio v-for="option in item.field.options" :key="option" :label="option" :value="option" class="ml-4" />
+                              </v-radio-group>
                             </div>
-                          </div>
 
-                          <!-- Campo Radio (cuando NO es semáforo) -->
-                          <div v-else-if="field.type === 'radio'">
-                            <v-radio-group
-                              v-model="formData[field.id]"
-                              :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
-                            >
-                              <v-radio v-for="option in field.options" :key="option" :label="option" :value="option" class="ml-4" />
-                            </v-radio-group>
-                          </div>
+                            <!-- Campo geolocalización manual -->
+                            <div v-else-if="item.field.type === 'geolocation' && item.field.attributes?.mode === 'manual'">
+                              <AddressAutocomplete
+                                :initialValue="formData[item.field.id]"
+                                mode="create"
+                                :addressError="
+                                  triedSubmit && item.field.is_required && !isGeolocationManualValid(formData[item.field.id])
+                                    ? 'Este campo es requerido'
+                                    : ''
+                                "
+                                @update:parsedAddress="(val) => handleGeolocationManual(item.field.id, val)"
+                              />
+                              <div
+                                v-if="triedSubmit && item.field.is_required && !isGeolocationManualValid(formData[item.field.id])"
+                                class="text-caption text-red mt-1"
+                              >
+                                Este campo es requerido
+                              </div>
+                            </div>
 
-                          <!-- Campo geolocalización manual -->
-                          <div v-else-if="field.type === 'geolocation' && field.attributes?.mode === 'manual'">
-                            <AddressAutocomplete
-                              :initialValue="formData[field.id]"
-                              mode="create"
-                              :addressError="
-                                triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])
-                                  ? 'Este campo es requerido'
-                                  : ''
+                            <!-- Otros campos -->
+                            <component
+                              v-else-if="
+                                item.field.type !== 'image' &&
+                                item.field.type !== 'document' &&
+                                item.field.type !== 'checkbox' &&
+                                item.field.type !== 'radio' &&
+                                item.field.type !== 'signature' &&
+                                item.field.type !== 'geolocation'
                               "
-                              @update:parsedAddress="(val) => handleGeolocationManual(field.id, val)"
+                              :is="FIELD_TYPES(item.field)"
+                              v-bind="{ ...getFieldProps(item.field), label: undefined }"
+                              v-model="formData[item.field.id]"
+                              :rules="item.field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
                             />
-                            <div
-                              v-if="triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])"
-                              class="text-caption text-red mt-1"
-                            >
-                              Este campo es requerido
+                          </template>
+                        </v-card-text>
+                      </v-col>
+                    </v-row>
+                  </v-card>
+                </template>
+
+                <!-- Grupo de preguntas -->
+                <template v-else-if="item.type === 'group'">
+                  <v-card class="rounded-lg elevation-1 pa-0 card-business-unit">
+                    <v-row no-gutters>
+                      <v-col
+                        cols="auto"
+                        class="d-flex align-center justify-center question-number-desktop"
+                        style="min-width: 48px; max-width: 64px; background: #f5f5f5"
+                      >
+                        <div class="text-h6 font-weight-bold" style="width: 100%; text-align: center">{{ idx + 1 }}</div>
+                      </v-col>
+                      <v-col>
+                        <!-- Número del grupo en mobile -->
+                        <div class="question-number-mobile mb-2">
+                          <div class="text-h6 font-weight-bold question-number-mobile-inner">
+                            {{ idx + 1 }}
+                          </div>
+                        </div>
+                        <v-card-title
+                          class="d-flex align-center justify-space-between group-title-row"
+                          style="cursor: pointer; padding-bottom: 0; align-items: center"
+                          @click="toggleGroup(item.group.id)"
+                        >
+                          <v-label class="mb-2 field-label" style="margin-bottom: 0">
+                            {{ item.group.name }}
+                          </v-label>
+                          <v-icon
+                            :icon="expandedGroups[item.group.id] ? mdiChevronUp : mdiChevronDown"
+                            size="20"
+                            style="margin-left: 8px; vertical-align: middle"
+                          />
+                        </v-card-title>
+                        <v-expand-transition>
+                          <div v-show="expandedGroups[item.group.id]" class="pa-2">
+                            <div v-for="(field, gIdx) in item.group.fields" :key="field.id" class="mb-2">
+                              <v-card class="rounded-lg elevation-0 pa-0">
+                                <v-row no-gutters>
+                                  <v-col
+                                    cols="auto"
+                                    class="d-flex align-center justify-center question-number-desktop"
+                                    style="min-width: 36px; max-width: 48px; background: #f5f5f5"
+                                  >
+                                    <div class="text-h6 font-weight-bold" style="width: 100%; text-align: center">
+                                      {{ idx + 1 }}.{{ gIdx + 1 }}
+                                    </div>
+                                  </v-col>
+                                  <v-col>
+                                    <div class="question-number-mobile mb-2">
+                                      <div class="text-h6 font-weight-bold question-number-mobile-inner">{{ idx + 1 }}.{{ gIdx + 1 }}</div>
+                                    </div>
+                                    <v-card-text>
+                                      <v-label class="mb-2 field-label">
+                                        {{ field.label }}
+                                        <span v-if="field.is_required" class="required-asterisk">*</span>
+                                        <span v-if="field.score" class="ml-2 text-caption text-grey" style="font-weight: normal">
+                                          ({{ field.score }} pts)
+                                        </span>
+                                      </v-label>
+
+                                      <div
+                                        v-if="field.description"
+                                        class="field-description mb-2"
+                                        style="white-space: pre-line; display: flex; align-items: flex-start; gap: 0.4em"
+                                      >
+                                        <v-icon size="16" color="grey" class="mr-1">mdi-information-outline</v-icon>
+                                        {{ field.description }}
+                                      </div>
+
+                                      <!-- Si el campo requiere evidencia -->
+                                      <template v-if="field.has_evidence">
+                                        <div class="mb-4">
+                                          <component
+                                            :key="'field-' + field.id"
+                                            v-if="
+                                              field.type !== 'image' &&
+                                              field.type !== 'document' &&
+                                              field.type !== 'signature' &&
+                                              field.type !== 'geolocation'
+                                            "
+                                            :is="FIELD_TYPES(field)"
+                                            v-bind="{ ...getFieldProps(field), label: undefined }"
+                                            v-model="formData[field.id]"
+                                            :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
+                                          />
+                                        </div>
+                                        <div>
+                                          <v-file-input
+                                            :key="fileVersion[`evidence-${field.id}`] || 0"
+                                            :model-value="evidenceData[field.id] || []"
+                                            accept="image/jpeg,image/png,image/jpg"
+                                            capture
+                                            multiple
+                                            :counter="true"
+                                            :show-size="true"
+                                            :rules="[(v) => !field.is_required || evidenceData[field.id]?.length >= 1 || '']"
+                                            variant="outlined"
+                                            :chips="true"
+                                            :clearable="true"
+                                            label="Adjuntar evidencia"
+                                            :messages="['Solo se permiten imágenes: JPG, JPEG, PNG. Máx total: 20MB.']"
+                                            @change="onEvidenceSelected(field.id, $event)"
+                                            @click:clear="
+                                              () => {
+                                                evidenceData[field.id] = [];
+                                                bumpVersion(`evidence-${field.id}`);
+                                              }
+                                            "
+                                          />
+                                          <!-- Previsualización de imágenes de evidencia -->
+                                          <div v-if="filteredEvidence(field.id).length" class="d-flex flex-wrap mt-3 image-preview-row">
+                                            <div
+                                              v-for="(file, idx) in filteredEvidence(field.id)"
+                                              :key="'evidence-' + (file?.name || file?.url || file) + idx"
+                                              style="position: relative; width: 120px; height: 120px; cursor: pointer"
+                                              @click="openImageModal(getImagePreview(file))"
+                                            >
+                                              <img
+                                                :src="getImagePreview(file)"
+                                                :alt="file.name || 'evidencia'"
+                                                style="
+                                                  width: 100%;
+                                                  height: 100%;
+                                                  object-fit: cover;
+                                                  border-radius: 8px;
+                                                  border: 1px solid #eee;
+                                                "
+                                              />
+                                            </div>
+                                          </div>
+                                          <!-- Imágenes del campo imagen (cuando el campo es tipo imagen y tiene evidencia) -->
+                                          <div
+                                            v-if="field.type === 'image' && fileData[field.id]?.length"
+                                            class="d-flex flex-wrap mt-3 image-preview-row"
+                                          >
+                                            <div
+                                              v-for="(file, idx) in fileData[field.id]"
+                                              :key="'file-' + (file?.name || idx)"
+                                              style="position: relative; width: 120px; height: 120px; cursor: pointer"
+                                              @click="openImageModal(getImagePreview(file))"
+                                            >
+                                              <img
+                                                :src="getImagePreview(file)"
+                                                :alt="file?.name"
+                                                style="
+                                                  width: 100%;
+                                                  height: 100%;
+                                                  object-fit: cover;
+                                                  border-radius: 8px;
+                                                  border: 1px solid #eee;
+                                                "
+                                              />
+                                              <v-btn
+                                                icon
+                                                size="x-small"
+                                                color="red"
+                                                style="position: absolute; top: 2px; right: 2px; z-index: 2; background: #fff"
+                                                @click.stop="removeFile(field.id, idx)"
+                                              >
+                                                <v-icon size="16">mdi-close</v-icon>
+                                              </v-btn>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </template>
+
+                                      <!-- Si no tiene evidencia, render normal -->
+                                      <template v-else>
+                                        <!-- Campo Imagen -->
+                                        <div v-if="field.type === 'image'" class="d-flex flex-column align-stretch">
+                                          <v-file-input
+                                            :key="fileVersion[field.id] || 0"
+                                            :model-value="fileData[field.id] || []"
+                                            accept="image/*"
+                                            multiple
+                                            :counter="true"
+                                            :show-size="true"
+                                            :rules="[
+                                              (v) =>
+                                                !field.is_required ||
+                                                (fileData[field.id]?.length >= 1 &&
+                                                  fileData[field.id]?.length <= (field.attributes?.max_files || 4)) ||
+                                                ''
+                                            ]"
+                                            @change="onFilesSelected(field.id, $event)"
+                                            variant="outlined"
+                                            :chips="true"
+                                            :clearable="true"
+                                            class="w-100"
+                                            @click:clear="clearFiles(field.id)"
+                                          />
+
+                                          <v-btn
+                                            v-if="isMobile"
+                                            variant="outlined"
+                                            color="primary"
+                                            :prepend-icon="mdiCamera"
+                                            @click="triggerCamera(field.id)"
+                                            class="w-100 mt-2"
+                                          >
+                                            Tomar foto con cámara
+                                          </v-btn>
+
+                                          <input
+                                            v-if="isMobile"
+                                            :id="`camera-${field.id}`"
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            style="display: none"
+                                            @change="onCameraCapture(field.id, $event)"
+                                          />
+
+                                          <div v-if="fileData[field.id]?.length" class="d-flex flex-wrap mt-3 image-preview-row">
+                                            <div
+                                              v-for="(file, idx) in fileData[field.id]"
+                                              :key="file?.name + idx"
+                                              style="position: relative; width: 120px; height: 120px; cursor: pointer"
+                                              @click="openImageModal(getImagePreview(file))"
+                                            >
+                                              <img
+                                                :src="getImagePreview(file)"
+                                                :alt="file?.name"
+                                                style="
+                                                  width: 100%;
+                                                  height: 100%;
+                                                  object-fit: cover;
+                                                  border-radius: 8px;
+                                                  border: 1px solid #eee;
+                                                "
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <!-- Campo Documento -->
+                                        <div v-else-if="field.type === 'document'" class="d-flex align-center">
+                                          <v-file-input
+                                            :key="fileVersion[field.id] || 0"
+                                            :model-value="fileData[field.id] || []"
+                                            accept="application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                                            multiple
+                                            :counter="true"
+                                            :show-size="true"
+                                            :rules="[
+                                              (v) =>
+                                                !field.is_required ||
+                                                (fileData[field.id]?.length >= 1 &&
+                                                  fileData[field.id]?.length <= (field.attributes?.max_files || 2)) ||
+                                                ''
+                                            ]"
+                                            @change="onFilesSelected(field.id, $event)"
+                                            variant="outlined"
+                                            :chips="true"
+                                            :clearable="true"
+                                            class="flex-grow-1"
+                                            @click:clear="clearFiles(field.id)"
+                                          />
+                                        </div>
+
+                                        <!-- Campo Checkbox -->
+                                        <div v-else-if="field.type === 'checkbox'">
+                                          <div class="checkbox-group">
+                                            <v-checkbox
+                                              v-for="option in field.options"
+                                              :key="option"
+                                              :label="option"
+                                              :value="option"
+                                              v-model="formData[field.id]"
+                                              class="ml-4"
+                                            />
+                                          </div>
+                                          <div
+                                            v-if="triedSubmit && field.is_required && !formData[field.id]?.length"
+                                            class="text-caption text-red mt-1"
+                                          >
+                                            Este campo es requerido
+                                          </div>
+                                        </div>
+
+                                        <!-- Campo Firma -->
+                                        <div v-else-if="field.type === 'signature'">
+                                          <div class="signature-container">
+                                            <SignaturePad
+                                              :ref="
+                                                (el) => {
+                                                  if (el) signatureRefs[field.id] = [el];
+                                                }
+                                              "
+                                              @signature-changed="(signatureBlob) => handleSignature(field.id, signatureBlob)"
+                                            />
+                                            <div class="d-flex flex-wrap justify-end mt-2" v-if="signatureData[field.id]?.length">
+                                              <div class="mr-2 mb-2" v-for="(file, idx) in signatureData[field.id]" :key="idx">
+                                                <v-chip
+                                                  color="green"
+                                                  class="mr-1"
+                                                  size="small"
+                                                  closable
+                                                  :ripple="false"
+                                                  @mousedown.stop.prevent
+                                                  @click:close.stop="handleClearSignature(field.id, idx)"
+                                                >
+                                                  <span>{{ file.name }}</span>
+                                                </v-chip>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div
+                                            v-if="
+                                              triedSubmit &&
+                                              field.is_required &&
+                                              (!signatureData[field.id] || signatureData[field.id].length < 1)
+                                            "
+                                            class="text-caption text-red mt-1"
+                                          >
+                                            Adjunta al menos una firma
+                                          </div>
+                                        </div>
+
+                                        <!-- Campo Semáforo (chips, texto centrado) -->
+                                        <div v-else-if="isSemaforo(field)">
+                                          <div class="semaforo-chips-row">
+                                            <v-chip
+                                              v-for="option in field.options"
+                                              :key="option"
+                                              pill
+                                              variant="flat"
+                                              class="semaforo-chip"
+                                              :style="chipStyleFilled(option, formData[field.id] === option)"
+                                              @click="formData[field.id] = option"
+                                              :ripple="false"
+                                            >
+                                              <span class="semaforo-chip-grid">
+                                                <span class="semaforo-check-left"></span>
+                                                <span class="semaforo-text">{{ option }}</span>
+                                                <span class="semaforo-check-right">
+                                                  <v-icon v-if="formData[field.id] === option" size="16">mdi-check</v-icon>
+                                                </span>
+                                              </span>
+                                            </v-chip>
+                                          </div>
+                                          <div
+                                            v-if="triedSubmit && field.is_required && !formData[field.id]"
+                                            class="text-caption text-red mt-1"
+                                          >
+                                            Este campo es requerido
+                                          </div>
+                                        </div>
+
+                                        <!-- Campo Radio (cuando NO es semáforo) -->
+                                        <div v-else-if="field.type === 'radio'">
+                                          <v-radio-group
+                                            v-model="formData[field.id]"
+                                            :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
+                                          >
+                                            <v-radio
+                                              v-for="option in field.options"
+                                              :key="option"
+                                              :label="option"
+                                              :value="option"
+                                              class="ml-4"
+                                            />
+                                          </v-radio-group>
+                                        </div>
+
+                                        <!-- Campo geolocalización manual -->
+                                        <div v-else-if="field.type === 'geolocation' && field.attributes?.mode === 'manual'">
+                                          <AddressAutocomplete
+                                            :initialValue="formData[field.id]"
+                                            mode="create"
+                                            :addressError="
+                                              triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])
+                                                ? 'Este campo es requerido'
+                                                : ''
+                                            "
+                                            @update:parsedAddress="(val) => handleGeolocationManual(field.id, val)"
+                                          />
+                                          <div
+                                            v-if="triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])"
+                                            class="text-caption text-red mt-1"
+                                          >
+                                            Este campo es requerido
+                                          </div>
+                                        </div>
+
+                                        <!-- Otros campos -->
+                                        <component
+                                          v-else-if="
+                                            field.type !== 'image' &&
+                                            field.type !== 'document' &&
+                                            field.type !== 'checkbox' &&
+                                            field.type !== 'radio' &&
+                                            field.type !== 'signature' &&
+                                            field.type !== 'geolocation'
+                                          "
+                                          :is="FIELD_TYPES(field)"
+                                          v-bind="{ ...getFieldProps(field), label: undefined }"
+                                          v-model="formData[field.id]"
+                                          :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
+                                        />
+                                      </template>
+                                    </v-card-text>
+                                  </v-col>
+                                </v-row>
+                              </v-card>
                             </div>
                           </div>
-
-                          <!-- Otros campos -->
-                          <component
-                            v-else-if="
-                              field.type !== 'image' &&
-                              field.type !== 'document' &&
-                              field.type !== 'checkbox' &&
-                              field.type !== 'radio' &&
-                              field.type !== 'signature' &&
-                              field.type !== 'geolocation'
-                            "
-                            :is="FIELD_TYPES(field)"
-                            v-bind="{ ...getFieldProps(field), label: undefined }"
-                            v-model="formData[field.id]"
-                            :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
-                          />
-                        </template>
-                      </v-card-text>
-                    </v-col>
-                  </v-row>
-                </v-card>
+                        </v-expand-transition>
+                      </v-col>
+                    </v-row>
+                  </v-card>
+                </template>
               </div>
             </div>
 
@@ -502,7 +924,7 @@
 import axiosInstance from '@/utils/axios';
 import { ref, onMounted, computed, reactive, watch, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { mdiArrowLeft, mdiCheck, mdiMapMarkerOff, mdiCamera } from '@mdi/js';
+import { mdiArrowLeft, mdiCheck, mdiMapMarkerOff, mdiCamera, mdiChevronUp, mdiChevronDown } from '@mdi/js';
 import { FIELD_TYPES, getFieldProps } from '@/constants/constants';
 import { useToast } from 'vue-toastification';
 import { convertoToString } from '@/utils/helpers/formHelper';
@@ -1011,7 +1433,31 @@ const submitForm = async () => {
   triedSubmit.value = true;
   if (!form.value) return;
 
-  const requiredFields = visibleFields.value.filter((f) => f.is_required);
+  // Usar todos los campos visibles (incluyendo los de grupos)
+  const allFields = [];
+  if (form.value?.fields && form.value?.field_groups) {
+    // Agrupar los campos por grupo
+    const groupMap = {};
+    form.value.field_groups.forEach((g) => {
+      groupMap[g.id] = { ...g, fields: [] };
+    });
+    form.value.fields.forEach((f) => {
+      if (f.form_field_group_id && groupMap[f.form_field_group_id]) {
+        groupMap[f.form_field_group_id].fields.push(f);
+      } else {
+        allFields.push(f);
+      }
+    });
+    form.value.field_groups.forEach((g) => {
+      if (groupMap[g.id]?.fields?.length) {
+        groupMap[g.id].fields.forEach((f) => allFields.push(f));
+      }
+    });
+  } else {
+    allFields.push(...(form.value?.fields || []));
+  }
+
+  const requiredFields = allFields.filter((f) => f.is_required);
   const missingFields = requiredFields.filter((field) => {
     if (field.has_evidence && (!evidenceData[field.id] || evidenceData[field.id].length < 1)) return true;
     if (field.type === 'checkbox') return !formData[field.id] || formData[field.id].length === 0;
@@ -1021,7 +1467,7 @@ const submitForm = async () => {
     return !formData[field.id];
   });
 
-  const tooManyFiles = visibleFields.value.some(
+  const tooManyFiles = allFields.some(
     (field) =>
       ((field.type === 'image' || field.type === 'document') &&
         fileData[field.id] &&
@@ -1056,7 +1502,7 @@ const submitForm = async () => {
   try {
     const dataToSend = new FormData();
 
-    const answers = form.value.fields.map((field) => {
+    const answers = allFields.map((field) => {
       let value;
       if (field.type === 'image' || field.type === 'document' || field.type === 'signature') {
         value = (formData[field.id] || []).join(',');
@@ -1105,9 +1551,67 @@ const submitForm = async () => {
 const formLogo = computed(
   () => form.value?.logo_url || form.value?.logo || organization.value?.logo_url || organization.value?.logo || null
 );
+
+// --- INTEGRACIÓN DE GRUPOS Y PREGUNTAS SUELTAS ---
+// Ordena campos y grupos por la columna "order" y respeta el orden de los campos dentro de cada grupo
+const expandedGroups = reactive({});
+const toggleGroup = (groupId) => {
+  expandedGroups[groupId] = !expandedGroups[groupId];
+};
+
+const orderedFieldsAndGroups = computed(() => {
+  if (!form.value) return [];
+  const fields = (form.value.fields || []).slice();
+  const groups = (form.value.field_groups || []).slice();
+
+  // Ordenar grupos por su columna "order"
+  groups.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  // Ordenar campos por su columna "order"
+  fields.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  // Mapear grupos y sus campos
+  const groupMap = {};
+  groups.forEach((g) => {
+    groupMap[g.id] = { ...g, fields: [] };
+  });
+
+  // Asignar campos a grupos y sueltos
+  fields.forEach((f) => {
+    if (f.form_field_group_id && groupMap[f.form_field_group_id]) {
+      groupMap[f.form_field_group_id].fields.push(f);
+    }
+  });
+
+  // Ordenar campos dentro de cada grupo por "order"
+  Object.values(groupMap).forEach((g) => {
+    g.fields.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  });
+
+  // Construir el resultado respetando el orden de la columna "order" de ambos
+  const elements = [];
+  fields.forEach((f) => {
+    if (!f.form_field_group_id) {
+      elements.push({ type: 'field', order: f.order ?? 0, field: f, key: `field-${f.id}` });
+    }
+  });
+  groups.forEach((g) => {
+    elements.push({ type: 'group', order: g.order ?? 0, group: groupMap[g.id], key: `group-${g.id}` });
+    if (expandedGroups[g.id] === undefined) expandedGroups[g.id] = false;
+  });
+
+  // Ordenar todos los elementos por "order"
+  elements.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  return elements;
+});
 </script>
 
 <style scoped>
+.group-title-row {
+  align-items: center !important;
+  min-height: 48px;
+}
 .card-business-unit,
 .v-card.rounded-lg.elevation-1.pa-0,
 .v-table.rounded-lg {

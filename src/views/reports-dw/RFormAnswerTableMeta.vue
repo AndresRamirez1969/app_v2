@@ -7,7 +7,11 @@ const props = defineProps({
   page: Number,
   itemsPerPage: Number,
   sortBy: String,
-  sortDesc: Boolean
+  sortDesc: Boolean,
+  hasRating: {
+    type: Boolean,
+    default: false
+  }
 });
 const emit = defineEmits(['update:page', 'sort']);
 </script>
@@ -30,16 +34,32 @@ const emit = defineEmits(['update:page', 'sort']);
             <slot name="sort-icon" :column="'answer_date'" />
           </th>
           <th @click="emit('sort', 'status')" class="cursor-pointer status-header">
-            Status
+            Estado
             <slot name="sort-icon" :column="'status'" />
           </th>
+
+          <!-- Header de Ponderación SOLO si hay rating -->
+          <th v-if="props.hasRating" @click="emit('sort', 'ponderacion')" class="cursor-pointer ponderacion-header">
+            Ponderación
+            <slot name="sort-icon" :column="'ponderacion'" />
+          </th>
+
+          <!-- Header de Puntaje SOLO si hay rating -->
+          <th v-if="props.hasRating" @click="emit('sort', 'score')" class="cursor-pointer score-header">
+            Puntaje
+            <slot name="sort-icon" :column="'score'" />
+          </th>
+
           <th class="actions-header" style="width: 60px"></th>
         </tr>
       </thead>
+
       <tbody>
-        <slot name="rows" />
+        <!-- Pasamos hasRating por si el padre lo quiere consumir, pero el padre puede ignorarlo -->
+        <slot name="rows" :hasRating="props.hasRating" />
       </tbody>
     </v-table>
+
     <div class="d-flex justify-center mt-4">
       <v-pagination
         v-model="props.page"
@@ -56,7 +76,6 @@ const emit = defineEmits(['update:page', 'sort']);
 .cursor-pointer {
   cursor: pointer;
 }
-
 .cursor-pointer:hover {
   background-color: rgba(0, 0, 0, 0.04);
 }
@@ -69,6 +88,8 @@ const emit = defineEmits(['update:page', 'sort']);
 .name-header,
 .answer-date-header,
 .status-header,
+.ponderacion-header,
+.score-header,
 .actions-header {
   padding: 12px 16px;
   font-weight: 600;

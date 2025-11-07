@@ -11,6 +11,7 @@ import { mdiTuneVariant } from '@mdi/js';
 import { mdiToggleSwitch } from '@mdi/js';
 import { mdiMapMarker } from '@mdi/js';
 import { mdiLink, mdiEyeOff, mdiCellphone, mdiPalette } from '@mdi/js';
+import { mdiFolderPlus } from '@mdi/js';
 
 export const AVAILABLE_FIELDS = [
   {
@@ -83,7 +84,6 @@ export const AVAILABLE_FIELDS = [
     description: 'Casillas de verificación',
     preview: 'v-checkbox'
   },
-  // --- SOLO Imagen y Documento ---
   {
     label: 'Imagen',
     value: 'image',
@@ -140,13 +140,6 @@ export const AVAILABLE_FIELDS = [
     description: 'Campo para número telefónico',
     preview: 'v-text-field'
   },
-  // {
-  //   label: 'Color',
-  //   value: 'color',
-  //   icon: mdiPalette,
-  //   description: 'Selector de color',
-  //   preview: 'v-text-field'
-  // },
   {
     label: 'Geolocalización',
     value: 'geolocation',
@@ -157,9 +150,17 @@ export const AVAILABLE_FIELDS = [
   {
     label: 'Semáforo',
     value: 'semaforo',
-    icon: mdiTuneVariant, // Usa el ícono que prefieras
+    icon: mdiTuneVariant,
     description: 'Campo tipo semáforo (Alto, Medio, Bajo)',
     preview: 'v-radio-group'
+  },
+  // --- GRUPO DE PREGUNTAS COMO TIPO DE CAMPO ---
+  {
+    label: 'Grupo de Preguntas',
+    value: 'group',
+    icon: mdiFolderPlus,
+    description: 'Crea un grupo para organizar preguntas',
+    preview: 'group'
   }
 ];
 
@@ -184,7 +185,8 @@ export const FIELD_COLOR = (type: string) => {
     tel: 'cyan',
     url: 'light-blue',
     hidden: 'grey',
-    geolocation: 'lime'
+    geolocation: 'lime',
+    group: 'indigo' // Cambiado a 'indigo' para igualar el color de los demás
   };
   return colors[type] || 'grey';
 };

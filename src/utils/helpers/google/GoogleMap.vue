@@ -3,49 +3,101 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 
+// Recibe una lista de puntos [{ lat, lng, label }]
 const props = defineProps({
-  address: {
-    type: Object,
+  points: {
+    type: Array,
     required: true
+  },
+  layer: {
+    type: String,
+    default: 'points' // 'points' o 'heatmap'
   }
 });
 
 const mapContainer = ref(null);
 let map = null;
-let marker = null;
+let markers = [];
+let heatmap = null;
+let lastLayer = null;
 
-const loadMap = async () => {
-  const fullAddress = `${props.address.street}, ${props.address.city}, ${props.address.state}, ${props.address.postal_code},`;
-  const geocoder = new window.google.maps.Geocoder();
+function clearMarkers() {
+  markers.forEach((m) => m.setMap(null));
+  markers = [];
+}
 
-  geocoder.geocode({ address: fullAddress }, (results, status) => {
-    if (status === 'OK' && results[0]) {
-      const location = results[0].geometry.location;
+function clearHeatmap() {
+  if (heatmap) {
+    heatmap.setMap(null);
+    heatmap = null;
+  }
+}
 
-      map = new window.google.maps.Map(mapContainer.value, {
-        center: location,
-        zoom: 15
+function clearMap() {
+  clearMarkers();
+  clearHeatmap();
+  if (map) {
+    map = null;
+    if (mapContainer.value) mapContainer.value.innerHTML = '';
+  }
+}
+
+function loadMap() {
+  if (!window.google?.maps || !props.points.length) return;
+
+  // Si el tipo de capa cambió, recrea el mapa
+  if (lastLayer !== props.layer) {
+    clearMap();
+    lastLayer = props.layer;
+  }
+
+  // Centra el mapa en el primer punto
+  const center = props.points[0];
+  if (!map) {
+    map = new window.google.maps.Map(mapContainer.value, {
+      center: { lat: Number(center.lat), lng: Number(center.lng) },
+      zoom: 12
+    });
+  } else {
+    map.setCenter({ lat: Number(center.lat), lng: Number(center.lng) });
+  }
+
+  clearMarkers();
+  clearHeatmap();
+
+  if (props.layer === 'points') {
+    props.points.forEach((point) => {
+      if (!point.lat || !point.lng) return;
+      const marker = new window.google.maps.Marker({
+        position: { lat: Number(point.lat), lng: Number(point.lng) },
+        map,
+        title: point.label || ''
       });
-
-      marker = new window.google.maps.Marker({
-        position: location,
+      markers.push(marker);
+    });
+  } else if (props.layer === 'heatmap') {
+    if (window.google.maps.visualization) {
+      const heatmapData = props.points.map((p) => new window.google.maps.LatLng(Number(p.lat), Number(p.lng)));
+      heatmap = new window.google.maps.visualization.HeatmapLayer({
+        data: heatmapData,
         map
       });
-    } else {
-      console.error(status);
     }
-  });
-};
+  }
+}
 
 onMounted(() => {
-  if (window.google?.maps) {
-    loadMap();
-  } else {
-    console.error('Google maps epic fail');
-  }
+  loadMap();
 });
+
+watch(
+  () => [props.points, props.layer],
+  () => {
+    loadMap();
+  }
+);
 </script>
 
 <style scoped>

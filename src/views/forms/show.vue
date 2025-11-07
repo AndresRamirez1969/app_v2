@@ -35,7 +35,6 @@
               </v-btn>
             </template>
             <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
-              <!-- Editar SOLO si está en draft -->
               <template v-if="formData?.status === 'draft'">
                 <v-list-item @click="goToEdit">
                   <template #prepend>
@@ -88,7 +87,6 @@
               </v-btn>
             </template>
             <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 180px">
-              <!-- Editar SOLO si está en draft -->
               <template v-if="formData?.status === 'draft'">
                 <v-list-item @click="goToEdit">
                   <template #prepend>
@@ -348,7 +346,6 @@
             <span class="font-weight-bold text-h6">Campos</span>
           </v-col>
           <v-spacer />
-          <!-- Botón agregar campos solo si está en draft y sin respuestas -->
           <template v-if="formData?.status === 'draft' && (!formData?.responses_count || formData.responses_count === 0)">
             <v-col class="py-0 d-none d-md-flex justify-end align-center" cols="auto">
               <v-btn
@@ -376,8 +373,7 @@
             </v-col>
           </template>
         </v-row>
-        <div v-if="formData?.fields && formData.fields.length > 0">
-          <!-- Tabla en desktop, cards en móvil -->
+        <div v-if="hasAnyFields">
           <template v-if="!mdAndDown">
             <div>
               <v-table class="rounded-lg elevation-1 card-shadow" style="margin-top: 16px">
@@ -391,57 +387,144 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="field in formData.fields" :key="field.id">
-                    <td>
-                      <div class="d-flex align-center">
-                        <v-icon :icon="getFieldIcon(field.type)" color="grey" class="mr-2" />
-                        <span>{{ getFieldLabel(field.type) }}</span>
-                      </div>
-                    </td>
-                    <td>{{ field.label }}</td>
-                    <td>
-                      <template v-if="field.description">
-                        <div v-for="(line, idx) in splitDescription(field.description)" :key="idx">{{ line }}</div>
-                      </template>
-                      <template v-else>-</template>
-                    </td>
-                    <td>
-                      <v-chip v-if="field.is_required" color="red" size="x-small">Requerido</v-chip>
-                      <span v-else>No</span>
-                    </td>
-                    <td v-if="formData?.has_rating">
-                      <span v-if="isValidWeight(field.weight)">{{ formatWeight(field.weight) }}</span>
-                      <span v-else>No asignado</span>
-                    </td>
-                  </tr>
+                  <template v-for="item in orderedItems" :key="item.key">
+                    <template v-if="item.type === 'group'">
+                      <tr style="background: #f5f7fa">
+                        <td>
+                          <div class="d-flex align-center">
+                            <v-icon :icon="getFieldIcon('group')" color="indigo" class="mr-2" />
+                            <span>Grupo</span>
+                          </div>
+                        </td>
+                        <td>{{ item.group.name }}</td>
+                        <td>
+                          <template v-if="item.group.description">
+                            <div v-for="(line, idx) in splitDescription(item.group.description)" :key="idx">
+                              {{ line }}
+                            </div>
+                          </template>
+                          <template v-else>-</template>
+                        </td>
+                        <td colspan="2"></td>
+                      </tr>
+                      <tr v-for="field in item.fields" :key="field.id" style="background: #fff">
+                        <td>
+                          <div class="d-flex align-center" style="padding-left: 24px">
+                            <v-icon :icon="getFieldIcon(field.type)" color="grey" class="mr-2" />
+                            <span>{{ getFieldLabel(field.type) }}</span>
+                          </div>
+                        </td>
+                        <td>{{ field.label }}</td>
+                        <td>
+                          <template v-if="field.description">
+                            <div v-for="(line, idx) in splitDescription(field.description)" :key="idx">{{ line }}</div>
+                          </template>
+                          <template v-else>-</template>
+                        </td>
+                        <td>
+                          <v-chip v-if="field.is_required" color="red" size="x-small">Requerido</v-chip>
+                          <span v-else>No</span>
+                        </td>
+                        <td v-if="formData?.has_rating">
+                          <span v-if="isValidWeight(field.weight)">{{ formatWeight(field.weight) }}</span>
+                          <span v-else>No asignado</span>
+                        </td>
+                      </tr>
+                    </template>
+                    <template v-else>
+                      <tr>
+                        <td>
+                          <div class="d-flex align-center">
+                            <v-icon :icon="getFieldIcon(item.field.type)" color="grey" class="mr-2" />
+                            <span>{{ getFieldLabel(item.field.type) }}</span>
+                          </div>
+                        </td>
+                        <td>{{ item.field.label }}</td>
+                        <td>
+                          <template v-if="item.field.description">
+                            <div v-for="(line, idx) in splitDescription(item.field.description)" :key="idx">{{ line }}</div>
+                          </template>
+                          <template v-else>-</template>
+                        </td>
+                        <td>
+                          <v-chip v-if="item.field.is_required" color="red" size="x-small">Requerido</v-chip>
+                          <span v-else>No</span>
+                        </td>
+                        <td v-if="formData?.has_rating">
+                          <span v-if="isValidWeight(item.field.weight)">{{ formatWeight(item.field.weight) }}</span>
+                          <span v-else>No asignado</span>
+                        </td>
+                      </tr>
+                    </template>
+                  </template>
                 </tbody>
               </v-table>
             </div>
           </template>
           <template v-else>
             <v-row dense style="margin-top: 16px">
-              <v-col v-for="field in formData.fields" :key="field.id" cols="12" class="position-relative">
-                <v-card class="rounded-lg card-shadow pa-3 mb-2" elevation="1">
-                  <div class="d-flex align-center mb-2">
-                    <v-icon :icon="getFieldIcon(field.type)" color="black" class="mr-2" style="cursor: default" />
-                    <span class="font-weight-medium">{{ field.label }}</span>
-                    <v-chip v-if="field.is_required" color="red" size="x-small" class="ml-2">Requerido</v-chip>
-                  </div>
-                  <div class="text-body-2 text-medium-emphasis">Tipo: {{ getFieldLabel(field.type) }}</div>
-                  <div class="text-body-2 text-medium-emphasis">
-                    Descripción:
-                    <template v-if="field.description">
-                      <div v-for="(line, idx) in splitDescription(field.description)" :key="idx">{{ line }}</div>
-                    </template>
-                    <template v-else>-</template>
-                  </div>
-                  <div v-if="formData?.has_rating" class="text-body-2 text-medium-emphasis">
-                    Puntuaje:
-                    <span v-if="isValidWeight(field.weight)">{{ formatWeight(field.weight) }}</span>
-                    <span v-else>No asignado</span>
-                  </div>
-                </v-card>
-              </v-col>
+              <template v-for="item in orderedItems" :key="item.key">
+                <template v-if="item.type === 'group'">
+                  <v-col cols="12" class="position-relative">
+                    <v-card class="rounded-lg card-shadow pa-3 mb-2" elevation="1" style="background: #f5f7fa">
+                      <div class="d-flex align-center mb-2">
+                        <v-icon :icon="getFieldIcon('group')" color="indigo" class="mr-2" />
+                        <span>{{ item.group.name }}</span>
+                      </div>
+                      <div class="text-body-2 text-medium-emphasis mb-2">
+                        <template v-if="item.group.description">
+                          <div v-for="(line, idx) in splitDescription(item.group.description)" :key="idx">{{ line }}</div>
+                        </template>
+                        <template v-else>-</template>
+                      </div>
+                      <div v-for="field in item.fields" :key="field.id" class="pl-4 mb-2">
+                        <div class="d-flex align-center mb-1">
+                          <v-icon :icon="getFieldIcon(field.type)" color="grey" class="mr-2" />
+                          <span class="font-weight-medium">{{ field.label }}</span>
+                          <v-chip v-if="field.is_required" color="red" size="x-small" class="ml-2">Requerido</v-chip>
+                        </div>
+                        <div class="text-body-2 text-medium-emphasis">Tipo: {{ getFieldLabel(field.type) }}</div>
+                        <div class="text-body-2 text-medium-emphasis">
+                          Descripción:
+                          <template v-if="field.description">
+                            <div v-for="(line, idx) in splitDescription(field.description)" :key="idx">{{ line }}</div>
+                          </template>
+                          <template v-else>-</template>
+                        </div>
+                        <div v-if="formData?.has_rating" class="text-body-2 text-medium-emphasis">
+                          Puntuaje:
+                          <span v-if="isValidWeight(field.weight)">{{ formatWeight(field.weight) }}</span>
+                          <span v-else>No asignado</span>
+                        </div>
+                      </div>
+                    </v-card>
+                  </v-col>
+                </template>
+                <template v-else>
+                  <v-col cols="12" class="position-relative">
+                    <v-card class="rounded-lg card-shadow pa-3 mb-2" elevation="1">
+                      <div class="d-flex align-center mb-2">
+                        <v-icon :icon="getFieldIcon(item.field.type)" color="black" class="mr-2" style="cursor: default" />
+                        <span class="font-weight-medium">{{ item.field.label }}</span>
+                        <v-chip v-if="item.field.is_required" color="red" size="x-small" class="ml-2">Requerido</v-chip>
+                      </div>
+                      <div class="text-body-2 text-medium-emphasis">Tipo: {{ getFieldLabel(item.field.type) }}</div>
+                      <div class="text-body-2 text-medium-emphasis">
+                        Descripción:
+                        <template v-if="item.field.description">
+                          <div v-for="(line, idx) in splitDescription(item.field.description)" :key="idx">{{ line }}</div>
+                        </template>
+                        <template v-else>-</template>
+                      </div>
+                      <div v-if="formData?.has_rating" class="text-body-2 text-medium-emphasis">
+                        Puntuaje:
+                        <span v-if="isValidWeight(item.field.weight)">{{ formatWeight(item.field.weight) }}</span>
+                        <span v-else>No asignado</span>
+                      </div>
+                    </v-card>
+                  </v-col>
+                </template>
+              </template>
             </v-row>
           </template>
         </div>
@@ -560,14 +643,11 @@ const goToIndex = () => {
   router.push('/formularios');
 };
 
-// INTEGRACIÓN: Refresca el formulario antes de abrir el modal de campos
 const goToAddFields = async () => {
   try {
     const res = await axiosInstance.get(`/forms/${formData.value.id}`);
     formData.value = res.data.data || res.data.form || res.data;
-  } catch (err) {
-    // Maneja el error si lo deseas
-  }
+  } catch (err) {}
   showAddFieldsModal.value = true;
 };
 
@@ -642,16 +722,13 @@ const getFieldColor = (type) => {
   return FIELD_COLOR(type);
 };
 
-// Validar si el weight es válido (no null, no undefined, no string vacío)
 const isValidWeight = (weight) => {
   if (weight === null || weight === undefined) return false;
   if (typeof weight === 'string' && weight.trim() === '') return false;
-  // Si es string numérico, también es válido
   if (!isNaN(Number(weight))) return true;
   return typeof weight === 'number';
 };
 
-// Formatear el weight para mostrarlo como número (sin decimales si es entero, con 2 si es decimal)
 const formatWeight = (weight) => {
   if (typeof weight === 'string') {
     const num = Number(weight);
@@ -665,7 +742,6 @@ const formatWeight = (weight) => {
   return weight;
 };
 
-// Divide la descripción en líneas de máximo 40 caracteres
 function splitDescription(desc, max = 40) {
   if (!desc) return ['-'];
   const lines = [];
@@ -699,6 +775,36 @@ const changeFormStatus = async (targetStatus) => {
     }
   }
 };
+
+const fieldGroups = computed(() => (formData.value?.field_groups || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+const fields = computed(() => (formData.value?.fields || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+
+const orderedItems = computed(() => {
+  const items = [];
+  const groups = fieldGroups.value;
+  const allFields = fields.value;
+
+  const looseFields = allFields.filter((f) => !f.form_field_group_id);
+
+  const groupsWithFields = groups.map((group) => ({
+    type: 'group',
+    key: `group-${group.id}`,
+    order: group.order ?? 0,
+    group,
+    fields: allFields.filter((f) => f.form_field_group_id === group.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  }));
+
+  const looseFieldItems = looseFields.map((field) => ({
+    type: 'field',
+    key: `field-${field.id}`,
+    order: field.order ?? 0,
+    field
+  }));
+
+  return [...groupsWithFields, ...looseFieldItems].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+});
+
+const hasAnyFields = computed(() => fields.value.length > 0);
 
 const deleteFormResponses = async () => {
   try {
@@ -788,6 +894,56 @@ onMounted(async () => {
   }
 });
 </script>
+
+<style scoped>
+.logo-avatar {
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 320px;
+  height: 320px;
+  min-width: 320px;
+  min-height: 320px;
+  max-width: 320px;
+  max-height: 320px;
+}
+.logo-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  display: block;
+}
+.info-value-tight {
+  text-align: left !important;
+  padding-left: 120px !important;
+}
+.info-value {
+  text-align: left !important;
+  padding-left: 120px !important;
+}
+.custom-dropdown {
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.card-shadow {
+  box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08) !important;
+  border-radius: 16px !important;
+  background: #fff !important;
+  border: 1px solid #eaeaea !important;
+}
+.v-card.rounded-lg,
+.v-table.rounded-lg {
+  border-radius: 16px !important;
+  background: #fff !important;
+  border: 1px solid #eaeaea !important;
+  box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08) !important;
+}
+</style>
 
 <style scoped>
 .logo-avatar {
