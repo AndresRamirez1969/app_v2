@@ -3,6 +3,9 @@ import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue';
 import axios from '@/utils/axios';
 import { AVAILABLE_FIELDS } from '@/constants/fieldTypes';
 
+import FieldText from './RFormFieldsCharts/FieldSimpleList.vue';
+import FieldMultiple from './RFormFieldsCharts/FieldMultiple.vue';
+
 // ApexCharts
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts').then((m) => m.default || m).catch(() => null));
 
@@ -1241,241 +1244,51 @@ const groupedFields = computed(() => {
       <template v-for="(fieldObj, idx) in fieldResponses" :key="fieldObj.field.id">
         <v-expansion-panel>
           <v-expansion-panel-title>
-            <span v-if="fieldObj.field.type === 'text'">
-              Campo de texto: {{ fieldObj.field.label || fieldObj.field.title || fieldObj.field.name || `Campo ${idx + 1}` }}
-            </span>
-            <span v-else-if="fieldObj.field.type === 'textarea'">
-              Área de texto: {{ fieldObj.field.label || fieldObj.field.title || fieldObj.field.name || `Campo ${idx + 1}` }}
-            </span>
-            <span v-else-if="fieldObj.field.type === 'email'">
-              Email: {{ fieldObj.field.label || fieldObj.field.title || fieldObj.field.name || `Campo ${idx + 1}` }}
-            </span>
-            <span v-else-if="fieldObj.field.type === 'time'">
-              Hora: {{ fieldObj.field.label || fieldObj.field.title || fieldObj.field.name || `Campo ${idx + 1}` }}
-            </span>
-            <span v-else-if="fieldObj.field.type === 'number' || fieldObj.field.type === 'integer' || fieldObj.field.type === 'float'">
-              Campo numérico: {{ fieldObj.field.label || fieldObj.field.title || fieldObj.field.name || `Campo ${idx + 1}` }}
-            </span>
-            <span v-else>
-              {{ fieldObj.field.label || fieldObj.field.title || fieldObj.field.name || `Campo ${idx + 1}` }}
-              <span class="ml-2 text-caption text-medium-emphasis">({{ fieldObj.field.type }})</span>
-            </span>
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%">
+              <div>
+                {{ fieldObj.field.label || fieldObj.field.title || fieldObj.field.name || `Campo ${idx + 1}` }}
+                <span class="ml-2 text-caption text-medium-emphasis">
+                  (
+                  <template v-if="fieldObj.field.type === 'text'">Texto</template>
+                  <template v-else-if="fieldObj.field.type === 'textarea'">Área de texto</template>
+                  <template v-else-if="fieldObj.field.type === 'email'">Email</template>
+                  <template v-else-if="fieldObj.field.type === 'time'">Hora</template>
+                  <template
+                    v-else-if="fieldObj.field.type === 'number' || fieldObj.field.type === 'integer' || fieldObj.field.type === 'float'"
+                    >Numérico</template
+                  >
+                  <template v-else-if="fieldObj.field.type === 'date'">Fecha</template>
+                  <template
+                    v-else-if="fieldObj.field.type === 'selector' || fieldObj.field.type === 'select' || fieldObj.field.type === 'dropdown'"
+                    >Selector</template
+                  >
+                  <template v-else-if="fieldObj.field.type === 'radio'">Radio</template>
+                  <template v-else-if="fieldObj.field.type === 'checkbox'">Checkbox</template>
+                  <template v-else-if="fieldObj.field.type === 'image' || fieldObj.field.type === 'imagenes'">Imágenes</template>
+                  <template v-else-if="fieldObj.field.type === 'document' || fieldObj.field.type === 'documento'">Documentos</template>
+                  <template v-else-if="fieldObj.field.type === 'firma' || fieldObj.field.type === 'signature'">Firma</template>
+                  <template v-else-if="fieldObj.field.type === 'range'">Rango</template>
+                  <template v-else-if="fieldObj.field.type === 'switch'">Switch</template>
+                  <template v-else-if="fieldObj.field.type === 'url'">URL</template>
+                  <template
+                    v-else-if="fieldObj.field.type === 'phone' || fieldObj.field.type === 'tel' || fieldObj.field.type === 'telefono'"
+                    >Teléfono</template
+                  >
+                  <template
+                    v-else-if="fieldObj.field.type === 'geolocation' || fieldObj.field.type === 'geo' || fieldObj.field.type === 'location'"
+                    >Geolocalización</template
+                  >
+                  <template v-else>{{ fieldObj.field.type }}</template>
+                  )
+                </span>
+              </div>
+              <span v-if="hasRating" style="min-width: 48px; text-align: right"> {{ fieldObj.field.weight ?? 0 }} pts </span>
+            </div>
           </v-expansion-panel-title>
-
           <v-expansion-panel-text>
-            <!-- Campo de texto -->
-            <div v-if="fieldObj.field.type === 'text'">
-              <div class="search-table-container">
-                <v-table density="compact" style="width: 100%">
-                  <tbody>
-                    <tr>
-                      <td>
-                        <v-text-field
-                          v-model="fieldSearch[fieldObj.field.id]"
-                          :placeholder="`Buscar respuesta...`"
-                          prepend-inner-icon="mdi-magnify"
-                          clearable
-                          class="custom-search"
-                          density="compact"
-                          variant="outlined"
-                          color="primary"
-                          hide-details
-                          style="width: 100%; min-width: 0; padding-bottom: 12px"
-                        />
-                      </td>
-                    </tr>
-                    <tr
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                        })
-                      )"
-                      :key="i"
-                      class="response-row"
-                    >
-                      <td>
-                        <div class="response-value-cell">{{ resp.value }}</div>
-                      </td>
-                    </tr>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                        }).length === 0
-                      "
-                    >
-                      <td class="text-medium-emphasis">No hay respuestas registradas.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Área de texto -->
-            <div v-else-if="fieldObj.field.type === 'textarea'">
-              <div class="search-table-container">
-                <v-table density="compact" style="width: 100%">
-                  <tbody>
-                    <tr>
-                      <td>
-                        <v-textarea
-                          v-model="fieldSearch[fieldObj.field.id]"
-                          :placeholder="`Buscar respuesta...`"
-                          prepend-inner-icon="mdi-magnify"
-                          clearable
-                          class="custom-search"
-                          density="compact"
-                          variant="outlined"
-                          color="primary"
-                          hide-details
-                          style="width: 100%; min-width: 0; padding-bottom: 12px"
-                          rows="1"
-                          auto-grow
-                        />
-                      </td>
-                    </tr>
-                    <tr
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                        })
-                      )"
-                      :key="i"
-                      class="response-row"
-                    >
-                      <td>
-                        <div class="response-value-cell">{{ resp.value }}</div>
-                      </td>
-                    </tr>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                        }).length === 0
-                      "
-                    >
-                      <td class="text-medium-emphasis">No hay respuestas registradas.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Campo email -->
-            <div v-else-if="fieldObj.field.type === 'email'">
-              <div class="search-table-container">
-                <v-table density="compact" style="width: 100%">
-                  <tbody>
-                    <tr>
-                      <td>
-                        <v-text-field
-                          v-model="fieldSearch[fieldObj.field.id]"
-                          :placeholder="`Buscar email...`"
-                          prepend-inner-icon="mdi-magnify"
-                          clearable
-                          class="custom-search"
-                          density="compact"
-                          variant="outlined"
-                          color="primary"
-                          hide-details
-                          style="width: 100%; min-width: 0; padding-bottom: 12px"
-                        />
-                      </td>
-                    </tr>
-                    <tr
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                        })
-                      )"
-                      :key="i"
-                      class="response-row"
-                    >
-                      <td>
-                        <div class="response-value-cell">{{ resp.value }}</div>
-                      </td>
-                    </tr>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                        }).length === 0
-                      "
-                    >
-                      <td class="text-medium-emphasis">No hay emails registrados.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
+            <!-- Campo de texto, área de texto, email, url, teléfono -->
+            <div v-if="['text', 'textarea', 'email', 'url', 'phone', 'tel', 'telefono'].includes(fieldObj.field.type)">
+              <FieldText :fieldObj="fieldObj" :fieldSearch="fieldSearch" :pageByField="pageByField" :setPage="setPage" />
             </div>
 
             <!-- ======= CAMPO NUMÉRICO: Histograma + tabla ======= -->
@@ -1672,138 +1485,17 @@ const groupedFields = computed(() => {
               </div>
             </div>
 
+            <!-- Campo SELECT, DROPDOWN, RADIO, CHECKBOX: gráfico de barras + tabla -->
             <div
               v-else-if="
-                fieldObj.field.type === 'selector' ||
                 fieldObj.field.type === 'select' ||
                 fieldObj.field.type === 'dropdown' ||
                 fieldObj.field.type === 'radio' ||
-                fieldObj.field.type === 'checkbox'
+                fieldObj.field.type === 'checkbox' ||
+                fieldObj.field.type === 'semaforo'
               "
             >
-              <div class="mb-2 d-flex align-center justify-space-between">
-                <div class="text-h6">
-                  Top opciones seleccionadas
-                  <span v-if="fieldObj.field.type === 'radio'">(Radio)</span>
-                  <span v-if="fieldObj.field.type === 'checkbox'">(Checkbox)</span>
-                </div>
-              </div>
-              <div v-if="fieldObj.responses.length">
-                <component
-                  :is="VueApexCharts"
-                  type="bar"
-                  height="340"
-                  :key="`selector-topn-${fieldObj.field.id}-${fieldObj.responses.length}`"
-                  :options="getSelectorTopNBarOptions(fieldObj.field.id, 8)"
-                  :series="getSelectorTopNSeries(fieldObj.field.id, 8)"
-                />
-              </div>
-              <div v-else class="text-medium-emphasis py-4">No hay datos suficientes para mostrar el gráfico.</div>
-              <!-- Tabla simple con búsqueda -->
-              <div class="search-table-container mt-6">
-                <v-table density="compact" style="width: 100%">
-                  <tbody>
-                    <tr>
-                      <td>
-                        <v-text-field
-                          v-model="fieldSearch[fieldObj.field.id]"
-                          :placeholder="`Buscar opción o usuario...`"
-                          prepend-inner-icon="mdi-magnify"
-                          clearable
-                          class="custom-search"
-                          density="compact"
-                          variant="outlined"
-                          color="primary"
-                          hide-details
-                          style="width: 100%; min-width: 0; padding-bottom: 12px"
-                        />
-                      </td>
-                    </tr>
-                    <tr
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.value && r.value.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search))
-                          );
-                        })
-                      )"
-                      :key="i"
-                      class="response-row"
-                    >
-                      <td>
-                        <div class="response-value-cell">
-                          <template v-if="Array.isArray(resp.value)">
-                            {{
-                              resp.value
-                                .map((v) => (typeof v === 'object' && v !== null ? v.label || v.name || v.value || '' : v))
-                                .filter((v) => v !== '')
-                                .join(', ')
-                            }}
-                          </template>
-                          <template v-else-if="typeof resp.value === 'string' && resp.value.startsWith('[')">
-                            {{
-                              JSON.parse(resp.value)
-                                .map((v) => (typeof v === 'object' && v !== null ? v.label || v.name || v.value || '' : v))
-                                .filter((v) => v !== '')
-                                .join(', ')
-                            }}
-                          </template>
-                          <template v-else>
-                            {{
-                              typeof resp.value === 'object' && resp.value !== null
-                                ? resp.value.label || resp.value.name || resp.value.value || ''
-                                : resp.value
-                            }}
-                          </template>
-                          <span v-if="resp.user" class="ml-2 text-caption text-medium-emphasis">({{ resp.user }})</span>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.value && r.value.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search))
-                          );
-                        }).length === 0
-                      "
-                    >
-                      <td class="text-medium-emphasis">No hay registros de opciones.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return (
-                              !search ||
-                              (r.value && r.value.toString().toLowerCase().includes(search)) ||
-                              (r.user && r.user.toString().toLowerCase().includes(search))
-                            );
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
+              <FieldMultiple :fieldObj="fieldObj" :fieldSearch="fieldSearch" :pageByField="pageByField" :setPage="setPage" />
             </div>
 
             <!-- Campo IMAGEN, DOCUMENTO y FIRMA: solo heatmap y tabla de registros, sin visualización de archivos -->
@@ -2473,348 +2165,6 @@ const groupedFields = computed(() => {
                               (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
                               (r.user && r.user.toString().toLowerCase().includes(search)) ||
                               estado.toLowerCase().includes(search)
-                            );
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Campo URL: searchbar + tabla/cards con folio, usuario y URL como link -->
-            <div v-else-if="fieldObj.field.type === 'url'">
-              <div class="mb-2 d-flex align-center justify-space-between">
-                <div class="text-h6 font-weight-bold">Registros de URLs</div>
-              </div>
-              <div class="search-table-container mt-6">
-                <v-text-field
-                  v-model="fieldSearch[fieldObj.field.id]"
-                  :placeholder="`Buscar folio, usuario o URL...`"
-                  prepend-inner-icon="mdi-magnify"
-                  clearable
-                  class="custom-search"
-                  density="compact"
-                  variant="outlined"
-                  color="primary"
-                  hide-details
-                  style="width: 100%; min-width: 0; padding-bottom: 12px"
-                />
-
-                <!-- Tabla en desktop -->
-                <v-table density="compact" style="width: 100%" class="image-records-table d-none d-md-table">
-                  <thead>
-                    <tr>
-                      <th>Folio</th>
-                      <th>Usuario</th>
-                      <th>URL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        })
-                      )"
-                      :key="i"
-                    >
-                      <tr class="response-row record-row">
-                        <td class="response-value-cell">
-                          <span class="folio-link" style="color: #1976d2; text-decoration: underline; font-weight: 500">
-                            {{ resp.folio || resp.id || '-' }}
-                          </span>
-                        </td>
-                        <td class="response-value-cell">
-                          <span class="font-weight-medium">{{ resp.user?.name || resp.user || '-' }}</span>
-                        </td>
-                        <td class="response-value-cell">
-                          <a
-                            v-if="resp.value"
-                            :href="resp.value"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style="color: #1976d2; text-decoration: underline; word-break: break-all"
-                          >
-                            {{ resp.value }}
-                          </a>
-                          <span v-else>-</span>
-                        </td>
-                      </tr>
-                    </template>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        }).length === 0
-                      "
-                    >
-                      <td colspan="3" class="text-medium-emphasis">No hay URLs registradas.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-
-                <!-- Cards en móvil/tablet -->
-                <div class="image-records-cards d-md-none">
-                  <v-row>
-                    <v-col
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        })
-                      )"
-                      :key="i"
-                      cols="12"
-                    >
-                      <v-card class="mb-4 pa-3 elevation-1 rounded-lg response-card" style="cursor: default">
-                        <div class="d-flex flex-column mb-1" style="gap: 8px">
-                          <span
-                            class="folio-link text-caption"
-                            style="color: #1976d2; text-decoration: underline; font-weight: 500; min-width: 60px"
-                          >
-                            {{ resp.folio || resp.id || '-' }}
-                          </span>
-                          <span class="font-weight-medium" style="color: #333; font-size: 0.9rem">
-                            {{ resp.user?.name || resp.user || '-' }}
-                          </span>
-                          <span style="font-size: 0.9rem; color: #1976d2">
-                            <strong>URL:</strong>
-                            <a
-                              v-if="resp.value"
-                              :href="resp.value"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style="color: #1976d2; text-decoration: underline; word-break: break-all"
-                            >
-                              {{ resp.value }}
-                            </a>
-                            <span v-else>-</span>
-                          </span>
-                        </div>
-                      </v-card>
-                    </v-col>
-                    <v-col
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        }).length === 0
-                      "
-                      cols="12"
-                    >
-                      <v-card class="response-card pa-3 text-medium-emphasis mb-4 rounded-lg elevation-1">
-                        No hay URLs registradas.
-                      </v-card>
-                    </v-col>
-                  </v-row>
-                </div>
-
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return (
-                              !search ||
-                              (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                              (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                              (r.value && r.value.toString().toLowerCase().includes(search))
-                            );
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Campo TELÉFONO: searchbar + tabla/cards con folio, usuario y teléfono (sin link) -->
-            <div v-else-if="fieldObj.field.type === 'phone' || fieldObj.field.type === 'tel' || fieldObj.field.type === 'telefono'">
-              <div class="mb-2 d-flex align-center justify-space-between">
-                <div class="text-h6 font-weight-bold">Registros de teléfonos</div>
-              </div>
-              <div class="search-table-container mt-6">
-                <v-text-field
-                  v-model="fieldSearch[fieldObj.field.id]"
-                  :placeholder="`Buscar folio, usuario o teléfono...`"
-                  prepend-inner-icon="mdi-magnify"
-                  clearable
-                  class="custom-search"
-                  density="compact"
-                  variant="outlined"
-                  color="primary"
-                  hide-details
-                  style="width: 100%; min-width: 0; padding-bottom: 12px"
-                />
-
-                <!-- Tabla en desktop -->
-                <v-table density="compact" style="width: 100%" class="image-records-table d-none d-md-table">
-                  <thead>
-                    <tr>
-                      <th>Folio</th>
-                      <th>Usuario</th>
-                      <th>Teléfono</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        })
-                      )"
-                      :key="i"
-                    >
-                      <tr class="response-row record-row">
-                        <td class="response-value-cell">
-                          <span class="folio-link" style="color: #1976d2; text-decoration: underline; font-weight: 500">
-                            {{ resp.folio || resp.id || '-' }}
-                          </span>
-                        </td>
-                        <td class="response-value-cell">
-                          <span class="font-weight-medium">{{ resp.user?.name || resp.user || '-' }}</span>
-                        </td>
-                        <td class="response-value-cell" style="font-weight: 500">
-                          {{ resp.value || '-' }}
-                        </td>
-                      </tr>
-                    </template>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        }).length === 0
-                      "
-                    >
-                      <td colspan="3" class="text-medium-emphasis">No hay teléfonos registrados.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-
-                <!-- Cards en móvil/tablet -->
-                <div class="image-records-cards d-md-none">
-                  <v-row>
-                    <v-col
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        })
-                      )"
-                      :key="i"
-                      cols="12"
-                    >
-                      <v-card class="mb-4 pa-3 elevation-1 rounded-lg response-card" style="cursor: default">
-                        <div class="d-flex flex-column mb-1" style="gap: 8px">
-                          <span
-                            class="folio-link text-caption"
-                            style="color: #1976d2; text-decoration: underline; font-weight: 500; min-width: 60px"
-                          >
-                            {{ resp.folio || resp.id || '-' }}
-                          </span>
-                          <span class="font-weight-medium" style="color: #333; font-size: 0.9rem">
-                            {{ resp.user?.name || resp.user || '-' }}
-                          </span>
-                          <span style="font-size: 0.9rem; font-weight: 500">
-                            <strong>Teléfono:</strong>
-                            {{ resp.value || '-' }}
-                          </span>
-                        </div>
-                      </v-card>
-                    </v-col>
-                    <v-col
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        }).length === 0
-                      "
-                      cols="12"
-                    >
-                      <v-card class="response-card pa-3 text-medium-emphasis mb-4 rounded-lg elevation-1">
-                        No hay teléfonos registrados.
-                      </v-card>
-                    </v-col>
-                  </v-row>
-                </div>
-
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return (
-                              !search ||
-                              (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                              (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                              (r.value && r.value.toString().toLowerCase().includes(search))
                             );
                           }).length / 10
                         )
