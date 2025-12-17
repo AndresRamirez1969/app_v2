@@ -507,7 +507,13 @@
                         </v-card-title>
                         <v-expand-transition>
                           <div v-show="expandedGroups[item.group.id]" class="pa-2">
-                            <div v-for="(field, gIdx) in item.group.fields" :key="field.id" class="mb-2">
+                            <div
+                              v-for="(field, gIdx) in item.group.fields.filter(
+                                (f) => !(f.type === 'geolocation' && f.attributes?.mode === 'scope')
+                              )"
+                              :key="field.id"
+                              class="mb-2"
+                            >
                               <v-card class="rounded-lg elevation-0 pa-0">
                                 <v-row no-gutters>
                                   <v-col
@@ -958,6 +964,20 @@ const triedSubmit = ref(false);
 const userLocation = ref(null);
 const geoCheckError = ref(null);
 
+// --- INTEGRACIÓN: Dirección de geolocalización para campos scope ---
+const geoAddress = ref('');
+const fetchAddressFromCoords = async (lat, lng) => {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+    const data = await res.json();
+    return data.display_name || '';
+  } catch (e) {
+    return '';
+  }
+};
+// ---------------------------------------------------------------
+
 const fileVersion = ref({});
 const bumpVersion = (key) => {
   fileVersion.value[key] = (fileVersion.value[key] || 0) + 1;
@@ -1060,7 +1080,6 @@ const onCameraCapture = async (fieldId, evt) => {
   bumpVersion(fieldId);
 };
 
-// --- INTEGRACIÓN PARA FILTRAR EVIDENCIA (IMÁGENES) ---
 const filteredEvidence = (fieldId) => {
   return (evidenceData[fieldId] || []).filter(
     (file) =>
@@ -1070,13 +1089,14 @@ const filteredEvidence = (fieldId) => {
         (typeof file === 'string' && /\.(jpg|jpeg|png)$/i.test(file)))
   );
 };
-// -----------------------------------------------------
 
 const getUserLocation = () =>
-  new Promise((resolve, reject) => {
+  new Promise(async (resolve, reject) => {
     const lat = localStorage.getItem('geo_lat');
     const lng = localStorage.getItem('geo_lng');
     if (lat !== null && lng !== null && lat !== '' && lng !== '' && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
+      // Obtener dirección
+      geoAddress.value = await fetchAddressFromCoords(parseFloat(lat), parseFloat(lng));
       resolve({ lat: parseFloat(lat), lng: parseFloat(lng) });
     } else {
       reject('No se encontró la ubicación del usuario. Por favor, inicia sesión de nuevo.');
@@ -1152,20 +1172,16 @@ const showForm = async () => {
   }
 };
 
-// --- INICIO: Watcher de geolocalización para campos scope + integración backend ---
 let geoWatchId = null;
 
 onMounted(() => {
   showForm();
 
-  // Si el formulario tiene campo de geolocalización con scope, activa el watcher
-  // (Esto se activa después de cargar el formulario)
   watch(
     form,
     (newForm) => {
       const geoField = newForm?.fields?.find((f) => f.type === 'geolocation' && f.attributes?.mode === 'scope');
       if (geoField && navigator.geolocation) {
-        // Si ya hay un watcher, no lo vuelvas a activar
         if (geoWatchId !== null) return;
         geoWatchId = navigator.geolocation.watchPosition(
           async (pos) => {
@@ -1173,7 +1189,7 @@ onMounted(() => {
               lat: pos.coords.latitude,
               lng: pos.coords.longitude
             };
-            // --- INTEGRACIÓN: Enviar ubicación al backend ---
+            geoAddress.value = await fetchAddressFromCoords(pos.coords.latitude, pos.coords.longitude);
             try {
               await axiosInstance.post('/user/location', {
                 latitude: pos.coords.latitude,
@@ -1182,11 +1198,8 @@ onMounted(() => {
                 recorded_at: new Date().toISOString()
               });
             } catch (e) {
-              // Opcional: puedes mostrar un toast o solo loguear
-              // toast.warning('No se pudo registrar la ubicación en el backend');
               console.error('No se pudo guardar la ubicación del usuario:', e);
             }
-            // --- FIN INTEGRACIÓN ---
           },
           (err) => {
             geoCheckError.value = 'No se pudo obtener tu ubicación en tiempo real.';
@@ -1205,7 +1218,6 @@ onUnmounted(() => {
     geoWatchId = null;
   }
 });
-// --- FIN: Watcher de geolocalización para campos scope + integración backend ---
 
 watch(
   () => ({ ...formData }),
@@ -1264,7 +1276,6 @@ const onFilesSelected = async (fieldId, evt) => {
 
   const current = Array.isArray(fileData[fieldId]) ? fileData[fieldId] : [];
 
-  // Comprimir imágenes antes de agregarlas
   if (field.type === 'image' || field.type === 'file') {
     selected = await Promise.all(
       selected.map((file) => {
@@ -1308,7 +1319,6 @@ const onEvidenceSelected = async (fieldId, evt) => {
   let selected = normalizeEventFiles(evt);
   const maxFiles = 4;
 
-  // Solo imágenes permitidas
   selected = selected
     .filter((file) => {
       if (!file?.name) return false;
@@ -1324,7 +1334,6 @@ const onEvidenceSelected = async (fieldId, evt) => {
       return file;
     });
 
-  // Comprimir todas las imágenes de evidencia
   selected = await Promise.all(
     selected.map((file) => {
       if (file && file.type && file.type.startsWith('image/')) {
@@ -1364,11 +1373,9 @@ const openImageModal = (src) => {
 };
 
 const compressImage = async (file) => {
-  console.log('Compresión de archivo:', file.name, file.type);
-
   const options = {
-    maxSizeMB: 1,
-    maxWidthOrHeight: 1920,
+    maxSizeMB: 0.5,
+    maxWidthOrHeight: 1200,
     useWebWorker: true,
     fileType: file.type
   };
@@ -1388,12 +1395,6 @@ const compressImage = async (file) => {
       finalFile.previewUrl = URL.createObjectURL(finalFile);
     }
 
-    console.log('Archivo comprimido:', {
-      nombre: finalFile.name,
-      tamaño: finalFile.size,
-      tipo: finalFile.type
-    });
-
     return finalFile;
   } catch (error) {
     console.error('Error al comprimir imagen:', error);
@@ -1402,11 +1403,22 @@ const compressImage = async (file) => {
 };
 
 const handleSignature = (fieldId, signatureBlob) => {
+  if (!signatureBlob) {
+    signatureData[fieldId] = [];
+    formData[fieldId] = [];
+    return;
+  }
+
   if (signatureBlob instanceof Blob) {
     const field = form.value.fields.find((f) => f.id == fieldId);
     const maxFiles = field?.attributes?.max_files || 1;
-    const fileName = `firma_${field?.label || fieldId}.jpg`;
-    const signatureFile = new File([signatureBlob], fileName, { type: 'image/jpeg', lastModified: Date.now() });
+
+    const fileName = `firma_${field?.label || fieldId}.png`;
+    const signatureFile = new File([signatureBlob], fileName, {
+      type: 'image/png',
+      lastModified: Date.now()
+    });
+
     signatureData[fieldId] = [signatureFile].slice(0, maxFiles);
     formData[fieldId] = [fileName].slice(0, maxFiles);
   }
@@ -1433,10 +1445,8 @@ const submitForm = async () => {
   triedSubmit.value = true;
   if (!form.value) return;
 
-  // Usar todos los campos visibles (incluyendo los de grupos)
   const allFields = [];
   if (form.value?.fields && form.value?.field_groups) {
-    // Agrupar los campos por grupo
     const groupMap = {};
     form.value.field_groups.forEach((g) => {
       groupMap[g.id] = { ...g, fields: [] };
@@ -1464,6 +1474,10 @@ const submitForm = async () => {
     if (field.type === 'image' || field.type === 'document') return !fileData[field.id] || fileData[field.id].length < 1;
     if (field.type === 'signature') return !signatureData[field.id] || signatureData[field.id].length < 1;
     if (field.type === 'geolocation' && field.attributes?.mode === 'manual') return !isGeolocationManualValid(formData[field.id]);
+    if (field.type === 'geolocation' && field.attributes?.mode === 'scope') {
+      // Validar que userLocation esté presente y tenga lat/lng
+      return !userLocation.value || typeof userLocation.value.lat !== 'number' || typeof userLocation.value.lng !== 'number';
+    }
     return !formData[field.id];
   });
 
@@ -1509,7 +1523,13 @@ const submitForm = async () => {
       } else if (field.type === 'geolocation' && field.attributes?.mode === 'manual') {
         value = JSON.stringify(formData[field.id] || {});
       } else if (field.type === 'geolocation' && field.attributes?.mode === 'scope') {
-        value = userLocation.value ? JSON.stringify({ lat: userLocation.value.lat, lng: userLocation.value.lng }) : '';
+        value = userLocation.value
+          ? JSON.stringify({
+              lat: userLocation.value.lat,
+              lng: userLocation.value.lng,
+              address: geoAddress.value || ''
+            })
+          : '';
       } else {
         value = convertoToString(formData[field.id]);
       }
@@ -1517,6 +1537,14 @@ const submitForm = async () => {
       if (field.type === 'image' || field.type === 'document' || field.type === 'signature') ans.is_file = true;
       return ans;
     });
+
+    // --- DEBUG: Verifica que la geolocalización se envía correctamente ---
+    const geoFieldAnswer = answers.find((a) => {
+      const field = allFields.find((f) => f.id === a.form_field_id);
+      return field && field.type === 'geolocation' && field.attributes?.mode === 'scope';
+    });
+    console.log('Campo geolocalización (scope):', geoFieldAnswer);
+    console.log('Payload completo:', answers);
 
     dataToSend.append('answers', JSON.stringify(answers));
 
@@ -1531,6 +1559,9 @@ const submitForm = async () => {
     if (geoField && userLocation.value) {
       dataToSend.append('location.lat', userLocation.value.lat);
       dataToSend.append('location.lng', userLocation.value.lng);
+      if (geoAddress.value) {
+        dataToSend.append('location.address', geoAddress.value);
+      }
     }
 
     await axiosInstance.post(`/forms/${formId.value}/responses`, dataToSend, {
@@ -1552,59 +1583,59 @@ const formLogo = computed(
   () => form.value?.logo_url || form.value?.logo || organization.value?.logo_url || organization.value?.logo || null
 );
 
-// --- INTEGRACIÓN DE GRUPOS Y PREGUNTAS SUELTAS ---
-// Ordena campos y grupos por la columna "order" y respeta el orden de los campos dentro de cada grupo
 const expandedGroups = reactive({});
 const toggleGroup = (groupId) => {
   expandedGroups[groupId] = !expandedGroups[groupId];
 };
 
+// --- INTEGRACIÓN: Ocultar campos geolocalización scope y mantener numeración ---
 const orderedFieldsAndGroups = computed(() => {
   if (!form.value) return [];
   const fields = (form.value.fields || []).slice();
   const groups = (form.value.field_groups || []).slice();
 
-  // Ordenar grupos por su columna "order"
   groups.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-  // Ordenar campos por su columna "order"
   fields.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-  // Mapear grupos y sus campos
   const groupMap = {};
   groups.forEach((g) => {
     groupMap[g.id] = { ...g, fields: [] };
   });
 
-  // Asignar campos a grupos y sueltos
+  // Filtrar campos geolocalización scope
   fields.forEach((f) => {
+    if (f.type === 'geolocation' && f.attributes?.mode === 'scope') {
+      // No agregar a ningún lado
+      return;
+    }
     if (f.form_field_group_id && groupMap[f.form_field_group_id]) {
       groupMap[f.form_field_group_id].fields.push(f);
+    } else {
+      groupMap['__ungrouped'] = groupMap['__ungrouped'] || { fields: [] };
+      groupMap['__ungrouped'].fields.push(f);
     }
   });
 
-  // Ordenar campos dentro de cada grupo por "order"
   Object.values(groupMap).forEach((g) => {
     g.fields.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   });
 
-  // Construir el resultado respetando el orden de la columna "order" de ambos
   const elements = [];
-  fields.forEach((f) => {
-    if (!f.form_field_group_id) {
-      elements.push({ type: 'field', order: f.order ?? 0, field: f, key: `field-${f.id}` });
-    }
+  // Campos sueltos (no agrupados)
+  (groupMap['__ungrouped']?.fields || []).forEach((f) => {
+    elements.push({ type: 'field', order: f.order ?? 0, field: f, key: `field-${f.id}` });
   });
+  // Grupos
   groups.forEach((g) => {
     elements.push({ type: 'group', order: g.order ?? 0, group: groupMap[g.id], key: `group-${g.id}` });
     if (expandedGroups[g.id] === undefined) expandedGroups[g.id] = false;
   });
 
-  // Ordenar todos los elementos por "order"
   elements.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   return elements;
 });
+// --- FIN INTEGRACIÓN ---
 </script>
 
 <style scoped>

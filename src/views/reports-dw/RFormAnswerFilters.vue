@@ -9,6 +9,10 @@ const props = defineProps({
   hasRating: {
     type: Boolean,
     default: false
+  },
+  activeFilters: {
+    type: Object,
+    default: () => ({})
   }
 });
 
@@ -77,6 +81,21 @@ watch(search, (val) => {
   emit('search', val);
 });
 
+// Sincroniza los filtros locales con los del padre
+watch(
+  () => props.activeFilters,
+  (val) => {
+    status.value = val.report_status ?? null;
+    userId.value = val.user_id ?? null;
+    scoreMin.value = props.hasRating ? (val.score_min ?? null) : null;
+    scoreMax.value = props.hasRating ? (val.score_max ?? null) : null;
+    startDate.value = val.start_date ?? null;
+    endDate.value = val.end_date ?? null;
+  },
+  { immediate: true }
+);
+
+// Calcula si hay filtros activos usando los filtros del padre
 const hasActiveFilters = computed(
   () =>
     !!status.value || !!userId.value || (props.hasRating && (!!scoreMin.value || !!scoreMax.value)) || !!startDate.value || !!endDate.value
@@ -169,7 +188,7 @@ function clearFilters() {
           </span>
         </template>
       </v-btn>
-      <span v-if="hasActiveFilters" class="filter-indicator" />
+      <span v-if="hasActiveFilters.value" class="filter-indicator" />
     </div>
 
     <v-dialog v-model="dialog" max-width="420">

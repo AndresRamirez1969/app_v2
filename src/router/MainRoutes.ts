@@ -241,6 +241,16 @@ const MainRoutes = {
       name: 'Report Answers DW',
       path: '/reportes-dw/respuestas/:formId',
       component: () => import('@/views/reports-dw/RFormAnswerList.vue')
+    },
+    {
+      name: 'Report Answer Show DW',
+      path: '/reportes-dw/respuestas/:formId/reporte/:reportId',
+      component: () => import('@/views/reports-dw/RFormAnswerShow.vue')
+    },
+    {
+      name: 'Report Answer Details DW',
+      path: '/reportes-dw/respuestas/:formId/reporte/:reportId/detalle/:fieldId',
+      component: () => import('@/views/reports-dw/RFormAnswerDetails.vue')
     }
   ]
 };

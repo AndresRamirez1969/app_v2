@@ -38,12 +38,6 @@ const emit = defineEmits(['update:page', 'sort']);
             <slot name="sort-icon" :column="'status'" />
           </th>
 
-          <!-- Header de Ponderación SOLO si hay rating -->
-          <th v-if="props.hasRating" @click="emit('sort', 'ponderacion')" class="cursor-pointer ponderacion-header">
-            Ponderación
-            <slot name="sort-icon" :column="'ponderacion'" />
-          </th>
-
           <!-- Header de Puntaje SOLO si hay rating -->
           <th v-if="props.hasRating" @click="emit('sort', 'score')" class="cursor-pointer score-header">
             Puntaje

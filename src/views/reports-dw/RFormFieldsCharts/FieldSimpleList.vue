@@ -10,9 +10,11 @@ const props = defineProps({
 
 const pageSize = 10;
 
+/** Determina si el campo tiene ponderación (para mostrar la columna “Score obtenido”). */
 const hasRating = computed(() => {
-  if (props.fieldObj.field.has_rating === true) return true;
-  if (['rating', 'score'].includes(props.fieldObj.field.type)) return true;
+  if (props.fieldObj.field?.has_rating === true) return true;
+  if (['rating', 'score'].includes(props.fieldObj.field?.type)) return true;
+  if ((props.fieldObj.field?.weight ?? 0) > 0) return true; // <— NUEVO
   if (Array.isArray(props.fieldObj.responses) && props.fieldObj.responses.some((r) => r.weight !== undefined)) return true;
   return false;
 });
@@ -29,23 +31,84 @@ function filterResponses(responses, search) {
   return responses.filter((r) => {
     const folio = (r.folio || r.id || '').toString().toLowerCase();
     const nombre = (r.nombre || r.user?.name || r.user || '').toString().toLowerCase();
-    const valor = (r.value || '').toString().toLowerCase();
+    // Si value viene como arreglo/JSON, lo aplanamos a texto para búsqueda
+    let rawVal = r.value;
+    try {
+      if (typeof rawVal === 'string' && rawVal.trim().startsWith('[')) {
+        const arr = JSON.parse(rawVal);
+        if (Array.isArray(arr)) rawVal = arr.join(', ');
+      }
+    } catch (_) {}
+    const valor = (rawVal ?? '').toString().toLowerCase();
     return folio.includes(s) || nombre.includes(s) || valor.includes(s);
   });
 }
 
+/** === NUEVO === Criterio robusto de “respondido”, igual que en backend */
+function isAnsweredFrontend(resp, fieldType) {
+  const v = resp?.value;
+  if (fieldType === 'selector' || fieldType === 'checkbox') {
+    let arr = v;
+    try {
+      if (typeof v === 'string' && v.trim().startsWith('[')) arr = JSON.parse(v);
+    } catch {}
+    return Array.isArray(arr) ? arr.filter((x) => (typeof x === 'string' ? x.trim() !== '' : !!x)).length > 0 : !!v;
+  }
+  if (fieldType === 'geolocation') {
+    try {
+      if (typeof v === 'string' && v.trim().startsWith('{')) return !!(JSON.parse(v)?.lat ?? null) && !!(JSON.parse(v)?.lng ?? null);
+    } catch {}
+    return v && typeof v === 'object' && v.lat != null && v.lng != null;
+  }
+  return v !== undefined && v !== null && String(v).trim() !== '';
+}
+
+/** === ACTUALIZADO === Usa score_obtained del backend, si no, calcula localmente. */
 function getScoreObtained(resp) {
-  const weight = resp.weight ?? 0;
-  const answered = resp.value !== undefined && resp.value !== null && String(resp.value).trim() !== '';
+  if (resp.score_obtained !== undefined && resp.score_obtained !== null) {
+    return Number(resp.score_obtained);
+  }
+  const fieldType = props.fieldObj.field?.type;
+  const answered = isAnsweredFrontend(resp, fieldType); // si ya tienes esta función, úsala; si no, tu lógica actual
+  const weight = Number(resp.weight ?? props.fieldObj.field?.weight ?? 0); // <— NUEVO fallback
   return answered ? weight : 0;
 }
 
-// Helper para mostrar el valor según tipo
+/** Formatea el valor para mostrar; maneja URL, selector/checkbox y JSONs. */
 function renderValue(resp, type) {
-  if (type === 'url' && resp.value) {
-    return `<a href="${resp.value}" target="_blank" rel="noopener noreferrer" style="color: #1976d2; text-decoration: underline; word-break: break-all">${resp.value}</a>`;
+  let value = resp?.value;
+
+  // Selector/checkbox: si llega como JSON de arreglo, mostrar lista legible
+  if ((type === 'selector' || type === 'checkbox') && value) {
+    try {
+      if (typeof value === 'string' && value.trim().startsWith('[')) {
+        const arr = JSON.parse(value);
+        if (Array.isArray(arr)) value = arr.filter((v) => (typeof v === 'string' ? v.trim() !== '' : !!v)).join(', ');
+      }
+    } catch (_) {}
   }
-  return resp.value || '-';
+
+  if (type === 'url' && value) {
+    const safe = String(value);
+    return `<a href="${safe}" target="_blank" rel="noopener noreferrer" style="color: #1976d2; text-decoration: underline; word-break: break-all">${safe}</a>`;
+  }
+
+  // Si es objeto (p.ej. geolocation) lo mostramos bonito
+  if (value && typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch (_) {
+      return String(value);
+    }
+  }
+
+  return value || '-';
+}
+
+/** Opcional: formatear puntos sin .0 cuando es entero */
+function fmtPts(n) {
+  const num = Number(n);
+  return Number.isInteger(num) ? `${num}` : `${num.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 </script>
 
@@ -75,8 +138,9 @@ function renderValue(resp, type) {
               v-else-if="
                 props.fieldObj.field.type === 'phone' || props.fieldObj.field.type === 'tel' || props.fieldObj.field.type === 'telefono'
               "
-              >Teléfono</template
             >
+              Teléfono
+            </template>
             <template v-else-if="props.fieldObj.field.type === 'url'">URL</template>
             <template v-else-if="props.fieldObj.field.type === 'textarea'">Respuesta</template>
             <template v-else>Respuesta</template>
@@ -114,11 +178,11 @@ function renderValue(resp, type) {
             <td>
               <div class="response-value-cell">
                 <span v-if="props.fieldObj.field.type === 'url'" v-html="renderValue(resp, 'url')" />
-                <span v-else>{{ resp.value || '-' }}</span>
+                <span v-else v-text="renderValue(resp, props.fieldObj.field.type)" />
               </div>
             </td>
             <td v-if="hasRating">
-              <div class="response-value-cell">{{ getScoreObtained(resp) }} pts</div>
+              <div class="response-value-cell">{{ fmtPts(getScoreObtained(resp)) }} pts</div>
             </td>
           </tr>
           <tr
@@ -154,7 +218,7 @@ function renderValue(resp, type) {
         >
           <v-card class="mb-4 pa-3 elevation-1 rounded-lg response-card" style="cursor: default">
             <div v-if="hasRating" style="position: absolute; top: 12px; right: 16px; font-size: 0.85rem; font-weight: 500">
-              {{ getScoreObtained(resp) }} pts
+              {{ fmtPts(getScoreObtained(resp)) }} pts
             </div>
             <div class="d-flex flex-column mb-1" style="gap: 8px">
               <a
@@ -169,21 +233,21 @@ function renderValue(resp, type) {
                 {{ resp.nombre || resp.user?.name || resp.user || '-' }}
               </span>
               <span style="font-size: 0.95rem">
-                <template v-if="props.fieldObj.field.type === 'email'"><strong>Email:</strong> {{ resp.value || '-' }}</template>
+                <template v-if="props.fieldObj.field.type === 'email'"><strong>Email:</strong> {{ renderValue(resp, 'email') }}</template>
                 <template
                   v-else-if="
                     props.fieldObj.field.type === 'phone' || props.fieldObj.field.type === 'tel' || props.fieldObj.field.type === 'telefono'
                   "
-                  ><strong>Teléfono:</strong> {{ resp.value || '-' }}</template
                 >
-                <template v-else-if="props.fieldObj.field.type === 'url'">
-                  <strong>URL:</strong>
-                  <span v-html="renderValue(resp, 'url')" />
+                  <strong>Teléfono:</strong> {{ renderValue(resp, 'phone') }}
                 </template>
-                <template v-else-if="props.fieldObj.field.type === 'textarea'"
-                  ><strong>Respuesta:</strong> {{ resp.value || '-' }}</template
-                >
-                <template v-else><strong>Respuesta:</strong> {{ resp.value || '-' }}</template>
+                <template v-else-if="props.fieldObj.field.type === 'url'">
+                  <strong>URL:</strong> <span v-html="renderValue(resp, 'url')" />
+                </template>
+                <template v-else-if="props.fieldObj.field.type === 'textarea'">
+                  <strong>Respuesta:</strong> {{ renderValue(resp, 'textarea') }}
+                </template>
+                <template v-else> <strong>Respuesta:</strong> {{ renderValue(resp, props.fieldObj.field.type) }} </template>
               </span>
             </div>
           </v-card>

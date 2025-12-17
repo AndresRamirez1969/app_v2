@@ -1,87 +1,207 @@
 <script setup>
-defineProps({
+import { defineAsyncComponent, computed, ref } from 'vue';
+
+const props = defineProps({
   fieldObj: { type: Object, required: true },
   fieldSearch: { type: Object, required: true },
   pageByField: { type: Object, required: true },
   setPage: { type: Function, required: true }
 });
 
-import { ref, computed, defineAsyncComponent } from 'vue';
-
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts').then((m) => m.default || m).catch(() => null));
 
 const pageSize = 10;
 
+/* ===========================
+   Helpers para score en tabla
+   =========================== */
+function toNum(x) {
+  if (typeof x === 'number') return x;
+  if (typeof x === 'string' && x.trim() !== '' && !isNaN(+x)) return +x;
+  return undefined;
+}
+
+function numberFmt(n) {
+  return typeof n === 'number' ? n.toLocaleString('es-MX') : n;
+}
+
+const fieldConfiguredPoints = computed(() => {
+  const f = props.fieldObj?.field || {};
+  const o = props.fieldObj || {};
+  const keys = [
+    'points',
+    'point',
+    'pts',
+    'puntos',
+    'max_points',
+    'score',
+    'score_max',
+    'maxScore',
+    'max_score',
+    'total_points',
+    'points_total',
+    'puntaje',
+    'puntaje_max',
+    'max',
+    'maxPts',
+    'maxpts',
+    'value',
+    'valor',
+    'weight',
+    'weight_points'
+  ];
+  for (const src of [f, o]) {
+    for (const k of keys) {
+      const n = toNum(src?.[k]);
+      if (n !== undefined) return n;
+    }
+  }
+  return 0;
+});
+
+const hasScore = computed(() => {
+  if (fieldConfiguredPoints.value > 0) return true;
+  if (props.fieldObj?.field?.has_rating === true) return true;
+  const t = (props.fieldObj?.field?.type || '').toLowerCase();
+  if (['rating', 'score'].includes(t)) return true;
+  return (
+    Array.isArray(props.fieldObj?.responses) &&
+    props.fieldObj.responses.some((r) => {
+      const explicit = ['score', 'points', 'puntos', 'score_obtenido', 'obtained'];
+      return explicit.some((k) => toNum(r?.[k]) !== undefined);
+    })
+  );
+});
+
+function getScoreObtained(resp) {
+  const explicit = ['score', 'points', 'puntos', 'score_obtenido', 'obtained'];
+  for (const k of explicit) {
+    const v = toNum(resp?.[k]);
+    if (v !== undefined) return `${v} pts`;
+  }
+  const answered = resp?.value !== null && resp?.value !== undefined && String(resp?.value).trim() !== '';
+  const pts = answered ? fieldConfiguredPoints.value : 0;
+  return `${pts} pts`;
+}
+
+/* ===========================
+   Paginación para tabla/cards
+   =========================== */
 function getPaginatedResponses(fieldId, responses, pageByField) {
   const page = pageByField[fieldId] || 1;
   const start = (page - 1) * pageSize;
   return responses.slice(start, start + pageSize);
 }
 
+/* ===========================
+   Serie y opciones de la dona
+   =========================== */
 function getSwitchDonutSeries(responses) {
   let on = 0,
     off = 0;
   for (const r of responses) {
-    if (r.value === true || r.value === 1 || r.value === '1' || r.value === 'true' || r.value === 'on' || r.value === 'activo') on++;
+    const v = r.value;
+    if (v === true || v === 1 || v === '1' || v === 'true' || v === 'on' || v === 'activo') on++;
     else off++;
   }
   return [on, off];
 }
 
-function getSwitchDonutOptions() {
-  return {
-    chart: { type: 'donut', height: 320, toolbar: { show: false } },
-    labels: ['Activado', 'Desactivado'],
-    legend: { position: 'bottom' },
-    dataLabels: {
-      enabled: true,
-      formatter: (val, opts) => `${Number(val).toFixed(2)}%`
-    },
-    tooltip: {
-      y: {
-        formatter: (val, opts) => {
-          const total = opts?.w?.globals?.seriesTotals?.reduce((a, b) => a + b, 0) || 1;
-          const percent = total ? (val / total) * 100 : 0;
-          return `${percent.toFixed(2)}%`;
-        }
+/** Calcula % con base en config.series (no globals) */
+function pctFromConfig(w, idx) {
+  const arr = (w?.config?.series || []).map((n) => Number(n) || 0);
+  const total = arr.reduce((a, b) => a + b, 0);
+  const value = arr[idx] || 0;
+  return total ? (value / total) * 100 : 0;
+}
+
+// === INTEGRACIÓN REACTIVA PARA EL CENTRO DE LA DONA ===
+const activeSlice = ref(0);
+
+const donutOptions = computed(() => ({
+  chart: {
+    type: 'donut',
+    height: 320,
+    toolbar: { show: false },
+    events: {
+      dataPointMouseEnter: (_e, _ctx, cfg) => {
+        activeSlice.value = cfg?.dataPointIndex ?? 0;
+      },
+      dataPointMouseLeave: () => {
+        activeSlice.value = 0;
+      },
+      dataPointSelection: (_e, _ctx, cfg) => {
+        activeSlice.value = cfg?.dataPointIndex ?? 0;
       }
-    },
-    colors: ['#81C784', '#E57373'],
-    plotOptions: {
-      pie: {
-        donut: {
-          labels: {
+    }
+  },
+  labels: ['Activados', 'Desactivados'],
+  legend: { position: 'bottom' },
+  dataLabels: {
+    enabled: true,
+    formatter: (val) => `${Number(val).toFixed(2)}%`
+  },
+  tooltip: {
+    y: {
+      formatter: function (_val, opts) {
+        const w = opts?.w;
+        const idx = opts?.seriesIndex ?? 0;
+        const series = w?.globals?.series || [];
+        const total = series.reduce((a, b) => a + b, 0);
+        const value = series[idx] ?? 0;
+        const pct = total > 0 ? (value / total) * 100 : 0;
+        return `${pct.toFixed(2)}%`;
+      }
+    }
+  },
+  colors: ['#81C784', '#E57373'],
+  plotOptions: {
+    pie: {
+      donut: {
+        labels: {
+          show: true,
+          name: {
             show: true,
-            name: { show: true },
-            value: {
-              show: true,
-              formatter: (val, opts) => {
-                const total = opts?.w?.globals?.seriesTotals?.reduce((a, b) => a + b, 0) || 1;
-                const percent = total ? (val / total) * 100 : 0;
-                return `${percent.toFixed(2)}%`;
-              }
+            formatter: (_val, opts) => {
+              const labels = opts?.w?.config?.labels || ['Activados', 'Desactivados'];
+              const idx = typeof activeSlice.value === 'number' ? activeSlice.value : 0;
+              return labels[idx] ?? labels[0];
+            }
+          },
+          value: {
+            show: true,
+            formatter: (_val, opts) => {
+              const w = opts?.w;
+              const idx = typeof activeSlice.value === 'number' ? activeSlice.value : 0;
+              const series = w?.globals?.series || [];
+              const total = series.reduce((a, b) => a + b, 0);
+              const value = series[idx] ?? 0;
+              const pct = total > 0 ? (value / total) * 100 : 0;
+              return `${pct.toFixed(2)}%`;
+            }
+          },
+          total: {
+            show: true,
+            label: (w) => {
+              const labels = w?.config?.labels || ['Activados', 'Desactivados'];
+              const idx = typeof activeSlice.value === 'number' ? activeSlice.value : 0;
+              return labels[idx] ?? labels[0];
             },
-            total: {
-              show: true,
-              label: 'Activados',
-              formatter: (w) => {
-                const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
-                const activados = w.globals.series[0];
-                const pct = total ? (activados / total) * 100 : 0;
-                return Number(pct).toFixed(2) + '%';
-              }
+            formatter: (w) => {
+              const series = w?.globals?.series || [];
+              const idx = typeof activeSlice.value === 'number' ? activeSlice.value : 0;
+              const total = series.reduce((a, b) => a + b, 0);
+              const value = series[idx] ?? 0;
+              const pct = total > 0 ? (value / total) * 100 : 0;
+              return `${pct.toFixed(2)}%`;
             }
           }
         }
       }
-    },
-    noData: { text: 'Sin datos para este campo' }
-  };
-}
-
-function numberFmt(n) {
-  return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(n ?? 0);
-}
+    }
+  },
+  noData: { text: 'Sin datos para este campo' }
+}));
 </script>
 
 <template>
@@ -95,13 +215,13 @@ function numberFmt(n) {
         <div class="d-flex flex-column">
           <v-card class="kpi-card pa-3 mb-2">
             <div class="text-caption text-medium-emphasis">Total de respuestas</div>
-            <div class="text-h6">{{ numberFmt(fieldObj.responses.length) }}</div>
+            <div class="text-h6">{{ numberFmt(props.fieldObj.responses.length) }}</div>
           </v-card>
           <v-card class="kpi-card pa-3 mb-2">
             <div class="text-caption text-medium-emphasis">Activados</div>
             <div class="text-h6">
               {{
-                fieldObj.responses.filter(
+                props.fieldObj.responses.filter(
                   (r) =>
                     r.value === true || r.value === 1 || r.value === '1' || r.value === 'true' || r.value === 'on' || r.value === 'activo'
                 ).length
@@ -112,7 +232,7 @@ function numberFmt(n) {
             <div class="text-caption text-medium-emphasis">Desactivados</div>
             <div class="text-h6">
               {{
-                fieldObj.responses.filter(
+                props.fieldObj.responses.filter(
                   (r) =>
                     !(
                       r.value === true ||
@@ -128,26 +248,27 @@ function numberFmt(n) {
           </v-card>
         </div>
       </v-col>
+
       <v-col cols="12" md="8" class="d-flex align-center justify-center">
-        <div v-if="fieldObj.responses.length" style="width: 100%; max-width: 400px">
+        <div v-if="props.fieldObj.responses.length" style="width: 100%; max-width: 400px">
           <component
             :is="VueApexCharts"
             type="donut"
             height="320"
-            :options="getSwitchDonutOptions()"
-            :series="getSwitchDonutSeries(fieldObj.responses)"
+            :key="`switch-donut-${props.fieldObj.field.id}-${props.fieldObj.responses.length}`"
+            :options="donutOptions"
+            :series="getSwitchDonutSeries(props.fieldObj.responses)"
           />
         </div>
         <div v-else class="text-medium-emphasis py-4">No hay datos suficientes para mostrar el gráfico.</div>
       </v-col>
     </v-row>
 
-    <!-- Searchbar y tabla/cards de registros debajo de la gráfica -->
+    <!-- Buscador y tabla/cards -->
     <div class="search-table-container mt-6">
       <v-text-field
-        v-model="fieldSearch[fieldObj.field.id]"
+        v-model="props.fieldSearch[props.fieldObj.field.id]"
         :placeholder="`Buscar folio, usuario o estado...`"
-        prepend-inner-icon="mdi-magnify"
         clearable
         class="custom-search"
         density="compact"
@@ -155,23 +276,28 @@ function numberFmt(n) {
         color="primary"
         hide-details
         style="width: 100%; min-width: 0; padding-bottom: 12px"
-      />
+      >
+        <template #prepend-inner>
+          <v-icon>mdi-magnify</v-icon>
+        </template>
+      </v-text-field>
 
-      <!-- Tabla en desktop -->
+      <!-- Tabla (desktop) -->
       <v-table density="compact" style="width: 100%" class="image-records-table d-none d-md-table">
         <thead>
           <tr>
             <th>Folio</th>
             <th>Usuario</th>
             <th>Estado</th>
+            <th v-if="hasScore">Score obtenido</th>
           </tr>
         </thead>
         <tbody>
           <template
             v-for="(resp, i) in getPaginatedResponses(
-              fieldObj.field.id,
-              fieldObj.responses.filter((r) => {
-                const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
+              props.fieldObj.field.id,
+              props.fieldObj.responses.filter((r) => {
+                const search = (props.fieldSearch[props.fieldObj.field.id] || '').toString().toLowerCase();
                 const estado =
                   r.value === true || r.value === 1 || r.value === '1' || r.value === 'true' || r.value === 'on' || r.value === 'activo'
                     ? 'Activado'
@@ -183,7 +309,7 @@ function numberFmt(n) {
                   estado.toLowerCase().includes(search)
                 );
               }),
-              pageByField
+              props.pageByField
             )"
             :key="i"
           >
@@ -208,12 +334,15 @@ function numberFmt(n) {
                     : 'Desactivado'
                 }}
               </td>
+              <td v-if="hasScore" class="response-value-cell">
+                {{ getScoreObtained(resp) }}
+              </td>
             </tr>
           </template>
           <tr
             v-if="
-              fieldObj.responses.filter((r) => {
-                const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
+              props.fieldObj.responses.filter((r) => {
+                const search = (props.fieldSearch[props.fieldObj.field.id] || '').toString().toLowerCase();
                 const estado =
                   r.value === true || r.value === 1 || r.value === '1' || r.value === 'true' || r.value === 'on' || r.value === 'activo'
                     ? 'Activado'
@@ -227,19 +356,19 @@ function numberFmt(n) {
               }).length === 0
             "
           >
-            <td colspan="3" class="text-medium-emphasis">No hay registros de switch.</td>
+            <td :colspan="hasScore ? 4 : 3" class="text-medium-emphasis">No hay registros de switch.</td>
           </tr>
         </tbody>
       </v-table>
 
-      <!-- Cards en móvil/tablet -->
+      <!-- Cards (móvil/tablet) -->
       <div class="image-records-cards d-md-none">
         <v-row>
           <v-col
             v-for="(resp, i) in getPaginatedResponses(
-              fieldObj.field.id,
-              fieldObj.responses.filter((r) => {
-                const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
+              props.fieldObj.field.id,
+              props.fieldObj.responses.filter((r) => {
+                const search = (props.fieldSearch[props.fieldObj.field.id] || '').toString().toLowerCase();
                 const estado =
                   r.value === true || r.value === 1 || r.value === '1' || r.value === 'true' || r.value === 'on' || r.value === 'activo'
                     ? 'Activado'
@@ -251,12 +380,15 @@ function numberFmt(n) {
                   estado.toLowerCase().includes(search)
                 );
               }),
-              pageByField
+              props.pageByField
             )"
             :key="i"
             cols="12"
           >
-            <v-card class="mb-4 pa-3 elevation-1 rounded-lg response-card" style="cursor: default">
+            <v-card class="mb-4 pa-3 elevation-1 rounded-lg response-card" style="cursor: default; position: relative">
+              <div v-if="hasScore" style="position: absolute; top: 12px; right: 16px; font-size: 0.85rem; font-weight: 500">
+                {{ getScoreObtained(resp) }}
+              </div>
               <div class="d-flex flex-column mb-1" style="gap: 8px">
                 <span class="folio-link text-caption" style="color: #1976d2; text-decoration: underline; font-weight: 500; min-width: 60px">
                   {{ resp.folio || resp.id || '-' }}
@@ -264,7 +396,7 @@ function numberFmt(n) {
                 <span class="font-weight-medium" style="color: #333; font-size: 0.9rem">
                   {{ resp.user?.name || resp.user || '-' }}
                 </span>
-                <span style="font-size: 0.9rem; color: #1976d2">
+                <span style="font-size: 0.9rem">
                   <strong>Estado:</strong>
                   {{
                     resp.value === true ||
@@ -280,10 +412,11 @@ function numberFmt(n) {
               </div>
             </v-card>
           </v-col>
+
           <v-col
             v-if="
-              fieldObj.responses.filter((r) => {
-                const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
+              props.fieldObj.responses.filter((r) => {
+                const search = (props.fieldSearch[props.fieldObj.field.id] || '').toString().toLowerCase();
                 const estado =
                   r.value === true || r.value === 1 || r.value === '1' || r.value === 'true' || r.value === 'on' || r.value === 'activo'
                     ? 'Activado'
@@ -305,13 +438,13 @@ function numberFmt(n) {
 
       <div class="d-flex flex-column align-center mt-2">
         <v-pagination
-          :model-value="pageByField[fieldObj.field.id]"
+          :model-value="props.pageByField[props.fieldObj.field.id]"
           :length="
             Math.max(
               1,
               Math.ceil(
-                fieldObj.responses.filter((r) => {
-                  const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
+                props.fieldObj.responses.filter((r) => {
+                  const search = (props.fieldSearch[props.fieldObj.field.id] || '').toString().toLowerCase();
                   const estado =
                     r.value === true || r.value === 1 || r.value === '1' || r.value === 'true' || r.value === 'on' || r.value === 'activo'
                       ? 'Activado'
@@ -322,16 +455,104 @@ function numberFmt(n) {
                     (r.user && r.user.toString().toLowerCase().includes(search)) ||
                     estado.toLowerCase().includes(search)
                   );
-                }).length / pageSize
+                }).length / 10
               )
             )
           "
           :total-visible="1"
           color="primary"
-          @update:modelValue="setPage(fieldObj.field.id, $event)"
+          @update:modelValue="props.setPage(props.fieldObj.field.id, $event)"
           class="mobile-pagination"
         />
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.image-records-table tr.record-row {
+  background: #f5f5f5;
+}
+.image-records-table tr.record-row > td.response-value-cell {
+  border-radius: 0;
+  padding: 6px 12px;
+}
+.image-records-table tbody tr.record-row:not(:last-child) {
+  border-bottom: 12px solid #fff;
+}
+.record-row > td.response-value-cell {
+  padding-bottom: 14px;
+}
+
+.image-records-cards .response-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0px 2px 8px rgba(60, 60, 60, 0.08);
+  border: 1px solid #eaeaea;
+  margin-bottom: 16px;
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s;
+}
+
+@media (min-width: 768px) {
+  .image-records-cards {
+    display: none !important;
+  }
+}
+@media (max-width: 767px) {
+  .image-records-table {
+    display: none !important;
+  }
+  .image-records-cards {
+    display: block !important;
+  }
+}
+
+.kpi-card {
+  border: 1px solid #eaeaea;
+  border-radius: 12px;
+}
+.kpi-row > .v-col {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+.search-table-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.custom-search {
+  width: 100% !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+}
+.custom-search .v-field__outline {
+  border-width: 0.5px !important;
+  border-radius: 8px !important;
+  border-color: #ccc !important;
+}
+.custom-search .v-field__input {
+  font-size: 15px !important;
+  padding: 8px 12px !important;
+}
+.custom-search .v-field__prepend-inner {
+  color: #1677ff !important;
+}
+.custom-search .v-label,
+.custom-search .v-field__clearable {
+  color: #555 !important;
+}
+
+.response-value-cell {
+  background: #f5f5f5;
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+.mobile-pagination {
+  margin: 8px 0;
+  justify-content: center;
+  display: flex;
+}
+</style>

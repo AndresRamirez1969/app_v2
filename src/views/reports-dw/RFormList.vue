@@ -132,7 +132,7 @@ watch(
         <p class="text-body-2 text-grey">No se encontraron reportes con los filtros aplicados</p>
       </div>
 
-      <!-- Modo móvil (solo cards) -->
+      <!-- Modo móvil (solo cards, SIN 3 puntitos) -->
       <template v-else-if="isMobile">
         <v-card
           v-for="form in paginatedItems"
@@ -149,21 +149,7 @@ watch(
                     {{ form.folio }}
                   </router-link>
                 </div>
-                <v-menu location="bottom end">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" variant="text" class="actions-btn pa-0" min-width="0" height="24">
-                      <v-icon :icon="mdiDotsHorizontal" size="20" color="black" />
-                    </v-btn>
-                  </template>
-                  <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
-                    <v-list-item @click="goToAnswerList(form)">
-                      <template #prepend>
-                        <v-icon :icon="mdiEye" size="18" />
-                      </template>
-                      <v-list-item-title>Ver</v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
+                <!-- 3 puntitos eliminados en móvil -->
               </div>
               <div class="font-weight-medium mb-1">{{ form.name }}</div>
               <div class="text-caption"><strong>Frecuencia:</strong> {{ getFrequencyLabel(form.frequency) }}</div>

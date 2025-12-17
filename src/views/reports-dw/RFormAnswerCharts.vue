@@ -1,19 +1,19 @@
 <script setup>
 import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue';
 import axios from '@/utils/axios';
-import { AVAILABLE_FIELDS } from '@/constants/fieldTypes';
 
 import FieldText from './RFormFieldsCharts/FieldSimpleList.vue';
 import FieldMultiple from './RFormFieldsCharts/FieldMultiple.vue';
+import FieldNumber from './RFormFieldsCharts/FieldNumber.vue';
+import FieldDate from './RFormFieldsCharts/FieldDate.vue';
+import FieldHour from './RFormFieldsCharts/FieldHour.vue';
+import FieldMultimedia from './RFormFieldsCharts/FieldMultimedia.vue';
+import FieldRange from './RFormFieldsCharts/FieldRange.vue';
+import FieldSwitch from './RFormFieldsCharts/FieldSwitch.vue';
+import FieldGeo from './RFormFieldsCharts/FieldGeo.vue';
 
 // ApexCharts
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts').then((m) => m.default || m).catch(() => null));
-
-// Heatmap Calendar
-import CalendarHeatmap from '@/components/shared/CalendarHeatmap.vue';
-
-// Google Map
-import GoogleMap from '@/utils/helpers/google/GoogleMap.vue';
 
 const props = defineProps({
   formId: { type: [String, Number], required: true },
@@ -26,7 +26,7 @@ const props = defineProps({
 const localLoading = ref(false);
 const form = ref(null);
 
-// KPIs
+// ================== KPIs / Scores ==================
 const totalMaxPoints = ref(null);
 const minRequiredPoints = ref(0);
 const allScores = ref([]);
@@ -45,6 +45,9 @@ const medianScore = computed(() => {
   return arr.length % 2 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
 });
 
+const hasRating = ref(false);
+
+// ================== Histograma de puntuaciones ==================
 const apexReady = ref(true);
 const chartSeries = ref([{ name: 'Respuestas', data: [] }]);
 const chartOptions = ref({
@@ -56,8 +59,8 @@ const chartOptions = ref({
   tooltip: { y: { formatter: (val) => `${val}` } }
 });
 
+// fallback SVG si falla Apex
 const svgBars = ref([]);
-const svgMaxY = ref(0);
 const svgCategories = ref([]);
 
 // ================== Helpers numéricos ==================
@@ -143,8 +146,6 @@ const buildBins = (values, maxPoints, binCount) => {
   }
   return { categories, counts };
 };
-
-const hasRating = ref(false);
 
 // ================== Evolución temporal de respuestas ==================
 const allResponses = ref([]);
@@ -308,7 +309,6 @@ const percentTotalQuestions = ref(0);
 const percentTotalResponses = ref(0);
 const percentAnsweredCount = ref(0);
 const percentOmittedCount = ref(0);
-const percentAnsweredPct = ref(0);
 
 function buildPercentChart() {
   let fields = [];
@@ -328,7 +328,6 @@ function buildPercentChart() {
     percentTotalResponses.value = 0;
     percentAnsweredCount.value = 0;
     percentOmittedCount.value = 0;
-    percentAnsweredPct.value = 0;
     return;
   }
 
@@ -358,7 +357,6 @@ function buildPercentChart() {
   percentTotalResponses.value = totalResponses;
   percentAnsweredCount.value = answeredCount;
   percentOmittedCount.value = omittedCount;
-  percentAnsweredPct.value = totalPossibleAnswers > 0 ? (answeredCount / totalPossibleAnswers) * 100 : 0;
 }
 
 // ================== Fetchers ==================
@@ -381,6 +379,7 @@ const fetchAllScores = async () => {
   Object.keys(baseParams).forEach((k) => {
     if (baseParams[k] === null || baseParams[k] === '' || baseParams[k] === undefined) delete baseParams[k];
   });
+
   do {
     const { data } = await axios.get(`/forms/${props.formId}/responses/reports`, {
       params: { ...baseParams, page, per_page: 100 }
@@ -395,6 +394,7 @@ const fetchAllScores = async () => {
     lastPage = Number(data?.last_page ?? page);
     page += 1;
   } while (page <= lastPage);
+
   allScores.value = scores;
   allResponses.value = responsesArr;
 
@@ -404,6 +404,7 @@ const fetchAllScores = async () => {
     });
     const firstResp = Array.isArray(data?.responses) && data.responses[0];
     const frs = firstResp?.response?.field_responses || firstResp?.response?.fieldResponses || firstResp?.field_responses;
+
     if (Array.isArray(frs) && frs.length) {
       const weightsByField = new Map();
       let minReqAcc = 0;
@@ -421,15 +422,16 @@ const fetchAllScores = async () => {
       if (!minRequiredPoints.value) minRequiredPoints.value = minReqAcc;
     }
   }
+
   if (totalMaxPoints.value === null) totalMaxPoints.value = Math.max(0, ...scores);
 };
 
 const buildChart = () => {
   const { categories, counts } = buildBins(allScores.value, totalMaxPoints.value, props.bins);
+
+  // Si ApexCharts falla, pinta fallback SVG
   if (!VueApexCharts.__asyncResolved && !apexReady.value) {
     const maxCount = Math.max(0, ...counts);
-    svgMaxY.value = maxCount;
-    svgCategories.value = categories;
     const width = 800;
     const height = 320;
     const padding = { left: 40, right: 20, top: 10, bottom: 50 };
@@ -437,6 +439,7 @@ const buildChart = () => {
     const innerH = height - padding.top - padding.bottom;
     const barW = counts.length ? innerW / counts.length : innerW;
     const unitY = maxCount ? innerH / maxCount : 0;
+
     svgBars.value = counts.map((c, i) => {
       const h = c * unitY;
       return {
@@ -447,10 +450,10 @@ const buildChart = () => {
         label: categories[i]
       };
     });
-    chartSeries.value = [{ name: 'Respuestas', data: counts }];
-    chartOptions.value = { ...chartOptions.value, xaxis: { ...chartOptions.value.xaxis, categories } };
-    return;
+
+    svgCategories.value = categories;
   }
+
   chartSeries.value = [{ name: 'Respuestas', data: counts }];
   chartOptions.value = { ...chartOptions.value, xaxis: { ...chartOptions.value.xaxis, categories } };
 };
@@ -463,6 +466,9 @@ const reloadAll = async () => {
     buildChart();
     buildTimeChart();
     buildPercentChart();
+    // --- INICIO DEBUG ---
+    console.log('[RFormAnswerCharts] allResponses:', allResponses.value);
+    // --- FIN DEBUG ---
   } catch (e) {
     apexReady.value = false;
     try {
@@ -484,8 +490,8 @@ watch(
 
 // ================== Apartado de campos y respuestas ==================
 const fieldSearch = ref({});
-const fieldPanels = ref([]);
 const fieldResponses = ref([]);
+
 const fieldsList = computed(() => {
   return (
     form.value?.form_fields ||
@@ -506,12 +512,25 @@ function getResponsesByField(fieldId) {
       (f) => f?.form_field_id === fieldId || f?.formFieldId === fieldId || f?.form_field?.id === fieldId || f?.formField?.id === fieldId
     );
     if (fr && fr.value !== null && fr.value !== undefined && fr.value !== '') {
+      // Extrae el primer reporte (puedes ajustar si necesitas otro)
+      const firstReport = Array.isArray(resp.reports) && resp.reports.length > 0 ? resp.reports[0] : null;
+      // --- INICIO DEBUG ---
+      console.log('[RFormAnswerCharts] getResponsesByField', {
+        fieldId,
+        resp,
+        fr,
+        firstReport
+      });
+      // --- FIN DEBUG ---
       responses.push({
         value: fr.value,
         user: resp?.response?.user || resp?.user || {},
         date: resp?.response?.submitted_at || resp?.submitted_at,
         folio: resp?.folio || resp?.response?.folio || resp?.id || '',
-        nombre: resp?.nombre || resp?.response?.nombre || resp?.name || ''
+        nombre: resp?.nombre || resp?.response?.nombre || resp?.name || '',
+        form_id: firstReport?.form_id || '',
+        report_id: firstReport?.id || '',
+        field_response_id: fr.id
       });
     }
   }
@@ -529,34 +548,25 @@ watch([fieldsList, allResponses], updateFieldResponses, { immediate: true });
 
 const pageByField = ref({});
 
-function getPaginatedResponses(fieldId, responses) {
-  const page = pageByField.value[fieldId] || 1;
-  const pageSize = 10;
-  const start = (page - 1) * pageSize;
-  return responses.slice(start, start + pageSize);
-}
-
 function setPage(fieldId, page) {
   pageByField.value[fieldId] = page;
 }
 
 // ================== IMAGES: Dropdown y Heatmap por fecha ==================
-const selectedImageField = ref({});
-
-// Estado para día y registro seleccionado en el calendario de imágenes
 const selectedImageCalendarDay = ref({});
-const selectedImageCalendarRecord = ref({});
 
 // Maneja el clic en un día del calendario de imágenes
 function onImageCalendarDayClick(fieldId, dayObj) {
   selectedImageCalendarDay.value[fieldId] = typeof dayObj === 'object' && dayObj.date ? dayObj.date : dayObj;
-  selectedImageCalendarRecord.value[fieldId] = null;
 }
 
 // Obtiene los registros (respuestas) que tienen imágenes en ese día
 function getImageRecordsForDay(fieldId, date) {
   const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
   if (!fieldObj || !fieldObj.responses.length || !date) return [];
+  // --- INICIO DEBUG ---
+  console.log('[RFormAnswerCharts] getImageRecordsForDay', { fieldId, date, fieldObj });
+  // --- FIN DEBUG ---
   return fieldObj.responses.filter((r) => {
     let images = r.value;
     if (typeof images === 'string' && images.startsWith('[')) {
@@ -568,23 +578,10 @@ function getImageRecordsForDay(fieldId, date) {
     }
     if (!Array.isArray(images)) images = [images];
     return images.some((img) => {
-      let imgDate = img?.date ? img.date.slice(0, 10) : r.date ? r.date.slice(0, 10) : null;
+      const imgDate = img?.date ? img.date.slice(0, 10) : r.date ? r.date.slice(0, 10) : null;
       return imgDate === date;
     });
   });
-}
-
-function getImageDateOptions(fieldId) {
-  const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
-  if (!fieldObj || !fieldObj.responses.length) return [];
-  const dates = new Set();
-  for (const r of fieldObj.responses) {
-    const images = Array.isArray(r.value) ? r.value : [r.value];
-    for (const img of images) {
-      if (img && img.date) dates.add(img.date.slice(0, 10));
-    }
-  }
-  return Array.from(dates).sort();
 }
 
 function getImageHeatmapData(fieldId, filterDate = null) {
@@ -632,7 +629,7 @@ function setCalendarMonthStart(fieldId, date) {
   calendarMonthStartByField.value[fieldId] = date;
 }
 
-// ================== CALENDAR MIN/MAX DATES POR CAMPO ==================
+// ================== CALENDAR MIN/MAX DATES POR CAMPO (para fechas) ==================
 function getDateHeatmapData(fieldId) {
   const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
   if (!fieldObj || !fieldObj.responses.length) return [];
@@ -666,281 +663,7 @@ function getMaxDateForField(fieldId) {
   return data[data.length - 1].date;
 }
 
-// ================== SELECTOR: Barra horizontal Top-N ==================
-function getSelectorOptions(field) {
-  let opts = field.options || field.choices || field.values || [];
-  if (typeof opts === 'string' && opts.startsWith('[')) {
-    try {
-      opts = JSON.parse(opts);
-    } catch {
-      opts = [];
-    }
-  }
-  return opts;
-}
-
-// --------- NUEVO: helpers para semáforo ---------
-const SEMAFORO_COLORS = {
-  alto: '#e53935', // rojo
-  medio: '#fbc02d', // amarillo
-  bajo: '#43a047' // verde
-};
-function isSemaforoField(fieldObj) {
-  const t = (fieldObj?.type || fieldObj?.input_type || '').toString().toLowerCase();
-  const n = (fieldObj?.name || fieldObj?.label || '').toString().toLowerCase();
-  // Ajusta si tu backend usa otra convención
-  // Queremos "radio" + nombre/label que contenga 'semaforo'
-  return t.includes('radio') && n.includes('semaforo');
-}
-
-function getSelectorTopNSeries(fieldId, topN = 8) {
-  const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
-  if (!fieldObj || !fieldObj.responses.length) return [{ name: 'Respuestas', data: [] }];
-
-  const options = getSelectorOptions(fieldObj.field);
-  const optionLabels = options.map((opt) => (typeof opt === 'string' ? opt : opt.label || opt.name || opt.value || opt));
-
-  const counts = {};
-  for (const r of fieldObj.responses) {
-    let values = r.value;
-
-    if (typeof values === 'string' && values.startsWith('[')) {
-      try {
-        values = JSON.parse(values);
-      } catch {
-        values = [values];
-      }
-    }
-
-    const pushOne = (raw) => {
-      if (!raw) return;
-      let label = typeof raw === 'object' ? raw.label || raw.name || raw.value : raw;
-      if (typeof label !== 'string') return;
-      label = label.trim();
-      if (!label) return;
-      const found = optionLabels.find((o) => o && o.toString().trim().toLowerCase() === label.toLowerCase());
-      const key = found || label;
-      counts[key] = (counts[key] || 0) + 1;
-    };
-
-    if (Array.isArray(values)) values.forEach(pushOne);
-    else pushOne(values);
-  }
-
-  const sorted = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, topN);
-  const isSem = isSemaforoField(fieldObj.field);
-
-  if (isSem) {
-    // Serie con fillColor por punto
-    const data = sorted.map(([label, count]) => {
-      const key = label.toString().toLowerCase();
-      const fillColor =
-        key === 'alto' ? SEMAFORO_COLORS.alto : key === 'medio' ? SEMAFORO_COLORS.medio : key === 'bajo' ? SEMAFORO_COLORS.bajo : '#1976d2';
-      return { x: label, y: count, fillColor };
-    });
-    return [{ name: 'Respuestas', data }];
-  }
-
-  // No semáforo: serie normal
-  const data = sorted.map(([_, count]) => count);
-  return [{ name: 'Respuestas', data }];
-}
-
-function getSelectorTopNBarOptions(fieldId, topN = 8) {
-  const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
-  const labelCampo = fieldObj?.field?.label || fieldObj?.field?.title || fieldObj?.field?.name || `Campo ${fieldId}`;
-  const options = getSelectorOptions(fieldObj.field);
-  const optionLabels = options.map((opt) => (typeof opt === 'string' ? opt : opt.label || opt.name || opt.value || opt));
-  const isSem = isSemaforoField(fieldObj?.field);
-
-  // Re-computamos categorías (para xaxis.categories)
-  const counts = {};
-  for (const r of fieldObj.responses) {
-    let values = r.value;
-    if (typeof values === 'string' && values.startsWith('[')) {
-      try {
-        values = JSON.parse(values);
-      } catch {
-        values = [values];
-      }
-    }
-    const pushOne = (raw) => {
-      if (!raw) return;
-      let label = typeof raw === 'object' ? raw.label || raw.name || raw.value : raw;
-      if (typeof label !== 'string') return;
-      label = label.trim();
-      if (!label) return;
-      const found = optionLabels.find((o) => o && o.toString().trim().toLowerCase() === label.toLowerCase());
-      const key = found || label;
-      counts[key] = (counts[key] || 0) + 1;
-    };
-    if (Array.isArray(values)) values.forEach(pushOne);
-    else pushOne(values);
-  }
-  const sorted = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, topN);
-  const categories = sorted.map(([label]) => label);
-
-  // Paleta fallback (si no se usa fillColor por punto)
-  let colors = ['#1976d2'];
-  if (isSem) {
-    colors = categories.map((cat) => {
-      const k = cat.toString().toLowerCase();
-      if (k === 'alto') return SEMAFORO_COLORS.alto;
-      if (k === 'medio') return SEMAFORO_COLORS.medio;
-      if (k === 'bajo') return SEMAFORO_COLORS.bajo;
-      return '#1976d2';
-    });
-  }
-
-  return {
-    chart: { type: 'bar', height: 340, toolbar: { show: false } },
-    plotOptions: {
-      bar: {
-        horizontal: true,
-        barHeight: '60%',
-        borderRadius: 6,
-        // Clave: colores por data point
-        distributed: true
-      }
-    },
-    dataLabels: { enabled: true, formatter: (val) => `${val}` },
-    xaxis: { categories, title: { text: `${labelCampo} (Top ${topN})` } },
-    yaxis: { title: { text: 'Conteo' }, min: 0, forceNiceScale: true },
-    tooltip: { y: { formatter: (val) => `${val}` } },
-    colors,
-    noData: { text: 'Sin datos para este campo' }
-  };
-}
-
-// ================== NUMERIC HISTOGRAM FOR NUMBER FIELDS ==================
-function getNumericHistogramSeries(fieldId) {
-  const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
-  if (!fieldObj || !fieldObj.responses.length) return [{ name: 'Valores', data: [] }];
-  const values = fieldObj.responses.map((r) => normalizeNumber(r.value)).filter(Number.isFinite);
-  const maxVal = Math.max(...values);
-  const bins = 8;
-  const { categories, counts } = buildBins(values, maxVal, bins);
-  return [{ name: 'Valores', data: counts }];
-}
-
-function getNumericHistogramOptions(fieldId) {
-  const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
-  const labelCampo = fieldObj?.field?.label || fieldObj?.field?.title || fieldObj?.field?.name || `Campo ${fieldId}`;
-  const values = fieldObj.responses.map((r) => normalizeNumber(r.value)).filter(Number.isFinite);
-  const maxVal = Math.max(...values);
-  const bins = 8;
-  const { categories } = buildBins(values, maxVal, bins);
-  return {
-    chart: { type: 'bar', height: 320, toolbar: { show: false } },
-    plotOptions: { bar: { columnWidth: '70%', borderRadius: 6 } },
-    dataLabels: { enabled: true, formatter: (val) => `${val}` },
-    xaxis: { categories, title: { text: `${labelCampo} (Histograma)` } },
-    yaxis: { title: { text: 'Conteo' }, min: 0, forceNiceScale: true },
-    tooltip: { y: { formatter: (val) => `${val}` } },
-    colors: ['#1976d2'],
-    noData: { text: 'Sin datos para este campo' }
-  };
-}
-
-// ================== CAMPO RANGO NUMÉRICO ==================
-function getRangeHistogramSeries(fieldId) {
-  const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
-  if (!fieldObj || !fieldObj.responses.length) return [{ name: 'Valores', data: [] }];
-  const values = fieldObj.responses.map((r) => normalizeNumber(r.value)).filter(Number.isFinite);
-  const maxVal = Math.max(...values);
-  const bins = 8;
-  const { categories, counts } = buildBins(values, maxVal, bins);
-  return [{ name: 'Valores', data: counts }];
-}
-
-function getRangeHistogramOptions(fieldId) {
-  const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
-  const labelCampo = fieldObj?.field?.label || fieldObj?.field?.title || fieldObj?.field?.name || `Campo ${fieldId}`;
-  const values = fieldObj.responses.map((r) => normalizeNumber(r.value)).filter(Number.isFinite);
-  const maxVal = Math.max(...values);
-  const bins = 8;
-  const { categories } = buildBins(values, maxVal, bins);
-  return {
-    chart: { type: 'bar', height: 320, toolbar: { show: false } },
-    plotOptions: { bar: { columnWidth: '70%', borderRadius: 6 } },
-    dataLabels: { enabled: true, formatter: (val) => `${val}` },
-    xaxis: { categories, title: { text: `${labelCampo} (Histograma)` } },
-    yaxis: { title: { text: 'Conteo' }, min: 0, forceNiceScale: true },
-    tooltip: { y: { formatter: (val) => `${val}` } },
-    colors: ['#0288d1'],
-    noData: { text: 'Sin datos para este campo' }
-  };
-}
-
-// ================== CAMPO SWITCH ==================
-function getSwitchDonutSeries(fieldId) {
-  const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
-  if (!fieldObj || !fieldObj.responses.length) return [];
-  let on = 0,
-    off = 0;
-  for (const r of fieldObj.responses) {
-    if (r.value === true || r.value === 1 || r.value === '1' || r.value === 'true' || r.value === 'on' || r.value === 'activo') on++;
-    else off++;
-  }
-  return [on, off];
-}
-
-function getSwitchDonutOptions(fieldId) {
-  return {
-    chart: { type: 'donut', height: 320, toolbar: { show: false } },
-    labels: ['Activado', 'Desactivado'],
-    legend: { position: 'bottom' },
-    dataLabels: {
-      enabled: true,
-      formatter: (val, opts) => `${Number(val).toFixed(2)}%`
-    },
-    tooltip: {
-      y: {
-        formatter: (val, opts) => {
-          const total = opts?.w?.globals?.seriesTotals?.reduce((a, b) => a + b, 0) || 1;
-          const percent = total ? (val / total) * 100 : 0;
-          return `${percent.toFixed(2)}%`;
-        }
-      }
-    },
-    colors: ['#81C784', '#E57373'],
-    plotOptions: {
-      pie: {
-        donut: {
-          labels: {
-            show: true,
-            name: { show: true },
-            value: {
-              show: true,
-              formatter: (val, opts) => {
-                const total = opts?.w?.globals?.seriesTotals?.reduce((a, b) => a + b, 0) || 1;
-                const percent = total ? (val / total) * 100 : 0;
-                return `${percent.toFixed(2)}%`;
-              }
-            },
-            total: {
-              show: true,
-              label: 'Activados',
-              formatter: (w) => {
-                const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
-                const activados = w.globals.series[0];
-                const pct = total ? (activados / total) * 100 : 0;
-                return Number(pct).toFixed(2) + '%';
-              }
-            }
-          }
-        }
-      }
-    },
-    noData: { text: 'Sin datos para este campo' }
-  };
-}
-
-// --------- GEO NORMALIZATION HELPERS ----------
+// ================== GEO HELPERS (para FieldGeo) ==================
 const geoLayerByField = ref({});
 
 function toNum(v) {
@@ -1064,23 +787,6 @@ function getGeoCoords(val) {
   if (lat && lng) return `${lat}, ${lng}`;
   return '-';
 }
-
-const selectedGroup = ref(null);
-const selectedField = ref({});
-
-const groupedFields = computed(() => {
-  const groups = {};
-  for (const field of fieldsList.value) {
-    const groupName = field.group || field.group_name || 'Sin grupo';
-    if (!groups[groupName]) groups[groupName] = [];
-    groups[groupName].push(field);
-  }
-  // Ordena preguntas dentro de cada grupo si hay una propiedad 'order'
-  Object.keys(groups).forEach((g) => {
-    groups[g].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  });
-  return groups;
-});
 </script>
 
 <template>
@@ -1095,7 +801,6 @@ const groupedFields = computed(() => {
         <v-expansion-panel-text>
           <v-card class="elevation-1 rounded-lg pa-4">
             <div class="d-flex flex-wrap align-center justify-space-between mb-2">
-              <div class="text-h6 font-weight-bold">Respuestas por periodo</div>
               <v-btn-toggle v-model="timePeriod" mandatory>
                 <v-btn value="day" size="small">Día</v-btn>
                 <v-btn value="week" size="small">Semana</v-btn>
@@ -1118,7 +823,6 @@ const groupedFields = computed(() => {
         <v-expansion-panel-title>Porcentaje de preguntas contestadas vs. no contestadas</v-expansion-panel-title>
         <v-expansion-panel-text>
           <v-card class="elevation-1 rounded-lg pa-4">
-            <div class="text-h6 font-weight-bold mb-2">Porcentaje de preguntas contestadas vs. no contestadas</div>
             <v-row class="mb-2 kpi-row" dense>
               <v-col cols="12" md="4">
                 <div class="d-flex flex-column">
@@ -1132,7 +836,9 @@ const groupedFields = computed(() => {
                   </v-card>
                   <v-card class="kpi-card pa-3 mb-2">
                     <div class="text-caption text-medium-emphasis">Total posibles respuestas</div>
-                    <div class="text-h6">{{ numberFmt(percentTotalQuestions * percentTotalResponses) }}</div>
+                    <div class="text-h6">
+                      {{ numberFmt(percentTotalQuestions * percentTotalResponses) }}
+                    </div>
                   </v-card>
                   <v-card class="kpi-card pa-3 mb-2">
                     <div class="text-caption text-medium-emphasis">Contestadas</div>
@@ -1161,16 +867,16 @@ const groupedFields = computed(() => {
         <v-expansion-panel-text>
           <v-card class="elevation-1 rounded-lg pa-4">
             <div class="d-flex flex-wrap align-center justify-space-between">
-              <div class="text-h6 font-weight-bold mb-2">Distribución de puntuaciones</div>
               <div class="text-body-2 text-medium-emphasis">
-                Eje X (tope): <strong>{{ numberFmt(totalMaxPoints ?? 0) }}</strong> puntos totales del formulario
+                Eje X (tope):
+                <strong>{{ numberFmt(totalMaxPoints ?? 0) }}</strong> puntos totales del formulario
               </div>
             </div>
             <div class="mt-2">
               <v-alert v-if="!sampleSize" type="info" variant="tonal" class="mb-4">
                 No hay respuestas que cumplan los filtros seleccionados.
               </v-alert>
-              <v-row v-if="showKpis" class="mb-2" dense>
+              <v-row v-if="showKpis" class="mb-2 kpi-row" dense>
                 <v-col cols="6" md="2">
                   <v-card class="kpi-card pa-3">
                     <div class="text-caption text-medium-emphasis">Respuestas</div>
@@ -1202,9 +908,11 @@ const groupedFields = computed(() => {
                   </v-card>
                 </v-col>
               </v-row>
+
               <div v-if="sampleSize && apexReady">
                 <component :is="VueApexCharts" type="bar" height="350" :options="chartOptions" :series="chartSeries" />
               </div>
+
               <div v-else-if="sampleSize && !apexReady" class="chart-fallback">
                 <svg :width="820" :height="360" role="img" aria-label="Histograma de puntuaciones">
                   <line x1="40" y1="20" x2="40" y2="310" stroke="#ccc" />
@@ -1225,6 +933,7 @@ const groupedFields = computed(() => {
                   </template>
                 </svg>
               </div>
+
               <div v-if="localLoading || loading" class="d-flex align-center justify-center py-6">
                 <v-progress-circular indeterminate size="28" />
                 <span class="ml-3 text-medium-emphasis">Cargando gráficas…</span>
@@ -1255,29 +964,33 @@ const groupedFields = computed(() => {
                   <template v-else-if="fieldObj.field.type === 'time'">Hora</template>
                   <template
                     v-else-if="fieldObj.field.type === 'number' || fieldObj.field.type === 'integer' || fieldObj.field.type === 'float'"
-                    >Numérico</template
                   >
+                    Numérico
+                  </template>
                   <template v-else-if="fieldObj.field.type === 'date'">Fecha</template>
                   <template
                     v-else-if="fieldObj.field.type === 'selector' || fieldObj.field.type === 'select' || fieldObj.field.type === 'dropdown'"
-                    >Selector</template
                   >
+                    Selector
+                  </template>
                   <template v-else-if="fieldObj.field.type === 'radio'">Radio</template>
                   <template v-else-if="fieldObj.field.type === 'checkbox'">Checkbox</template>
-                  <template v-else-if="fieldObj.field.type === 'image' || fieldObj.field.type === 'imagenes'">Imágenes</template>
-                  <template v-else-if="fieldObj.field.type === 'document' || fieldObj.field.type === 'documento'">Documentos</template>
-                  <template v-else-if="fieldObj.field.type === 'firma' || fieldObj.field.type === 'signature'">Firma</template>
+                  <template v-else-if="fieldObj.field.type === 'image' || fieldObj.field.type === 'imagenes'"> Imágenes </template>
+                  <template v-else-if="fieldObj.field.type === 'document' || fieldObj.field.type === 'documento'"> Documentos </template>
+                  <template v-else-if="fieldObj.field.type === 'firma' || fieldObj.field.type === 'signature'"> Firma </template>
                   <template v-else-if="fieldObj.field.type === 'range'">Rango</template>
                   <template v-else-if="fieldObj.field.type === 'switch'">Switch</template>
                   <template v-else-if="fieldObj.field.type === 'url'">URL</template>
                   <template
                     v-else-if="fieldObj.field.type === 'phone' || fieldObj.field.type === 'tel' || fieldObj.field.type === 'telefono'"
-                    >Teléfono</template
                   >
+                    Teléfono
+                  </template>
                   <template
                     v-else-if="fieldObj.field.type === 'geolocation' || fieldObj.field.type === 'geo' || fieldObj.field.type === 'location'"
-                    >Geolocalización</template
                   >
+                    Geolocalización
+                  </template>
                   <template v-else>{{ fieldObj.field.type }}</template>
                   )
                 </span>
@@ -1285,207 +998,34 @@ const groupedFields = computed(() => {
               <span v-if="hasRating" style="min-width: 48px; text-align: right"> {{ fieldObj.field.weight ?? 0 }} pts </span>
             </div>
           </v-expansion-panel-title>
+
           <v-expansion-panel-text>
-            <!-- Campo de texto, área de texto, email, url, teléfono -->
-            <div v-if="['text', 'textarea', 'email', 'url', 'phone', 'tel', 'telefono'].includes(fieldObj.field.type)">
+            <!-- CAMPOS SIMPLE LIST-->
+            <div v-if="['text', 'textarea', 'email', 'url', 'tel'].includes(fieldObj.field.type)">
               <FieldText :fieldObj="fieldObj" :fieldSearch="fieldSearch" :pageByField="pageByField" :setPage="setPage" />
             </div>
 
-            <!-- ======= CAMPO NUMÉRICO: Histograma + tabla ======= -->
-            <div v-else-if="fieldObj.field.type === 'number' || fieldObj.field.type === 'integer' || fieldObj.field.type === 'float'">
-              <div class="mb-2 d-flex align-center justify-space-between">
-                <div class="text-h6 font-weight-bold">Distribución (Histograma)</div>
-              </div>
-
-              <div v-if="fieldObj.responses.length">
-                <component
-                  :is="VueApexCharts"
-                  type="bar"
-                  height="320"
-                  :key="`histogram-${fieldObj.field.id}-${fieldObj.responses.length}`"
-                  :options="getNumericHistogramOptions(fieldObj.field.id)"
-                  :series="getNumericHistogramSeries(fieldObj.field.id)"
-                />
-              </div>
-              <div v-else class="text-medium-emphasis py-4">No hay datos suficientes para mostrar el gráfico.</div>
-
-              <!-- Tabla simple con búsqueda -->
-              <div class="search-table-container mt-6">
-                <v-table density="compact" style="width: 100%">
-                  <tbody>
-                    <tr>
-                      <td>
-                        <v-text-field
-                          v-model="fieldSearch[fieldObj.field.id]"
-                          :placeholder="`Buscar valor...`"
-                          prepend-inner-icon="mdi-magnify"
-                          clearable
-                          class="custom-search"
-                          density="compact"
-                          variant="outlined"
-                          color="primary"
-                          hide-details
-                          style="width: 100%; min-width: 0; padding-bottom: 12px"
-                        />
-                      </td>
-                    </tr>
-                    <tr
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                        })
-                      )"
-                      :key="i"
-                      class="response-row"
-                    >
-                      <td>
-                        <div class="response-value-cell">{{ numberFmt(normalizeNumber(resp.value)) }}</div>
-                      </td>
-                    </tr>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                        }).length === 0
-                      "
-                    >
-                      <td class="text-medium-emphasis">No hay valores numéricos válidos.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return !search || (r.value && r.value.toString().toLowerCase().includes(search));
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
+            <!-- CAMPO NUMÉRICO -->
+            <div v-else-if="['number', 'integer', 'float'].includes(fieldObj.field.type)">
+              <FieldNumber :fieldObj="fieldObj" :fieldSearch="fieldSearch" :pageByField="pageByField" :setPage="setPage" />
             </div>
 
-            <!-- Campo FECHA: Heatmap + searchbar + tabla de registros -->
+            <!-- CAMPO FECHA-->
             <div v-else-if="fieldObj.field.type === 'date'">
-              <div class="mb-2 d-flex align-center justify-space-between">
-                <div class="text-h6 font-weight-bold">Respuestas por fecha (Calendario)</div>
-              </div>
-
-              <div v-if="fieldObj.responses.length" class="calendar-heatmap-center calendar-heatmap-lg">
-                <CalendarHeatmap
-                  :data="getDateHeatmapData(fieldObj.field.id)"
-                  :month-start="getCalendarMonthStart(fieldObj.field.id)"
-                  :months="1"
-                  density="tiny"
-                  :scale="0.92"
-                  :minColumnWidthPx="220"
-                  :maxWidthPx="420"
-                  :allowNavigate="true"
-                  :minDate="getMinDateForField(fieldObj.field.id)"
-                  :maxDate="getMaxDateForField(fieldObj.field.id)"
-                  showHeader
-                  showLegend
-                  @update:monthStart="(date) => setCalendarMonthStart(fieldObj.field.id, date)"
-                />
-              </div>
-              <div v-else class="text-medium-emphasis py-4">No hay datos suficientes para mostrar el calendario.</div>
-
-              <!-- Searchbar y tabla de registros debajo del calendario -->
-              <div class="search-table-container mt-6">
-                <v-text-field
-                  v-model="fieldSearch[fieldObj.field.id]"
-                  :placeholder="`Buscar fecha o usuario...`"
-                  prepend-inner-icon="mdi-magnify"
-                  clearable
-                  class="custom-search"
-                  density="compact"
-                  variant="outlined"
-                  color="primary"
-                  hide-details
-                  style="width: 100%; min-width: 0; padding-bottom: 12px"
-                />
-                <v-table density="compact" style="width: 100%">
-                  <tbody>
-                    <tr
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.value && r.value.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search))
-                          );
-                        })
-                      )"
-                      :key="i"
-                      class="response-row"
-                    >
-                      <td>
-                        <div class="response-value-cell">
-                          <span>{{ resp.value }}</span>
-                          <span v-if="resp.user" class="ml-2 text-caption text-medium-emphasis">({{ resp.user }})</span>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.value && r.value.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search))
-                          );
-                        }).length === 0
-                      "
-                    >
-                      <td class="text-medium-emphasis">No hay registros de fechas.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return (
-                              !search ||
-                              (r.value && r.value.toString().toLowerCase().includes(search)) ||
-                              (r.user && r.user.toString().toLowerCase().includes(search))
-                            );
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
+              <FieldDate
+                :fieldObj="fieldObj"
+                :fieldSearch="fieldSearch"
+                :pageByField="pageByField"
+                :setPage="setPage"
+                :getDateHeatmapData="getDateHeatmapData"
+                :getCalendarMonthStart="getCalendarMonthStart"
+                :setCalendarMonthStart="setCalendarMonthStart"
+                :getMinDateForField="getMinDateForField"
+                :getMaxDateForField="getMaxDateForField"
+              />
             </div>
 
-            <!-- Campo SELECT, DROPDOWN, RADIO, CHECKBOX: gráfico de barras + tabla -->
+            <!-- CAMPOS MULTIPLES -->
             <div
               v-else-if="
                 fieldObj.field.type === 'select' ||
@@ -1498,956 +1038,60 @@ const groupedFields = computed(() => {
               <FieldMultiple :fieldObj="fieldObj" :fieldSearch="fieldSearch" :pageByField="pageByField" :setPage="setPage" />
             </div>
 
-            <!-- Campo IMAGEN, DOCUMENTO y FIRMA: solo heatmap y tabla de registros, sin visualización de archivos -->
-            <div v-if="['image', 'imagenes', 'document', 'documento', 'firma', 'signature'].includes(fieldObj.field.type)">
-              <div class="mb-2 d-flex align-center justify-space-between">
-                <div class="text-h6 font-weight-bold">
-                  {{
-                    fieldObj.field.type === 'image' || fieldObj.field.type === 'imagenes'
-                      ? 'Imágenes por fecha'
-                      : fieldObj.field.type === 'document' || fieldObj.field.type === 'documento'
-                        ? 'Documentos por fecha'
-                        : 'Firmas por fecha'
-                  }}
-                </div>
-              </div>
-
-              <div v-if="fieldObj.responses.length" class="calendar-heatmap-center calendar-heatmap-lg">
-                <CalendarHeatmap
-                  :data="getImageHeatmapData(fieldObj.field.id, selectedImageField[fieldObj.field.id])"
-                  :month-start="getCalendarMonthStart(fieldObj.field.id)"
-                  :months="1"
-                  density="tiny"
-                  :scale="0.92"
-                  :minColumnWidthPx="220"
-                  :maxWidthPx="420"
-                  :allowNavigate="true"
-                  :minDate="getMinDateForField(fieldObj.field.id)"
-                  :maxDate="getMaxDateForField(fieldObj.field.id)"
-                  showHeader
-                  showLegend
-                  @update:monthStart="(date) => setCalendarMonthStart(fieldObj.field.id, date)"
-                  @dayClick="(date) => onImageCalendarDayClick(fieldObj.field.id, date)"
-                />
-              </div>
-              <div v-else class="text-medium-emphasis py-4">No hay datos suficientes para mostrar el calendario.</div>
-
-              <!-- Registros del día seleccionado con searchbar y paginación, sin visualización de archivos -->
-              <div v-if="selectedImageCalendarDay[fieldObj.field.id]">
-                <div class="search-table-container">
-                  <v-text-field
-                    v-model="fieldSearch[fieldObj.field.id]"
-                    :placeholder="`Buscar folio o usuario...`"
-                    prepend-inner-icon="mdi-magnify"
-                    clearable
-                    class="custom-search"
-                    density="compact"
-                    variant="outlined"
-                    color="primary"
-                    hide-details
-                    style="width: 100%; min-width: 0; padding-bottom: 12px"
-                  />
-
-                  <!-- Tabla en desktop -->
-                  <v-table density="compact" style="width: 100%" class="image-records-table d-none d-md-table">
-                    <thead>
-                      <tr>
-                        <th>Folio</th>
-                        <th>Usuario</th>
-                        <th>
-                          {{
-                            fieldObj.field.type === 'image' || fieldObj.field.type === 'imagenes'
-                              ? 'Imágenes'
-                              : fieldObj.field.type === 'document' || fieldObj.field.type === 'documento'
-                                ? 'Documentos'
-                                : 'Firmas'
-                          }}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <template
-                        v-for="(resp, i) in getPaginatedResponses(
-                          fieldObj.field.id,
-                          getImageRecordsForDay(fieldObj.field.id, selectedImageCalendarDay[fieldObj.field.id]).filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return (
-                              !search ||
-                              (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                              (r.user && r.user.toString().toLowerCase().includes(search))
-                            );
-                          })
-                        )"
-                        :key="i"
-                      >
-                        <tr class="response-row record-row">
-                          <td class="response-value-cell">
-                            <span class="folio-link" style="color: #1976d2; text-decoration: underline; font-weight: 500">
-                              {{ resp.folio || resp.id || '-' }}
-                            </span>
-                          </td>
-                          <td class="response-value-cell">
-                            <span class="font-weight-medium">{{ resp.user?.name || '-' }}</span>
-                          </td>
-                          <td class="response-value-cell">
-                            {{
-                              Array.isArray(resp.value)
-                                ? resp.value.length
-                                : typeof resp.value === 'string' && resp.value.startsWith('[')
-                                  ? JSON.parse(resp.value).length
-                                  : resp.value
-                                    ? 1
-                                    : 0
-                            }}
-                          </td>
-                        </tr>
-                      </template>
-                      <tr
-                        v-if="
-                          getImageRecordsForDay(fieldObj.field.id, selectedImageCalendarDay[fieldObj.field.id]).filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return (
-                              !search ||
-                              (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                              (r.user && r.user.toString().toLowerCase().includes(search))
-                            );
-                          }).length === 0
-                        "
-                      >
-                        <td colspan="3" class="text-medium-emphasis">No hay registros para este día.</td>
-                      </tr>
-                    </tbody>
-                  </v-table>
-
-                  <!-- Cards en móvil/tablet, sin visualización de archivos -->
-                  <div class="image-records-cards d-md-none">
-                    <v-row>
-                      <v-col
-                        v-for="(resp, i) in getPaginatedResponses(
-                          fieldObj.field.id,
-                          getImageRecordsForDay(fieldObj.field.id, selectedImageCalendarDay[fieldObj.field.id]).filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return (
-                              !search ||
-                              (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                              (r.user && r.user.toString().toLowerCase().includes(search))
-                            );
-                          })
-                        )"
-                        :key="i"
-                        cols="12"
-                      >
-                        <v-card class="mb-4 pa-3 elevation-1 rounded-lg response-card" style="cursor: default">
-                          <div class="d-flex flex-column mb-1" style="gap: 8px">
-                            <span
-                              class="folio-link text-caption"
-                              style="color: #1976d2; text-decoration: underline; font-weight: 500; min-width: 60px"
-                            >
-                              {{ resp.folio || resp.id || '-' }}
-                            </span>
-                            <span class="font-weight-medium" style="color: #333; font-size: 1.08rem">
-                              {{ resp.user?.name || '-' }}
-                            </span>
-                            <span style="font-size: 1.08rem; color: #1976d2">
-                              <strong>
-                                {{
-                                  fieldObj.field.type === 'image' || fieldObj.field.type === 'imagenes'
-                                    ? 'Imágenes:'
-                                    : fieldObj.field.type === 'document' || fieldObj.field.type === 'documento'
-                                      ? 'Documentos:'
-                                      : 'Firmas:'
-                                }}
-                              </strong>
-                              {{
-                                Array.isArray(resp.value)
-                                  ? resp.value.length
-                                  : typeof resp.value === 'string' && resp.value.startsWith('[')
-                                    ? JSON.parse(resp.value).length
-                                    : resp.value
-                                      ? 1
-                                      : 0
-                              }}
-                            </span>
-                          </div>
-                        </v-card>
-                      </v-col>
-                      <v-col
-                        v-if="
-                          getImageRecordsForDay(fieldObj.field.id, selectedImageCalendarDay[fieldObj.field.id]).filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return (
-                              !search ||
-                              (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                              (r.user && r.user.toString().toLowerCase().includes(search))
-                            );
-                          }).length === 0
-                        "
-                        cols="12"
-                      >
-                        <v-card class="response-card pa-3 text-medium-emphasis mb-4 rounded-lg elevation-1">
-                          No hay registros para este día.
-                        </v-card>
-                      </v-col>
-                    </v-row>
-                  </div>
-
-                  <div class="d-flex flex-column align-center mt-2">
-                    <v-pagination
-                      :model-value="pageByField[fieldObj.field.id]"
-                      :length="
-                        Math.max(
-                          1,
-                          Math.ceil(
-                            getImageRecordsForDay(fieldObj.field.id, selectedImageCalendarDay[fieldObj.field.id]).filter((r) => {
-                              const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                              return (
-                                !search ||
-                                (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                                (r.user && r.user.toString().toLowerCase().includes(search))
-                              );
-                            }).length / 10
-                          )
-                        )
-                      "
-                      :total-visible="1"
-                      color="primary"
-                      @update:modelValue="setPage(fieldObj.field.id, $event)"
-                      class="mobile-pagination"
-                    />
-                  </div>
-                </div>
-              </div>
+            <!-- CAMPO HORA -->
+            <div v-else-if="fieldObj.field.type === 'time'">
+              <FieldHour :fieldObj="fieldObj" :fieldSearch="fieldSearch" :pageByField="pageByField" :setPage="setPage" />
             </div>
 
-            <!-- Campo RANGO: Histograma + searchbar + tabla de registros -->
-            <div v-else-if="fieldObj.field.type === 'range'">
-              <div class="mb-2 d-flex align-center justify-space-between">
-                <div class="text-h6 font-weight-bold">Distribución (Histograma de rango)</div>
-              </div>
+            <!-- Campo MULTIMEDIA -->
+            <FieldMultimedia
+              v-else-if="['image', 'imagenes', 'document', 'documento', 'firma', 'signature'].includes(fieldObj.field.type)"
+              :fieldObj="fieldObj"
+              :fieldSearch="fieldSearch"
+              :pageByField="pageByField"
+              :setPage="setPage"
+              :selectedImageCalendarDay="selectedImageCalendarDay"
+              :onImageCalendarDayClick="onImageCalendarDayClick"
+              :getImageRecordsForDay="getImageRecordsForDay"
+              :getImageHeatmapData="getImageHeatmapData"
+              :getCalendarMonthStart="getCalendarMonthStart"
+              :setCalendarMonthStart="setCalendarMonthStart"
+              :getMinDateForField="getMinDateForField"
+              :getMaxDateForField="getMaxDateForField"
+            />
 
-              <div v-if="fieldObj.responses.length">
-                <component
-                  :is="VueApexCharts"
-                  type="bar"
-                  height="320"
-                  :key="`range-histogram-${fieldObj.field.id}-${fieldObj.responses.length}`"
-                  :options="getRangeHistogramOptions(fieldObj.field.id)"
-                  :series="getRangeHistogramSeries(fieldObj.field.id)"
-                />
-              </div>
-              <div v-else class="text-medium-emphasis py-4">No hay datos suficientes para mostrar el gráfico.</div>
+            <!-- Campo RANGO -->
+            <FieldRange
+              v-else-if="fieldObj.field.type === 'range'"
+              :fieldObj="fieldObj"
+              :fieldSearch="fieldSearch"
+              :pageByField="pageByField"
+              :setPage="setPage"
+            />
 
-              <!-- Searchbar y tabla/cards de registros debajo del histograma -->
-              <div class="search-table-container mt-6">
-                <v-text-field
-                  v-model="fieldSearch[fieldObj.field.id]"
-                  :placeholder="`Buscar folio, usuario o valor...`"
-                  prepend-inner-icon="mdi-magnify"
-                  clearable
-                  class="custom-search"
-                  density="compact"
-                  variant="outlined"
-                  color="primary"
-                  hide-details
-                  style="width: 100%; min-width: 0; padding-bottom: 12px"
-                />
-
-                <!-- Tabla en desktop -->
-                <v-table density="compact" style="width: 100%" class="image-records-table d-none d-md-table">
-                  <thead>
-                    <tr>
-                      <th>Folio</th>
-                      <th>Usuario</th>
-                      <th>Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        })
-                      )"
-                      :key="i"
-                    >
-                      <tr class="response-row record-row">
-                        <td class="response-value-cell">
-                          <span class="folio-link" style="color: #1976d2; text-decoration: underline; font-weight: 500">
-                            {{ resp.folio || resp.id || '-' }}
-                          </span>
-                        </td>
-                        <td class="response-value-cell">
-                          <span class="font-weight-medium">{{ resp.user?.name || resp.user || '-' }}</span>
-                        </td>
-                        <td class="response-value-cell">
-                          {{ numberFmt(normalizeNumber(resp.value)) }}
-                        </td>
-                      </tr>
-                    </template>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        }).length === 0
-                      "
-                    >
-                      <td colspan="3" class="text-medium-emphasis">No hay registros de rango.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-
-                <!-- Cards en móvil/tablet -->
-                <div class="image-records-cards d-md-none">
-                  <v-row>
-                    <v-col
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        })
-                      )"
-                      :key="i"
-                      cols="12"
-                    >
-                      <v-card class="mb-4 pa-3 elevation-1 rounded-lg response-card" style="cursor: default">
-                        <div class="d-flex flex-column mb-1" style="gap: 8px">
-                          <span
-                            class="folio-link text-caption"
-                            style="color: #1976d2; text-decoration: underline; font-weight: 500; min-width: 60px"
-                          >
-                            {{ resp.folio || resp.id || '-' }}
-                          </span>
-                          <span class="font-weight-medium" style="color: #333; font-size: 0.9rem">
-                            {{ resp.user?.name || resp.user || '-' }}
-                          </span>
-                          <span style="font-size: 0.9rem; color: #1976d2">
-                            <strong>Valor:</strong> {{ numberFmt(normalizeNumber(resp.value)) }}
-                          </span>
-                        </div>
-                      </v-card>
-                    </v-col>
-                    <v-col
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            (r.value && r.value.toString().toLowerCase().includes(search))
-                          );
-                        }).length === 0
-                      "
-                      cols="12"
-                    >
-                      <v-card class="response-card pa-3 text-medium-emphasis mb-4 rounded-lg elevation-1">
-                        No hay registros de rango.
-                      </v-card>
-                    </v-col>
-                  </v-row>
-                </div>
-
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            return (
-                              !search ||
-                              (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                              (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                              (r.value && r.value.toString().toLowerCase().includes(search))
-                            );
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Campo SWITCH: gráfica de dona + KPIs + tabla/cards de registros -->
-            <div v-else-if="fieldObj.field.type === 'switch'">
-              <div class="mb-2 d-flex align-center justify-space-between">
-                <div class="text-h6 font-weight-bold">Distribución de respuestas (Switch)</div>
-              </div>
-
-              <v-row class="mb-2 kpi-row" dense>
-                <v-col cols="12" md="4">
-                  <div class="d-flex flex-column">
-                    <v-card class="kpi-card pa-3 mb-2">
-                      <div class="text-caption text-medium-emphasis">Total de respuestas</div>
-                      <div class="text-h6">{{ numberFmt(fieldObj.responses.length) }}</div>
-                    </v-card>
-                    <v-card class="kpi-card pa-3 mb-2">
-                      <div class="text-caption text-medium-emphasis">Activados</div>
-                      <div class="text-h6">
-                        {{
-                          fieldObj.responses.filter(
-                            (r) =>
-                              r.value === true ||
-                              r.value === 1 ||
-                              r.value === '1' ||
-                              r.value === 'true' ||
-                              r.value === 'on' ||
-                              r.value === 'activo'
-                          ).length
-                        }}
-                      </div>
-                    </v-card>
-                    <v-card class="kpi-card pa-3 mb-2">
-                      <div class="text-caption text-medium-emphasis">Desactivados</div>
-                      <div class="text-h6">
-                        {{
-                          fieldObj.responses.filter(
-                            (r) =>
-                              !(
-                                r.value === true ||
-                                r.value === 1 ||
-                                r.value === '1' ||
-                                r.value === 'true' ||
-                                r.value === 'on' ||
-                                r.value === 'activo'
-                              )
-                          ).length
-                        }}
-                      </div>
-                    </v-card>
-                  </div>
-                </v-col>
-                <v-col cols="12" md="8" class="d-flex align-center justify-center">
-                  <div v-if="fieldObj.responses.length" style="width: 100%; max-width: 400px">
-                    <component
-                      :is="VueApexCharts"
-                      type="donut"
-                      height="320"
-                      :key="`switch-donut-${fieldObj.field.id}-${fieldObj.responses.length}`"
-                      :options="getSwitchDonutOptions(fieldObj.field.id)"
-                      :series="getSwitchDonutSeries(fieldObj.field.id)"
-                    />
-                  </div>
-                  <div v-else class="text-medium-emphasis py-4">No hay datos suficientes para mostrar el gráfico.</div>
-                </v-col>
-              </v-row>
-
-              <!-- Searchbar y tabla/cards de registros debajo de la gráfica -->
-              <div class="search-table-container mt-6">
-                <v-text-field
-                  v-model="fieldSearch[fieldObj.field.id]"
-                  :placeholder="`Buscar folio, usuario o estado...`"
-                  prepend-inner-icon="mdi-magnify"
-                  clearable
-                  class="custom-search"
-                  density="compact"
-                  variant="outlined"
-                  color="primary"
-                  hide-details
-                  style="width: 100%; min-width: 0; padding-bottom: 12px"
-                />
-
-                <!-- Tabla en desktop -->
-                <v-table density="compact" style="width: 100%" class="image-records-table d-none d-md-table">
-                  <thead>
-                    <tr>
-                      <th>Folio</th>
-                      <th>Usuario</th>
-                      <th>Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          const estado =
-                            r.value === true ||
-                            r.value === 1 ||
-                            r.value === '1' ||
-                            r.value === 'true' ||
-                            r.value === 'on' ||
-                            r.value === 'activo'
-                              ? 'Activado'
-                              : 'Desactivado';
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            estado.toLowerCase().includes(search)
-                          );
-                        })
-                      )"
-                      :key="i"
-                    >
-                      <tr class="response-row record-row">
-                        <td class="response-value-cell">
-                          <span class="folio-link" style="color: #1976d2; text-decoration: underline; font-weight: 500">
-                            {{ resp.folio || resp.id || '-' }}
-                          </span>
-                        </td>
-                        <td class="response-value-cell">
-                          <span class="font-weight-medium">{{ resp.user?.name || resp.user || '-' }}</span>
-                        </td>
-                        <td class="response-value-cell">
-                          {{
-                            resp.value === true ||
-                            resp.value === 1 ||
-                            resp.value === '1' ||
-                            resp.value === 'true' ||
-                            resp.value === 'on' ||
-                            resp.value === 'activo'
-                              ? 'Activado'
-                              : 'Desactivado'
-                          }}
-                        </td>
-                      </tr>
-                    </template>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          const estado =
-                            r.value === true ||
-                            r.value === 1 ||
-                            r.value === '1' ||
-                            r.value === 'true' ||
-                            r.value === 'on' ||
-                            r.value === 'activo'
-                              ? 'Activado'
-                              : 'Desactivado';
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            estado.toLowerCase().includes(search)
-                          );
-                        }).length === 0
-                      "
-                    >
-                      <td colspan="3" class="text-medium-emphasis">No hay registros de switch.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-
-                <!-- Cards en móvil/tablet -->
-                <div class="image-records-cards d-md-none">
-                  <v-row>
-                    <v-col
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          const estado =
-                            r.value === true ||
-                            r.value === 1 ||
-                            r.value === '1' ||
-                            r.value === 'true' ||
-                            r.value === 'on' ||
-                            r.value === 'activo'
-                              ? 'Activado'
-                              : 'Desactivado';
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            estado.toLowerCase().includes(search)
-                          );
-                        })
-                      )"
-                      :key="i"
-                      cols="12"
-                    >
-                      <v-card class="mb-4 pa-3 elevation-1 rounded-lg response-card" style="cursor: default">
-                        <div class="d-flex flex-column mb-1" style="gap: 8px">
-                          <span
-                            class="folio-link text-caption"
-                            style="color: #1976d2; text-decoration: underline; font-weight: 500; min-width: 60px"
-                          >
-                            {{ resp.folio || resp.id || '-' }}
-                          </span>
-                          <span class="font-weight-medium" style="color: #333; font-size: 0.9rem">
-                            {{ resp.user?.name || resp.user || '-' }}
-                          </span>
-                          <span style="font-size: 0.9rem; color: #1976d2">
-                            <strong>Estado:</strong>
-                            {{
-                              resp.value === true ||
-                              resp.value === 1 ||
-                              resp.value === '1' ||
-                              resp.value === 'true' ||
-                              resp.value === 'on' ||
-                              resp.value === 'activo'
-                                ? 'Activado'
-                                : 'Desactivado'
-                            }}
-                          </span>
-                        </div>
-                      </v-card>
-                    </v-col>
-                    <v-col
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          const estado =
-                            r.value === true ||
-                            r.value === 1 ||
-                            r.value === '1' ||
-                            r.value === 'true' ||
-                            r.value === 'on' ||
-                            r.value === 'activo'
-                              ? 'Activado'
-                              : 'Desactivado';
-                          return (
-                            !search ||
-                            (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                            (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                            estado.toLowerCase().includes(search)
-                          );
-                        }).length === 0
-                      "
-                      cols="12"
-                    >
-                      <v-card class="response-card pa-3 text-medium-emphasis mb-4 rounded-lg elevation-1">
-                        No hay registros de switch.
-                      </v-card>
-                    </v-col>
-                  </v-row>
-                </div>
-
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            const estado =
-                              r.value === true ||
-                              r.value === 1 ||
-                              r.value === '1' ||
-                              r.value === 'true' ||
-                              r.value === 'on' ||
-                              r.value === 'activo'
-                                ? 'Activado'
-                                : 'Desactivado';
-                            return (
-                              !search ||
-                              (r.folio && r.folio.toString().toLowerCase().includes(search)) ||
-                              (r.user && r.user.toString().toLowerCase().includes(search)) ||
-                              estado.toLowerCase().includes(search)
-                            );
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
-            </div>
+            <!-- Campo SWITCH -->
+            <FieldSwitch
+              v-else-if="fieldObj.field.type === 'switch'"
+              :fieldObj="fieldObj"
+              :fieldSearch="fieldSearch"
+              :pageByField="pageByField"
+              :setPage="setPage"
+            />
 
             <!-- Campo GEOLOCALIZACIÓN -->
-            <div v-else-if="fieldObj.field.type === 'geolocation' || fieldObj.field.type === 'geo' || fieldObj.field.type === 'location'">
-              <div class="mb-2 d-flex align-center justify-space-between">
-                <div class="text-h6 font-weight-bold">Registros de geolocalización</div>
-              </div>
-
-              <div class="search-table-container mt-6">
-                <!-- Selector de capa -->
-                <v-btn-toggle
-                  v-model="geoLayerByField[fieldObj.field.id]"
-                  mandatory
-                  class="mb-4"
-                  color="primary"
-                  density="compact"
-                  style="max-width: 320px"
-                >
-                  <v-btn value="points">Puntos</v-btn>
-                  <v-btn value="heatmap">Heatmap</v-btn>
-                </v-btn-toggle>
-
-                <template v-if="getGeoPoints(fieldObj.field.id).length">
-                  <GoogleMap
-                    class="map-container"
-                    :points="getGeoPoints(fieldObj.field.id)"
-                    :center="getGeoCenter(fieldObj.field.id)"
-                    :zoom="getGeoZoom(fieldObj.field.id)"
-                    :fit-bounds="true"
-                    :layer="geoLayerByField[fieldObj.field.id] || 'points'"
-                    :key="`geo-${fieldObj.field.id}-${getGeoPoints(fieldObj.field.id).length}-${geoLayerByField[fieldObj.field.id]}`"
-                  />
-                </template>
-                <template v-else>
-                  <v-card class="pa-6 text-medium-emphasis" style="background: #f5f5f5; border-radius: 12px">
-                    No hay ubicaciones válidas para mostrar.
-                  </v-card>
-                </template>
-
-                <!-- Searchbar y tabla/cards de registros debajo del mapa -->
-                <v-text-field
-                  v-model="fieldSearch[fieldObj.field.id]"
-                  :placeholder="`Buscar folio, usuario o dirección...`"
-                  prepend-inner-icon="mdi-magnify"
-                  clearable
-                  class="custom-search mt-4"
-                  density="compact"
-                  variant="outlined"
-                  color="primary"
-                  hide-details
-                  style="width: 100%; min-width: 0; padding-bottom: 12px"
-                />
-
-                <!-- Tabla en desktop -->
-                <v-table density="compact" style="width: 100%" class="image-records-table d-none d-md-table">
-                  <thead>
-                    <tr>
-                      <th>Folio</th>
-                      <th>Usuario</th>
-                      <th>Dirección</th>
-                      <th>Coordenadas</th>
-                      <!-- Nueva columna -->
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          const folio = (r.folio || r.id || '').toString().toLowerCase();
-                          const user = (r.user?.name || r.user || '').toString().toLowerCase();
-                          const address = r.value?.address || r.value?.direccion || r.value?.formatted_address || '';
-                          return (
-                            !search ||
-                            folio.includes(search) ||
-                            user.includes(search) ||
-                            (address && address.toString().toLowerCase().includes(search))
-                          );
-                        })
-                      )"
-                      :key="i"
-                    >
-                      <tr class="response-row record-row">
-                        <td class="response-value-cell">
-                          <span class="folio-link" style="color: #1976d2; text-decoration: underline; font-weight: 500">
-                            {{ resp.folio || resp.id || '-' }}
-                          </span>
-                        </td>
-                        <td class="response-value-cell">
-                          <span class="font-weight-medium">{{ resp.user?.name || resp.user || '-' }}</span>
-                        </td>
-                        <td class="response-value-cell">
-                          <a
-                            v-if="getGeoAddress(resp.value) !== '-'"
-                            :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getGeoAddress(resp.value))}`"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style="color: #1976d2; text-decoration: underline"
-                          >
-                            {{ getGeoAddress(resp.value) }}
-                          </a>
-                          <span v-else>{{ getGeoAddress(resp.value) }}</span>
-                        </td>
-                        <td class="response-value-cell">
-                          {{ getGeoCoords(resp.value) }}
-                        </td>
-                      </tr>
-                    </template>
-                    <tr
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          const folio = (r.folio || r.id || '').toString().toLowerCase();
-                          const user = (r.user?.name || r.user || '').toString().toLowerCase();
-                          const address = r.value?.address || r.value?.direccion || r.value?.formatted_address || '';
-                          return (
-                            !search ||
-                            folio.includes(search) ||
-                            user.includes(search) ||
-                            (address && address.toString().toLowerCase().includes(search))
-                          );
-                        }).length === 0
-                      "
-                    >
-                      <td colspan="3" class="text-medium-emphasis">No hay registros de geolocalización.</td>
-                    </tr>
-                  </tbody>
-                </v-table>
-
-                <!-- Cards en móvil/tablet -->
-                <div class="image-records-cards d-md-none">
-                  <v-row>
-                    <v-col
-                      v-for="(resp, i) in getPaginatedResponses(
-                        fieldObj.field.id,
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          const folio = (r.folio || r.id || '').toString().toLowerCase();
-                          const user = (r.user?.name || r.user || '').toString().toLowerCase();
-                          const address = r.value?.address || r.value?.direccion || r.value?.formatted_address || '';
-                          return (
-                            !search ||
-                            folio.includes(search) ||
-                            user.includes(search) ||
-                            (address && address.toString().toLowerCase().includes(search))
-                          );
-                        })
-                      )"
-                      :key="i"
-                      cols="12"
-                    >
-                      <v-card class="mb-4 pa-3 elevation-1 rounded-lg response-card" style="cursor: default">
-                        <div class="d-flex flex-column mb-1" style="gap: 8px">
-                          <a
-                            v-if="resp.folio || resp.id"
-                            class="folio-link text-caption"
-                            :href="`/folio/${resp.folio || resp.id}`"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style="color: #1976d2; text-decoration: underline; font-weight: 500; min-width: 60px; font-size: 13px"
-                          >
-                            {{ resp.folio || resp.id || '-' }}
-                          </a>
-                          <span v-else class="folio-link text-caption" style="font-size: 13px">
-                            {{ resp.folio || resp.id || '-' }}
-                          </span>
-                          <span class="text-caption" style="font-size: 13px">
-                            <strong>Dirección:</strong>
-                            <a
-                              v-if="getGeoAddress(resp.value) !== '-'"
-                              :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getGeoAddress(resp.value))}`"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style="color: #1976d2; text-decoration: underline; font-size: 13px"
-                            >
-                              {{ getGeoAddress(resp.value) }}
-                            </a>
-                            <span v-else>{{ getGeoAddress(resp.value) }}</span>
-                          </span>
-                          <span class="text-caption" style="font-size: 13px">
-                            <strong>Coordenadas:</strong>
-                            {{ getGeoCoords(resp.value) }}
-                          </span>
-                        </div>
-                      </v-card>
-                    </v-col>
-                    <v-col
-                      v-if="
-                        fieldObj.responses.filter((r) => {
-                          const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                          const folio = (r.folio || r.id || '').toString().toLowerCase();
-                          const user = (r.user?.name || r.user || '').toString().toLowerCase();
-                          const address = r.value?.address || r.value?.direccion || r.value?.formatted_address || '';
-                          return (
-                            !search ||
-                            folio.includes(search) ||
-                            user.includes(search) ||
-                            (address && address.toString().toLowerCase().includes(search))
-                          );
-                        }).length === 0
-                      "
-                      cols="12"
-                    >
-                      <v-card class="response-card pa-3 text-medium-emphasis mb-4 rounded-lg elevation-1">
-                        No hay registros de geolocalización.
-                      </v-card>
-                    </v-col>
-                  </v-row>
-                </div>
-
-                <div class="d-flex flex-column align-center mt-2">
-                  <v-pagination
-                    :model-value="pageByField[fieldObj.field.id]"
-                    :length="
-                      Math.max(
-                        1,
-                        Math.ceil(
-                          fieldObj.responses.filter((r) => {
-                            const search = (fieldSearch[fieldObj.field.id] || '').toString().toLowerCase();
-                            const folio = (r.folio || r.id || '').toString().toLowerCase();
-                            const user = (r.user?.name || r.user || '').toString().toLowerCase();
-                            const address = r.value?.address || r.value?.direccion || r.value?.formatted_address || '';
-                            return (
-                              !search ||
-                              folio.includes(search) ||
-                              user.includes(search) ||
-                              (address && address.toString().toLowerCase().includes(search))
-                            );
-                          }).length / 10
-                        )
-                      )
-                    "
-                    :total-visible="1"
-                    color="primary"
-                    @update:modelValue="setPage(fieldObj.field.id, $event)"
-                    class="mobile-pagination"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Campo semáforo como dropdown con colores personalizados -->
-            <div v-if="fieldObj.field.type === 'semaforo'">
-              <v-label class="mb-1">Selecciona semáforo</v-label>
-              <v-select
-                v-model="fieldSearch[fieldObj.field.id]"
-                :items="[
-                  { text: 'Alto', value: 'Alto', color: 'red' },
-                  { text: 'Medio', value: 'Medio', color: 'yellow' },
-                  { text: 'Bajo', value: 'Bajo', color: 'green' }
-                ]"
-                item-title="text"
-                item-value="value"
-                hide-details
-                outlined
-                density="compact"
-                style="max-width: 260px"
-              >
-                <template #item="{ item, props }">
-                  <v-list-item v-bind="props">
-                    <v-icon :color="item.color" class="mr-2">mdi-circle</v-icon>
-                    <span :style="{ color: item.color, fontWeight: 'bold' }">{{ item.text }}</span>
-                  </v-list-item>
-                </template>
-                <template #selection="{ item }">
-                  <v-icon :color="item.color" class="mr-2">mdi-circle</v-icon>
-                  <span :style="{ color: item.color, fontWeight: 'bold' }">{{ item.text }}</span>
-                </template>
-              </v-select>
-            </div>
+            <FieldGeo
+              v-else-if="['geolocation', 'geo', 'location'].includes(fieldObj.field.type)"
+              :fieldObj="fieldObj"
+              :fieldSearch="fieldSearch"
+              :pageByField="pageByField"
+              :setPage="setPage"
+              :geoLayerByField="geoLayerByField"
+              :getGeoPoints="getGeoPoints"
+              :getGeoCenter="getGeoCenter"
+              :getGeoZoom="getGeoZoom"
+              :getGeoAddress="getGeoAddress"
+              :getGeoCoords="getGeoCoords"
+            />
           </v-expansion-panel-text>
         </v-expansion-panel>
       </template>
@@ -2456,58 +1100,6 @@ const groupedFields = computed(() => {
 </template>
 
 <style scoped>
-.map-container {
-  height: 360px; /* asegúralo */
-  width: 100%;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  overflow: hidden;
-}
-
-.image-records-table tr.record-row {
-  background: #f5f5f5;
-}
-.image-records-table tr.record-row > td.response-value-cell {
-  border-radius: 0;
-  /* Mantén el padding si lo deseas */
-  padding: 6px 12px;
-}
-.image-records-table tbody tr.record-row:not(:last-child) {
-  border-bottom: 12px solid #fff;
-}
-.record-row > td.response-value-cell {
-  padding-bottom: 14px;
-}
-.image-records-cards .response-card {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08);
-  border: 1px solid #eaeaea;
-  margin-bottom: 16px;
-  transition:
-    box-shadow 0.2s,
-    border-color 0.2s;
-}
-.image-records-cards .response-card.selected-row {
-  border-color: #1976d2;
-  box-shadow: 0px 4px 16px 0px rgba(25, 118, 210, 0.12);
-}
-@media (min-width: 768px) {
-  .image-records-cards {
-    display: none !important;
-  }
-}
-@media (max-width: 767px) {
-  .image-records-table {
-    display: none !important;
-  }
-  .image-records-cards {
-    display: block !important;
-  }
-}
-.selected-row {
-  background: #e3f2fd;
-}
 .kpi-card {
   border: 1px solid #eaeaea;
   border-radius: 12px;
@@ -2516,101 +1108,9 @@ const groupedFields = computed(() => {
   padding-left: 4px !important;
   padding-right: 4px !important;
 }
+
 .custom-expansion-panels > .v-expansion-panel {
   margin-bottom: 18px;
-}
-
-/* Unifica el diseño del search field con el de los filtros */
-.search-table-container {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-}
-.custom-search {
-  width: 100% !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  min-width: 0 !important;
-}
-.custom-search .v-field__outline {
-  border-width: 0.5px !important;
-  border-radius: 8px !important;
-  border-color: #ccc !important;
-}
-.custom-search .v-field__input {
-  font-size: 15px !important;
-  padding: 8px 12px !important;
-}
-.custom-search .v-field__prepend-inner {
-  color: #1677ff !important;
-}
-.custom-search .v-label {
-  font-size: 14px !important;
-  color: #555 !important;
-}
-.custom-search .v-field__clearable {
-  color: #555 !important;
-}
-.response-value-cell {
-  background: #f5f5f5;
-  border-radius: 6px;
-  padding: 6px 12px;
-}
-
-/* ---- CALENDARIO: contenedor y ajustes para dropdown sin scroll ---- */
-.calendar-heatmap-center {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  padding-bottom: 8px;
-  overflow: visible;
-}
-
-/* Calendario más grande */
-.calendar-heatmap-lg :deep(.nav-select) {
-  min-width: 320px !important;
-  max-width: 100% !important;
-  width: auto !important;
-  white-space: nowrap !important;
-  font-size: 16px !important;
-  box-sizing: border-box !important;
-}
-
-.calendar-heatmap-lg :deep(.calendar-monthly) {
-  width: max-content !important;
-  max-width: 620px !important;
-}
-
-.calendar-heatmap-lg :deep(.calendar-monthly-outer) {
-  transform-origin: top center !important;
-  overflow: visible !important;
-}
-
-/* Responsivo */
-@media (max-width: 960px) {
-  .calendar-heatmap-lg :deep(.nav-select) {
-    min-width: 220px !important;
-    font-size: 15px !important;
-  }
-  .calendar-heatmap-lg :deep(.calendar-monthly) {
-    max-width: 420px !important;
-  }
-}
-@media (max-width: 600px) {
-  .calendar-heatmap-lg :deep(.nav-select) {
-    min-width: 180px !important;
-    font-size: 14px !important;
-  }
-  .calendar-heatmap-lg :deep(.calendar-monthly) {
-    max-width: 320px !important;
-  }
-}
-
-/* Overlay tip (si lo usas en v-menu con content-class="calendar-menu") */
-:global(.v-overlay__content.calendar-menu) {
-  max-height: none !important;
-  overflow: visible !important;
-  padding: 8px !important;
 }
 
 .chart-fallback {
@@ -2619,11 +1119,5 @@ const groupedFields = computed(() => {
   border: 1px dashed #e0e0e0;
   border-radius: 12px;
   padding: 8px;
-}
-.mobile-pagination {
-  margin-top: 8px;
-  margin-bottom: 8px;
-  justify-content: center;
-  display: flex;
 }
 </style>

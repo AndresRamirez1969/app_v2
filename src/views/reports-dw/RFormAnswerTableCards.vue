@@ -1,7 +1,8 @@
 <script setup>
 import AnswerTableMeta from './RFormAnswerTableMeta.vue';
 import StatusChip from '@/components/status/StatusChip.vue';
-import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye, mdiFileChartCheckOutline, mdiDomainOff } from '@mdi/js';
+import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye, mdiLock, mdiDomainOff } from '@mdi/js';
+// Cambié mdiFileChartCheckOutline por mdiLock
 
 const props = defineProps({
   items: Array,
@@ -24,7 +25,15 @@ const formatDate = (dateString) => {
 
 const handleSort = (column) => emit('sort', column);
 const handlePageChange = (newPage) => emit('update:page', newPage);
-const viewAnswer = (answer) => emit('view', answer);
+
+// Emitir evento para que el padre navegue a la ruta correcta
+const viewAnswer = (answer) => {
+  emit('view', {
+    formId: answer.form_id,
+    reportId: answer.id // Este es el id del reporte, correcto
+  });
+};
+
 const closeReport = (id) => emit('closeReport', id);
 </script>
 
@@ -52,19 +61,15 @@ const closeReport = (id) => emit('closeReport', id);
           style="cursor: pointer"
         >
           <div class="d-flex align-center mb-1" style="justify-content: space-between">
-            <span class="folio-link folio-small">{{ answer.folio }}</span>
+            <span class="folio-link folio-small" @click.stop="viewAnswer(answer)" style="cursor: pointer">
+              {{ answer.folio }}
+            </span>
             <StatusChip v-if="answer.status" :status="answer.status" />
           </div>
           <div class="font-weight-medium mb-1">{{ answer.name }}</div>
           <div class="text-caption mb-1">
             <strong>Fecha de respuesta:</strong>
             {{ formatDate(answer.answer_date) }}
-          </div>
-          <div v-if="hasRating" class="text-caption mb-1">
-            <strong>Ponderación:</strong>
-            {{
-              answer.ponderacion !== null && answer.ponderacion !== undefined && Number(answer.ponderacion) !== 0 ? answer.ponderacion : '—'
-            }}
           </div>
           <div v-if="hasRating" class="text-caption mb-1">
             <strong>Puntaje:</strong>
@@ -103,7 +108,7 @@ const closeReport = (id) => emit('closeReport', id);
           <template #rows>
             <tr v-for="answer in items" :key="answer.id" @click="viewAnswer(answer)" class="row-clickable" style="cursor: pointer">
               <td class="folio-cell">
-                <a :href="`/reportes/${answer.id}`" class="folio-link" style="text-decoration: underline; color: #1976d2" @click.stop>
+                <a href="#" class="folio-link" style="text-decoration: underline; color: #1976d2" @click.stop.prevent="viewAnswer(answer)">
                   {{ answer.folio }}
                 </a>
               </td>
@@ -112,13 +117,6 @@ const closeReport = (id) => emit('closeReport', id);
               <td>
                 <StatusChip v-if="answer.status" :status="answer.status" />
                 <span v-else>—</span>
-              </td>
-              <td v-if="hasRating">
-                {{
-                  answer.ponderacion !== null && answer.ponderacion !== undefined && Number(answer.ponderacion) !== 0
-                    ? answer.ponderacion
-                    : '—'
-                }}
               </td>
               <td v-if="hasRating">
                 {{ answer.score !== null && answer.score !== undefined ? Number(answer.score).toFixed(2) : '—' }}
@@ -137,13 +135,16 @@ const closeReport = (id) => emit('closeReport', id);
                       </template>
                       <v-list-item-title>Ver</v-list-item-title>
                     </v-list-item>
-                    <v-divider />
-                    <v-list-item @click="closeReport(answer.id)" :disabled="answer.status === 'closed'">
-                      <template #prepend>
-                        <v-icon :icon="mdiFileChartCheckOutline" size="18" />
-                      </template>
-                      <v-list-item-title>Cerrar</v-list-item-title>
-                    </v-list-item>
+                    <!-- Solo muestra el divider y el botón "Cerrar" si el reporte NO está cerrado -->
+                    <template v-if="answer.status !== 'closed'">
+                      <v-divider />
+                      <v-list-item @click="closeReport(answer.id)">
+                        <template #prepend>
+                          <v-icon :icon="mdiLock" size="18" />
+                        </template>
+                        <v-list-item-title>Cerrar Reporte</v-list-item-title>
+                      </v-list-item>
+                    </template>
                   </v-list>
                 </v-menu>
               </td>

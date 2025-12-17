@@ -4,7 +4,16 @@ import { useRouter, useRoute } from 'vue-router';
 import RFormAnswerFilters from './RFormAnswerFilters.vue';
 import RFormAnswerTableCards from './RFormAnswerTableCards.vue';
 import RFormAnswerCharts from './RFormAnswerCharts.vue';
-import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye, mdiDomainOff, mdiArrowLeft, mdiFileChartCheckOutline } from '@mdi/js';
+import {
+  mdiChevronUp,
+  mdiChevronDown,
+  mdiDotsHorizontal,
+  mdiEye,
+  mdiDomainOff,
+  mdiArrowLeft,
+  mdiFileChartCheckOutline,
+  mdiMicrosoftExcel
+} from '@mdi/js';
 import axios from '@/utils/axios';
 
 const route = useRoute();
@@ -94,6 +103,7 @@ const fetchAnswers = async () => {
       return;
     }
 
+    // Solo mostrar reportes, no respuestas sin reporte
     items.value = data.responses.flatMap((resp) => {
       const userName =
         resp.response?.user?.name ||
@@ -107,30 +117,16 @@ const fetchAnswers = async () => {
         folio: resp.response.folio ?? resp.response.id,
         name: userName,
         answer_date: resp.response.submitted_at || '—',
-        score: resp.response.score
+        score: resp.response.score,
+        form_id: resp.response.form_id
       };
 
       if (!resp.reports || !resp.reports.length) {
-        return [
-          {
-            id: resp.response.id,
-            ...base,
-            status: resp.response.status,
-            ponderacion:
-              hasRating.value &&
-              resp.response.ponderacion !== null &&
-              resp.response.ponderacion !== undefined &&
-              Number(resp.response.ponderacion) !== 0
-                ? resp.response.ponderacion
-                : null,
-            reports: [],
-            raw: resp
-          }
-        ];
+        return [];
       }
 
       return resp.reports.map((report) => ({
-        id: report.id,
+        id: report.id, // id del reporte
         ...base,
         status: report.status,
         ponderacion:
@@ -182,8 +178,12 @@ const paginatedItems = computed(() => {
   return sortedItems.value.slice(start, start + itemsPerPage.value);
 });
 
-const viewAnswer = (answer) => {
-  // router.push({ name: 'ShowReport', params: { formId: resolvedFormId.value, responseId: answer.folio, reportId: answer.id } });
+// INTEGRACIÓN CORRECTA PARA REDIRECCIÓN AL SHOW DE REPORTE
+const viewAnswer = ({ formId, reportId }) => {
+  router.push({
+    name: 'Report Answer Show DW',
+    params: { formId, reportId }
+  });
 };
 
 const goToIndex = () => {
@@ -262,6 +262,48 @@ const mapRoleName = (name) => {
 
 // Tabs
 const activeTab = ref('table');
+
+// Descargar Excel
+const downloadingExcel = ref(false);
+const downloadExcel = async () => {
+  if (!resolvedFormId.value || downloadingExcel.value) return;
+  downloadingExcel.value = true;
+  try {
+    // Construye la URL con los filtros actuales
+    const params = {
+      search: filters.value.search,
+      report_status: filters.value.report_status,
+      user_id: filters.value.user_id,
+      folio: filters.value.folio,
+      score_min: filters.value.score_min,
+      score_max: filters.value.score_max,
+      start_date: filters.value.start_date,
+      end_date: filters.value.end_date
+    };
+    Object.keys(params).forEach((key) => {
+      if (params[key] === null || params[key] === '' || params[key] === undefined) {
+        delete params[key];
+      }
+    });
+    const query = new URLSearchParams(params).toString();
+    let url = `/forms/${resolvedFormId.value}/reports/export-excel`;
+    if (query) url += `?${query}`;
+
+    const res = await axios.get(url, { responseType: 'blob' });
+    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a');
+    a.href = window.URL.createObjectURL(blob);
+    a.download = `reporte_formulario_${resolvedFormId.value}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(a.href);
+  } catch (e) {
+    alert('No se pudo descargar el Excel.');
+  } finally {
+    downloadingExcel.value = false;
+  }
+};
 </script>
 
 <template>
@@ -277,7 +319,38 @@ const activeTab = ref('table');
         >
           <v-icon :icon="mdiArrowLeft" />
         </v-btn>
-        <h3 class="font-weight-medium ml-3 mb-0" v-if="formData">Reportes - {{ formData.name || formData.form?.name || 'Formulario' }}</h3>
+        <!-- Desktop: muestra "Reportes - ..." / Mobile: muestra "R-Nombre" -->
+        <h3 class="font-weight-medium ml-3 mb-0 d-none d-md-block" v-if="formData">
+          Reportes - {{ formData.name || formData.form?.name || 'Formulario' }}
+        </h3>
+        <h3 class="font-weight-medium ml-3 mb-0 d-block d-md-none" v-if="formData">
+          R-{{ formData.name || formData.form?.name || 'Formulario' }}
+        </h3>
+      </v-col>
+      <v-spacer />
+      <v-col cols="auto" class="d-flex align-center">
+        <!-- Dropdown de opciones -->
+        <v-menu location="bottom end">
+          <template #activator="{ props }">
+            <v-btn
+              v-bind="props"
+              variant="text"
+              class="px-3 py-2"
+              style="border-radius: 8px; border: 1px solid #ccc; min-width: 44px; height: 44px"
+            >
+              Opciones
+              <v-icon :icon="mdiChevronDown" end size="18" />
+            </v-btn>
+          </template>
+          <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
+            <v-list-item :loading="downloadingExcel" @click="downloadExcel">
+              <template #prepend>
+                <v-icon :icon="mdiMicrosoftExcel" size="18" />
+              </template>
+              <v-list-item-title>Descargar Excel</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
       </v-col>
     </v-row>
 
@@ -365,7 +438,13 @@ const activeTab = ref('table');
 
     <!-- Filtros entre información general y tabs -->
     <div style="padding-top: 32px">
-      <RFormAnswerFilters :key="formData?.id" :hasRating="hasRating" @search="handleSearch" @filter="handleFilter" />
+      <RFormAnswerFilters
+        :key="formData?.id"
+        :hasRating="hasRating"
+        :activeFilters="filters.value"
+        @search="handleSearch"
+        @filter="handleFilter"
+      />
     </div>
 
     <!-- Tabs para tabla/cards y gráficas -->
@@ -498,5 +577,29 @@ const activeTab = ref('table');
 }
 .folio-small {
   font-size: 0.85em;
+}
+
+/* Responsive header for hiding "Reportes -" y mostrar "R-Nombre" en mobile */
+.d-none {
+  display: none !important;
+}
+.d-block {
+  display: block !important;
+}
+@media (min-width: 960px) {
+  .d-md-block {
+    display: block !important;
+  }
+  .d-md-none {
+    display: none !important;
+  }
+}
+@media (max-width: 959px) {
+  .d-md-block {
+    display: none !important;
+  }
+  .d-md-none {
+    display: block !important;
+  }
 }
 </style>
