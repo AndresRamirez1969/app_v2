@@ -39,7 +39,6 @@ const handlePageChange = (newPage) => emit("update:page", newPage);
 
 // Emitir evento para que el padre navegue a la ruta correcta
 const viewAnswer = (answer) => {
-  // fallback: usa answer.form_id o answer.raw?.response?.form_id
   emit("view", {
     formId: answer.form_id || answer.raw?.response?.form_id,
     reportId: answer.id,
@@ -105,16 +104,8 @@ const downloadPdf = (answer) => {
             }}
           </div>
         </v-card>
-        <div class="d-flex flex-column align-center mt-4">
-          <v-pagination
-            :model-value="page"
-            :length="Math.ceil(sortedItems.length / itemsPerPage)"
-            :total-visible="1"
-            color="primary"
-            @update:modelValue="handlePageChange"
-            class="mobile-pagination"
-          />
-        </div>
+        <!-- La paginación móvil debe usar la paginación real del backend, NO local -->
+        <!-- Por eso, la paginación se muestra en el padre, no aquí -->
       </div>
 
       <!-- DESKTOP: tabla -->
@@ -195,7 +186,6 @@ const downloadPdf = (answer) => {
                       </template>
                       <v-list-item-title>Descargar PDF</v-list-item-title>
                     </v-list-item>
-                    <!-- Solo muestra el divider y el botón "Cerrar" si el reporte NO está cerrado -->
                     <template v-if="answer.status !== 'closed'">
                       <v-divider />
                       <v-list-item @click="closeReport(answer.id)">

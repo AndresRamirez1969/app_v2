@@ -56,20 +56,9 @@ const emit = defineEmits(["update:page", "sort"]);
       </thead>
 
       <tbody>
-        <!-- Pasamos hasRating por si el padre lo quiere consumir, pero el padre puede ignorarlo -->
         <slot name="rows" :hasRating="props.hasRating" />
       </tbody>
     </v-table>
-
-    <div class="d-flex justify-center mt-4">
-      <v-pagination
-        v-model="props.page"
-        :length="Math.ceil((props.items?.length || 1) / props.itemsPerPage)"
-        total-visible="7"
-        color="primary"
-        @update:modelValue="emit('update:page', $event)"
-      />
-    </div>
   </div>
 </template>
 

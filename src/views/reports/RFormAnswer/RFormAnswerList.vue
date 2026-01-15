@@ -48,6 +48,16 @@ const itemsPerPage = ref(10);
 
 const formData = ref(null);
 
+// NUEVO: Estado para la paginación del backend
+const pagination = ref({
+  current_page: 1,
+  last_page: 1,
+  per_page: 10,
+  total: 0,
+  from: null,
+  to: null,
+});
+
 // Filtros reactivos
 const filters = ref({
   search: "",
@@ -111,6 +121,16 @@ const fetchAnswers = async () => {
       params,
     });
 
+    // Guardar datos de paginación del backend
+    pagination.value = {
+      current_page: data.current_page ?? 1,
+      last_page: data.last_page ?? 1,
+      per_page: data.per_page ?? itemsPerPage.value,
+      total: data.total ?? 0,
+      from: data.from ?? null,
+      to: data.to ?? null,
+    };
+
     // La respuesta backend ahora siempre es paginada y responses es un array
     const responses = Array.isArray(data.responses)
       ? data.responses
@@ -165,6 +185,14 @@ const fetchAnswers = async () => {
   } catch (e) {
     console.error("Error al obtener reportes:", e);
     items.value = [];
+    pagination.value = {
+      current_page: 1,
+      last_page: 1,
+      per_page: itemsPerPage.value,
+      total: 0,
+      from: null,
+      to: null,
+    };
   } finally {
     loading.value = false;
   }
@@ -207,10 +235,11 @@ const sortedItems = computed(() => {
   });
 });
 
-const paginatedItems = computed(() => {
-  const start = (page.value - 1) * itemsPerPage.value;
-  return sortedItems.value.slice(start, start + itemsPerPage.value);
-});
+// YA NO USAR paginación local, solo mostrar los items del backend
+// const paginatedItems = computed(() => {
+//   const start = (page.value - 1) * itemsPerPage.value;
+//   return sortedItems.value.slice(start, start + itemsPerPage.value);
+// });
 
 const viewAnswer = ({ formId, reportId }) => {
   // Protección por permiso report.view
@@ -363,6 +392,14 @@ const downloadExcel = async () => {
     alert("No se pudo descargar el Excel.");
   } finally {
     downloadingExcel.value = false;
+  }
+};
+
+// NUEVO: función para cambiar de página usando la paginación del backend
+const handlePageChange = async (newPage) => {
+  if (page.value !== newPage) {
+    page.value = newPage;
+    await fetchAnswers();
   }
 };
 </script>
@@ -611,20 +648,30 @@ const downloadExcel = async () => {
     <v-window v-model="activeTab">
       <v-window-item value="table">
         <RFormAnswerTableCards
-          :items="paginatedItems"
+          :items="sortedItems"
           :sortedItems="sortedItems"
-          :page="page"
-          :itemsPerPage="itemsPerPage"
+          :page="pagination.current_page"
+          :itemsPerPage="pagination.per_page"
           :sortBy="sortBy"
           :sortDesc="sortDesc"
           :hasRating="hasRating"
           :loading="loading"
-          @update:page="page = $event"
+          @update:page="handlePageChange"
           @sort="toggleSort"
           @view="viewAnswer"
           @closeReport="closeReport"
           @downloadPdf="downloadReportPdf"
         />
+        <div class="d-flex justify-center mt-4">
+          <v-pagination
+            v-if="pagination.last_page > 1"
+            :length="pagination.last_page"
+            :model-value="pagination.current_page"
+            @update:model-value="handlePageChange"
+            :total-visible="7"
+            color="primary"
+          />
+        </div>
       </v-window-item>
       <v-window-item value="charts">
         <RFormAnswerCharts
