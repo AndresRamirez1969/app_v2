@@ -41,7 +41,6 @@
               </svg>
             </v-icon>
             <span>Filtros</span>
-            <v-icon class="ml-2" end>mdi-filter-variant</v-icon>
           </span>
         </template>
       </v-btn>

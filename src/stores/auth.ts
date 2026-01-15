@@ -80,19 +80,12 @@ export const useAuthStore = defineStore('auth', {
         };
         this.permissions = permissions;
 
-        const expiresAt = new Date().getTime() + (60 * 60 * 1000); // 60 minutos en milisegundos
+        const expiresAt = new Date().getTime() + 60 * 60 * 1000; // 60 minutos en milisegundos
         this.tokenExpiresAt = expiresAt.toString();
 
         localStorage.setItem('authToken', this.token);
         localStorage.setItem('authUser', JSON.stringify(this.user));
         localStorage.setItem('tokenExpiresAt', this.tokenExpiresAt);
-
-        console.log('Login exitoso:', {
-          user: this.user,
-          permissions: this.permissions,
-          token: this.token ? 'presente' : 'ausente',
-          expiresAt: new Date(expiresAt).toLocaleString()
-        });
       } catch (error) {
         console.error('Error en login:', error);
         throw error;
@@ -108,7 +101,7 @@ export const useAuthStore = defineStore('auth', {
       };
       this.permissions = permissions;
 
-      const expiresAt = new Date().getTime() + (60 * 60 * 1000);
+      const expiresAt = new Date().getTime() + 60 * 60 * 1000;
       this.tokenExpiresAt = expiresAt.toString();
 
       localStorage.setItem('authToken', token);

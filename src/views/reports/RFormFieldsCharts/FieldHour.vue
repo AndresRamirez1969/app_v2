@@ -264,14 +264,18 @@ function getHourMinute(resp) {
             <tr class="response-row">
               <td>
                 <div class="response-value-cell">
-                  <a
-                    :href="`/folio/${resp.folio || resp.id}`"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <router-link
+                    :to="{
+                      name: 'Report Answer Show',
+                      params: {
+                        formId: resp.form_id || resp.formId || fieldObj.form_id || fieldObj.formId,
+                        reportId: resp.report_id || resp.reportId || resp.folio || resp.id
+                      }
+                    }"
                     style="color: #1976d2; text-decoration: underline; font-weight: 500"
                   >
                     {{ resp.folio || resp.id || '-' }}
-                  </a>
+                  </router-link>
                 </div>
               </td>
               <td>
@@ -316,14 +320,18 @@ function getHourMinute(resp) {
                 {{ getScoreObtained(resp) }}
               </div>
               <div class="d-flex flex-column mb-1" style="gap: 8px">
-                <a
-                  :href="`/folio/${resp.folio || resp.id}`"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <router-link
+                  :to="{
+                    name: 'Report Answer Show',
+                    params: {
+                      formId: resp.form_id || resp.formId || fieldObj.form_id || fieldObj.formId,
+                      reportId: resp.report_id || resp.reportId || resp.folio || resp.id
+                    }
+                  }"
                   style="color: #1976d2; text-decoration: underline; font-weight: 500; min-width: 60px; font-size: 0.95rem"
                 >
                   {{ resp.folio || resp.id || '-' }}
-                </a>
+                </router-link>
                 <span class="font-weight-medium" style="color: #333; font-size: 0.95rem">
                   {{ resp.nombre || resp.user?.name || resp.user || '-' }}
                 </span>

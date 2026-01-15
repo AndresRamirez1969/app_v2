@@ -88,11 +88,6 @@ const sidebarItem: menu[] = [
         to: '/roles'
       }
     ]
-  },
-  {
-    title: 'Reportes DW',
-    icon: FolderOpenOutlined,
-    to: '/reportes-dw'
   }
 ];
 

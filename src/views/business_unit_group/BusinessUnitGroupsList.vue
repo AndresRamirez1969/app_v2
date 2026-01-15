@@ -138,7 +138,6 @@ function handlePageChange(newPage) {
         <p class="mt-4">Cargando grupos...</p>
       </div>
       <div v-else-if="!paginatedItems.length" class="text-center py-8">
-        <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
         <p class="mt-4 text-h6 text-grey-darken-1">No existen grupos</p>
         <p class="text-body-2 text-grey">No se encontraron grupos con los filtros aplicados</p>
       </div>
@@ -216,7 +215,6 @@ function handlePageChange(newPage) {
       </div>
       <template v-else-if="!paginatedItems.length">
         <div class="text-center py-8">
-          <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
           <p class="mt-4 text-h6 text-grey-darken-1">No existen grupos</p>
           <p class="text-body-2 text-grey">No se encontraron grupos con los filtros aplicados</p>
         </div>

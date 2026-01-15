@@ -96,7 +96,7 @@ const handleLogout = async () => {
 };
 
 // --- INICIO: Botón Acceso a Horizon ---
-const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const backendUrl = (import.meta.env.VITE_BACKEND_URL || '').replace(/^http:\/\//, 'https://');
 
 function goToHorizonLogin() {
   window.open(`${backendUrl}/horizon-login`, '_blank');

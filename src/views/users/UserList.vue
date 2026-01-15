@@ -129,7 +129,6 @@ function getBelongsTo(user) {
 
     <template v-else>
       <div v-if="!displayedItems.length" class="text-center py-8">
-        <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
         <p class="mt-4 text-h6 text-grey-darken-1">No existen usuarios</p>
         <p class="text-body-2 text-grey">No se encontraron usuarios con los filtros aplicados</p>
       </div>

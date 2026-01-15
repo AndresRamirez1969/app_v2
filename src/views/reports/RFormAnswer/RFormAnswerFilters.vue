@@ -1,34 +1,35 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { useDisplay } from 'vuetify';
-import axios from '@/utils/axios';
+import { ref, computed, watch } from "vue";
+import { useDisplay } from "vuetify";
+import axios from "@/utils/axios";
+import { mdiMagnify } from "@mdi/js";
 
-const emit = defineEmits(['search', 'filter']);
+const emit = defineEmits(["search", "filter"]);
 
 const props = defineProps({
   hasRating: {
     type: Boolean,
-    default: false
+    default: false,
   },
   activeFilters: {
     type: Object,
-    default: () => ({})
-  }
+    default: () => ({}),
+  },
 });
 
-const search = ref('');
+const search = ref("");
 const dialog = ref(false);
 
 // Filtros avanzados
 const status = ref(null);
 const statusOptions = [
-  { title: 'Abierto', value: 'open' },
-  { title: 'Cerrado', value: 'closed' }
+  { title: "Abierto", value: "open" },
+  { title: "Cerrado", value: "closed" },
 ];
 
 const userId = ref(null);
 const userOptions = ref([]);
-const userSearch = ref('');
+const userSearch = ref("");
 const loadingUsers = ref(false);
 
 const scoreMin = ref(null);
@@ -44,15 +45,15 @@ const { mdAndDown } = useDisplay();
 const fetchUsers = async (searchText) => {
   loadingUsers.value = true;
   try {
-    const { data } = await axios.get('/users', {
+    const { data } = await axios.get("/users", {
       params: {
-        q: searchText || '',
-        limit: 10
-      }
+        q: searchText || "",
+        limit: 10,
+      },
     });
     userOptions.value = (data.data || []).map((u) => ({
       ...u,
-      display: `${u.name} (${u.email})`
+      display: `${u.name} (${u.email})`,
     }));
   } catch (e) {
     userOptions.value = [];
@@ -63,13 +64,13 @@ const fetchUsers = async (searchText) => {
 
 function customUserFilter(item, queryText, itemText) {
   if (!queryText) return true;
-  const text = (item.name + ' ' + item.email).toLowerCase();
+  const text = (item.name + " " + item.email).toLowerCase();
   return text.includes(queryText.toLowerCase());
 }
 
 watch(dialog, (val) => {
   if (val && userOptions.value.length === 0) {
-    fetchUsers('');
+    fetchUsers("");
   }
 });
 
@@ -78,7 +79,7 @@ watch(userSearch, (val) => {
 });
 
 watch(search, (val) => {
-  emit('search', val);
+  emit("search", val);
 });
 
 // Sincroniza los filtros locales con los del padre
@@ -87,39 +88,44 @@ watch(
   (val) => {
     status.value = val.report_status ?? null;
     userId.value = val.user_id ?? null;
-    scoreMin.value = props.hasRating ? (val.score_min ?? null) : null;
-    scoreMax.value = props.hasRating ? (val.score_max ?? null) : null;
+    scoreMin.value = props.hasRating ? val.score_min ?? null : null;
+    scoreMax.value = props.hasRating ? val.score_max ?? null : null;
     startDate.value = val.start_date ?? null;
     endDate.value = val.end_date ?? null;
   },
   { immediate: true }
 );
 
-// Calcula si hay filtros activos usando los filtros del padre
-const hasActiveFilters = computed(
-  () =>
-    !!status.value || !!userId.value || (props.hasRating && (!!scoreMin.value || !!scoreMax.value)) || !!startDate.value || !!endDate.value
-);
+// Calcula si hay filtros activos usando los filtros locales
+const hasActiveFilters = computed(() => {
+  return (
+    !!status.value ||
+    !!userId.value ||
+    (props.hasRating && (!!scoreMin.value || !!scoreMax.value)) ||
+    !!startDate.value ||
+    !!endDate.value
+  );
+});
 
 function emitSearch() {
-  emit('search', search.value);
+  emit("search", search.value);
 }
 
 function formatDateOnly(val) {
   if (!val) return null;
-  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
   const d = new Date(val);
   return d.toISOString().slice(0, 10);
 }
 
 function applyFilters() {
-  emit('filter', {
+  emit("filter", {
     report_status: status.value,
     user_id: userId.value,
     score_min: props.hasRating ? scoreMin.value : null,
     score_max: props.hasRating ? scoreMax.value : null,
     start_date: formatDateOnly(startDate.value),
-    end_date: formatDateOnly(endDate.value)
+    end_date: formatDateOnly(endDate.value),
   });
   dialog.value = false;
 }
@@ -131,14 +137,14 @@ function clearFilters() {
   scoreMax.value = null;
   startDate.value = null;
   endDate.value = null;
-  userSearch.value = '';
-  emit('filter', {
+  userSearch.value = "";
+  emit("filter", {
     report_status: null,
     user_id: null,
     score_min: null,
     score_max: null,
     start_date: null,
-    end_date: null
+    end_date: null,
   });
 }
 </script>
@@ -147,8 +153,7 @@ function clearFilters() {
   <div class="d-flex align-center mb-6" style="gap: 16px">
     <v-text-field
       v-model="search"
-      :placeholder="`Buscar por folio de respuesta o usuario...`"
-      prepend-inner-icon="mdi-magnify"
+      :placeholder="`Buscar por folio o usuario...`"
       clearable
       class="flex-grow-1 search-bar"
       density="compact"
@@ -158,14 +163,27 @@ function clearFilters() {
       style="min-width: 220px"
       @keyup.enter="emitSearch"
       @click:clear="emitSearch"
-    />
+    >
+      <template #prepend-inner>
+        <v-icon :icon="mdiMagnify" />
+      </template>
+    </v-text-field>
 
-    <div class="filter-btn-wrapper ml-2 flex-shrink-0" style="min-width: 44px; position: relative">
+    <div
+      class="filter-btn-wrapper ml-2 flex-shrink-0"
+      style="min-width: 44px; position: relative"
+    >
       <v-btn
         :icon="mdAndDown"
         variant="text"
         class="filter-btn filter-btn-center"
-        style="border-radius: 8px; border: 1px solid #ccc; min-width: 44px; height: 44px; width: 100%"
+        style="
+          border-radius: 8px;
+          border: 1px solid #ccc;
+          min-width: 44px;
+          height: 44px;
+          width: 100%;
+        "
         color="#222"
         @click="dialog = true"
       >
@@ -184,11 +202,10 @@ function clearFilters() {
               </svg>
             </v-icon>
             <span>Filtros</span>
-            <v-icon class="ml-2" end>mdi-filter-variant</v-icon>
           </span>
         </template>
       </v-btn>
-      <span v-if="hasActiveFilters.value" class="filter-indicator" />
+      <span v-if="hasActiveFilters" class="filter-indicator" />
     </div>
 
     <v-dialog v-model="dialog" max-width="420">
@@ -292,7 +309,11 @@ function clearFilters() {
                   @click:clear="startDate = null"
                 />
               </template>
-              <v-date-picker v-model="startDate" locale="es" @update:modelValue="menuStart = false">
+              <v-date-picker
+                v-model="startDate"
+                locale="es"
+                @update:modelValue="menuStart = false"
+              >
                 <template #header></template>
               </v-date-picker>
             </v-menu>
@@ -318,7 +339,11 @@ function clearFilters() {
                   @click:clear="endDate = null"
                 />
               </template>
-              <v-date-picker v-model="endDate" locale="es" @update:modelValue="menuEnd = false">
+              <v-date-picker
+                v-model="endDate"
+                locale="es"
+                @update:modelValue="menuEnd = false"
+              >
                 <template #header></template>
               </v-date-picker>
             </v-menu>
@@ -326,14 +351,27 @@ function clearFilters() {
         </v-card-text>
         <v-card-actions class="d-flex flex-column align-end pt-2" style="gap: 8px">
           <v-btn
-            style="background-color: #1677ff; color: white; font-weight: 500; font-size: 14px; width: 100%; text-transform: none"
+            style="
+              background-color: #1677ff;
+              color: white;
+              font-weight: 500;
+              font-size: 14px;
+              width: 100%;
+              text-transform: none;
+            "
             @click="applyFilters"
           >
             Aplicar
           </v-btn>
           <v-btn
             variant="text"
-            style="width: 100%; color: #555; font-weight: 500; font-size: 13px; text-transform: none"
+            style="
+              width: 100%;
+              color: #555;
+              font-weight: 500;
+              font-size: 13px;
+              text-transform: none;
+            "
             @click="clearFilters"
           >
             Limpiar
@@ -343,3 +381,30 @@ function clearFilters() {
     </v-dialog>
   </div>
 </template>
+
+<style scoped>
+.filter-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #00e676;
+  box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7);
+  animation: pulse-green 1.2s infinite;
+  z-index: 2;
+  border: 2px solid #fff;
+}
+@keyframes pulse-green {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(0, 230, 118, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 230, 118, 0);
+  }
+}
+</style>

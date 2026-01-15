@@ -82,12 +82,6 @@ const handleSignature = (fieldId, signatureBlob) => {
     signatureData.value[fieldId] = signatureFile;
 
     formData.value[fieldId] = fileName;
-
-    console.log('Firma guardada como archivo completo:', {
-      fileName,
-      fileType: signatureFile.type,
-      fileSize: signatureFile.size
-    });
   } else {
     signatureData.value[fieldId] = null;
     formData.value[fieldId] = null;
@@ -153,28 +147,12 @@ const submitForm = async () => {
       }
     });
 
-    // Debug: ver qué se está enviando
-    for (let [key, value] of dataToSend.entries()) {
-      if (value instanceof File) {
-        console.log('Archivo en FormData:', {
-          key,
-          fileName: value.name,
-          fileType: value.type,
-          fileSize: value.size,
-          isImage: value.type.startsWith('image/')
-        });
-      } else {
-        console.log('Otro dato en FormData:', key, value);
-      }
-    }
-
     const res = await axiosInstance.post(`/forms/${formId.value}/responses`, dataToSend, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     });
 
-    console.log(res.data);
     toast.success('Formulario enviado correctamente');
     router.push('/mis-formularios');
   } catch (err) {

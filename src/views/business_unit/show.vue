@@ -124,21 +124,6 @@ onMounted(async () => {
     const unitOrgId = String(businessUnit.value.organization_id ?? '');
     const unitBusinessId = String(businessUnit.value.business_id ?? '');
 
-    // LOG para depuración
-    console.log('Access check', {
-      isSuperadmin: isSuperadmin.value,
-      isAdmin: isAdmin.value,
-      isSponsor: isSponsor.value,
-      canView: canView.value,
-      canViewAny: canViewAny.value,
-      userOrgId,
-      userBusinessId,
-      unitOrgId,
-      unitBusinessId,
-      user: user.value,
-      businessUnit: businessUnit.value
-    });
-
     if (isSuperadmin.value) {
       canShow.value = true;
       return;

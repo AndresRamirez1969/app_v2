@@ -232,8 +232,6 @@ const fetchBusinessUnits = async () => {
     const combined = [...filteredLinked, ...filtered.filter((bu) => !linkedIds.has(bu.id))];
     businessUnits.value = combined;
     total.value = combined.length;
-
-    console.log('Business units vinculadas al grupo:', linked);
   } catch (e) {
     const linked = normalizeUnits(selectedBusinessUnitsFull.value || []);
     const filteredLinked = search.value
@@ -244,7 +242,6 @@ const fetchBusinessUnits = async () => {
       : linked;
     businessUnits.value = filteredLinked;
     total.value = businessUnits.value.length;
-    console.log('Business units vinculadas al grupo:', linked);
   } finally {
     loading.value = false;
   }

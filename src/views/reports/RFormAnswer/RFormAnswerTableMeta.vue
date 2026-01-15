@@ -2,7 +2,7 @@
 const props = defineProps({
   items: {
     type: Array,
-    default: () => []
+    default: () => [],
   },
   page: Number,
   itemsPerPage: Number,
@@ -10,10 +10,10 @@ const props = defineProps({
   sortDesc: Boolean,
   hasRating: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
-const emit = defineEmits(['update:page', 'sort']);
+const emit = defineEmits(["update:page", "sort"]);
 </script>
 
 <template>
@@ -29,7 +29,10 @@ const emit = defineEmits(['update:page', 'sort']);
             Usuario
             <slot name="sort-icon" :column="'name'" />
           </th>
-          <th @click="emit('sort', 'answer_date')" class="cursor-pointer answer-date-header">
+          <th
+            @click="emit('sort', 'answer_date')"
+            class="cursor-pointer answer-date-header"
+          >
             Fecha de Respuesta
             <slot name="sort-icon" :column="'answer_date'" />
           </th>
@@ -39,7 +42,11 @@ const emit = defineEmits(['update:page', 'sort']);
           </th>
 
           <!-- Header de Puntaje SOLO si hay rating -->
-          <th v-if="props.hasRating" @click="emit('sort', 'score')" class="cursor-pointer score-header">
+          <th
+            v-if="props.hasRating"
+            @click="emit('sort', 'score')"
+            class="cursor-pointer score-header"
+          >
             Puntaje
             <slot name="sort-icon" :column="'score'" />
           </th>
@@ -66,34 +73,4 @@ const emit = defineEmits(['update:page', 'sort']);
   </div>
 </template>
 
-<style scoped>
-.cursor-pointer {
-  cursor: pointer;
-}
-.cursor-pointer:hover {
-  background-color: rgba(0, 0, 0, 0.04);
-}
-
-.fixed-table {
-  width: 100%;
-}
-
-.folio-header,
-.name-header,
-.answer-date-header,
-.status-header,
-.ponderacion-header,
-.score-header,
-.actions-header {
-  padding: 12px 16px;
-  font-weight: 600;
-  text-align: left;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.actions-header {
-  text-align: center;
-  width: 60px;
-  padding: 12px 8px;
-}
-</style>
+<style scoped src="@/styles/rform_answer.css"></style>

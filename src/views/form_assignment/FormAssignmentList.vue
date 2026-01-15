@@ -26,8 +26,6 @@ const checkScreen = () => {
 onMounted(() => {
   checkScreen();
   window.addEventListener('resize', checkScreen);
-  // Debug: Verifica que los formularios de todas las frecuencias llegan correctamente
-  console.log('Formularios recibidos:', props.items);
 });
 onBeforeUnmount(() => {
   window.removeEventListener('resize', checkScreen);
@@ -48,18 +46,6 @@ const formatDate = (dateString) => {
 };
 
 const getResponseStatus = (form) => {
-  // Puedes dejar este log para debug si lo necesitas
-  // console.log(
-  //   'Formulario:',
-  //   form.folio,
-  //   'frequency:',
-  //   form.frequency,
-  //   'can_respond:',
-  //   form.can_respond,
-  //   'has_responded:',
-  //   form.has_responded
-  // );
-
   if (form.frequency === 'multiple_per_day') {
     return { text: 'Formulario Persistente', color: 'info' };
   }
@@ -122,7 +108,6 @@ const fillForm = (form) => {
     </div>
     <template v-else>
       <div v-if="!paginatedItems.length" class="text-center py-8">
-        <v-icon size="64" color="grey lighten-1">mdi-domain-off</v-icon>
         <p class="mt-4 text-h6 text-grey-darken-1">No hay formularios que llenar</p>
         <p class="text-body-2 text-grey">No se encontraron formularios con los filtros aplicados</p>
       </div>

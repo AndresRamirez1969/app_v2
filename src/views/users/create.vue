@@ -446,8 +446,8 @@ const validate = async () => {
   let finalBusinessId = form.business_id;
   let finalBusinessUnitId = form.business_unit_id;
 
- // Si eligió business_unit, usar los IDs almacenados en scope
- if (form.business_unit_id) {
+  // Si eligió business_unit, usar los IDs almacenados en scope
+  if (form.business_unit_id) {
     finalBusinessId = scopeBusinessId.value;
     finalOrgId = scopeOrgId.value;
   }
@@ -455,18 +455,6 @@ const validate = async () => {
   else if (form.business_id) {
     finalOrgId = scopeOrgId.value;
   }
-
-
-  // --- DEBUG: Mostrar datos enviados ---
-  console.log('Datos enviados al backend:', {
-    name: form.name,
-    email: form.email,
-    role: form.role,
-    organization_id: finalOrgId,
-    business_id: finalBusinessId,
-    business_unit_id: finalBusinessUnitId,
-    contact: form.contact
-  });
 
   try {
     const formData = new FormData();

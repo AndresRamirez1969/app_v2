@@ -132,11 +132,6 @@ const save = async () => {
 
   const { isEmpty, data } = signaturePad.value.saveSignature();
 
-  if (isEmpty) {
-    console.log('Firma vacía');
-    return;
-  }
-
   // Recortamos el dataURL para quitar todo el espacio en blanco alrededor
   const trimmedDataUrl = await trimDataUrl(data);
 

@@ -4,7 +4,6 @@
     <v-text-field
       v-model="search"
       :placeholder="`Buscar por folio, nombre legal o alias...`"
-      prepend-inner-icon="mdi-magnify"
       clearable
       class="flex-grow-1 search-bar"
       density="compact"
@@ -14,7 +13,11 @@
       style="min-width: 220px"
       @keyup.enter="emitSearch"
       @click:clear="emitSearch"
-    />
+    >
+      <template #prepend-inner>
+        <v-icon :icon="mdiMagnify" />
+      </template>
+    </v-text-field>
 
     <!-- Filtros button con indicador -->
     <div class="filter-btn-wrapper ml-2 flex-shrink-0" style="min-width: 44px; position: relative">
@@ -41,7 +44,6 @@
               </svg>
             </v-icon>
             <span>Filtros</span>
-            <v-icon class="ml-2" end>mdi-filter-variant</v-icon>
           </span>
         </template>
       </v-btn>
@@ -161,6 +163,7 @@
 import { ref, watch, computed } from 'vue';
 import { useDisplay } from 'vuetify';
 import '@/styles/filters.css';
+import { mdiMagnify } from '@mdi/js';
 
 const emit = defineEmits(['search', 'filter']);
 

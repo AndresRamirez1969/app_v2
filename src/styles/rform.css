@@ -1,0 +1,216 @@
+/* rform.css - desde RFormList.vue */
+.row-clickable:hover {
+  background: #f5f5f5;
+  transition: background 0.2s;
+}
+
+.folio-cell,
+.name-cell,
+.frequency-cell,
+.answers-cell,
+.scope-cell {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.actions-cell {
+  width: 60px;
+  text-align: center;
+  padding: 0 8px;
+}
+
+.custom-dropdown {
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 4px 0;
+  background: white;
+}
+
+.blue-link {
+  color: #1976d2 !important;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.actions-btn {
+  min-width: 32px !important;
+  min-height: 32px !important;
+}
+
+/* rform.css - desde RFormTableMeta.vue */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.cursor-pointer:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.fixed-table {
+  width: 100%;
+}
+
+.folio-header,
+.name-header,
+.answers-header,
+.date-header,
+.scope-header,
+.actions-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.actions-header {
+  text-align: center;
+  width: 60px;
+  padding: 12px 8px;
+}
+
+/* rform.css - desde RFormFilters.vue */
+.search-bar {
+  min-width: 220px;
+}
+
+.filter-btn-wrapper {
+  min-width: 44px;
+  position: relative;
+}
+
+.filter-btn {
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  min-width: 44px;
+  height: 44px;
+  width: 100%;
+}
+
+.filter-btn-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-btn-content {
+  display: flex;
+  align-items: center;
+}
+
+.filter-indicator {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  background: #1677ff;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #1677ff33;
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #222;
+  z-index: 10;
+}
+
+.modal-padding {
+  padding: 24px 20px 16px 20px;
+}
+
+.filter-padding {
+  padding: 0 0 0 0;
+}
+
+.date-field {
+  margin-bottom: 8px;
+}
+
+.logo-avatar {
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 320px;
+  height: 320px;
+  min-width: 320px;
+  min-height: 320px;
+  max-width: 320px;
+  max-height: 320px;
+}
+.logo-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  display: block;
+}
+.v-container {
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+  padding-top: 24px !important;
+  padding-bottom: 24px !important;
+}
+
+/* Responsive table visibility */
+.desktop-table {
+  display: block;
+}
+.mobile-table {
+  display: none;
+}
+@media (max-width: 960px) {
+  .v-container {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+  }
+  .answer-mobile-card {
+    box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08) !important;
+    border-radius: 16px !important;
+    background: #fff !important;
+    border: 1px solid #eaeaea !important;
+  }
+  .desktop-table {
+    display: none !important;
+  }
+  .mobile-table {
+    display: block !important;
+  }
+}
+
+/* Mobile card styles for answers */
+.answer-mobile-card .logo-avatar-mobile,
+.logo-img-cover {
+  display: none !important;
+}
+
+/* Responsive header for hiding "Reportes -" y mostrar "R-Nombre" en mobile */
+.d-none {
+  display: none !important;
+}
+.d-block {
+  display: block !important;
+}
+@media (min-width: 960px) {
+  .d-md-block {
+    display: block !important;
+  }
+  .d-md-none {
+    display: none !important;
+  }
+}
+@media (max-width: 959px) {
+  .d-md-block {
+    display: none !important;
+  }
+  .d-md-none {
+    display: block !important;
+  }
+}

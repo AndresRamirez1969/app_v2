@@ -109,7 +109,6 @@ const fetchForms = async () => {
 
     const res = await axiosInstance.get('/forms', { params: params });
     forms.value = res.data;
-    console.log('Forms', forms.value);
   } catch (err) {
     console.error('Failed to fetch forms', err);
   } finally {
@@ -131,7 +130,6 @@ const fetchFormStatus = async (formId) => {
 
     const res = await axiosInstance.get(`/forms/${formId}/responses`, { params: params });
     selectedFormDetails.value = res.data.data || res.data;
-    console.log('Form details', selectedFormDetails.value);
   } catch (err) {
     console.error('Failed to fetch form details', err);
     selectedFormDetails.value = null;
@@ -186,7 +184,6 @@ const selectAndCheckboxFields = computed(() => {
   if (!selectedFormDetails.value) return [];
 
   const fields = selectedFormDetails.value.form.fields || [];
-  console.log('Fields', fields);
   return fields.filter((field) => field.type === 'select' || field.type === 'checkbox');
 });
 
@@ -252,8 +249,6 @@ const fieldResponseStats = computed(() => {
       return responseDate >= filters.value.dateRange.start && responseDate <= filters.value.dateRange.end;
     });
   }
-
-  console.log('Filtered user responses', userResponses);
 
   return fields.map((field) => {
     const options = field.options || [];

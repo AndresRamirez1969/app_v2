@@ -1,30 +1,20 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
-import { useDisplay } from 'vuetify';
-import UserFormView from './UserFormView.vue';
-import axiosInstance from '@/utils/axios';
-import { useAuthStore } from '@/stores/auth';
-import debounce from 'lodash/debounce';
-import UserFormFilters from './UserFormFilters.vue';
+import { ref, watch, onMounted } from "vue";
+import { useDisplay } from "vuetify";
+import UserFormView from "./UserFormView.vue";
+import axiosInstance from "@/utils/axios";
+import { useAuthStore } from "@/stores/auth";
+import debounce from "lodash/debounce";
+import UserFormFilters from "./UserFormFilters.vue";
 
 const { mdAndDown } = useDisplay();
 
 const filters = ref({
-  search: '',
-  folio: ''
+  search: "",
+  folio: "",
 });
 
 const auth = useAuthStore();
-
-watch(
-  () => auth.permissions,
-  (perms) => {
-    if (perms.length > 0) {
-      console.log('Permisos cargados', perms);
-    }
-  },
-  { immediate: true }
-);
 
 const currentPage = ref(1);
 const forms = ref({ data: [], last_page: 1 });
@@ -33,17 +23,16 @@ const isLoading = ref(false);
 const fetchForms = async () => {
   isLoading.value = true;
   try {
-    const res = await axiosInstance.get('/my-forms', {
+    const res = await axiosInstance.get("/my-forms", {
       params: {
         search: filters.value.search,
-        page: currentPage.value
-      }
+        page: currentPage.value,
+      },
     });
 
     forms.value = res.data;
-    console.log(forms.value.data);
   } catch (err) {
-    console.error('Failed to fetch forms', err);
+    console.error("Failed to fetch forms", err);
   } finally {
     isLoading.value = false;
   }
@@ -84,7 +73,12 @@ watch(
     <UserFormFilters @search="handleSearch" @filter="handleFilter" />
     <v-row>
       <v-col>
-        <UserFormView :items="forms.data" :isMobile="mdAndDown" :isLoading="isLoading" @formUpdated="fetchForms" />
+        <UserFormView
+          :items="forms.data"
+          :isMobile="mdAndDown"
+          :isLoading="isLoading"
+          @formUpdated="fetchForms"
+        />
       </v-col>
     </v-row>
   </v-container>

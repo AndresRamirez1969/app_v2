@@ -1,26 +1,30 @@
 <script setup>
-import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue';
-import axios from '@/utils/axios';
+import { ref, computed, watch, onMounted, defineAsyncComponent } from "vue";
+import axios from "@/utils/axios";
 
-import FieldText from './RFormFieldsCharts/FieldSimpleList.vue';
-import FieldMultiple from './RFormFieldsCharts/FieldMultiple.vue';
-import FieldNumber from './RFormFieldsCharts/FieldNumber.vue';
-import FieldDate from './RFormFieldsCharts/FieldDate.vue';
-import FieldHour from './RFormFieldsCharts/FieldHour.vue';
-import FieldMultimedia from './RFormFieldsCharts/FieldMultimedia.vue';
-import FieldRange from './RFormFieldsCharts/FieldRange.vue';
-import FieldSwitch from './RFormFieldsCharts/FieldSwitch.vue';
-import FieldGeo from './RFormFieldsCharts/FieldGeo.vue';
+import FieldText from "../RFormFieldsCharts/FieldSimpleList.vue";
+import FieldMultiple from "../RFormFieldsCharts/FieldMultiple.vue";
+import FieldNumber from "../RFormFieldsCharts/FieldNumber.vue";
+import FieldDate from "../RFormFieldsCharts/FieldDate.vue";
+import FieldHour from "../RFormFieldsCharts/FieldHour.vue";
+import FieldMultimedia from "../RFormFieldsCharts/FieldMultimedia.vue";
+import FieldRange from "../RFormFieldsCharts/FieldRange.vue";
+import FieldSwitch from "../RFormFieldsCharts/FieldSwitch.vue";
+import FieldGeo from "../RFormFieldsCharts/FieldGeo.vue";
 
 // ApexCharts
-const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts').then((m) => m.default || m).catch(() => null));
+const VueApexCharts = defineAsyncComponent(() =>
+  import("vue3-apexcharts")
+    .then((m) => m.default || m)
+    .catch(() => null)
+);
 
 const props = defineProps({
   formId: { type: [String, Number], required: true },
   filters: { type: Object, default: false },
   loading: { type: Boolean, default: false },
   showKpis: { type: Boolean, default: true },
-  bins: { type: Number, default: 10 }
+  bins: { type: Number, default: 10 },
 });
 
 const localLoading = ref(false);
@@ -49,14 +53,23 @@ const hasRating = ref(false);
 
 // ================== Histograma de puntuaciones ==================
 const apexReady = ref(true);
-const chartSeries = ref([{ name: 'Respuestas', data: [] }]);
+const chartSeries = ref([{ name: "Respuestas", data: [] }]);
 const chartOptions = ref({
-  chart: { type: 'bar', height: 350, animations: { enabled: true }, toolbar: { show: false } },
-  plotOptions: { bar: { columnWidth: '70%', borderRadius: 6 } },
+  chart: {
+    type: "bar",
+    height: 350,
+    animations: { enabled: true },
+    toolbar: { show: false },
+  },
+  plotOptions: { bar: { columnWidth: "70%", borderRadius: 6 } },
   dataLabels: { enabled: false },
-  xaxis: { categories: [], title: { text: 'Puntos (por rangos)' }, labels: { rotateAlways: false } },
-  yaxis: { title: { text: 'Conteo de respuestas' }, min: 0, forceNiceScale: true },
-  tooltip: { y: { formatter: (val) => `${val}` } }
+  xaxis: {
+    categories: [],
+    title: { text: "Puntos (por rangos)" },
+    labels: { rotateAlways: false },
+  },
+  yaxis: { title: { text: "Conteo de respuestas" }, min: 0, forceNiceScale: true },
+  tooltip: { y: { formatter: (val) => `${val}` } },
 });
 
 // fallback SVG si falla Apex
@@ -66,15 +79,23 @@ const svgCategories = ref([]);
 // ================== Helpers numéricos ==================
 const normalizeNumber = (n) => {
   if (n === null || n === undefined) return null;
-  const x = typeof n === 'string' ? n.replace(',', '.') : n;
+  const x = typeof n === "string" ? n.replace(",", ".") : n;
   const num = Number(x);
   return Number.isFinite(num) ? num : null;
 };
 
-const numberFmt = (n) => new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(n ?? 0);
+const numberFmt = (n) =>
+  new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(n ?? 0);
 
 const pickWeightFromField = (field) => {
-  const keys = ['weight', 'ponderacion', 'points', 'max_points', 'maxPoints', 'score_weight'];
+  const keys = [
+    "weight",
+    "ponderacion",
+    "points",
+    "max_points",
+    "maxPoints",
+    "score_weight",
+  ];
   for (const k of keys) {
     const val = normalizeNumber(field?.[k]);
     if (val !== null) return val;
@@ -83,10 +104,10 @@ const pickWeightFromField = (field) => {
 };
 
 const isRequiredField = (field) => {
-  const keys = ['required', 'is_required', 'mandatory', 'isRequired'];
+  const keys = ["required", "is_required", "mandatory", "isRequired"];
   for (const k of keys) {
     const v = field?.[k];
-    if (v === true || v === 1 || v === '1' || v === 'true') return true;
+    if (v === true || v === 1 || v === "1" || v === "true") return true;
   }
   return false;
 };
@@ -112,7 +133,7 @@ const extractFieldsContainers = (formObj) => {
     formObj?.questions,
     formObj?.form?.form_fields,
     formObj?.form?.fields,
-    formObj?.form?.questions
+    formObj?.form?.questions,
   ].filter(Boolean);
 };
 
@@ -151,55 +172,85 @@ const buildBins = (values, maxPoints, binCount) => {
 const allResponses = ref([]);
 const timeSeries = ref([]);
 const timeChartOptions = ref({
-  chart: { type: 'line', height: 350, toolbar: { show: false } },
-  xaxis: { categories: [], title: { text: 'Fecha' } },
-  yaxis: { title: { text: 'Respuestas' }, min: 0, offsetY: 20 },
+  chart: { type: "line", height: 350, toolbar: { show: false } },
+  xaxis: { categories: [], title: { text: "Fecha" } },
+  yaxis: { title: { text: "Respuestas" }, min: 0, offsetY: 20 },
   dataLabels: { enabled: false },
-  stroke: { curve: 'smooth' },
+  stroke: { curve: "smooth" },
   tooltip: { y: { formatter: (val) => `${val}` } },
-  grid: { padding: { right: 36, left: 10, top: 10, bottom: 8 } }
+  grid: { padding: { right: 36, left: 10, top: 10, bottom: 8 } },
 });
-const timePeriod = ref('day');
-const timeChartType = ref('line');
+const timePeriod = ref("day");
+const timeChartType = ref("line");
 
-function startOfWeekMonday(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const day = d.getUTCDay();
+const pad2 = (n) => String(n).padStart(2, "0");
+
+function toLocalDateKey(input) {
+  if (!input) return null;
+  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
+  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}T/.test(input)) {
+    const dIso = new Date(input);
+    if (!Number.isNaN(dIso.getTime())) {
+      return `${dIso.getFullYear()}-${pad2(dIso.getMonth() + 1)}-${pad2(dIso.getDate())}`;
+    }
+    return input.slice(0, 10);
+  }
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function ymdLocal(input) {
+  return toLocalDateKey(input);
+}
+
+function startOfWeekMondayLocal(date) {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = d.getDay();
   const diff = (day === 0 ? -6 : 1) - day;
-  d.setUTCDate(d.getUTCDate() + diff);
-  d.setUTCHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
   return d;
 }
-function weekNumberMonday(date) {
-  const monday = startOfWeekMonday(date);
-  const yearStart = new Date(Date.UTC(monday.getUTCFullYear(), 0, 1));
-  const days = Math.floor((monday - startOfWeekMonday(yearStart)) / 86400000);
+
+function weekNumberMondayLocal(date) {
+  const monday = startOfWeekMondayLocal(date);
+  const yearStart = new Date(monday.getFullYear(), 0, 1);
+  const yearStartMonday = startOfWeekMondayLocal(yearStart);
+  const days = Math.floor((monday - yearStartMonday) / 86400000);
   return Math.floor(days / 7) + 1;
 }
-function groupResponsesByPeriod(responses, period = 'day') {
+
+function groupResponsesByPeriod(responses, period = "day") {
   const map = new Map();
   const meta = new Map();
 
   for (const r of responses) {
     const dt = r?.response?.submitted_at || r?.submitted_at;
     if (!dt) continue;
+
     const d = new Date(dt);
+    if (isNaN(d)) continue;
 
     let key, ts;
-    if (period === 'week') {
+
+    if (period === "week") {
       const y = d.getFullYear();
-      const w = String(weekNumberMonday(d)).padStart(2, '0');
+      const w = String(weekNumberMondayLocal(d)).padStart(2, "0");
       key = `${y}-S${w}`;
-      ts = startOfWeekMonday(d).getTime();
-    } else if (period === 'month') {
+      ts = startOfWeekMondayLocal(d).getTime();
+    } else if (period === "month") {
       const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const m = String(d.getMonth() + 1).padStart(2, "0");
       key = `${y}-${m}`;
-      const firstDay = new Date(Date.UTC(y, d.getMonth(), 1));
+      const firstDay = new Date(y, d.getMonth(), 1);
+      firstDay.setHours(0, 0, 0, 0);
       ts = firstDay.getTime();
     } else {
-      key = d.toISOString().slice(0, 10);
-      const t0 = new Date(key + 'T00:00:00Z');
+      const ymd = ymdLocal(dt);
+      if (!ymd) continue;
+      key = ymd;
+      const t0 = new Date(ymd + "T00:00:00");
       ts = t0.getTime();
     }
 
@@ -207,7 +258,11 @@ function groupResponsesByPeriod(responses, period = 'day') {
     if (!meta.has(key)) meta.set(key, ts);
   }
 
-  const rows = Array.from(map.keys()).map((k) => ({ label: k, ts: meta.get(k), val: map.get(k) }));
+  const rows = Array.from(map.keys()).map((k) => ({
+    label: k,
+    ts: meta.get(k),
+    val: map.get(k),
+  }));
   rows.sort((a, b) => a.ts - b.ts);
 
   const categories = rows.map((r) => r.label);
@@ -216,73 +271,76 @@ function groupResponsesByPeriod(responses, period = 'day') {
 }
 
 const buildTimeChart = () => {
-  const { categories, counts } = groupResponsesByPeriod(allResponses.value, timePeriod.value);
+  const { categories, counts } = groupResponsesByPeriod(
+    allResponses.value,
+    timePeriod.value
+  );
 
-  const isMonth = timePeriod.value === 'month';
-  timeChartType.value = isMonth ? 'bar' : 'line';
+  const isMonth = timePeriod.value === "month";
+  timeChartType.value = isMonth ? "bar" : "line";
 
   const maxY = Math.max(0, ...counts);
   const yMaxPadded = maxY > 0 ? Math.ceil(maxY * 1.2) : undefined;
 
-  timeSeries.value = [{ name: 'Respuestas', data: counts }];
+  timeSeries.value = [{ name: "Respuestas", data: counts }];
 
   timeChartOptions.value = {
     chart: { type: timeChartType.value, height: 350, toolbar: { show: false } },
     xaxis: {
       categories,
-      type: 'category',
-      title: { text: 'Fecha' },
+      type: "category",
+      title: { text: "Fecha" },
       labels: { trim: true, rotate: 0, offsetX: 0, hideOverlappingLabels: true },
-      tickPlacement: 'between'
+      tickPlacement: "between",
     },
     yaxis: {
-      title: { text: 'Respuestas' },
+      title: { text: "Respuestas" },
       min: 0,
       max: yMaxPadded,
-      offsetY: 20
+      offsetY: 20,
     },
     dataLabels: {
       enabled: isMonth,
-      formatter: (val) => `${val}`
+      formatter: (val) => `${val}`,
     },
     stroke: {
-      curve: 'smooth',
-      width: isMonth ? 0 : 3
+      curve: "smooth",
+      width: isMonth ? 0 : 3,
     },
     markers: {
       size: isMonth ? 0 : 8,
       strokeWidth: isMonth ? 0 : 2,
-      hover: { sizeOffset: 3 }
+      hover: { sizeOffset: 3 },
     },
     plotOptions: {
       bar: {
-        columnWidth: '45%',
+        columnWidth: "45%",
         borderRadius: 6,
-        dataLabels: { position: 'top' }
-      }
+        dataLabels: { position: "top" },
+      },
     },
     grid: { padding: { top: 10, right: 40, bottom: 10, left: 12 } },
     tooltip: { y: { formatter: (val) => `${val}` } },
-    noData: { text: 'Sin datos en este periodo' }
+    noData: { text: "Sin datos en este periodo" },
   };
 };
 
 // ================== Porcentaje contestadas vs no contestadas ==================
 const percentChartSeries = ref([]);
 const percentChartOptions = ref({
-  chart: { type: 'donut', height: 320, toolbar: { show: false } },
-  labels: ['Contestadas', 'No contestadas'],
-  legend: { position: 'bottom' },
+  chart: { type: "donut", height: 320, toolbar: { show: false } },
+  labels: ["Contestadas", "No contestadas"],
+  legend: { position: "bottom" },
   dataLabels: {
     enabled: true,
-    formatter: (val) => `${Number(val).toFixed(2)}%`
+    formatter: (val) => `${Number(val).toFixed(2)}%`,
   },
   tooltip: {
     y: {
-      formatter: (val) => `${Number(val).toFixed(2)}%`
-    }
+      formatter: (val) => `${Number(val).toFixed(2)}%`,
+    },
   },
-  colors: ['#81C784', '#4FC3F7'],
+  colors: ["#81C784", "#4FC3F7"],
   plotOptions: {
     pie: {
       donut: {
@@ -292,17 +350,17 @@ const percentChartOptions = ref({
           value: { show: true, formatter: (val) => `${Number(val).toFixed(2)}%` },
           total: {
             show: true,
-            label: 'Total',
+            label: "Total",
             formatter: (w) => {
               const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
               const pct = total ? (w.globals.series[0] / total) * 100 : 0;
-              return Number(pct).toFixed(2) + '%';
-            }
-          }
-        }
-      }
-    }
-  }
+              return Number(pct).toFixed(2) + "%";
+            },
+          },
+        },
+      },
+    },
+  },
 });
 
 const percentTotalQuestions = ref(0);
@@ -339,11 +397,19 @@ function buildPercentChart() {
   for (const field of fields) {
     const fieldId = field.id;
     for (const resp of allResponses.value) {
-      const fieldResponses = resp?.response?.field_responses || resp?.response?.fieldResponses || resp?.field_responses || [];
+      const fieldResponses =
+        resp?.response?.field_responses ||
+        resp?.response?.fieldResponses ||
+        resp?.field_responses ||
+        [];
       const fr = fieldResponses.find(
-        (f) => f?.form_field_id === fieldId || f?.formFieldId === fieldId || f?.form_field?.id === fieldId || f?.formField?.id === fieldId
+        (f) =>
+          f?.form_field_id === fieldId ||
+          f?.formFieldId === fieldId ||
+          f?.form_field?.id === fieldId ||
+          f?.formField?.id === fieldId
       );
-      if (fr && fr.value !== null && fr.value !== undefined && fr.value !== '') {
+      if (fr && fr.value !== null && fr.value !== undefined && fr.value !== "") {
         answeredCount += 1;
       }
     }
@@ -351,7 +417,12 @@ function buildPercentChart() {
 
   const omittedCount = totalPossibleAnswers - answeredCount;
   percentChartSeries.value =
-    totalPossibleAnswers > 0 ? [(answeredCount / totalPossibleAnswers) * 100, (omittedCount / totalPossibleAnswers) * 100] : [];
+    totalPossibleAnswers > 0
+      ? [
+          (answeredCount / totalPossibleAnswers) * 100,
+          (omittedCount / totalPossibleAnswers) * 100,
+        ]
+      : [];
 
   percentTotalQuestions.value = totalQuestions;
   percentTotalResponses.value = totalResponses;
@@ -377,12 +448,13 @@ const fetchAllScores = async () => {
   let lastPage = 1;
   const baseParams = { ...props.filters };
   Object.keys(baseParams).forEach((k) => {
-    if (baseParams[k] === null || baseParams[k] === '' || baseParams[k] === undefined) delete baseParams[k];
+    if (baseParams[k] === null || baseParams[k] === "" || baseParams[k] === undefined)
+      delete baseParams[k];
   });
 
   do {
     const { data } = await axios.get(`/forms/${props.formId}/responses/reports`, {
-      params: { ...baseParams, page, per_page: 100 }
+      params: { ...baseParams, page, per_page: 100 },
     });
     const resp = Array.isArray(data?.responses) ? data.responses : [];
     for (const r of resp) {
@@ -400,10 +472,13 @@ const fetchAllScores = async () => {
 
   if (totalMaxPoints.value === null) {
     const { data } = await axios.get(`/forms/${props.formId}/responses/reports`, {
-      params: { ...baseParams, page: 1, per_page: 1 }
+      params: { ...baseParams, page: 1, per_page: 1 },
     });
     const firstResp = Array.isArray(data?.responses) && data.responses[0];
-    const frs = firstResp?.response?.field_responses || firstResp?.response?.fieldResponses || firstResp?.field_responses;
+    const frs =
+      firstResp?.response?.field_responses ||
+      firstResp?.response?.fieldResponses ||
+      firstResp?.field_responses;
 
     if (Array.isArray(frs) && frs.length) {
       const weightsByField = new Map();
@@ -417,7 +492,10 @@ const fetchAllScores = async () => {
         weightsByField.set(id, w);
         if (w > 0 && req) minReqAcc += w;
       }
-      const sum = [...weightsByField.values()].reduce((acc, n) => acc + (Number.isFinite(n) ? n : 0), 0);
+      const sum = [...weightsByField.values()].reduce(
+        (acc, n) => acc + (Number.isFinite(n) ? n : 0),
+        0
+      );
       totalMaxPoints.value = sum > 0 ? sum : null;
       if (!minRequiredPoints.value) minRequiredPoints.value = minReqAcc;
     }
@@ -427,7 +505,11 @@ const fetchAllScores = async () => {
 };
 
 const buildChart = () => {
-  const { categories, counts } = buildBins(allScores.value, totalMaxPoints.value, props.bins);
+  const { categories, counts } = buildBins(
+    allScores.value,
+    totalMaxPoints.value,
+    props.bins
+  );
 
   // Si ApexCharts falla, pinta fallback SVG
   if (!VueApexCharts.__asyncResolved && !apexReady.value) {
@@ -447,15 +529,18 @@ const buildChart = () => {
         y: padding.top + innerH - h,
         width: Math.max(0, barW - 12),
         height: h,
-        label: categories[i]
+        label: categories[i],
       };
     });
 
     svgCategories.value = categories;
   }
 
-  chartSeries.value = [{ name: 'Respuestas', data: counts }];
-  chartOptions.value = { ...chartOptions.value, xaxis: { ...chartOptions.value.xaxis, categories } };
+  chartSeries.value = [{ name: "Respuestas", data: counts }];
+  chartOptions.value = {
+    ...chartOptions.value,
+    xaxis: { ...chartOptions.value.xaxis, categories },
+  };
 };
 
 const reloadAll = async () => {
@@ -466,15 +551,15 @@ const reloadAll = async () => {
     buildChart();
     buildTimeChart();
     buildPercentChart();
-    // --- INICIO DEBUG ---
-    console.log('[RFormAnswerCharts] allResponses:', allResponses.value);
-    // --- FIN DEBUG ---
+    const sample =
+      allResponses.value?.[0]?.response?.submitted_at ||
+      allResponses.value?.[0]?.submitted_at;
   } catch (e) {
     apexReady.value = false;
     try {
       buildChart();
     } catch (_) {}
-    console.error('Error cargando gráficas de respuestas:', e);
+    console.error("Error cargando gráficas de respuestas:", e);
   } finally {
     localLoading.value = false;
   }
@@ -492,45 +577,102 @@ watch(
 const fieldSearch = ref({});
 const fieldResponses = ref([]);
 
+// Utilidad para ordenar por la columna "order"
+function sortByOrder(arr) {
+  return [...arr].sort((a, b) => {
+    const aOrder = a?.order ?? 0;
+    const bOrder = b?.order ?? 0;
+    return aOrder - bOrder;
+  });
+}
+
+// Computed para obtener la lista de campos y grupos en orden (mezclando campos sueltos y grupos según order)
 const fieldsList = computed(() => {
-  return (
-    form.value?.form_fields ||
-    form.value?.fields ||
-    form.value?.questions ||
-    form.value?.form?.form_fields ||
-    form.value?.form?.fields ||
-    form.value?.form?.questions ||
-    []
-  );
+  const formObj = form.value;
+  if (!formObj) return [];
+
+  // Grupos (con order)
+  const groups = Array.isArray(formObj.field_groups)
+    ? sortByOrder(formObj.field_groups)
+    : [];
+
+  // Todas las preguntas/campos
+  const allFields =
+    formObj.form_fields ||
+    formObj.fields ||
+    formObj.questions ||
+    formObj.form?.form_fields ||
+    formObj.form?.fields ||
+    formObj.form?.questions ||
+    [];
+
+  // Campos con grupo
+  const fieldsWithGroup = allFields.filter((f) => f.form_field_group_id);
+  // Campos sin grupo
+  const fieldsWithoutGroup = allFields.filter((f) => !f.form_field_group_id);
+
+  // Construye una lista combinada de elementos (campos sueltos y grupos)
+  const combined = [
+    ...fieldsWithoutGroup.map((f) => ({
+      type: "field",
+      order: f.order ?? 0,
+      field: f,
+    })),
+    ...groups.map((g) => ({
+      type: "group",
+      order: g.order ?? 0,
+      group: g,
+      fields: fieldsWithGroup
+        .filter((f) => f.form_field_group_id === g.id)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    })),
+  ];
+
+  // Ordena por order
+  combined.sort((a, b) => a.order - b.order);
+
+  // Expande los grupos en la lista final
+  const finalList = [];
+  for (const item of combined) {
+    if (item.type === "field") {
+      finalList.push(item.field);
+    } else if (item.type === "group") {
+      for (const f of item.fields) {
+        finalList.push({ ...f, _group: item.group });
+      }
+    }
+  }
+
+  return finalList;
 });
 
 function getResponsesByField(fieldId) {
   const responses = [];
   for (const resp of allResponses.value) {
-    const fieldResponsesArr = resp?.response?.field_responses || resp?.response?.fieldResponses || resp?.field_responses || [];
+    const fieldResponsesArr =
+      resp?.response?.field_responses ||
+      resp?.response?.fieldResponses ||
+      resp?.field_responses ||
+      [];
     const fr = fieldResponsesArr.find(
-      (f) => f?.form_field_id === fieldId || f?.formFieldId === fieldId || f?.form_field?.id === fieldId || f?.formField?.id === fieldId
+      (f) =>
+        f?.form_field_id === fieldId ||
+        f?.formFieldId === fieldId ||
+        f?.form_field?.id === fieldId ||
+        f?.formField?.id === fieldId
     );
-    if (fr && fr.value !== null && fr.value !== undefined && fr.value !== '') {
-      // Extrae el primer reporte (puedes ajustar si necesitas otro)
-      const firstReport = Array.isArray(resp.reports) && resp.reports.length > 0 ? resp.reports[0] : null;
-      // --- INICIO DEBUG ---
-      console.log('[RFormAnswerCharts] getResponsesByField', {
-        fieldId,
-        resp,
-        fr,
-        firstReport
-      });
-      // --- FIN DEBUG ---
+    if (fr && fr.value !== null && fr.value !== undefined && fr.value !== "") {
+      const firstReport =
+        Array.isArray(resp.reports) && resp.reports.length > 0 ? resp.reports[0] : null;
       responses.push({
         value: fr.value,
         user: resp?.response?.user || resp?.user || {},
         date: resp?.response?.submitted_at || resp?.submitted_at,
-        folio: resp?.folio || resp?.response?.folio || resp?.id || '',
-        nombre: resp?.nombre || resp?.response?.nombre || resp?.name || '',
-        form_id: firstReport?.form_id || '',
-        report_id: firstReport?.id || '',
-        field_response_id: fr.id
+        folio: resp?.folio || resp?.response?.folio || resp?.id || "",
+        nombre: resp?.nombre || resp?.response?.nombre || resp?.name || "",
+        form_id: firstReport?.form_id || "",
+        report_id: firstReport?.id || "",
+        field_response_id: fr.id,
       });
     }
   }
@@ -540,7 +682,7 @@ function getResponsesByField(fieldId) {
 function updateFieldResponses() {
   fieldResponses.value = fieldsList.value.map((field) => ({
     field,
-    responses: getResponsesByField(field.id)
+    responses: getResponsesByField(field.id),
   }));
 }
 
@@ -555,21 +697,20 @@ function setPage(fieldId, page) {
 // ================== IMAGES: Dropdown y Heatmap por fecha ==================
 const selectedImageCalendarDay = ref({});
 
-// Maneja el clic en un día del calendario de imágenes
 function onImageCalendarDayClick(fieldId, dayObj) {
-  selectedImageCalendarDay.value[fieldId] = typeof dayObj === 'object' && dayObj.date ? dayObj.date : dayObj;
+  selectedImageCalendarDay.value[fieldId] =
+    typeof dayObj === "object" && dayObj.date ? dayObj.date : dayObj;
 }
 
-// Obtiene los registros (respuestas) que tienen imágenes en ese día
-function getImageRecordsForDay(fieldId, date) {
+function getImageHeatmapData(fieldId) {
   const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
-  if (!fieldObj || !fieldObj.responses.length || !date) return [];
-  // --- INICIO DEBUG ---
-  console.log('[RFormAnswerCharts] getImageRecordsForDay', { fieldId, date, fieldObj });
-  // --- FIN DEBUG ---
-  return fieldObj.responses.filter((r) => {
+  if (!fieldObj || !fieldObj.responses.length) return [];
+
+  const counts = new Map();
+
+  for (const r of fieldObj.responses) {
     let images = r.value;
-    if (typeof images === 'string' && images.startsWith('[')) {
+    if (typeof images === "string" && images.startsWith("[")) {
       try {
         images = JSON.parse(images);
       } catch {
@@ -577,31 +718,69 @@ function getImageRecordsForDay(fieldId, date) {
       }
     }
     if (!Array.isArray(images)) images = [images];
+
+    for (const img of images) {
+      const raw = (typeof img === "object" && img?.date) || r.date || null;
+      const dKey = toLocalDateKey(raw);
+      if (!dKey || !/^\d{4}-\d{2}-\d{2}$/.test(dKey)) continue;
+      counts.set(dKey, (counts.get(dKey) || 0) + 1);
+    }
+  }
+
+  const rows = [...counts.entries()].map(([date, value]) => ({ date, value }));
+  rows.sort((a, b) => (a.date < b.date ? -1 : 1));
+  return rows;
+}
+
+function getImageRecordsForDay(fieldId, date) {
+  const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
+  if (!fieldObj || !fieldObj.responses.length || !date) return [];
+
+  const selectedKey = toLocalDateKey(
+    typeof date === "object" && date?.date ? date.date : date
+  );
+  if (!selectedKey) return [];
+
+  return fieldObj.responses.filter((r) => {
+    let images = r.value;
+    if (typeof images === "string" && images.startsWith("[")) {
+      try {
+        images = JSON.parse(images);
+      } catch {
+        images = [images];
+      }
+    }
+    if (!Array.isArray(images)) images = [images];
+
     return images.some((img) => {
-      const imgDate = img?.date ? img.date.slice(0, 10) : r.date ? r.date.slice(0, 10) : null;
-      return imgDate === date;
+      const raw = img && typeof img === "object" && img.date ? img.date : r.date;
+      const imgKey = toLocalDateKey(raw);
+      return imgKey === selectedKey;
     });
   });
 }
 
-function getImageHeatmapData(fieldId, filterDate = null) {
+// ================== DATES: Dropdown y Heatmap por fecha ==================
+const selectedDateCalendarDay = ref({});
+
+function onDateCalendarDayClick(fieldId, dayObj) {
+  selectedDateCalendarDay.value[fieldId] =
+    typeof dayObj === "object" && dayObj.date ? dayObj.date : dayObj;
+}
+
+function getDateRecordsForDay(fieldId, date) {
   const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
-  if (!fieldObj || !fieldObj.responses.length) return [];
-  const counts = new Map();
-  for (const r of fieldObj.responses) {
-    const images = Array.isArray(r.value) ? r.value : [r.value];
-    for (const img of images) {
-      if (!img) continue;
-      let date = img.date ? img.date.slice(0, 10) : r.date ? r.date.slice(0, 10) : null;
-      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-      if (!filterDate || date === filterDate) {
-        counts.set(date, (counts.get(date) || 0) + 1);
-      }
-    }
-  }
-  const rows = [...counts.entries()].map(([date, value]) => ({ date, value }));
-  rows.sort((a, b) => (a.date < b.date ? -1 : 1));
-  return rows;
+  if (!fieldObj || !fieldObj.responses.length || !date) return [];
+
+  const selectedKey = toLocalDateKey(
+    typeof date === "object" && date?.date ? date.date : date
+  );
+  if (!selectedKey) return [];
+
+  return fieldObj.responses.filter((r) => {
+    const key = toLocalDateKey(r.value) || toLocalDateKey(r.date);
+    return key === selectedKey;
+  });
 }
 
 // ================== CALENDAR MONTH STATE POR CAMPO ==================
@@ -611,15 +790,28 @@ function getCalendarMonthStart(fieldId) {
   if (calendarMonthStartByField.value[fieldId] instanceof Date) {
     return calendarMonthStartByField.value[fieldId];
   }
-  const data = getImageHeatmapData(fieldId);
-  if (data.length && data[0].date) {
-    const firstDate = new Date(data[0].date);
-    const monthStart = new Date(Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth(), 1));
+
+  const dataDates = getDateHeatmapData(fieldId);
+  if (dataDates.length && dataDates[0].date) {
+    const firstDate = new Date(dataDates[0].date + "T00:00:00");
+    const monthStart = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+    monthStart.setHours(0, 0, 0, 0);
     calendarMonthStartByField.value[fieldId] = monthStart;
     return monthStart;
   }
+
+  const dataMedia = getImageHeatmapData(fieldId);
+  if (dataMedia.length && dataMedia[0].date) {
+    const firstDate = new Date(dataMedia[0].date + "T00:00:00");
+    const monthStart = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+    monthStart.setHours(0, 0, 0, 0);
+    calendarMonthStartByField.value[fieldId] = monthStart;
+    return monthStart;
+  }
+
   const now = new Date();
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  monthStart.setHours(0, 0, 0, 0);
   calendarMonthStartByField.value[fieldId] = monthStart;
   return monthStart;
 }
@@ -633,51 +825,50 @@ function setCalendarMonthStart(fieldId, date) {
 function getDateHeatmapData(fieldId) {
   const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
   if (!fieldObj || !fieldObj.responses.length) return [];
+
   const counts = new Map();
+
   for (const r of fieldObj.responses) {
-    let date = r.value;
-    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
-      date = date.slice(0, 10);
-    } else if (r.date) {
-      date = r.date.slice(0, 10);
-    } else {
-      continue;
-    }
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-    counts.set(date, (counts.get(date) || 0) + 1);
+    const key = toLocalDateKey(r.value) || toLocalDateKey(r.date);
+    if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+    counts.set(key, (counts.get(key) || 0) + 1);
   }
+
   const rows = [...counts.entries()].map(([date, value]) => ({ date, value }));
   rows.sort((a, b) => (a.date < b.date ? -1 : 1));
   return rows;
 }
 
 function getMinDateForField(fieldId) {
-  const data = getDateHeatmapData(fieldId);
-  if (!data.length) return '2024-01-01';
-  return data[0].date;
+  const dataDates = getDateHeatmapData(fieldId);
+  if (dataDates.length) return dataDates[0].date;
+  const dataMedia = getImageHeatmapData(fieldId);
+  if (dataMedia.length) return dataMedia[0].date;
+  return "2024-01-01";
 }
 
 function getMaxDateForField(fieldId) {
-  const data = getDateHeatmapData(fieldId);
-  if (!data.length) return '2026-12-31';
-  return data[data.length - 1].date;
+  const dataDates = getDateHeatmapData(fieldId);
+  if (dataDates.length) return dataDates[dataDates.length - 1].date;
+  const dataMedia = getImageHeatmapData(fieldId);
+  if (dataMedia.length) return dataMedia[dataMedia.length - 1].date;
+  return "2026-12-31";
 }
 
 // ================== GEO HELPERS (para FieldGeo) ==================
 const geoLayerByField = ref({});
 
 function toNum(v) {
-  const n = Number(String(v).replace(',', '.'));
+  const n = Number(String(v).replace(",", "."));
   return Number.isFinite(n) ? n : null;
 }
 
-// Acepta varios formatos y regresa {lat, lng, label}
-function normalizeGeoEntry(raw, label = '-') {
+function normalizeGeoEntry(raw, label = "-") {
   if (!raw) return null;
 
-  if (typeof raw === 'string') {
+  if (typeof raw === "string") {
     const trimmed = raw.trim();
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
       try {
         const parsed = JSON.parse(trimmed);
         return normalizeGeoEntry(parsed, label);
@@ -692,8 +883,10 @@ function normalizeGeoEntry(raw, label = '-') {
       const lng = toNum(parts[1]);
       if (lat !== null && lng !== null) return { lat, lng, label };
     }
-    if (trimmed.includes('=')) {
-      const map = Object.fromEntries(trimmed.split('&').map((p) => p.split('=').map((s) => decodeURIComponent(s))));
+    if (trimmed.includes("=")) {
+      const map = Object.fromEntries(
+        trimmed.split("&").map((p) => p.split("=").map((s) => decodeURIComponent(s)))
+      );
       const lat = toNum(map.lat ?? map.latitude);
       const lng = toNum(map.lng ?? map.lon ?? map.longitude);
       if (lat !== null && lng !== null) return { lat, lng, label };
@@ -701,19 +894,26 @@ function normalizeGeoEntry(raw, label = '-') {
     return null;
   }
 
-  if (typeof raw === 'object') {
+  if (typeof raw === "object") {
     let lat = toNum(raw.lat ?? raw.latitude);
     let lng = toNum(raw.lng ?? raw.lon ?? raw.longitude);
     if (lat !== null && lng !== null) return { lat, lng, label };
 
     const coords = raw.coordinates || raw.coords;
-    if (raw.type === 'Point' && Array.isArray(coords) && coords.length >= 2) {
+    if (raw.type === "Point" && Array.isArray(coords) && coords.length >= 2) {
       const _lng = toNum(coords[0]);
       const _lat = toNum(coords[1]);
       if (_lat !== null && _lng !== null) return { lat: _lat, lng: _lng, label };
     }
 
-    const nested = raw.position || raw.geo || raw.location || raw.address || raw.coords || raw.coordinates || raw.point;
+    const nested =
+      raw.position ||
+      raw.geo ||
+      raw.location ||
+      raw.address ||
+      raw.coords ||
+      raw.coordinates ||
+      raw.point;
     if (nested) return normalizeGeoEntry(nested, label);
   }
 
@@ -724,18 +924,18 @@ function getGeoPoints(fieldId) {
   const fieldObj = fieldResponses.value.find((f) => f.field.id === fieldId);
   if (!fieldObj) return [];
 
-  const search = (fieldSearch.value?.[fieldId] || '').toString().toLowerCase();
+  const search = (fieldSearch.value?.[fieldId] || "").toString().toLowerCase();
 
   const filtered = fieldObj.responses.filter((r) => {
     if (!search) return true;
-    const folio = (r.folio || r.id || '').toString().toLowerCase();
-    const user = (r.user && (r.user.name || r.user).toString().toLowerCase()) || '';
+    const folio = (r.folio || r.id || "").toString().toLowerCase();
+    const user = (r.user && (r.user.name || r.user).toString().toLowerCase()) || "";
     return folio.includes(search) || user.includes(search);
   });
 
   const points = [];
   for (const r of filtered) {
-    const label = r.folio || r.id || '-';
+    const label = r.folio || r.id || "-";
     const p = normalizeGeoEntry(r.value, label);
     if (p && Number.isFinite(p.lat) && Number.isFinite(p.lng)) points.push(p);
   }
@@ -744,8 +944,11 @@ function getGeoPoints(fieldId) {
 
 function getGeoCenter(fieldId) {
   const pts = getGeoPoints(fieldId);
-  if (!pts.length) return { lat: 19.432608, lng: -99.133209 }; // CDMX fallback
-  const acc = pts.reduce((a, p) => ({ lat: a.lat + p.lat, lng: a.lng + p.lng }), { lat: 0, lng: 0 });
+  if (!pts.length) return { lat: 19.432608, lng: -99.133209 };
+  const acc = pts.reduce((a, p) => ({ lat: a.lat + p.lat, lng: a.lng + p.lng }), {
+    lat: 0,
+    lng: 0,
+  });
   return { lat: acc.lat / pts.length, lng: acc.lng / pts.length };
 }
 
@@ -759,7 +962,7 @@ function getGeoZoom(fieldId) {
 
 function getGeoAddress(val) {
   let obj = val;
-  if (typeof val === 'string') {
+  if (typeof val === "string") {
     try {
       obj = JSON.parse(val);
     } catch {
@@ -767,15 +970,24 @@ function getGeoAddress(val) {
     }
   }
   return (
-    [obj?.street, obj?.outdoor_number, obj?.indoor_number, obj?.neighborhood, obj?.postal_code, obj?.city, obj?.state, obj?.country]
-      .filter((v) => v && v !== '')
-      .join(', ') || '-'
+    [
+      obj?.street,
+      obj?.outdoor_number,
+      obj?.indoor_number,
+      obj?.neighborhood,
+      obj?.postal_code,
+      obj?.city,
+      obj?.state,
+      obj?.country,
+    ]
+      .filter((v) => v && v !== "")
+      .join(", ") || "-"
   );
 }
 
 function getGeoCoords(val) {
   let obj = val;
-  if (typeof val === 'string') {
+  if (typeof val === "string") {
     try {
       obj = JSON.parse(val);
     } catch {
@@ -783,9 +995,10 @@ function getGeoCoords(val) {
     }
   }
   const lat = obj?.lat ?? obj?.latitude ?? obj?.coordinates?.[1] ?? obj?.coords?.[1];
-  const lng = obj?.lng ?? obj?.lon ?? obj?.longitude ?? obj?.coordinates?.[0] ?? obj?.coords?.[0];
+  const lng =
+    obj?.lng ?? obj?.lon ?? obj?.longitude ?? obj?.coordinates?.[0] ?? obj?.coords?.[0];
   if (lat && lng) return `${lat}, ${lng}`;
-  return '-';
+  return "-";
 }
 </script>
 
@@ -797,7 +1010,9 @@ function getGeoCoords(val) {
     <v-expansion-panels multiple class="custom-expansion-panels">
       <!-- 1. Evolución temporal de respuestas -->
       <v-expansion-panel>
-        <v-expansion-panel-title> Evolución temporal de respuestas </v-expansion-panel-title>
+        <v-expansion-panel-title>
+          Evolución temporal de respuestas
+        </v-expansion-panel-title>
         <v-expansion-panel-text>
           <v-card class="elevation-1 rounded-lg pa-4">
             <div class="d-flex flex-wrap align-center justify-space-between mb-2">
@@ -808,9 +1023,18 @@ function getGeoCoords(val) {
               </v-btn-toggle>
             </div>
             <div v-if="sampleSize && apexReady">
-              <component :is="VueApexCharts" :type="timeChartType" height="350" :options="timeChartOptions" :series="timeSeries" />
+              <component
+                :is="VueApexCharts"
+                :type="timeChartType"
+                height="350"
+                :options="timeChartOptions"
+                :series="timeSeries"
+              />
             </div>
-            <div v-if="localLoading || loading" class="d-flex align-center justify-center py-6">
+            <div
+              v-if="localLoading || loading"
+              class="d-flex align-center justify-center py-6"
+            >
               <v-progress-circular indeterminate size="28" />
               <span class="ml-3 text-medium-emphasis">Cargando gráficas…</span>
             </div>
@@ -820,22 +1044,30 @@ function getGeoCoords(val) {
 
       <!-- 2. Porcentaje de preguntas contestadas vs no contestadas -->
       <v-expansion-panel>
-        <v-expansion-panel-title>Porcentaje de preguntas contestadas vs. no contestadas</v-expansion-panel-title>
+        <v-expansion-panel-title>
+          Porcentaje de preguntas contestadas vs. no contestadas
+        </v-expansion-panel-title>
         <v-expansion-panel-text>
           <v-card class="elevation-1 rounded-lg pa-4">
             <v-row class="mb-2 kpi-row" dense>
               <v-col cols="12" md="4">
                 <div class="d-flex flex-column">
                   <v-card class="kpi-card pa-3 mb-2">
-                    <div class="text-caption text-medium-emphasis">Total de preguntas</div>
+                    <div class="text-caption text-medium-emphasis">
+                      Total de preguntas
+                    </div>
                     <div class="text-h6">{{ numberFmt(percentTotalQuestions) }}</div>
                   </v-card>
                   <v-card class="kpi-card pa-3 mb-2">
-                    <div class="text-caption text-medium-emphasis">Total de respuestas</div>
+                    <div class="text-caption text-medium-emphasis">
+                      Total de respuestas
+                    </div>
                     <div class="text-h6">{{ numberFmt(percentTotalResponses) }}</div>
                   </v-card>
                   <v-card class="kpi-card pa-3 mb-2">
-                    <div class="text-caption text-medium-emphasis">Total posibles respuestas</div>
+                    <div class="text-caption text-medium-emphasis">
+                      Total posibles respuestas
+                    </div>
                     <div class="text-h6">
                       {{ numberFmt(percentTotalQuestions * percentTotalResponses) }}
                     </div>
@@ -851,10 +1083,21 @@ function getGeoCoords(val) {
                 </div>
               </v-col>
               <v-col cols="12" md="8" class="d-flex align-center justify-center">
-                <div v-if="percentChartSeries.length" style="width: 100%; max-width: 400px">
-                  <component :is="VueApexCharts" type="donut" height="320" :options="percentChartOptions" :series="percentChartSeries" />
+                <div
+                  v-if="percentChartSeries.length"
+                  style="width: 100%; max-width: 400px"
+                >
+                  <component
+                    :is="VueApexCharts"
+                    type="donut"
+                    height="320"
+                    :options="percentChartOptions"
+                    :series="percentChartSeries"
+                  />
                 </div>
-                <div v-else class="text-medium-emphasis py-4">No hay datos suficientes para mostrar el gráfico.</div>
+                <div v-else class="text-medium-emphasis py-4">
+                  No hay datos suficientes para mostrar el gráfico.
+                </div>
               </v-col>
             </v-row>
           </v-card>
@@ -869,7 +1112,8 @@ function getGeoCoords(val) {
             <div class="d-flex flex-wrap align-center justify-space-between">
               <div class="text-body-2 text-medium-emphasis">
                 Eje X (tope):
-                <strong>{{ numberFmt(totalMaxPoints ?? 0) }}</strong> puntos totales del formulario
+                <strong>{{ numberFmt(totalMaxPoints ?? 0) }}</strong> puntos totales del
+                formulario
               </div>
             </div>
             <div class="mt-2">
@@ -910,15 +1154,33 @@ function getGeoCoords(val) {
               </v-row>
 
               <div v-if="sampleSize && apexReady">
-                <component :is="VueApexCharts" type="bar" height="350" :options="chartOptions" :series="chartSeries" />
+                <component
+                  :is="VueApexCharts"
+                  type="bar"
+                  height="350"
+                  :options="chartOptions"
+                  :series="chartSeries"
+                />
               </div>
 
               <div v-else-if="sampleSize && !apexReady" class="chart-fallback">
-                <svg :width="820" :height="360" role="img" aria-label="Histograma de puntuaciones">
+                <svg
+                  :width="820"
+                  :height="360"
+                  role="img"
+                  aria-label="Histograma de puntuaciones"
+                >
                   <line x1="40" y1="20" x2="40" y2="310" stroke="#ccc" />
                   <line x1="40" y1="310" x2="800" y2="310" stroke="#ccc" />
                   <template v-for="(b, i) in svgBars" :key="i">
-                    <rect :x="b.x" :y="b.y" :width="b.width" :height="b.height" fill="#3f51b5" opacity="0.85" />
+                    <rect
+                      :x="b.x"
+                      :y="b.y"
+                      :width="b.width"
+                      :height="b.height"
+                      fill="#3f51b5"
+                      opacity="0.85"
+                    />
                   </template>
                   <template v-for="(cat, i) in svgCategories" :key="'cat-' + i">
                     <text
@@ -934,7 +1196,10 @@ function getGeoCoords(val) {
                 </svg>
               </div>
 
-              <div v-if="localLoading || loading" class="d-flex align-center justify-center py-6">
+              <div
+                v-if="localLoading || loading"
+                class="d-flex align-center justify-center py-6"
+              >
                 <v-progress-circular indeterminate size="28" />
                 <span class="ml-3 text-medium-emphasis">Cargando gráficas…</span>
               </div>
@@ -953,41 +1218,118 @@ function getGeoCoords(val) {
       <template v-for="(fieldObj, idx) in fieldResponses" :key="fieldObj.field.id">
         <v-expansion-panel>
           <v-expansion-panel-title>
-            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+              "
+            >
               <div>
-                {{ fieldObj.field.label || fieldObj.field.title || fieldObj.field.name || `Campo ${idx + 1}` }}
+                <template v-if="fieldObj.field.form_field_group_id">
+                  Grupo:
+                  {{
+                    form?.field_groups?.find(
+                      (g) => g.id === fieldObj.field.form_field_group_id
+                    )?.name || "Sin nombre"
+                  }}
+                  &rarr;
+                  {{
+                    fieldObj.field.label ||
+                    fieldObj.field.title ||
+                    fieldObj.field.name ||
+                    `Campo ${idx + 1}`
+                  }}
+                </template>
+                <template v-else>
+                  {{
+                    fieldObj.field.label ||
+                    fieldObj.field.title ||
+                    fieldObj.field.name ||
+                    `Campo ${idx + 1}`
+                  }}
+                </template>
+                <span
+                  v-if="isRequiredField(fieldObj.field)"
+                  style="color: #e53935; font-weight: bold; margin-left: 4px"
+                  aria-label="Requerido"
+                  title="Requerido"
+                  >*</span
+                >
                 <span class="ml-2 text-caption text-medium-emphasis">
                   (
                   <template v-if="fieldObj.field.type === 'text'">Texto</template>
-                  <template v-else-if="fieldObj.field.type === 'textarea'">Área de texto</template>
+                  <template v-else-if="fieldObj.field.type === 'textarea'"
+                    >Área de texto</template
+                  >
                   <template v-else-if="fieldObj.field.type === 'email'">Email</template>
                   <template v-else-if="fieldObj.field.type === 'time'">Hora</template>
                   <template
-                    v-else-if="fieldObj.field.type === 'number' || fieldObj.field.type === 'integer' || fieldObj.field.type === 'float'"
+                    v-else-if="
+                      fieldObj.field.type === 'number' ||
+                      fieldObj.field.type === 'integer' ||
+                      fieldObj.field.type === 'float'
+                    "
                   >
                     Numérico
                   </template>
                   <template v-else-if="fieldObj.field.type === 'date'">Fecha</template>
                   <template
-                    v-else-if="fieldObj.field.type === 'selector' || fieldObj.field.type === 'select' || fieldObj.field.type === 'dropdown'"
+                    v-else-if="
+                      fieldObj.field.type === 'selector' ||
+                      fieldObj.field.type === 'select' ||
+                      fieldObj.field.type === 'dropdown'
+                    "
                   >
                     Selector
                   </template>
                   <template v-else-if="fieldObj.field.type === 'radio'">Radio</template>
-                  <template v-else-if="fieldObj.field.type === 'checkbox'">Checkbox</template>
-                  <template v-else-if="fieldObj.field.type === 'image' || fieldObj.field.type === 'imagenes'"> Imágenes </template>
-                  <template v-else-if="fieldObj.field.type === 'document' || fieldObj.field.type === 'documento'"> Documentos </template>
-                  <template v-else-if="fieldObj.field.type === 'firma' || fieldObj.field.type === 'signature'"> Firma </template>
+                  <template v-else-if="fieldObj.field.type === 'checkbox'"
+                    >Checkbox</template
+                  >
+                  <template
+                    v-else-if="
+                      fieldObj.field.type === 'image' ||
+                      fieldObj.field.type === 'imagenes'
+                    "
+                  >
+                    Imágenes
+                  </template>
+                  <template
+                    v-else-if="
+                      fieldObj.field.type === 'document' ||
+                      fieldObj.field.type === 'documento'
+                    "
+                  >
+                    Documentos
+                  </template>
+                  <template
+                    v-else-if="
+                      fieldObj.field.type === 'firma' ||
+                      fieldObj.field.type === 'signature'
+                    "
+                  >
+                    Firma
+                  </template>
                   <template v-else-if="fieldObj.field.type === 'range'">Rango</template>
                   <template v-else-if="fieldObj.field.type === 'switch'">Switch</template>
                   <template v-else-if="fieldObj.field.type === 'url'">URL</template>
                   <template
-                    v-else-if="fieldObj.field.type === 'phone' || fieldObj.field.type === 'tel' || fieldObj.field.type === 'telefono'"
+                    v-else-if="
+                      fieldObj.field.type === 'phone' ||
+                      fieldObj.field.type === 'tel' ||
+                      fieldObj.field.type === 'telefono'
+                    "
                   >
                     Teléfono
                   </template>
                   <template
-                    v-else-if="fieldObj.field.type === 'geolocation' || fieldObj.field.type === 'geo' || fieldObj.field.type === 'location'"
+                    v-else-if="
+                      fieldObj.field.type === 'geolocation' ||
+                      fieldObj.field.type === 'geo' ||
+                      fieldObj.field.type === 'location'
+                    "
                   >
                     Geolocalización
                   </template>
@@ -995,19 +1337,35 @@ function getGeoCoords(val) {
                   )
                 </span>
               </div>
-              <span v-if="hasRating" style="min-width: 48px; text-align: right"> {{ fieldObj.field.weight ?? 0 }} pts </span>
+              <span v-if="hasRating" style="min-width: 48px; text-align: right">
+                {{ fieldObj.field.weight ?? 0 }} pts
+              </span>
             </div>
           </v-expansion-panel-title>
 
           <v-expansion-panel-text>
             <!-- CAMPOS SIMPLE LIST-->
-            <div v-if="['text', 'textarea', 'email', 'url', 'tel'].includes(fieldObj.field.type)">
-              <FieldText :fieldObj="fieldObj" :fieldSearch="fieldSearch" :pageByField="pageByField" :setPage="setPage" />
+            <div
+              v-if="
+                ['text', 'textarea', 'email', 'url', 'tel'].includes(fieldObj.field.type)
+              "
+            >
+              <FieldText
+                :fieldObj="fieldObj"
+                :fieldSearch="fieldSearch"
+                :pageByField="pageByField"
+                :setPage="setPage"
+              />
             </div>
 
             <!-- CAMPO NUMÉRICO -->
             <div v-else-if="['number', 'integer', 'float'].includes(fieldObj.field.type)">
-              <FieldNumber :fieldObj="fieldObj" :fieldSearch="fieldSearch" :pageByField="pageByField" :setPage="setPage" />
+              <FieldNumber
+                :fieldObj="fieldObj"
+                :fieldSearch="fieldSearch"
+                :pageByField="pageByField"
+                :setPage="setPage"
+              />
             </div>
 
             <!-- CAMPO FECHA-->
@@ -1022,6 +1380,9 @@ function getGeoCoords(val) {
                 :setCalendarMonthStart="setCalendarMonthStart"
                 :getMinDateForField="getMinDateForField"
                 :getMaxDateForField="getMaxDateForField"
+                :selectedDateCalendarDay="selectedDateCalendarDay"
+                :onDateCalendarDayClick="onDateCalendarDayClick"
+                :getDateRecordsForDay="getDateRecordsForDay"
               />
             </div>
 
@@ -1035,17 +1396,36 @@ function getGeoCoords(val) {
                 fieldObj.field.type === 'semaforo'
               "
             >
-              <FieldMultiple :fieldObj="fieldObj" :fieldSearch="fieldSearch" :pageByField="pageByField" :setPage="setPage" />
+              <FieldMultiple
+                :fieldObj="fieldObj"
+                :fieldSearch="fieldSearch"
+                :pageByField="pageByField"
+                :setPage="setPage"
+              />
             </div>
 
             <!-- CAMPO HORA -->
             <div v-else-if="fieldObj.field.type === 'time'">
-              <FieldHour :fieldObj="fieldObj" :fieldSearch="fieldSearch" :pageByField="pageByField" :setPage="setPage" />
+              <FieldHour
+                :fieldObj="fieldObj"
+                :fieldSearch="fieldSearch"
+                :pageByField="pageByField"
+                :setPage="setPage"
+              />
             </div>
 
             <!-- Campo MULTIMEDIA -->
             <FieldMultimedia
-              v-else-if="['image', 'imagenes', 'document', 'documento', 'firma', 'signature'].includes(fieldObj.field.type)"
+              v-else-if="
+                [
+                  'image',
+                  'imagenes',
+                  'document',
+                  'documento',
+                  'firma',
+                  'signature',
+                ].includes(fieldObj.field.type)
+              "
               :fieldObj="fieldObj"
               :fieldSearch="fieldSearch"
               :pageByField="pageByField"
@@ -1099,25 +1479,4 @@ function getGeoCoords(val) {
   </section>
 </template>
 
-<style scoped>
-.kpi-card {
-  border: 1px solid #eaeaea;
-  border-radius: 12px;
-}
-.kpi-row > .v-col {
-  padding-left: 4px !important;
-  padding-right: 4px !important;
-}
-
-.custom-expansion-panels > .v-expansion-panel {
-  margin-bottom: 18px;
-}
-
-.chart-fallback {
-  width: 100%;
-  overflow-x: auto;
-  border: 1px dashed #e0e0e0;
-  border-radius: 12px;
-  padding: 8px;
-}
-</style>
+<style scoped src="@/styles/rform_answer.css"></style>

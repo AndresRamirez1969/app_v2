@@ -4,6 +4,7 @@ import { useDisplay } from 'vuetify';
 import axios from '@/utils/axios';
 import { useAuthStore } from '@/stores/auth';
 import '@/styles/filters.css';
+import { mdiMagnify } from '@mdi/js';
 
 const emit = defineEmits(['search', 'filter']);
 
@@ -213,8 +214,7 @@ function clearFilters() {
   <div class="d-flex align-center mb-6" style="gap: 16px">
     <v-text-field
       v-model="search"
-      :placeholder="`Buscar por identificador, nombre, correo o rol...`"
-      prepend-inner-icon="mdi-magnify"
+      :placeholder="`Buscar por folio o nombre...`"
       clearable
       class="flex-grow-1 search-bar"
       density="compact"
@@ -224,7 +224,11 @@ function clearFilters() {
       style="min-width: 220px"
       @keyup.enter="emitSearch"
       @click:clear="emitSearch"
-    />
+    >
+      <template #prepend-inner>
+        <v-icon :icon="mdiMagnify" />
+      </template>
+    </v-text-field>
 
     <div class="filter-btn-wrapper ml-2 flex-shrink-0" style="min-width: 44px; position: relative">
       <v-btn
@@ -250,7 +254,6 @@ function clearFilters() {
               </svg>
             </v-icon>
             <span>Filtros</span>
-            <v-icon class="ml-2" end>mdi-filter-variant</v-icon>
           </span>
         </template>
       </v-btn>

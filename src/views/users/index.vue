@@ -97,11 +97,6 @@ function handleSort(column) {
   }
   currentPage.value = 1;
 }
-
-// Puedes dejar este watch para debug si lo necesitas
-// watch(currentPage, (val) => {
-//   console.log('currentPage is now:', val, typeof val);
-// });
 </script>
 
 <template>

@@ -48,18 +48,9 @@ const formatTime = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-watch(
-  notifications,
-  (newNotifications) => {
-    console.log('📋 Notificaciones actualizadas:', newNotifications);
-  },
-  { deep: true }
-);
+watch(notifications, (newNotifications) => {}, { deep: true });
 
-// Debug: Observar cambios en el contador
-watch(unreadCount, (newCount) => {
-  console.log('🔢 Contador actualizado:', newCount);
-});
+watch(unreadCount, (newCount) => {});
 
 onMounted(async () => {
   await fetchNotifications();
@@ -69,7 +60,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  console.log('🛑 Componente desmontado');
   cleanupEcho();
 });
 </script>

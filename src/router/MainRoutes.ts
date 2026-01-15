@@ -27,37 +27,6 @@ const MainRoutes = {
       component: () => import('@/views/user/UserProfile.vue'),
       meta: { requiresAuth: true }
     },
-    // {
-    //   name: 'Forms List',
-    //   path: '/formularios',
-    //   component: () => import('@/views/formularios/FormTab.vue')
-    // },
-    // {
-    //   name: 'CreateForm',
-    //   path: '/crearFormulario/:id',
-    //   component: () => import('@/views/formularios/componentes/CreateForm.vue')
-    // },
-    // {
-    //   name: 'FormDetail',
-    //   path: '/formulario/:id',
-    //   component: () => import('@/views/formularios/componentes/ShowForm.vue')
-    // },
-    // {
-    //   name: 'AddFieldsForm',
-    //   path: '/formularios/:id/add-fields',
-    //   component: () => import('@/views/formularios/componentes/AddFieldsForm.vue')
-    // },
-
-    // {
-    //   name: 'MyForms',
-    //   path: '/mis-formularios',
-    //   component: () => import('@/views/user-forms/UserFormTab.vue')
-    // },
-    // {
-    //   name: 'FillForm',
-    //   path: '/formulario/:id/llenar',
-    //   component: () => import('../views/user-forms/componentes/FillForm.vue')
-    // },
     {
       name: 'Organizaciones',
       path: '/organizaciones',
@@ -99,16 +68,6 @@ const MainRoutes = {
       component: () => import('@/views/businesses/show.vue')
     },
     {
-      name: 'Reports',
-      path: '/reportes',
-      component: () => import('@/views/reports/ReportsTab.vue')
-    },
-    {
-      name: 'Show Response',
-      path: '/reportes/:id',
-      component: () => import('@/views/reports/components/user-form-responses/ShowResponses.vue')
-    },
-    {
       name: 'Business Unit DW',
       path: '/ubicaciones',
       component: () => import('@/views/business_unit/index.vue')
@@ -127,15 +86,6 @@ const MainRoutes = {
       name: 'Business Unit Show DW',
       path: '/ubicaciones/:id',
       component: () => import('@/views/business_unit/show.vue')
-    },
-    {
-      name: 'UserResponse',
-      path: '/reportes/:formId/usuarios/:userId/:responseId',
-      component: () => import('@/views/reports/components/user-form-responses/ShowUserResponse.vue'),
-      meta: {
-        requiresAuth: true,
-        title: 'Respuesta de Usuario'
-      }
     },
     {
       name: 'Business Unit Groups',
@@ -233,24 +183,24 @@ const MainRoutes = {
       component: () => import('@/views/form_assignment/AnswerForm.vue')
     },
     {
-      name: 'Reports DW',
-      path: '/reportes-dw',
-      component: () => import('@/views/reports-dw/RFormIndex.vue')
+      name: 'Reports',
+      path: '/reportes',
+      component: () => import('@/views/reports/RFormIndex.vue')
     },
     {
-      name: 'Report Answers DW',
-      path: '/reportes-dw/respuestas/:formId',
-      component: () => import('@/views/reports-dw/RFormAnswerList.vue')
+      name: 'Report Answers',
+      path: '/reportes/respuestas/:formId',
+      component: () => import('@/views/reports/RFormAnswer/RFormAnswerList.vue')
     },
     {
-      name: 'Report Answer Show DW',
-      path: '/reportes-dw/respuestas/:formId/reporte/:reportId',
-      component: () => import('@/views/reports-dw/RFormAnswerShow.vue')
+      name: 'Report Answer Show',
+      path: '/reportes/respuestas/:formId/reporte/:reportId',
+      component: () => import('@/views/reports/RFormAnswer/RFormAnswerShow.vue')
     },
     {
-      name: 'Report Answer Details DW',
-      path: '/reportes-dw/respuestas/:formId/reporte/:reportId/detalle/:fieldId',
-      component: () => import('@/views/reports-dw/RFormAnswerDetails.vue')
+      name: 'Report Answer Details',
+      path: '/reportes/respuestas/:formId/reporte/:reportId/detalle/:fieldId',
+      component: () => import('@/views/reports/RFormAnswer/RFormAnswerDetails.vue')
     }
   ]
 };

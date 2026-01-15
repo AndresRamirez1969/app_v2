@@ -434,7 +434,11 @@
                             <!-- Campo geolocalización manual -->
                             <div v-else-if="item.field.type === 'geolocation' && item.field.attributes?.mode === 'manual'">
                               <AddressAutocomplete
-                                :initialValue="formData[item.field.id]"
+                                :initialValue="
+                                  typeof formData[item.field.id] === 'object' && formData[item.field.id] !== null
+                                    ? formData[item.field.id]
+                                    : null
+                                "
                                 mode="create"
                                 :addressError="
                                   triedSubmit && item.field.is_required && !isGeolocationManualValid(formData[item.field.id])
@@ -846,7 +850,11 @@
                                         <!-- Campo geolocalización manual -->
                                         <div v-else-if="field.type === 'geolocation' && field.attributes?.mode === 'manual'">
                                           <AddressAutocomplete
-                                            :initialValue="formData[field.id]"
+                                            :initialValue="
+                                              typeof formData[field.id] === 'object' && formData[field.id] !== null
+                                                ? formData[field.id]
+                                                : null
+                                            "
                                             mode="create"
                                             :addressError="
                                               triedSubmit && field.is_required && !isGeolocationManualValid(formData[field.id])
@@ -1219,14 +1227,6 @@ onUnmounted(() => {
   }
 });
 
-watch(
-  () => ({ ...formData }),
-  (val, oldVal) => {
-    console.log('formData changed', JSON.stringify(val));
-  },
-  { deep: true }
-);
-
 const goBack = () => {
   router.push('/mis-formularios');
 };
@@ -1265,7 +1265,6 @@ const getImagePreview = (file) => {
   if (typeof file === 'string') {
     return file;
   }
-  console.log('no se pudo obtener previewUrl');
   return '';
 };
 
@@ -1543,8 +1542,6 @@ const submitForm = async () => {
       const field = allFields.find((f) => f.id === a.form_field_id);
       return field && field.type === 'geolocation' && field.attributes?.mode === 'scope';
     });
-    console.log('Campo geolocalización (scope):', geoFieldAnswer);
-    console.log('Payload completo:', answers);
 
     dataToSend.append('answers', JSON.stringify(answers));
 

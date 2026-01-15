@@ -20,17 +20,6 @@
         @keydown.enter="onFieldsEnter"
         :error-messages="addressError"
       />
-      <v-btn
-        icon
-        size="small"
-        style="position: absolute; right: 8px; top: 8px; z-index: 2"
-        @click="focusAutocomplete"
-        variant="text"
-        color="primary"
-        title="Buscar dirección con Google"
-      >
-        <v-icon icon="mdi-map-marker" />
-      </v-btn>
     </div>
 
     <!-- Número exterior e interior -->

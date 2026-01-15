@@ -1,11 +1,19 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import FormTableMeta from './FormTableMeta.vue';
-import StatusChip from '@/components/status/StatusChip.vue';
-import { useToast } from 'vue-toastification';
-import axiosInstance from '@/utils/axios';
-import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye, mdiPencil, mdiPublish, mdiArchive } from '@mdi/js';
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import FormTableMeta from "./FormTableMeta.vue";
+import StatusChip from "@/components/status/StatusChip.vue";
+import { useToast } from "vue-toastification";
+import axiosInstance from "@/utils/axios";
+import {
+  mdiChevronUp,
+  mdiChevronDown,
+  mdiDotsHorizontal,
+  mdiEye,
+  mdiPencil,
+  mdiPublish,
+  mdiArchive,
+} from "@mdi/js";
 
 const props = defineProps({
   items: Array,
@@ -13,24 +21,24 @@ const props = defineProps({
   totalItems: Number,
   isMobile: Boolean,
   page: Number,
-  itemsPerPage: Number
+  itemsPerPage: Number,
 });
 
-const emit = defineEmits(['update:page', 'formUpdated']);
+const emit = defineEmits(["update:page", "formUpdated"]);
 
 const isMobile = computed(() => props.isMobile ?? window.innerWidth < 1024);
 
 const router = useRouter();
 const toast = useToast();
 
-const sortBy = ref('folio');
+const sortBy = ref("folio");
 const sortDesc = ref(false);
 
 // Sin paginación local, solo usamos los items que llegan del backend
 const sortedItems = computed(() => {
   return [...(props.items || [])].sort((a, b) => {
-    let aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
-    let bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
+    let aVal = a[sortBy.value]?.toString().toLowerCase() ?? "";
+    let bVal = b[sortBy.value]?.toString().toLowerCase() ?? "";
     return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
   });
 });
@@ -48,66 +56,76 @@ const goToShow = (form) => router.push({ path: `/formularios/${form.id}` });
 const goToEdit = (form) => router.push({ path: `/formularios/editar/${form.id}` });
 
 function formatDate(dateString) {
-  if (!dateString) return '—';
+  if (!dateString) return "—";
   const date = new Date(dateString);
-  return date.toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
+  return date.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   });
 }
 
 // Devuelve objeto { label, route } para el alcance
 function getAlcance(form) {
-  if (form.assignment_scope === 'organization' && form.organization) {
+  if (form.assignment_scope === "organization" && form.organization) {
     return {
-      label: `${form.folio} - ${form.organization.legal_name || 'No disponible'}`,
-      route: `/organizaciones/${form.organization.id}`
+      label: `${form.folio} - ${form.organization.legal_name || "No disponible"}`,
+      route: `/organizaciones/${form.organization.id}`,
     };
-  } else if (form.assignment_scope === 'business' && form.business) {
+  } else if (form.assignment_scope === "business" && form.business) {
     return {
-      label: `${form.folio} - ${form.business.name || 'No disponible'}`,
-      route: `/negocios/${form.business.id}`
+      label: `${form.folio} - ${form.business.name || "No disponible"}`,
+      route: `/negocios/${form.business.id}`,
     };
-  } else if (form.assignment_scope === 'business_unit' && form.business_unit) {
+  } else if (form.assignment_scope === "business_unit" && form.business_unit) {
     return {
-      label: `${form.folio} - ${form.business_unit.name || 'No disponible'}`,
-      route: `/unidades-negocio/${form.business_unit.id}`
+      label: `${form.folio} - ${form.business_unit.name || "No disponible"}`,
+      route: `/unidades-negocio/${form.business_unit.id}`,
     };
-  } else if (form.assignment_scope === 'business_unit_group' && form.business_unit_group) {
+  } else if (
+    form.assignment_scope === "business_unit_group" &&
+    form.business_unit_group
+  ) {
     return {
-      label: `${form.folio} - Grupo ${form.business_unit_group.id || 'ID'}`,
-      route: `/grupos-unidad-negocio/${form.business_unit_group.id}`
+      label: `${form.folio} - Grupo ${form.business_unit_group.id || "ID"}`,
+      route: `/grupos-unidad-negocio/${form.business_unit_group.id}`,
     };
   }
-  return { label: form.folio || '—', route: null };
+  return { label: form.folio || "—", route: null };
 }
 
 function getFrecuencia(form) {
-  if (form.frequency === 'once_per_day') return 'Una vez al día';
-  if (form.frequency === 'multiple_per_day') return 'Muchas veces al día';
-  return form.frequency || '—';
+  if (form.frequency === "once_per_day") return "Una vez al día";
+  if (form.frequency === "multiple_per_day") return "Muchas veces al día";
+  return form.frequency || "—";
 }
 
 const changeFormStatus = async (form, targetStatus) => {
-  if (form.status === 'draft' && targetStatus === 'active' && form.fields && form.fields.length === 0) {
-    toast.error('No se puede publicar un formulario sin campos');
+  if (
+    form.status === "draft" &&
+    targetStatus === "active" &&
+    form.fields &&
+    form.fields.length === 0
+  ) {
+    toast.error("No se puede publicar un formulario sin campos");
     return;
   }
   try {
-    const res = await axiosInstance.put(`/forms/${form.id}/status`, { status: targetStatus });
+    const res = await axiosInstance.put(`/forms/${form.id}/status`, {
+      status: targetStatus,
+    });
     form.status = targetStatus;
     if (res.data && res.data.form) {
       form.supervisorRole = res.data.form.supervisorRole;
       form.auditorRoles = res.data.form.auditorRoles;
       form.auditadoRoles = res.data.form.auditadoRoles;
     }
-    emit('formUpdated');
+    emit("formUpdated");
   } catch (error) {
     if (error?.response?.data?.message) {
       toast.error(error.response.data.message);
     } else {
-      toast.error('Error al actualizar el estado del formulario');
+      toast.error("Error al actualizar el estado del formulario");
     }
   }
 };
@@ -126,9 +144,10 @@ function hasResponses(form) {
 
     <template v-else>
       <div v-if="!sortedItems.length" class="text-center py-8">
-        <v-icon size="64" color="grey lighten-1">mdi-file-document-outline</v-icon>
         <p class="mt-4 text-h6 text-grey-darken-1">No existen formularios</p>
-        <p class="text-body-2 text-grey">No se encontraron formularios con los filtros aplicados</p>
+        <p class="text-body-2 text-grey">
+          No se encontraron formularios con los filtros aplicados
+        </p>
       </div>
 
       <template v-else-if="isMobile">
@@ -158,7 +177,12 @@ function hasResponses(form) {
           <div class="text-caption mb-1">
             <strong>Alcance:</strong>
             <template v-if="getAlcance(form).route">
-              <router-link :to="getAlcance(form).route" class="text-primary" @click.stop style="text-decoration: underline">
+              <router-link
+                :to="getAlcance(form).route"
+                class="text-primary"
+                @click.stop
+                style="text-decoration: underline"
+              >
                 {{ getAlcance(form).label }}
               </router-link>
             </template>
@@ -170,7 +194,15 @@ function hasResponses(form) {
         <div class="d-flex flex-column align-center mt-4">
           <v-pagination
             v-model="props.page"
-            :length="Math.max(1, Math.ceil((props.totalItems || (props.items?.length ?? 0)) / (props.itemsPerPage || 10)))"
+            :length="
+              Math.max(
+                1,
+                Math.ceil(
+                  (props.totalItems || (props.items?.length ?? 0)) /
+                    (props.itemsPerPage || 10)
+                )
+              )
+            "
             :total-visible="1"
             color="primary"
             @update:modelValue="(val) => emit('update:page', val)"
@@ -196,9 +228,20 @@ function hasResponses(form) {
           </template>
           <template #rows>
             <template v-if="sortedItems.length">
-              <tr v-for="form in sortedItems" :key="form.id" @click="goToShow(form)" class="row-clickable" style="cursor: pointer">
+              <tr
+                v-for="form in sortedItems"
+                :key="form.id"
+                @click="goToShow(form)"
+                class="row-clickable"
+                style="cursor: pointer"
+              >
                 <td>
-                  <router-link :to="`/formularios/${form.id}`" class="text-primary" @click.stop style="text-decoration: underline">
+                  <router-link
+                    :to="`/formularios/${form.id}`"
+                    class="text-primary"
+                    @click.stop
+                    style="text-decoration: underline"
+                  >
                     {{ form.folio }}
                   </router-link>
                 </td>
@@ -208,7 +251,12 @@ function hasResponses(form) {
                 </td>
                 <td>
                   <template v-if="getAlcance(form).route">
-                    <router-link :to="getAlcance(form).route" class="text-primary" @click.stop style="text-decoration: underline">
+                    <router-link
+                      :to="getAlcance(form).route"
+                      class="text-primary"
+                      @click.stop
+                      style="text-decoration: underline"
+                    >
                       {{ getAlcance(form).label }}
                     </router-link>
                   </template>
@@ -222,11 +270,20 @@ function hasResponses(form) {
                 <td @click.stop>
                   <v-menu location="bottom end">
                     <template #activator="{ props }">
-                      <v-btn v-bind="props" variant="text" class="pa-0" min-width="0" height="24">
+                      <v-btn
+                        v-bind="props"
+                        variant="text"
+                        class="pa-0"
+                        min-width="0"
+                        height="24"
+                      >
                         <v-icon :icon="mdiDotsHorizontal" size="20" />
                       </v-btn>
                     </template>
-                    <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
+                    <v-list
+                      class="custom-dropdown elevation-1 rounded-lg"
+                      style="min-width: 200px"
+                    >
                       <template v-if="form.status === 'draft'">
                         <v-list-item @click="goToEdit(form)">
                           <template #prepend>
@@ -236,21 +293,37 @@ function hasResponses(form) {
                         </v-list-item>
                         <v-divider />
                       </template>
-                      <v-list-item v-if="form.status !== 'archived'" @click="changeFormStatus(form, 'archived')">
+                      <v-list-item
+                        v-if="form.status !== 'archived'"
+                        @click="changeFormStatus(form, 'archived')"
+                      >
                         <template #prepend>
                           <v-icon :icon="mdiArchive" size="18" />
                         </template>
                         <v-list-item-title>Archivar</v-list-item-title>
                       </v-list-item>
-                      <v-divider v-if="form.status !== 'archived' && (form.status !== 'active' || form.status !== 'draft')" />
-                      <v-list-item v-if="form.status !== 'active'" @click="changeFormStatus(form, 'active')">
+                      <v-divider
+                        v-if="
+                          form.status !== 'archived' &&
+                          (form.status !== 'active' || form.status !== 'draft')
+                        "
+                      />
+                      <v-list-item
+                        v-if="form.status !== 'active'"
+                        @click="changeFormStatus(form, 'active')"
+                      >
                         <template #prepend>
                           <v-icon :icon="mdiPublish" size="18" />
                         </template>
                         <v-list-item-title>Publicar</v-list-item-title>
                       </v-list-item>
-                      <v-divider v-if="form.status !== 'active' && form.status !== 'draft'" />
-                      <v-list-item v-if="form.status !== 'draft'" @click="changeFormStatus(form, 'draft')">
+                      <v-divider
+                        v-if="form.status !== 'active' && form.status !== 'draft'"
+                      />
+                      <v-list-item
+                        v-if="form.status !== 'draft'"
+                        @click="changeFormStatus(form, 'draft')"
+                      >
                         <template #prepend>
                           <v-icon :icon="mdiPencil" size="18" />
                         </template>

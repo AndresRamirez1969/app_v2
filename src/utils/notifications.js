@@ -17,7 +17,7 @@ export function useNotifications() {
       notifications.value = response.data.data || [];
       updateUnreadCount();
     } catch (error) {
-      console.error('Error al cargar notificaciones:', error);
+      // Error silenciado
     } finally {
       isLoading.value = false;
     }
@@ -30,7 +30,6 @@ export function useNotifications() {
 
   // Agregar nueva notificación
   const addNotification = (notification) => {
-    console.log('📨 Agregando notificación:', notification);
     notifications.value = [notification, ...notifications.value];
     updateUnreadCount();
   };
@@ -38,18 +37,12 @@ export function useNotifications() {
   // Configurar Echo para notificaciones
   const setupEchoNotifications = () => {
     if (!auth.user?.id) {
-      console.log('❌ Usuario no autenticado');
       return;
     }
 
-    console.log('🔧 Configurando notificaciones para usuario:', auth.user.id);
-
-    // Escuchar notificaciones del usuario
     echo
       .private(`user.${auth.user.id}`)
       .listen('notification.sent', (e) => {
-        console.log('📨 Evento notification.sent recibido:', e);
-
         // Extraer datos de la estructura anidada
         const notificationData = e.notification || e;
 
@@ -63,12 +56,9 @@ export function useNotifications() {
           read_at: notificationData.read_at || null
         };
 
-        console.log('📝 Notificación procesada:', notification);
         addNotification(notification);
       })
       .listen('FormAssigned', (e) => {
-        console.log('📨 Evento FormAssigned recibido:', e);
-
         const notification = {
           id: Date.now(),
           type: 'info',

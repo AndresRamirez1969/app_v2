@@ -1,5 +1,7 @@
 <script setup>
 import { defineAsyncComponent, computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { mdiMagnify } from '@mdi/js';
 
 const props = defineProps({
   fieldObj: { type: Object, required: true },
@@ -7,6 +9,8 @@ const props = defineProps({
   pageByField: { type: Object, required: true },
   setPage: { type: Function, required: true }
 });
+
+const router = useRouter();
 
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts').then((m) => m.default || m).catch(() => null));
 
@@ -202,6 +206,22 @@ const donutOptions = computed(() => ({
   },
   noData: { text: 'Sin datos para este campo' }
 }));
+
+/* ===========================
+   Navegación al show del reporte
+   =========================== */
+function goToReportShow(resp) {
+  // Se asume que resp tiene formId y reportId, si no, ajusta según tu estructura
+  if (resp && (resp.folio || resp.id)) {
+    router.push({
+      name: 'Report Answer Show',
+      params: {
+        formId: resp.form_id || resp.formId || props.fieldObj.form_id || props.fieldObj.formId,
+        reportId: resp.report_id || resp.reportId || resp.folio || resp.id
+      }
+    });
+  }
+}
 </script>
 
 <template>
@@ -278,7 +298,7 @@ const donutOptions = computed(() => ({
         style="width: 100%; min-width: 0; padding-bottom: 12px"
       >
         <template #prepend-inner>
-          <v-icon>mdi-magnify</v-icon>
+          <v-icon :icon="mdiMagnify" />
         </template>
       </v-text-field>
 
@@ -315,7 +335,11 @@ const donutOptions = computed(() => ({
           >
             <tr class="response-row record-row">
               <td class="response-value-cell">
-                <span class="folio-link" style="color: #1976d2; text-decoration: underline; font-weight: 500">
+                <span
+                  class="folio-link"
+                  style="color: #1976d2; text-decoration: underline; font-weight: 500; cursor: pointer"
+                  @click="goToReportShow(resp)"
+                >
                   {{ resp.folio || resp.id || '-' }}
                 </span>
               </td>
@@ -390,7 +414,11 @@ const donutOptions = computed(() => ({
                 {{ getScoreObtained(resp) }}
               </div>
               <div class="d-flex flex-column mb-1" style="gap: 8px">
-                <span class="folio-link text-caption" style="color: #1976d2; text-decoration: underline; font-weight: 500; min-width: 60px">
+                <span
+                  class="folio-link text-caption"
+                  style="color: #1976d2; text-decoration: underline; font-weight: 500; min-width: 60px; cursor: pointer"
+                  @click="goToReportShow(resp)"
+                >
                   {{ resp.folio || resp.id || '-' }}
                 </span>
                 <span class="font-weight-medium" style="color: #333; font-size: 0.9rem">
