@@ -109,6 +109,8 @@
 <script setup>
 import { ref, watch } from "vue";
 import { mdiFileUploadOutline } from "@mdi/js";
+import { useImportProgressStore } from "@/stores/importProgress";
+import axios from "@/utils/axios";
 
 const props = defineProps({
   modelValue: Boolean,
@@ -122,6 +124,10 @@ const emit = defineEmits(["update:modelValue", "import", "download-template"]);
 const internalValue = ref(props.modelValue);
 const importFile = ref(null);
 
+const importProgress = useImportProgressStore();
+
+let intervalId = null;
+
 watch(
   () => props.modelValue,
   (val) => {
@@ -130,18 +136,50 @@ watch(
 );
 watch(internalValue, (val) => {
   if (val !== props.modelValue) emit("update:modelValue", val);
+  if (!val && intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
 });
 
 function close() {
   emit("update:modelValue", false);
 }
 
-function handleImport() {
+async function handleImport() {
   emit("import", importFile.value);
+
+  importProgress.resetProgress();
+  try {
+    const formData = new FormData();
+    formData.append("file", importFile.value);
+    await axios.post("/users/import", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    console.log("Import request finished");
+    startPolling();
+  } catch (err) {
+    importProgress.status = "failed";
+  }
+}
+
+function startPolling() {
+  intervalId = setInterval(async () => {
+    try {
+      const { data } = await axios.get("/users/import-progress");
+      importProgress.setProgress(data);
+      if (data.status === "finished" || data.status === "failed") {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    } catch (e) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }, 1000);
 }
 
 function downloadTemplate() {
-  // Llama al endpoint backend para descargar el archivo XLSX
   emit("download-template");
 }
 </script>

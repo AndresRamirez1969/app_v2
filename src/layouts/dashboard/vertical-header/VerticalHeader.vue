@@ -1,20 +1,37 @@
 <script setup lang="ts">
-import { useCustomizerStore } from '../../../stores/customizer';
+import { useCustomizerStore } from "../../../stores/customizer";
 // icons
-import { MenuFoldOutlined, SearchOutlined } from '@ant-design/icons-vue';
+import { MenuFoldOutlined, SearchOutlined } from "@ant-design/icons-vue";
 
 // dropdown imports
-import NotificationDD from './NotificationDD.vue';
-import Searchbar from './SearchBarPanel.vue';
-import ProfileDD from './ProfileDD.vue';
-import { useAuthStore } from '@/stores/auth';
+import NotificationDD from "./NotificationDD.vue";
+import Searchbar from "./SearchBarPanel.vue";
+import ProfileDD from "./ProfileDD.vue";
+import { useAuthStore } from "@/stores/auth";
+
+// Importa el store global de progreso
+import { useImportProgressStore } from "@/stores/importProgress";
 
 const customizer = useCustomizerStore();
 const authStore = useAuthStore();
+const importProgress = useImportProgressStore();
 </script>
 
 <template>
   <v-app-bar elevation="0" height="60">
+    <!-- Barra de progreso global de importación -->
+    <v-progress-linear
+      v-if="importProgress.total > 0 && importProgress.status === 'processing'"
+      :value="(importProgress.processed / importProgress.total) * 100"
+      color="primary"
+      height="4"
+      style="position: absolute; left: 0; right: 0; top: 0"
+    >
+      <template #default>
+        {{ importProgress.processed }} / {{ importProgress.total }}
+      </template>
+    </v-progress-linear>
+
     <v-btn
       class="hidden-md-and-down text-secondary mr-3"
       color="darkText"
@@ -54,7 +71,13 @@ const authStore = useAuthStore();
         </v-btn>
       </template>
       <v-sheet class="search-sheet v-col-12 pa-0" width="320">
-        <v-text-field persistent-placeholder placeholder="Search here.." color="primary" variant="solo" hide-details>
+        <v-text-field
+          persistent-placeholder
+          placeholder="Search here.."
+          color="primary"
+          variant="solo"
+          hide-details
+        >
           <template v-slot:prepend-inner>
             <SearchOutlined :style="{ fontSize: '17px' }" />
           </template>
@@ -91,7 +114,9 @@ const authStore = useAuthStore();
             <v-avatar class="mr-sm-2 mr-0 py-2">
               <img :src="authStore.user?.profile_picture" alt="Julia" />
             </v-avatar>
-            <h6 class="text-subtitle-1 mb-0 d-sm-block d-none">{{ authStore.user?.name || 'Guest' }}</h6>
+            <h6 class="text-subtitle-1 mb-0 d-sm-block d-none">
+              {{ authStore.user?.name || "Guest" }}
+            </h6>
           </div>
         </v-btn>
       </template>
