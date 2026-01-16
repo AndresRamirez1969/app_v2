@@ -283,7 +283,7 @@ const fetchOrgRoles = async (orgId) => {
   loadingOrgRoles.value = true;
   try {
     const { data } = await axiosInstance.get("/roles", {
-      params: { organization_id: orgId },
+      params: { organizationId: orgId },
     });
     orgRoleOptions.value = (data.data || []).filter((r) => r.name !== "superadmin");
     if (form.role) {

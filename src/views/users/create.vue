@@ -1,27 +1,27 @@
 <script setup>
-import { reactive, ref, watch, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { mdiArrowLeft, mdiInformationSlabCircleOutline } from '@mdi/js';
-import axiosInstance from '@/utils/axios';
-import { useAuthStore } from '@/stores/auth';
-import InfoUserBelongsModal from '@/components/modals/InfoUserBelongsModal.vue';
-import InfoUserOrgSelectModal from '@/components/modals/InfoUserOrgSelectModal.vue';
+import { reactive, ref, watch, onMounted, computed } from "vue";
+import { useRouter } from "vue-router";
+import { mdiArrowLeft, mdiInformationSlabCircleOutline } from "@mdi/js";
+import axiosInstance from "@/utils/axios";
+import { useAuthStore } from "@/stores/auth";
+import InfoUserBelongsModal from "@/components/modals/InfoUserBelongsModal.vue";
+import InfoUserOrgSelectModal from "@/components/modals/InfoUserOrgSelectModal.vue";
 
 const auth = useAuthStore();
 const router = useRouter();
 
 const Regform = ref(null);
 const profilePreview = ref(null);
-const errorMsg = ref('');
+const errorMsg = ref("");
 const canCreate = ref(false);
 
 const showInfoBelongsModal = ref(false);
 
-const organizationSearch = ref('');
-const businessSearch = ref('');
-const businessUnitSearch = ref('');
-const roleSearch = ref('');
-const orgRoleSearch = ref('');
+const organizationSearch = ref("");
+const businessSearch = ref("");
+const businessUnitSearch = ref("");
+const roleSearch = ref("");
+const orgRoleSearch = ref("");
 
 const organizationOptions = ref([]);
 const businessOptions = ref([]);
@@ -40,13 +40,13 @@ const selectedOrgForRoles = ref(null);
 const showInfoOrgSelectModal = ref(false);
 
 const fieldErrors = reactive({
-  name: '',
-  email: '',
-  orgRole: '',
-  role: '',
-  organization_id: '',
-  business_id: '',
-  business_unit_id: ''
+  name: "",
+  email: "",
+  orgRole: "",
+  role: "",
+  organization_id: "",
+  business_id: "",
+  business_unit_id: "",
 });
 
 const fieldRefs = {
@@ -56,47 +56,47 @@ const fieldRefs = {
   role: ref(null),
   organization_id: ref(null),
   business_id: ref(null),
-  business_unit_id: ref(null)
+  business_unit_id: ref(null),
 };
 
 const clearFieldError = (fieldName) => {
   if (fieldErrors[fieldName]) {
-    fieldErrors[fieldName] = '';
+    fieldErrors[fieldName] = "";
   }
 };
 
 const validateField = (fieldName, value) => {
   clearFieldError(fieldName);
   switch (fieldName) {
-    case 'name':
-      if (!value || value.trim() === '') {
-        fieldErrors.name = 'El campo nombre es obligatorio.';
+    case "name":
+      if (!value || value.trim() === "") {
+        fieldErrors.name = "El campo nombre es obligatorio.";
         return false;
       }
       break;
-    case 'email':
-      if (!value || value.trim() === '') {
-        fieldErrors.email = 'El campo correo es obligatorio.';
+    case "email":
+      if (!value || value.trim() === "") {
+        fieldErrors.email = "El campo correo es obligatorio.";
         return false;
       }
       break;
-    case 'orgRole':
+    case "orgRole":
       if (!value) {
-        fieldErrors.orgRole = 'El campo es obligatorio.';
+        fieldErrors.orgRole = "El campo es obligatorio.";
         return false;
       }
       break;
-    case 'role':
-      if (!value || value.trim() === '') {
-        fieldErrors.role = 'El campo rol es obligatorio.';
+    case "role":
+      if (!value || value.trim() === "") {
+        fieldErrors.role = "El campo rol es obligatorio.";
         return false;
       }
       break;
-    case 'organization_id':
-    case 'business_id':
-    case 'business_unit_id':
+    case "organization_id":
+    case "business_id":
+    case "business_unit_id":
       if (!value) {
-        fieldErrors[fieldName] = 'Es obligatorio escoger un alcance.';
+        fieldErrors[fieldName] = "Es obligatorio escoger un alcance.";
         return false;
       }
       break;
@@ -105,37 +105,39 @@ const validateField = (fieldName, value) => {
 };
 
 function hasPermission(permission) {
-  return Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission);
+  return (
+    Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission)
+  );
 }
 
 onMounted(() => {
   const user = auth.user;
-  canCreate.value = hasPermission('user.create');
+  canCreate.value = hasPermission("user.create");
   if (!canCreate.value) {
-    router.push('/403');
+    router.push("/403");
     return;
   }
 });
 
 const form = reactive({
   profile_picture: null,
-  name: '',
-  email: '',
+  name: "",
+  email: "",
   organization_id: null,
   business_id: null,
   business_unit_id: null,
   role: null,
   contact: {
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone_number: ''
-  }
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone_number: "",
+  },
 });
 
-const isSuperadmin = computed(() => auth.user?.roles?.includes('superadmin'));
-const isAdmin = computed(() => auth.user?.roles?.includes('admin'));
-const isSponsor = computed(() => auth.user?.roles?.includes('sponsor'));
+const isSuperadmin = computed(() => auth.user?.roles?.includes("superadmin"));
+const isAdmin = computed(() => auth.user?.roles?.includes("admin"));
+const isSponsor = computed(() => auth.user?.roles?.includes("sponsor"));
 const userOrgId = computed(() => auth.user?.organization_id);
 const userBusinessId = computed(() => auth.user?.business_id);
 
@@ -148,14 +150,16 @@ const isBusinessOnly = ref(false);
 const isBusinessUnitOnly = ref(false);
 
 // --- ORGANIZATION AUTOCOMPLETE ---
-const fetchOrganizations = async (searchText = '') => {
+const fetchOrganizations = async (searchText = "") => {
   loadingOrganizations.value = true;
   try {
     const params = searchText ? { q: searchText } : {};
-    const { data } = await axiosInstance.get('/users/available-organizations', { params });
+    const { data } = await axiosInstance.get("/users/available-organizations", {
+      params,
+    });
     organizationOptions.value = (data || []).map((o) => ({
       ...o,
-      display: `${o.folio}${o.legal_name ? ' - ' + o.legal_name : ''}`
+      display: `${o.folio}${o.legal_name ? " - " + o.legal_name : ""}`,
     }));
   } catch (e) {
     organizationOptions.value = [];
@@ -165,20 +169,20 @@ const fetchOrganizations = async (searchText = '') => {
 };
 
 watch(organizationSearch, (val) => fetchOrganizations(val));
-onMounted(() => fetchOrganizations(''));
+onMounted(() => fetchOrganizations(""));
 
 // --- BUSINESS AUTOCOMPLETE ---
-const fetchBusinesses = async (searchText = '', { organization_id } = {}) => {
+const fetchBusinesses = async (searchText = "", { organization_id } = {}) => {
   loadingBusinesses.value = true;
   try {
     const params = {};
     if (searchText) params.q = searchText;
     if (organization_id) params.organization_id = organization_id;
-    const { data } = await axiosInstance.get('/users/available-businesses', { params });
+    const { data } = await axiosInstance.get("/users/available-businesses", { params });
     businessOptions.value = (data || []).map((b) => ({
       ...b,
-      display: `${b.folio}${b.name ? ' - ' + b.name : ''}`,
-      organization_id: b.organization_id
+      display: `${b.folio}${b.name ? " - " + b.name : ""}`,
+      organization_id: b.organization_id,
     }));
   } catch (e) {
     businessOptions.value = [];
@@ -188,28 +192,34 @@ const fetchBusinesses = async (searchText = '', { organization_id } = {}) => {
 };
 
 watch(businessSearch, (val) => {
-  const orgFilter = scopeOrgId.value || form.organization_id || userOrgId.value || undefined;
+  const orgFilter =
+    scopeOrgId.value || form.organization_id || userOrgId.value || undefined;
   fetchBusinesses(val, { organization_id: orgFilter });
 });
 onMounted(() => {
   const orgFilter = userOrgId.value || undefined;
-  fetchBusinesses('', { organization_id: orgFilter });
+  fetchBusinesses("", { organization_id: orgFilter });
 });
 
 // --- BUSINESS UNIT AUTOCOMPLETE ---
-const fetchBusinessUnits = async (searchText = '', { organization_id, business_id } = {}) => {
+const fetchBusinessUnits = async (
+  searchText = "",
+  { organization_id, business_id } = {}
+) => {
   loadingBusinessUnits.value = true;
   try {
     const params = {};
     if (searchText) params.q = searchText;
     if (organization_id) params.organization_id = organization_id;
     if (business_id) params.business_id = business_id;
-    const { data } = await axiosInstance.get('/users/available-business-units', { params });
+    const { data } = await axiosInstance.get("/users/available-business-units", {
+      params,
+    });
     businessUnitOptions.value = (data || []).map((u) => ({
       ...u,
-      display: `${u.folio}${u.name ? ' - ' + u.name : ''}`,
+      display: `${u.folio}${u.name ? " - " + u.name : ""}`,
       organization_id: u.organization_id,
-      business_id: u.business_id
+      business_id: u.business_id,
     }));
   } catch (e) {
     businessUnitOptions.value = [];
@@ -219,24 +229,26 @@ const fetchBusinessUnits = async (searchText = '', { organization_id, business_i
 };
 
 watch(businessUnitSearch, (val) => {
-  const orgFilter = scopeOrgId.value || form.organization_id || userOrgId.value || undefined;
-  const bizFilter = scopeBusinessId.value || form.business_id || userBusinessId.value || undefined;
+  const orgFilter =
+    scopeOrgId.value || form.organization_id || userOrgId.value || undefined;
+  const bizFilter =
+    scopeBusinessId.value || form.business_id || userBusinessId.value || undefined;
   fetchBusinessUnits(val, { organization_id: orgFilter, business_id: bizFilter });
 });
 onMounted(() => {
   const orgFilter = userOrgId.value || undefined;
   const bizFilter = userBusinessId.value || undefined;
-  fetchBusinessUnits('', { organization_id: orgFilter, business_id: bizFilter });
+  fetchBusinessUnits("", { organization_id: orgFilter, business_id: bizFilter });
 });
 
 // --- FOTO DE PERFIL PREVIEW ---
 watch(
   () => form.profile_picture,
   (file) => {
-    if (file && typeof file === 'object') {
+    if (file && typeof file === "object") {
       const imgFile = Array.isArray(file) ? file[0] : file;
       profilePreview.value = URL.createObjectURL(imgFile);
-    } else if (typeof file === 'string' && file) {
+    } else if (typeof file === "string" && file) {
       profilePreview.value = file;
       form.profile_picture = null;
     } else {
@@ -249,8 +261,10 @@ watch(
 const fetchAllRoles = async () => {
   loadingRoles.value = true;
   try {
-    const { data } = await axiosInstance.get('/roles', { params: { q: roleSearch.value } });
-    allRoleOptions.value = (data.data || []).filter((r) => r.name !== 'superadmin');
+    const { data } = await axiosInstance.get("/roles", {
+      params: { q: roleSearch.value },
+    });
+    allRoleOptions.value = (data.data || []).filter((r) => r.name !== "superadmin");
   } catch (e) {
     allRoleOptions.value = [];
   } finally {
@@ -261,8 +275,10 @@ const fetchAllRoles = async () => {
 const fetchOrgRoles = async (orgId) => {
   loadingOrgRoles.value = true;
   try {
-    const { data } = await axiosInstance.get('/roles', { params: { organization_id: orgId } });
-    orgRoleOptions.value = (data.data || []).filter((r) => r.name !== 'superadmin');
+    const { data } = await axiosInstance.get("/roles", {
+      params: { organizationId: orgId },
+    });
+    orgRoleOptions.value = (data.data || []).filter((r) => r.name !== "superadmin");
     if (form.role) {
       const found = orgRoleOptions.value.find((r) => r.name === form.role);
       if (!found) form.role = null;
@@ -277,29 +293,51 @@ const fetchOrgRoles = async (orgId) => {
 const filteredRoleOptions = computed(() => {
   if (isSuperadmin.value) {
     if (!selectedOrgForRoles.value) return [];
-    const orgRoles = orgRoleOptions.value.filter((r) => r.organization_id === selectedOrgForRoles.value);
+    const orgRoles = orgRoleOptions.value.filter(
+      (r) => r.organization_id === selectedOrgForRoles.value
+    );
     return [
-      { name: 'admin', display: 'Administrador' },
-      { name: 'sponsor', display: 'Sponsor' },
-      ...orgRoles.filter((r) => r.name !== 'admin' && r.name !== 'sponsor').map((r) => ({ ...r, display: r.name }))
+      { name: "admin", display: "Administrador" },
+      { name: "sponsor", display: "Sponsor" },
+      ...orgRoles
+        .filter((r) => r.name !== "admin" && r.name !== "sponsor")
+        .map((r) => ({ ...r, display: r.name })),
     ];
   }
   if (isAdmin.value) {
-    const orgRoles = allRoleOptions.value.filter((r) => r.organization_id === userOrgId.value);
+    const orgRoles = allRoleOptions.value.filter(
+      (r) => r.organization_id === userOrgId.value
+    );
     return [
-      { name: 'admin', display: 'Administrador' },
-      { name: 'sponsor', display: 'Sponsor' },
-      ...orgRoles.filter((r) => r.name !== 'admin' && r.name !== 'sponsor').map((r) => ({ ...r, display: r.name }))
+      { name: "admin", display: "Administrador" },
+      { name: "sponsor", display: "Sponsor" },
+      ...orgRoles
+        .filter((r) => r.name !== "admin" && r.name !== "sponsor")
+        .map((r) => ({ ...r, display: r.name })),
     ];
   }
   if (isSponsor.value) {
     return allRoleOptions.value
-      .filter((r) => r.organization_id === userOrgId.value && r.name !== 'admin' && r.name !== 'sponsor')
+      .filter(
+        (r) =>
+          r.organization_id === userOrgId.value &&
+          r.name !== "admin" &&
+          r.name !== "sponsor"
+      )
       .map((r) => ({ ...r, display: r.name }));
   }
   return allRoleOptions.value
-    .filter((r) => r.organization_id === userOrgId.value || r.name === 'admin' || r.name === 'sponsor')
-    .map((r) => ({ ...r, display: r.name === 'admin' ? 'Administrador' : r.name === 'sponsor' ? 'Sponsor' : r.name }));
+    .filter(
+      (r) =>
+        r.organization_id === userOrgId.value ||
+        r.name === "admin" ||
+        r.name === "sponsor"
+    )
+    .map((r) => ({
+      ...r,
+      display:
+        r.name === "admin" ? "Administrador" : r.name === "sponsor" ? "Sponsor" : r.name,
+    }));
 });
 
 // --- WATCHERS DE ALCANCE ---
@@ -313,14 +351,14 @@ watch(
       isBusinessUnitOnly.value = false;
       form.business_id = null;
       form.business_unit_id = null;
-      fetchOrganizations('');
+      fetchOrganizations("");
     } else if (!val && !form.business_id && !form.business_unit_id) {
       isOrgOnly.value = false;
       isBusinessOnly.value = false;
       isBusinessUnitOnly.value = false;
-      fetchOrganizations('');
-      fetchBusinesses('');
-      fetchBusinessUnits('');
+      fetchOrganizations("");
+      fetchBusinesses("");
+      fetchBusinessUnits("");
     }
   }
 );
@@ -342,14 +380,14 @@ watch(
         suppressScopeWatchers.value = false;
       }
       const orgFilter = scopeOrgId.value || undefined;
-      fetchBusinesses('', { organization_id: orgFilter });
+      fetchBusinesses("", { organization_id: orgFilter });
     } else if (!val && !form.organization_id && !form.business_unit_id) {
       isOrgOnly.value = false;
       isBusinessOnly.value = false;
       isBusinessUnitOnly.value = false;
-      fetchOrganizations('');
-      fetchBusinesses('');
-      fetchBusinessUnits('');
+      fetchOrganizations("");
+      fetchBusinesses("");
+      fetchBusinessUnits("");
     }
   }
 );
@@ -371,17 +409,17 @@ watch(
         scopeBusinessId.value = unit.business_id;
         suppressScopeWatchers.value = false;
       }
-      fetchBusinessUnits('', {
+      fetchBusinessUnits("", {
         organization_id: scopeOrgId.value || undefined,
-        business_id: scopeBusinessId.value || undefined
+        business_id: scopeBusinessId.value || undefined,
       });
     } else if (!val && !form.organization_id && !form.business_id) {
       isOrgOnly.value = false;
       isBusinessOnly.value = false;
       isBusinessUnitOnly.value = false;
-      fetchOrganizations('');
-      fetchBusinesses('');
-      fetchBusinessUnits('');
+      fetchOrganizations("");
+      fetchBusinesses("");
+      fetchBusinessUnits("");
     }
   }
 );
@@ -395,7 +433,7 @@ watch(roleSearch, () => {
 });
 onMounted(() => {
   if (isSuperadmin.value) {
-    fetchOrganizations('');
+    fetchOrganizations("");
   }
   fetchAllRoles();
 });
@@ -414,25 +452,26 @@ const isLoading = ref(false);
 
 // --- VALIDATION & SUBMIT ---
 const validate = async () => {
-  errorMsg.value = '';
+  errorMsg.value = "";
   let valid = true;
 
   // Validar campos generales
-  if (!validateField('name', form.name)) valid = false;
-  if (!validateField('email', form.email)) valid = false;
-  if (isSuperadmin.value && !validateField('orgRole', selectedOrgForRoles.value)) valid = false;
-  if (!validateField('role', form.role)) valid = false;
+  if (!validateField("name", form.name)) valid = false;
+  if (!validateField("email", form.email)) valid = false;
+  if (isSuperadmin.value && !validateField("orgRole", selectedOrgForRoles.value))
+    valid = false;
+  if (!validateField("role", form.role)) valid = false;
 
   // Validar "Pertenece a"
   if (!form.organization_id && !form.business_id && !form.business_unit_id) {
-    fieldErrors.organization_id = 'Es obligatorio escoger un alcance.';
-    fieldErrors.business_id = 'Es obligatorio escoger un alcance.';
-    fieldErrors.business_unit_id = 'Es obligatorio escoger un alcance.';
+    fieldErrors.organization_id = "Es obligatorio escoger un alcance.";
+    fieldErrors.business_id = "Es obligatorio escoger un alcance.";
+    fieldErrors.business_unit_id = "Es obligatorio escoger un alcance.";
     valid = false;
   } else {
-    clearFieldError('organization_id');
-    clearFieldError('business_id');
-    clearFieldError('business_unit_id');
+    clearFieldError("organization_id");
+    clearFieldError("business_id");
+    clearFieldError("business_unit_id");
   }
 
   if (!valid) {
@@ -458,17 +497,19 @@ const validate = async () => {
 
   try {
     const formData = new FormData();
-    formData.append('name', form.name);
-    formData.append('email', form.email);
-    formData.append('role', form.role);
+    formData.append("name", form.name);
+    formData.append("email", form.email);
+    formData.append("role", form.role);
 
-    if (finalOrgId) formData.append('organization_id', finalOrgId);
-    if (finalBusinessId) formData.append('business_id', finalBusinessId);
-    if (finalBusinessUnitId) formData.append('business_unit_id', finalBusinessUnitId);
+    if (finalOrgId) formData.append("organization_id", finalOrgId);
+    if (finalBusinessId) formData.append("business_id", finalBusinessId);
+    if (finalBusinessUnitId) formData.append("business_unit_id", finalBusinessUnitId);
 
     if (form.profile_picture) {
-      const file = Array.isArray(form.profile_picture) ? form.profile_picture[0] : form.profile_picture;
-      formData.append('profile_picture', file);
+      const file = Array.isArray(form.profile_picture)
+        ? form.profile_picture[0]
+        : form.profile_picture;
+      formData.append("profile_picture", file);
     }
 
     for (const key in form.contact) {
@@ -477,7 +518,7 @@ const validate = async () => {
       }
     }
 
-    const res = await axiosInstance.post('/users', formData);
+    const res = await axiosInstance.post("/users", formData);
 
     const user = res.data.user || res.data.data || res.data;
     if (user?.id) {
@@ -485,9 +526,9 @@ const validate = async () => {
     }
   } catch (err) {
     // --- LOG COMPLETO DE ERROR DEL BACKEND ---
-    console.error('❌ Error al crear usuario:', err);
+    console.error("❌ Error al crear usuario:", err);
     if (err?.response?.data) {
-      console.error('Error backend:', err.response.data);
+      console.error("Error backend:", err.response.data);
     }
     if (err?.response?.data?.errors) {
       const serverErrors = err.response.data.errors;
@@ -495,24 +536,24 @@ const validate = async () => {
 
       if (serverErrors.name) {
         fieldErrors.name = serverErrors.name[0];
-        if (!firstServerErrorField) firstServerErrorField = 'name';
+        if (!firstServerErrorField) firstServerErrorField = "name";
       }
       if (serverErrors.email) {
         fieldErrors.email = serverErrors.email[0];
-        if (!firstServerErrorField) firstServerErrorField = 'email';
+        if (!firstServerErrorField) firstServerErrorField = "email";
       }
       if (serverErrors.role) {
         fieldErrors.role = serverErrors.role[0];
-        if (!firstServerErrorField) firstServerErrorField = 'role';
+        if (!firstServerErrorField) firstServerErrorField = "role";
       }
       if (serverErrors.organization_id) {
         fieldErrors.organization_id = serverErrors.organization_id[0];
-        if (!firstServerErrorField) firstServerErrorField = 'organization_id';
+        if (!firstServerErrorField) firstServerErrorField = "organization_id";
       }
     } else if (err?.response?.data?.message) {
       errorMsg.value = err.response.data.message;
     } else {
-      errorMsg.value = 'Error al crear usuario';
+      errorMsg.value = "Error al crear usuario";
     }
   } finally {
     isLoading.value = false;
@@ -525,7 +566,13 @@ const validate = async () => {
     <v-container fluid>
       <v-row class="align-center mb-6" no-gutters>
         <v-col cols="auto" class="d-flex align-center">
-          <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="router.back()">
+          <v-btn
+            icon
+            variant="text"
+            class="px-3 py-2"
+            style="border-radius: 8px; border: 1px solid #ccc"
+            @click="router.back()"
+          >
             <v-icon :icon="mdiArrowLeft" />
           </v-btn>
           <h3 class="font-weight-medium ml-3 mb-0">Agregar Usuario</h3>
@@ -540,9 +587,18 @@ const validate = async () => {
             <v-divider class="mb-6" />
           </v-col>
 
-          <v-col cols="12" md="6" class="d-flex flex-column align-center justify-center" style="min-height: 300px">
+          <v-col
+            cols="12"
+            md="6"
+            class="d-flex flex-column align-center justify-center"
+            style="min-height: 300px"
+          >
             <template v-if="profilePreview">
-              <img :src="profilePreview" alt="Profile Preview" style="max-width: 300px; max-height: 300px; border-radius: 12px" />
+              <img
+                :src="profilePreview"
+                alt="Profile Preview"
+                style="max-width: 300px; max-height: 300px; border-radius: 12px"
+              />
             </template>
             <template v-else>
               <div
@@ -572,7 +628,9 @@ const validate = async () => {
               density="compact"
               show-size
               :multiple="false"
-              :messages="['Solo se permiten imágenes JPEG, PNG o JPG. Tamaño máximo: 2MB.']"
+              :messages="[
+                'Solo se permiten imágenes JPEG, PNG o JPG. Tamaño máximo: 2MB.',
+              ]"
             />
 
             <div style="padding-top: 25px"></div>
@@ -602,7 +660,10 @@ const validate = async () => {
             <!-- Select de organización para filtrar roles SOLO para superadmin -->
             <template v-if="isSuperadmin">
               <div class="d-flex align-center justify-between">
-                <v-label>Organización para filtrar roles <span class="text-error">*</span></v-label>
+                <v-label
+                  >Organización para filtrar roles
+                  <span class="text-error">*</span></v-label
+                >
                 <v-icon
                   :icon="mdiInformationSlabCircleOutline"
                   color="primary"
@@ -661,7 +722,10 @@ const validate = async () => {
         <v-row>
           <v-col cols="12">
             <div class="d-flex align-center justify-start" style="position: relative">
-              <h4 class="font-weight-bold mb-3" style="margin-bottom: 0; display: inline-flex; align-items: center">
+              <h4
+                class="font-weight-bold mb-3"
+                style="margin-bottom: 0; display: inline-flex; align-items: center"
+              >
                 Pertenece a
                 <v-icon
                   :icon="mdiInformationSlabCircleOutline"
@@ -910,11 +974,17 @@ const validate = async () => {
 
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
-            <v-btn color="primary" class="mt-6" :loading="isLoading" :disabled="isLoading" @click="validate">
+            <v-btn
+              color="primary"
+              class="mt-6"
+              :loading="isLoading"
+              :disabled="isLoading"
+              @click="validate"
+            >
               <template v-slot:loader>
                 <v-progress-circular indeterminate color="white" size="20" />
               </template>
-              {{ isLoading ? 'Creando Usuario...' : 'Crear Usuario' }}
+              {{ isLoading ? "Creando Usuario..." : "Crear Usuario" }}
             </v-btn>
           </v-col>
         </v-row>

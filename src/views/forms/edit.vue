@@ -1,12 +1,12 @@
 <script setup>
-import { ref, onMounted, watch, computed, reactive, nextTick } from 'vue';
-import axiosInstance from '@/utils/axios';
-import { FREQUENCY } from '@/constants/constants';
-import { useAuthStore } from '@/stores/auth';
-import { mdiArrowLeft, mdiInformationSlabCircleOutline } from '@mdi/js';
-import { useRouter, useRoute } from 'vue-router';
-import { useToast } from 'vue-toastification';
-import { groupUsersByRole } from '@/utils/helpers/groupUsers';
+import { ref, onMounted, watch, computed, reactive, nextTick } from "vue";
+import axiosInstance from "@/utils/axios";
+import { FREQUENCY } from "@/constants/constants";
+import { useAuthStore } from "@/stores/auth";
+import { mdiArrowLeft, mdiInformationSlabCircleOutline } from "@mdi/js";
+import { useRouter, useRoute } from "vue-router";
+import { useToast } from "vue-toastification";
+import { groupUsersByRole } from "@/utils/helpers/groupUsers";
 
 const auth = useAuthStore();
 const user = computed(() => auth.user);
@@ -14,23 +14,23 @@ const toast = useToast();
 const router = useRouter();
 const route = useRoute();
 
-const Regform = ref('');
+const Regform = ref("");
 const profilePreview = ref(null);
 
-const name = ref('');
-const description = ref('');
-const supervisor = ref('');
+const name = ref("");
+const description = ref("");
+const supervisor = ref("");
 const auditors = ref([]);
 const audited = ref([]);
-const frequency = ref('');
-const businessUnitId = ref('');
-const businessId = ref('');
-const scope = ref('');
+const frequency = ref("");
+const businessUnitId = ref("");
+const businessId = ref("");
+const scope = ref("");
 const hasRating = ref(false);
 const businesses = ref([]);
 const businessUnits = ref([]);
 const groups = ref([]);
-const groupId = ref('');
+const groupId = ref("");
 const logo = ref(null);
 const reuseLogo = ref(false);
 
@@ -53,26 +53,26 @@ const selectedGroupOrganization = ref(null);
 const selectedGroupBusiness = ref(null);
 
 const fieldErrors = reactive({
-  name: '',
-  description: '',
-  supervisor: '',
-  auditors: '',
-  audited: '',
-  frequency: '',
-  scope: '',
-  logo: '',
-  businessId: '',
-  businessUnitId: '',
-  groupId: '',
-  orgRole: '',
-  businessOrganization: '',
-  groupOrganization: '',
-  groupBusiness: ''
+  name: "",
+  description: "",
+  supervisor: "",
+  auditors: "",
+  audited: "",
+  frequency: "",
+  scope: "",
+  logo: "",
+  businessId: "",
+  businessUnitId: "",
+  groupId: "",
+  orgRole: "",
+  businessOrganization: "",
+  groupOrganization: "",
+  groupBusiness: "",
 });
 
-const isSuperadmin = computed(() => user.value?.roles?.includes('superadmin'));
-const isSponsor = computed(() => user.value?.roles?.includes('sponsor'));
-const isAdmin = computed(() => user.value?.roles?.includes('admin'));
+const isSuperadmin = computed(() => user.value?.roles?.includes("superadmin"));
+const isSponsor = computed(() => user.value?.roles?.includes("sponsor"));
+const isAdmin = computed(() => user.value?.roles?.includes("admin"));
 const userBusinesses = computed(() => user.value?.business_id);
 const userOrganization = computed(() => user.value?.organization_id);
 
@@ -80,9 +80,9 @@ const allRoles = computed(() => groupUsersByRole(allUsers.value));
 
 const filteredOrgRoles = computed(() => {
   const fixedRoles = [
-    { id: 1, customLabel: 'Super Administrador' },
-    { id: 2, customLabel: 'Administrador' },
-    { id: 3, customLabel: 'Sponsor' }
+    { id: 1, customLabel: "Super Administrador" },
+    { id: 2, customLabel: "Administrador" },
+    { id: 3, customLabel: "Sponsor" },
   ];
   if (isSuperadmin.value && selectedOrgForRoles.value) {
     const orgRoles = orgRoleOptions.value
@@ -97,8 +97,8 @@ const getAssignmentRoles = computed(() => {
   if (isSuperadmin.value) return filteredOrgRoles.value;
   if (isAdmin.value || isSponsor.value) {
     const fixed = [];
-    if (isAdmin.value) fixed.push({ id: 2, customLabel: 'Administrador' });
-    fixed.push({ id: 3, customLabel: 'Sponsor' });
+    if (isAdmin.value) fixed.push({ id: 2, customLabel: "Administrador" });
+    fixed.push({ id: 3, customLabel: "Sponsor" });
     const orgRoles = orgRolesForAdmin.value
       .filter((role) => ![1, 2, 3].includes(role.id))
       .map((role) => ({ id: role.id, customLabel: role.name }));
@@ -110,51 +110,60 @@ const getAssignmentRoles = computed(() => {
 const scopeOptions = computed(() => {
   if (isSuperadmin.value) {
     return [
-      { label: 'Organización', value: 'organization' },
-      { label: 'Empresa', value: 'business' },
-      { label: 'Ubicación', value: 'business_unit' },
-      { label: 'Grupo', value: 'business_unit_group' }
+      { label: "Organización", value: "organization" },
+      { label: "Empresa", value: "business" },
+      { label: "Ubicación", value: "business_unit" },
+      { label: "Grupo", value: "business_unit_group" },
     ];
   }
   if (isSponsor.value) {
     return [
-      { label: 'Empresa', value: 'business' },
-      { label: 'Ubicación', value: 'business_unit' },
-      { label: 'Grupo', value: 'business_unit_group' }
+      { label: "Empresa", value: "business" },
+      { label: "Ubicación", value: "business_unit" },
+      { label: "Grupo", value: "business_unit_group" },
     ];
   }
   return [
-    { label: 'Organización', value: 'organization' },
-    { label: 'Empresa', value: 'business' },
-    { label: 'Ubicación', value: 'business_unit' },
-    { label: 'Grupo', value: 'business_unit_group' }
+    { label: "Organización", value: "organization" },
+    { label: "Empresa", value: "business" },
+    { label: "Ubicación", value: "business_unit" },
+    { label: "Grupo", value: "business_unit_group" },
   ];
 });
 
 const groupBusinessOptions = computed(() => {
   if (!selectedGroupOrganization.value) return [];
-  return businesses.value.filter((b) => Number(b.organization_id) === Number(selectedGroupOrganization.value));
+  return businesses.value.filter(
+    (b) => Number(b.organization_id) === Number(selectedGroupOrganization.value)
+  );
 });
 const groupGroupOptions = computed(() => {
   if (!selectedGroupBusiness.value) return [];
-  return groups.value.filter((g) => Number(g.business_id) === Number(selectedGroupBusiness.value));
+  return groups.value.filter(
+    (g) => Number(g.business_id) === Number(selectedGroupBusiness.value)
+  );
 });
 
 const getScopeLogo = () => {
-  if (scope.value === 'organization') {
-    const orgId = isSuperadmin.value && selectedOrganization.value ? Number(selectedOrganization.value) : Number(userOrganization.value);
+  if (scope.value === "organization") {
+    const orgId =
+      isSuperadmin.value && selectedOrganization.value
+        ? Number(selectedOrganization.value)
+        : Number(userOrganization.value);
     const org = organizationOptions.value.find((o) => Number(o.value) === orgId);
     return org?.logo || null;
   }
-  if (scope.value === 'business' && businessId.value) {
+  if (scope.value === "business" && businessId.value) {
     const biz = businesses.value.find((b) => Number(b.id) === Number(businessId.value));
     return biz?.logo || null;
   }
-  if (scope.value === 'business_unit' && businessUnitId.value) {
-    const unit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
+  if (scope.value === "business_unit" && businessUnitId.value) {
+    const unit = businessUnits.value.find(
+      (u) => Number(u.id) === Number(businessUnitId.value)
+    );
     return unit?.logo || null;
   }
-  if (scope.value === 'business_unit_group' && groupId.value) {
+  if (scope.value === "business_unit_group" && groupId.value) {
     const group = groups.value.find((g) => Number(g.id) === Number(groupId.value));
     if (group?.logo) return group.logo;
     const biz = businesses.value.find((b) => Number(b.id) === Number(group?.business_id));
@@ -166,15 +175,15 @@ const getScopeLogo = () => {
 const goBack = () => router.push(`/formularios/${route.params.id}`);
 
 const clearFieldError = (fieldName) => {
-  if (fieldErrors[fieldName]) fieldErrors[fieldName] = '';
+  if (fieldErrors[fieldName]) fieldErrors[fieldName] = "";
 };
 
 // --- LOGO PLACEHOLDER LOGIC ---
-const LOGO_PLACEHOLDER = '__original_logo__';
+const LOGO_PLACEHOLDER = "__original_logo__";
 
 // --- INTEGRACIÓN: Control de disponibilidad de logo de alcance ---
 const scopeLogoAvailable = ref(true);
-const scopeLogoError = ref('');
+const scopeLogoError = ref("");
 
 // Función para verificar si el alcance tiene logo disponible
 const checkScopeLogo = () => {
@@ -182,10 +191,10 @@ const checkScopeLogo = () => {
   if (!logoUrl) {
     scopeLogoAvailable.value = false;
     scopeLogoError.value =
-      'El alcance seleccionado no cuenta con logo. Ingresa uno manualmente o edita el registro del alcance para agregar un logo.';
+      "El alcance seleccionado no cuenta con logo. Ingresa uno manualmente o edita el registro del alcance para agregar un logo.";
   } else {
     scopeLogoAvailable.value = true;
-    scopeLogoError.value = '';
+    scopeLogoError.value = "";
   }
 };
 
@@ -198,20 +207,20 @@ watch(
     businessUnitId,
     selectedGroupOrganization,
     selectedGroupBusiness,
-    groupId
+    groupId,
   ],
   () => {
     if (reuseLogo.value) checkScopeLogo();
     else {
       scopeLogoAvailable.value = true;
-      scopeLogoError.value = '';
+      scopeLogoError.value = "";
     }
   }
 );
 
 watch(reuseLogo, (val) => {
   if (!val) {
-    fieldErrors.logo = '';
+    fieldErrors.logo = "";
   }
   if (val) checkScopeLogo();
 });
@@ -220,43 +229,43 @@ watch(reuseLogo, (val) => {
 const validateField = (fieldName, value) => {
   clearFieldError(fieldName);
   switch (fieldName) {
-    case 'name':
+    case "name":
       if (!value) {
-        fieldErrors.name = 'El nombre del formulario es obligatorio';
+        fieldErrors.name = "El nombre del formulario es obligatorio";
         return false;
       }
       break;
-    case 'supervisor':
+    case "supervisor":
       if (!value) {
-        fieldErrors.supervisor = 'El supervisor es obligatorio';
+        fieldErrors.supervisor = "El supervisor es obligatorio";
         return false;
       }
       break;
-    case 'auditors':
+    case "auditors":
       if (!value || value.length === 0) {
-        fieldErrors.auditors = 'Debe seleccionar al menos un auditor';
+        fieldErrors.auditors = "Debe seleccionar al menos un auditor";
         return false;
       }
       break;
-    case 'audited':
+    case "audited":
       if (!value || value.length === 0) {
-        fieldErrors.audited = 'Debe seleccionar al menos un auditado';
+        fieldErrors.audited = "Debe seleccionar al menos un auditado";
         return false;
       }
       break;
-    case 'frequency':
+    case "frequency":
       if (!value) {
-        fieldErrors.frequency = 'La frecuencia es obligatoria';
+        fieldErrors.frequency = "La frecuencia es obligatoria";
         return false;
       }
       break;
-    case 'scope':
+    case "scope":
       if (!value) {
-        fieldErrors.scope = 'El alcance es obligatorio';
+        fieldErrors.scope = "El alcance es obligatorio";
         return false;
       }
       break;
-    case 'logo':
+    case "logo":
       if (reuseLogo.value) {
         if (!scopeLogoAvailable.value) {
           fieldErrors.logo = scopeLogoError.value;
@@ -268,55 +277,72 @@ const validateField = (fieldName, value) => {
         !reuseLogo.value &&
         (!value ||
           (Array.isArray(value) && value.length === 0) ||
-          (typeof value === 'object' && value !== null && value.type === LOGO_PLACEHOLDER && !originalLogo.value))
+          (typeof value === "object" &&
+            value !== null &&
+            value.type === LOGO_PLACEHOLDER &&
+            !originalLogo.value))
       ) {
-        fieldErrors.logo = 'El logo es obligatorio';
+        fieldErrors.logo = "El logo es obligatorio";
         return false;
       }
       break;
-    case 'businessId':
-      if ((scope.value === 'business' || scope.value === 'business_unit' || scope.value === 'business_unit_group') && !value) {
-        fieldErrors.businessId = 'El negocio es obligatorio';
-        return false;
-      }
-      break;
-    case 'businessUnitId':
-      if (scope.value === 'business_unit' && !value) {
-        fieldErrors.businessUnitId = 'La unidad de negocio es obligatoria';
-        return false;
-      }
-      break;
-    case 'groupId':
-      if (scope.value === 'business_unit_group' && !value) {
-        fieldErrors.groupId = 'El grupo es obligatorio';
-        return false;
-      }
-      break;
-    case 'orgRole':
-      if (isSuperadmin.value && !value) {
-        fieldErrors.orgRole = 'Selecciona una organización para filtrar roles';
-        return false;
-      }
-      break;
-    case 'businessOrganization':
-      if (isSuperadmin.value && scope.value === 'business' && !selectedBusinessOrganization.value) {
-        fieldErrors.businessOrganization = 'Selecciona una organización';
-        return false;
-      }
-      break;
-    case 'groupOrganization':
-      if (isSuperadmin.value && scope.value === 'business_unit_group' && !selectedGroupOrganization.value) {
-        fieldErrors.groupOrganization = 'Selecciona una organización';
-        return false;
-      }
-      break;
-    case 'groupBusiness':
+    case "businessId":
       if (
-        (isSuperadmin.value || (isAdmin.value && !user.value.business_id && !user.value.business_unit_id)) &&
-        scope.value === 'business_unit_group' &&
+        (scope.value === "business" ||
+          scope.value === "business_unit" ||
+          scope.value === "business_unit_group") &&
+        !value
+      ) {
+        fieldErrors.businessId = "El negocio es obligatorio";
+        return false;
+      }
+      break;
+    case "businessUnitId":
+      if (scope.value === "business_unit" && !value) {
+        fieldErrors.businessUnitId = "La unidad de negocio es obligatoria";
+        return false;
+      }
+      break;
+    case "groupId":
+      if (scope.value === "business_unit_group" && !value) {
+        fieldErrors.groupId = "El grupo es obligatorio";
+        return false;
+      }
+      break;
+    case "orgRole":
+      if (isSuperadmin.value && !value) {
+        fieldErrors.orgRole = "Selecciona una organización para filtrar roles";
+        return false;
+      }
+      break;
+    case "businessOrganization":
+      if (
+        isSuperadmin.value &&
+        scope.value === "business" &&
+        !selectedBusinessOrganization.value
+      ) {
+        fieldErrors.businessOrganization = "Selecciona una organización";
+        return false;
+      }
+      break;
+    case "groupOrganization":
+      if (
+        isSuperadmin.value &&
+        scope.value === "business_unit_group" &&
+        !selectedGroupOrganization.value
+      ) {
+        fieldErrors.groupOrganization = "Selecciona una organización";
+        return false;
+      }
+      break;
+    case "groupBusiness":
+      if (
+        (isSuperadmin.value ||
+          (isAdmin.value && !user.value.business_id && !user.value.business_unit_id)) &&
+        scope.value === "business_unit_group" &&
         !selectedGroupBusiness.value
       ) {
-        fieldErrors.groupBusiness = 'Selecciona una empresa';
+        fieldErrors.groupBusiness = "Selecciona una empresa";
         return false;
       }
       break;
@@ -326,27 +352,33 @@ const validateField = (fieldName, value) => {
 
 const validateAllFields = () => {
   let isValid = true;
-  if (!validateField('name', name.value)) isValid = false;
-  if (!validateField('supervisor', supervisor.value)) isValid = false;
-  if (!validateField('auditors', auditors.value)) isValid = false;
-  if (!validateField('audited', audited.value)) isValid = false;
-  if (!validateField('frequency', frequency.value)) isValid = false;
-  if (!validateField('scope', scope.value)) isValid = false;
-  if (!validateField('logo', logo.value)) isValid = false;
-  if (!validateField('businessId', businessId.value)) isValid = false;
-  if (!validateField('businessUnitId', businessUnitId.value)) isValid = false;
-  if (!validateField('groupId', groupId.value)) isValid = false;
-  if (isSuperadmin.value && !validateField('orgRole', selectedOrgForRoles.value)) isValid = false;
-  if (!validateField('businessOrganization', selectedBusinessOrganization.value)) isValid = false;
-  if (!validateField('groupOrganization', selectedGroupOrganization.value)) isValid = false;
-  if (!validateField('groupBusiness', selectedGroupBusiness.value)) isValid = false;
+  if (!validateField("name", name.value)) isValid = false;
+  if (!validateField("supervisor", supervisor.value)) isValid = false;
+  if (!validateField("auditors", auditors.value)) isValid = false;
+  if (!validateField("audited", audited.value)) isValid = false;
+  if (!validateField("frequency", frequency.value)) isValid = false;
+  if (!validateField("scope", scope.value)) isValid = false;
+  if (!validateField("logo", logo.value)) isValid = false;
+  if (!validateField("businessId", businessId.value)) isValid = false;
+  if (!validateField("businessUnitId", businessUnitId.value)) isValid = false;
+  if (!validateField("groupId", groupId.value)) isValid = false;
+  if (isSuperadmin.value && !validateField("orgRole", selectedOrgForRoles.value))
+    isValid = false;
+  if (!validateField("businessOrganization", selectedBusinessOrganization.value))
+    isValid = false;
+  if (!validateField("groupOrganization", selectedGroupOrganization.value))
+    isValid = false;
+  if (!validateField("groupBusiness", selectedGroupBusiness.value)) isValid = false;
   return isValid;
 };
 
 const fetchAllUsers = async () => {
   try {
-    const res = await axiosInstance.get('/users');
-    allUsers.value = res.data.data.map((u) => ({ ...u, customLabel: `${u.roles?.[0]?.name || 'Sin rol'}` }));
+    const res = await axiosInstance.get("/users");
+    allUsers.value = res.data.data.map((u) => ({
+      ...u,
+      customLabel: `${u.roles?.[0]?.name || "Sin rol"}`,
+    }));
   } catch {
     allUsers.value = [];
   }
@@ -354,37 +386,53 @@ const fetchAllUsers = async () => {
 
 const fetchUsersByScope = async () => {
   try {
-    if (scope.value === 'business_unit_group' && !groupId.value) return;
-    if (scope.value === 'business' && !businessId.value) return;
-    if (scope.value === 'business_unit' && !businessUnitId.value) return;
-    if (scope.value === 'organization' && isSuperadmin.value && !selectedOrganization.value) return;
+    if (scope.value === "business_unit_group" && !groupId.value) return;
+    if (scope.value === "business" && !businessId.value) return;
+    if (scope.value === "business_unit" && !businessUnitId.value) return;
+    if (
+      scope.value === "organization" &&
+      isSuperadmin.value &&
+      !selectedOrganization.value
+    )
+      return;
 
     const params = { scope: scope.value };
-    if (scope.value === 'organization') {
+    if (scope.value === "organization") {
       params.organization_id =
-        isSuperadmin.value && selectedOrganization.value ? Number(selectedOrganization.value) : Number(user.value?.organization_id);
-    } else if (scope.value === 'business' && businessId.value) {
+        isSuperadmin.value && selectedOrganization.value
+          ? Number(selectedOrganization.value)
+          : Number(user.value?.organization_id);
+    } else if (scope.value === "business" && businessId.value) {
       params.business_id = Number(businessId.value);
-      const selectedBusiness = businesses.value.find((b) => Number(b.id) === Number(businessId.value));
-      if (selectedBusiness && typeof selectedBusiness.organization_id !== 'undefined') {
+      const selectedBusiness = businesses.value.find(
+        (b) => Number(b.id) === Number(businessId.value)
+      );
+      if (selectedBusiness && typeof selectedBusiness.organization_id !== "undefined") {
         params.organization_id = Number(selectedBusiness.organization_id);
       }
-    } else if (scope.value === 'business_unit' && businessUnitId.value) {
+    } else if (scope.value === "business_unit" && businessUnitId.value) {
       params.business_unit_id = Number(businessUnitId.value);
-      const selectedUnit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
-      if (selectedUnit && typeof selectedUnit.organization_id !== 'undefined') {
+      const selectedUnit = businessUnits.value.find(
+        (u) => Number(u.id) === Number(businessUnitId.value)
+      );
+      if (selectedUnit && typeof selectedUnit.organization_id !== "undefined") {
         params.organization_id = Number(selectedUnit.organization_id);
       }
-    } else if (scope.value === 'business_unit_group' && groupId.value) {
+    } else if (scope.value === "business_unit_group" && groupId.value) {
       params.business_unit_group_id = Number(groupId.value);
-      const selectedGroup = groups.value.find((g) => Number(g.id) === Number(groupId.value));
-      if (selectedGroup && typeof selectedGroup.organization_id !== 'undefined') {
+      const selectedGroup = groups.value.find(
+        (g) => Number(g.id) === Number(groupId.value)
+      );
+      if (selectedGroup && typeof selectedGroup.organization_id !== "undefined") {
         params.organization_id = Number(selectedGroup.organization_id);
       }
     }
 
-    const res = await axiosInstance.get('/users-by-scope', { params });
-    filteredUsers.value = res.data.data.map((u) => ({ ...u, customLabel: `${u.roles?.[0]?.name || 'Sin rol'}` }));
+    const res = await axiosInstance.get("/users-by-scope", { params });
+    filteredUsers.value = res.data.data.map((u) => ({
+      ...u,
+      customLabel: `${u.roles?.[0]?.name || "Sin rol"}`,
+    }));
   } catch {
     filteredUsers.value = [];
   }
@@ -392,25 +440,25 @@ const fetchUsersByScope = async () => {
 
 const fetchBusinesses = async () => {
   try {
-    const res = await axiosInstance.get('/businesses');
+    const res = await axiosInstance.get("/businesses");
     businesses.value = res.data.data.map((b) => ({
       ...b,
       customLabel: `${b.folio} - ${b.name}`,
       organization_id: b.organization?.id ?? b.organization_id,
-      id: b.id
+      id: b.id,
     }));
   } catch {
     businesses.value = [];
   }
 };
 
-const fetchBusinessUnits = async (searchText = '') => {
+const fetchBusinessUnits = async (searchText = "") => {
   try {
     const params = { q: searchText, limit: 10 };
     let businessIdFilter = businessId.value;
     if (isSponsor.value) businessIdFilter = userBusinesses.value;
-    if (scope.value === 'business_unit' && businessIdFilter) {
-      const res = await axiosInstance.get('/business-units', { params });
+    if (scope.value === "business_unit" && businessIdFilter) {
+      const res = await axiosInstance.get("/business-units", { params });
       businessUnits.value = res.data.data
         .filter((u) => Number(u.business_id) === Number(businessIdFilter))
         .map((u) => ({
@@ -418,7 +466,7 @@ const fetchBusinessUnits = async (searchText = '') => {
           customLabel: `${u.folio} - ${u.legal_name ?? u.name}`,
           organization_id: u.organization?.id ?? u.organization_id,
           business_id: u.business_id,
-          id: u.id
+          id: u.id,
         }));
     } else {
       businessUnits.value = [];
@@ -430,13 +478,13 @@ const fetchBusinessUnits = async (searchText = '') => {
 
 const fetchGroups = async () => {
   try {
-    const res = await axiosInstance.get('/business-unit-groups');
+    const res = await axiosInstance.get("/business-unit-groups");
     groups.value = res.data.data.map((g) => ({
       ...g,
       customLabel: `${g.name}`,
       business_id: g.business_id,
       organization_id: g.organization?.id ?? g.organization_id,
-      id: g.id
+      id: g.id,
     }));
   } catch {
     groups.value = [];
@@ -447,12 +495,12 @@ const fetchOrganizations = async () => {
   if (!isSuperadmin.value) return;
   loadingOrganizations.value = true;
   try {
-    const { data } = await axiosInstance.get('/organizations');
+    const { data } = await axiosInstance.get("/organizations");
     organizationOptions.value = (data.data || []).map((o) => ({
       ...o,
       title: `${o.folio} - ${o.legal_name}`,
       value: o.id,
-      logo: o.logo || null
+      logo: o.logo || null,
     }));
   } catch {
     organizationOptions.value = [];
@@ -470,8 +518,8 @@ const ensureAdminOrgOption = async () => {
         ...org,
         title: `${org.folio} - ${org.legal_name}`,
         value: org.id,
-        logo: org.logo || null
-      }
+        logo: org.logo || null,
+      },
     ];
   }
 };
@@ -479,8 +527,10 @@ const ensureAdminOrgOption = async () => {
 const fetchOrgRoles = async (orgId) => {
   loadingOrgRoles.value = true;
   try {
-    const { data } = await axiosInstance.get('/roles', { params: { organization_id: Number(orgId) } });
-    orgRoleOptions.value = (data.data || []).filter((r) => r.name !== 'superadmin');
+    const { data } = await axiosInstance.get("/roles", {
+      params: { organizationId: Number(orgId) },
+    });
+    orgRoleOptions.value = (data.data || []).filter((r) => r.name !== "superadmin");
   } catch {
     orgRoleOptions.value = [];
   } finally {
@@ -491,8 +541,10 @@ const fetchOrgRoles = async (orgId) => {
 const fetchOrgRolesForAdmin = async () => {
   loadingOrgRolesForAdmin.value = true;
   try {
-    const { data } = await axiosInstance.get('/roles');
-    orgRolesForAdmin.value = (data.data || []).filter((r) => r.organization_id === user.value.organization_id);
+    const { data } = await axiosInstance.get("/roles");
+    orgRolesForAdmin.value = (data.data || []).filter(
+      (r) => r.organization_id === user.value.organization_id
+    );
   } catch {
     orgRolesForAdmin.value = [];
   } finally {
@@ -512,28 +564,28 @@ const justLoaded = ref(false);
 
 const clearScopeFields = () => {
   skipLogoWatcher = true;
-  businessId.value = '';
-  businessUnitId.value = '';
-  groupId.value = '';
-  selectedOrganization.value = '';
-  selectedOrgForRoles.value = '';
-  selectedBusinessOrganization.value = '';
-  selectedGroupOrganization.value = '';
-  selectedGroupBusiness.value = '';
-  supervisor.value = '';
+  businessId.value = "";
+  businessUnitId.value = "";
+  groupId.value = "";
+  selectedOrganization.value = "";
+  selectedOrgForRoles.value = "";
+  selectedBusinessOrganization.value = "";
+  selectedGroupOrganization.value = "";
+  selectedGroupBusiness.value = "";
+  supervisor.value = "";
   auditors.value = [];
   audited.value = [];
   logo.value = null;
   profilePreview.value = null;
   reuseLogo.value = false;
-  fieldErrors.businessId = '';
-  fieldErrors.businessUnitId = '';
-  fieldErrors.groupId = '';
-  fieldErrors.logo = '';
-  fieldErrors.scope = '';
-  fieldErrors.businessOrganization = '';
-  fieldErrors.groupOrganization = '';
-  fieldErrors.groupBusiness = '';
+  fieldErrors.businessId = "";
+  fieldErrors.businessUnitId = "";
+  fieldErrors.groupId = "";
+  fieldErrors.logo = "";
+  fieldErrors.scope = "";
+  fieldErrors.businessOrganization = "";
+  fieldErrors.groupOrganization = "";
+  fieldErrors.groupBusiness = "";
   setTimeout(() => {
     skipLogoWatcher = false;
   }, 100);
@@ -582,7 +634,7 @@ watch(selectedGroupOrganization, async (orgId) => {
 watch(selectedOrgForRoles, async (orgId) => {
   if (isSuperadmin.value && orgId) {
     await fetchOrgRoles(orgId);
-    supervisor.value = '';
+    supervisor.value = "";
     auditors.value = [];
     audited.value = [];
   }
@@ -599,7 +651,7 @@ watch(
     selectedOrganization,
     selectedBusinessOrganization,
     selectedGroupOrganization,
-    selectedGroupBusiness
+    selectedGroupBusiness,
   ],
   () => {
     if (skipLogoWatcher) return;
@@ -631,8 +683,10 @@ watch(
     if (
       formLoaded.value &&
       initialScope.value === scope.value &&
-      (scope.value !== 'business' ||
-        (businessId.value && initialBusinessId.value && String(businessId.value) === String(initialBusinessId.value)))
+      (scope.value !== "business" ||
+        (businessId.value &&
+          initialBusinessId.value &&
+          String(businessId.value) === String(initialBusinessId.value)))
     ) {
       if (!logo.value && !reuseLogo.value) {
         if (originalLogo.value) {
@@ -669,16 +723,16 @@ watch(logo, (newLogo) => {
 });
 
 watch(businessId, async (newBusinessId, oldBusinessId) => {
-  if (scope.value === 'business_unit' && newBusinessId) {
+  if (scope.value === "business_unit" && newBusinessId) {
     await fetchBusinessUnits();
     if (oldBusinessId && oldBusinessId !== newBusinessId) {
-      businessUnitId.value = '';
+      businessUnitId.value = "";
     }
   }
 });
 
 watch(businessUnitId, async (newVal, oldVal) => {
-  if (scope.value === 'business_unit' && newVal) {
+  if (scope.value === "business_unit" && newVal) {
     await fetchUsersByScope();
     const selectedUnit = businessUnits.value.find((u) => Number(u.id) === Number(newVal));
     if (selectedUnit && isSuperadmin.value) {
@@ -690,7 +744,7 @@ watch(businessUnitId, async (newVal, oldVal) => {
 });
 
 watch(groupId, async (newGroupId) => {
-  if (scope.value === 'business_unit_group' && newGroupId) {
+  if (scope.value === "business_unit_group" && newGroupId) {
     await fetchUsersByScope();
   }
 });
@@ -709,16 +763,16 @@ const fetchFormData = async () => {
     const { data } = await axiosInstance.get(`/forms/${formId}`);
     const form = data.form;
 
-    name.value = form.name || '';
-    description.value = form.description || '';
-    frequency.value = form.frequency || '';
-    scope.value = form.assignment_scope || '';
-    initialScope.value = form.assignment_scope || '';
+    name.value = form.name || "";
+    description.value = form.description || "";
+    frequency.value = form.frequency || "";
+    scope.value = form.assignment_scope || "";
+    initialScope.value = form.assignment_scope || "";
     hasRating.value = !!form.has_rating;
-    businessId.value = form.business_id || '';
-    initialBusinessId.value = form.business_id || '';
-    businessUnitId.value = form.business_unit_id || '';
-    groupId.value = form.business_unit_group_id || '';
+    businessId.value = form.business_id || "";
+    initialBusinessId.value = form.business_id || "";
+    businessUnitId.value = form.business_unit_id || "";
+    groupId.value = form.business_unit_group_id || "";
     originalLogo.value = form.logo || null;
     profilePreview.value = form.logo || null;
     reuseLogo.value = !!form.use_scope_logo;
@@ -732,31 +786,40 @@ const fetchFormData = async () => {
       logo.value = null;
     }
 
-    if (scope.value === 'business_unit') {
-      let unit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
+    if (scope.value === "business_unit") {
+      let unit = businessUnits.value.find(
+        (u) => Number(u.id) === Number(businessUnitId.value)
+      );
       if (!unit && businessUnitId.value) {
         try {
-          const { data: unitData } = await axiosInstance.get(`/business-units/${businessUnitId.value}`);
+          const { data: unitData } = await axiosInstance.get(
+            `/business-units/${businessUnitId.value}`
+          );
           const unitInfo = unitData.data || unitData;
           unit = {
             ...unitInfo,
             customLabel: `${unitInfo.folio} - ${unitInfo.legal_name ?? unitInfo.name}`,
             organization_id: unitInfo.organization?.id ?? unitInfo.organization_id,
             business_id: unitInfo.business_id,
-            id: unitInfo.id
+            id: unitInfo.id,
           };
           businessUnits.value.push(unit);
         } catch (e) {}
       }
-      let business = businesses.value.find((b) => Number(b.id) === Number(unit?.business_id || businessId.value));
+      let business = businesses.value.find(
+        (b) => Number(b.id) === Number(unit?.business_id || businessId.value)
+      );
       if (!business && (unit?.business_id || businessId.value)) {
         try {
-          const { data: businessData } = await axiosInstance.get(`/businesses/${unit?.business_id || businessId.value}`);
+          const { data: businessData } = await axiosInstance.get(
+            `/businesses/${unit?.business_id || businessId.value}`
+          );
           business = {
             ...businessData,
             customLabel: `${businessData.folio} - ${businessData.name}`,
-            organization_id: businessData.organization?.id ?? businessData.organization_id,
-            id: businessData.id
+            organization_id:
+              businessData.organization?.id ?? businessData.organization_id,
+            id: businessData.id,
           };
           businesses.value.push(business);
         } catch (e) {}
@@ -769,15 +832,19 @@ const fetchFormData = async () => {
         businessId.value = business.id;
         selectedBusinessOrganization.value = business.organization_id;
       }
-      let org = organizationOptions.value.find((o) => Number(o.value) === Number(selectedBusinessOrganization.value));
+      let org = organizationOptions.value.find(
+        (o) => Number(o.value) === Number(selectedBusinessOrganization.value)
+      );
       if (!org && selectedBusinessOrganization.value) {
         try {
-          const { data: orgData } = await axiosInstance.get(`/organizations/${selectedBusinessOrganization.value}`);
+          const { data: orgData } = await axiosInstance.get(
+            `/organizations/${selectedBusinessOrganization.value}`
+          );
           org = {
             ...orgData,
             title: `${orgData.folio} - ${orgData.legal_name}`,
             value: orgData.id,
-            logo: orgData.logo || null
+            logo: orgData.logo || null,
           };
           organizationOptions.value.push(org);
         } catch (e) {}
@@ -788,22 +855,29 @@ const fetchFormData = async () => {
         await fetchOrgRoles(selectedBusinessOrganization.value);
       }
     } else {
-      if (scope.value === 'business') {
-        const business = businesses.value.find((b) => Number(b.id) === Number(businessId.value));
+      if (scope.value === "business") {
+        const business = businesses.value.find(
+          (b) => Number(b.id) === Number(businessId.value)
+        );
         if (business) {
           selectedBusinessOrganization.value = business.organization_id;
         }
       }
-      if (scope.value === 'business_unit_group') {
+      if (scope.value === "business_unit_group") {
         const group = groups.value.find((g) => Number(g.id) === Number(groupId.value));
         if (group) {
           selectedGroupOrganization.value = group.organization_id;
           selectedGroupBusiness.value = group.business_id;
         }
       }
-      if (isSuperadmin.value && (form.organization_id || selectedBusinessOrganization.value)) {
-        selectedOrganization.value = form.organization_id || selectedBusinessOrganization.value;
-        selectedOrgForRoles.value = form.organization_id || selectedBusinessOrganization.value;
+      if (
+        isSuperadmin.value &&
+        (form.organization_id || selectedBusinessOrganization.value)
+      ) {
+        selectedOrganization.value =
+          form.organization_id || selectedBusinessOrganization.value;
+        selectedOrgForRoles.value =
+          form.organization_id || selectedBusinessOrganization.value;
         await fetchOrgRoles(selectedOrgForRoles.value);
       }
       await fetchUsersByScope();
@@ -811,24 +885,24 @@ const fetchFormData = async () => {
 
     await nextTick();
 
-    supervisor.value = form.supervisorRole?.id || form.supervisor_role_id || '';
+    supervisor.value = form.supervisorRole?.id || form.supervisor_role_id || "";
     auditors.value = Array.isArray(form.auditorRoles)
       ? form.auditorRoles.map((r) => r.id)
       : Array.isArray(form.auditor_role_ids)
-        ? form.auditor_role_ids
-        : [];
+      ? form.auditor_role_ids
+      : [];
     audited.value = Array.isArray(form.auditadoRoles)
       ? form.auditadoRoles.map((r) => r.id)
       : Array.isArray(form.auditado_role_ids)
-        ? form.auditado_role_ids
-        : [];
+      ? form.auditado_role_ids
+      : [];
 
     formLoaded.value = true;
     justLoaded.value = true;
 
     return form;
   } catch (err) {
-    toast.error('No se pudo cargar el formulario');
+    toast.error("No se pudo cargar el formulario");
     return null;
   }
 };
@@ -851,74 +925,88 @@ const validate = async () => {
   try {
     isLoading.value = true;
     const formData = new FormData();
-    formData.append('name', name.value);
-    formData.append('description', description.value);
+    formData.append("name", name.value);
+    formData.append("description", description.value);
 
     const supervisorRole =
       filteredOrgRoles.value.find((r) => Number(r.id) === Number(supervisor.value)) ||
       orgRolesForAdmin.value.find((r) => Number(r.id) === Number(supervisor.value)) ||
       allRoles.value.find((r) => Number(r.id) === Number(supervisor.value));
-    if (supervisorRole) formData.append('supervisor_role_id', supervisorRole.id);
+    if (supervisorRole) formData.append("supervisor_role_id", supervisorRole.id);
 
     auditors.value.forEach((id) => {
-      formData.append('auditor_role_ids[]', id);
+      formData.append("auditor_role_ids[]", id);
     });
     audited.value.forEach((id) => {
-      formData.append('auditado_role_ids[]', id);
+      formData.append("auditado_role_ids[]", id);
     });
 
-    formData.append('frequency', frequency.value);
-    formData.append('assignment_scope', scope.value);
-    formData.append('has_rating', hasRating.value ? '1' : '0');
-    formData.append('use_scope_logo', reuseLogo.value ? '1' : '0');
+    formData.append("frequency", frequency.value);
+    formData.append("assignment_scope", scope.value);
+    formData.append("has_rating", hasRating.value ? "1" : "0");
+    formData.append("use_scope_logo", reuseLogo.value ? "1" : "0");
     if (!reuseLogo.value && logo.value && !(logo.value.type === LOGO_PLACEHOLDER)) {
-      formData.append('logo', logo.value);
+      formData.append("logo", logo.value);
     }
 
     let orgId = null;
-    if (scope.value === 'organization') {
-      orgId = isSuperadmin.value && selectedOrganization.value ? Number(selectedOrganization.value) : Number(user.value?.organization_id);
-    } else if (scope.value === 'business' && businessId.value) {
+    if (scope.value === "organization") {
+      orgId =
+        isSuperadmin.value && selectedOrganization.value
+          ? Number(selectedOrganization.value)
+          : Number(user.value?.organization_id);
+    } else if (scope.value === "business" && businessId.value) {
       const b = businesses.value.find((bb) => Number(bb.id) === Number(businessId.value));
-      orgId = b && typeof b.organization_id !== 'undefined' ? Number(b.organization_id) : null;
-    } else if (scope.value === 'business_unit' && businessUnitId.value) {
-      const unit = businessUnits.value.find((u) => Number(u.id) === Number(businessUnitId.value));
-      orgId = unit && typeof unit.organization_id !== 'undefined' ? Number(unit.organization_id) : null;
-    } else if (scope.value === 'business_unit_group' && groupId.value) {
+      orgId =
+        b && typeof b.organization_id !== "undefined" ? Number(b.organization_id) : null;
+    } else if (scope.value === "business_unit" && businessUnitId.value) {
+      const unit = businessUnits.value.find(
+        (u) => Number(u.id) === Number(businessUnitId.value)
+      );
+      orgId =
+        unit && typeof unit.organization_id !== "undefined"
+          ? Number(unit.organization_id)
+          : null;
+    } else if (scope.value === "business_unit_group" && groupId.value) {
       const group = groups.value.find((g) => Number(g.id) === Number(groupId.value));
-      orgId = group && typeof group.organization_id !== 'undefined' ? Number(group.organization_id) : null;
+      orgId =
+        group && typeof group.organization_id !== "undefined"
+          ? Number(group.organization_id)
+          : null;
     }
-    if (orgId) formData.append('organization_id', orgId);
+    if (orgId) formData.append("organization_id", orgId);
 
-    if (scope.value === 'business') {
-      formData.append('business_id', Number(businessId.value));
-      formData.append('business_unit_id', '');
-      formData.append('business_unit_group_id', '');
+    if (scope.value === "business") {
+      formData.append("business_id", Number(businessId.value));
+      formData.append("business_unit_id", "");
+      formData.append("business_unit_group_id", "");
     }
-    if (scope.value === 'business_unit') {
-      formData.append('business_unit_id', Number(businessUnitId.value));
-      formData.append('business_id', '');
-      formData.append('business_unit_group_id', '');
+    if (scope.value === "business_unit") {
+      formData.append("business_unit_id", Number(businessUnitId.value));
+      formData.append("business_id", "");
+      formData.append("business_unit_group_id", "");
     }
-    if (scope.value === 'business_unit_group') {
-      formData.append('business_unit_group_id', Number(groupId.value));
-      formData.append('business_id', '');
-      formData.append('business_unit_id', '');
+    if (scope.value === "business_unit_group") {
+      formData.append("business_unit_group_id", Number(groupId.value));
+      formData.append("business_id", "");
+      formData.append("business_unit_id", "");
     }
-    if (scope.value === 'organization') {
-      formData.append('business_id', '');
-      formData.append('business_unit_id', '');
-      formData.append('business_unit_group_id', '');
+    if (scope.value === "organization") {
+      formData.append("business_id", "");
+      formData.append("business_unit_id", "");
+      formData.append("business_unit_group_id", "");
     }
 
     const formId = route.params.id;
-    formData.append('_method', 'PUT');
-    await axiosInstance.post(`/forms/${formId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    formData.append("_method", "PUT");
+    await axiosInstance.post(`/forms/${formId}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-    toast.success('Formulario actualizado correctamente');
+    toast.success("Formulario actualizado correctamente");
     router.push(`/formularios/${route.params.id}`);
   } catch (err) {
-    toast.error('Error al actualizar el formulario');
+    toast.error("Error al actualizar el formulario");
   } finally {
     isLoading.value = false;
   }
@@ -930,7 +1018,13 @@ const validate = async () => {
     <v-container fluid>
       <v-row class="align-center mb-6" no-gutters>
         <v-col cols="auto" class="d-flex align-center">
-          <v-btn icon variant="text" class="px-3 py-2" style="border-radius: 8px; border: 1px solid #ccc" @click="goBack">
+          <v-btn
+            icon
+            variant="text"
+            class="px-3 py-2"
+            style="border-radius: 8px; border: 1px solid #ccc"
+            @click="goBack"
+          >
             <v-icon :icon="mdiArrowLeft" />
           </v-btn>
           <h3 class="font-weight-medium ml-3 mb-0">Editar Formulario</h3>
@@ -945,9 +1039,18 @@ const validate = async () => {
           </v-col>
 
           <!-- Izquierda: preview -->
-          <v-col cols="12" md="6" class="d-flex flex-column align-center justify-center" style="min-height: 300px">
+          <v-col
+            cols="12"
+            md="6"
+            class="d-flex flex-column align-center justify-center"
+            style="min-height: 300px"
+          >
             <template v-if="profilePreview">
-              <img :src="profilePreview" alt="Logo Preview" style="max-width: 300px; max-height: 300px; border-radius: 12px" />
+              <img
+                :src="profilePreview"
+                alt="Logo Preview"
+                style="max-width: 300px; max-height: 300px; border-radius: 12px"
+              />
             </template>
             <template v-else>
               <div
@@ -1020,7 +1123,10 @@ const validate = async () => {
             />
 
             <!-- ORGANIZACION (solo superadmin) -->
-            <div v-if="scope === 'organization' && isSuperadmin" class="mt-4 alcance-select alcance-superadmin-select">
+            <div
+              v-if="scope === 'organization' && isSuperadmin"
+              class="mt-4 alcance-select alcance-superadmin-select"
+            >
               <v-label>Organización <span class="text-error">*</span></v-label>
               <v-select
                 v-model="selectedOrganization"
@@ -1063,7 +1169,11 @@ const validate = async () => {
                 v-model="businessId"
                 :items="
                   isSuperadmin && selectedBusinessOrganization
-                    ? businesses.filter((b) => Number(b.organization_id) === Number(selectedBusinessOrganization))
+                    ? businesses.filter(
+                        (b) =>
+                          Number(b.organization_id) ===
+                          Number(selectedBusinessOrganization)
+                      )
                     : businesses
                 "
                 item-title="customLabel"
@@ -1076,7 +1186,9 @@ const validate = async () => {
                 :error-messages="fieldErrors.businessId"
                 :disabled="isLimitedEdit"
                 :no-data-text="
-                  isSuperadmin && !selectedBusinessOrganization ? 'Selecciona una organización primero' : 'Sin empresas disponibles'
+                  isSuperadmin && !selectedBusinessOrganization
+                    ? 'Selecciona una organización primero'
+                    : 'Sin empresas disponibles'
                 "
               />
             </div>
@@ -1111,7 +1223,9 @@ const validate = async () => {
                   "
                 />
               </div>
-              <v-label v-if="!isSponsor">Empresa <span class="text-error">*</span></v-label>
+              <v-label v-if="!isSponsor"
+                >Empresa <span class="text-error">*</span></v-label
+              >
               <v-text-field
                 v-if="isSponsor"
                 :model-value="userBusinesses"
@@ -1136,7 +1250,9 @@ const validate = async () => {
                 :error-messages="fieldErrors.businessId"
                 :disabled="isLimitedEdit"
                 :no-data-text="
-                  isSuperadmin && !selectedBusinessOrganization ? 'Selecciona una organización primero' : 'Sin empresas disponibles'
+                  isSuperadmin && !selectedBusinessOrganization
+                    ? 'Selecciona una organización primero'
+                    : 'Sin empresas disponibles'
                 "
                 @update:model-value="
                   () => {
@@ -1162,8 +1278,8 @@ const validate = async () => {
                   !businessId
                     ? 'Selecciona una empresa primero'
                     : businessUnits.length === 0
-                      ? 'No hay ubicaciones disponibles'
-                      : 'Sin ubicaciones disponibles'
+                    ? 'No hay ubicaciones disponibles'
+                    : 'Sin ubicaciones disponibles'
                 "
               />
             </div>
@@ -1190,11 +1306,19 @@ const validate = async () => {
                 />
               </div>
               <!-- EMPRESA (admin o usuario solo organización) -->
-              <div v-if="isSuperadmin || (isAdmin && !user.value.business_id && !user.value.business_unit_id)" class="mb-2">
+              <div
+                v-if="
+                  isSuperadmin ||
+                  (isAdmin && !user.value.business_id && !user.value.business_unit_id)
+                "
+                class="mb-2"
+              >
                 <v-label>Empresa <span class="text-error">*</span></v-label>
                 <v-select
                   v-model="selectedGroupBusiness"
-                  :items="isSuperadmin && !selectedGroupOrganization ? [] : groupBusinessOptions"
+                  :items="
+                    isSuperadmin && !selectedGroupOrganization ? [] : groupBusinessOptions
+                  "
                   item-title="customLabel"
                   item-value="id"
                   variant="outlined"
@@ -1205,7 +1329,9 @@ const validate = async () => {
                   :error-messages="fieldErrors.groupBusiness"
                   :disabled="isLimitedEdit"
                   :no-data-text="
-                    isSuperadmin && !selectedGroupOrganization ? 'Selecciona una organización primero' : 'Sin empresas disponibles'
+                    isSuperadmin && !selectedGroupOrganization
+                      ? 'Selecciona una organización primero'
+                      : 'Sin empresas disponibles'
                   "
                 />
               </div>
@@ -1223,7 +1349,11 @@ const validate = async () => {
                 required
                 :error-messages="fieldErrors.groupId"
                 :disabled="isLimitedEdit"
-                :no-data-text="selectedGroupBusiness ? 'Sin grupos disponibles' : 'Selecciona una empresa primero'"
+                :no-data-text="
+                  selectedGroupBusiness
+                    ? 'Sin grupos disponibles'
+                    : 'Selecciona una empresa primero'
+                "
               />
             </div>
 
@@ -1240,7 +1370,9 @@ const validate = async () => {
                 density="compact"
                 show-size
                 :multiple="false"
-                :messages="['Solo se permiten imágenes JPEG, PNG o JPG. Tamaño máximo: 2MB.']"
+                :messages="[
+                  'Solo se permiten imágenes JPEG, PNG o JPG. Tamaño máximo: 2MB.',
+                ]"
                 :error-messages="fieldErrors.logo"
                 :disabled="isLimitedEdit"
                 @update:model-value="clearFieldError('logo')"
@@ -1254,8 +1386,8 @@ const validate = async () => {
                     scope === 'business_unit_group'
                       ? 'Reutilizar logo de la empresa del grupo seleccionado'
                       : scope === 'business_unit'
-                        ? 'Reutilizar logo de la empresa de la ubicación seleccionada'
-                        : 'Reutilizar logo del alcance seleccionado'
+                      ? 'Reutilizar logo de la empresa de la ubicación seleccionada'
+                      : 'Reutilizar logo del alcance seleccionado'
                   "
                   color="primary"
                   hide-details
@@ -1271,7 +1403,12 @@ const validate = async () => {
               <div
                 v-if="!scopeLogoAvailable"
                 class="text-error"
-                style="margin-top: -8px; margin-bottom: 8px; font-size: 0.95rem; margin-left: 36px"
+                style="
+                  margin-top: -8px;
+                  margin-bottom: 8px;
+                  font-size: 0.95rem;
+                  margin-left: 36px;
+                "
               >
                 {{ scopeLogoError }}
               </div>
@@ -1319,8 +1456,17 @@ const validate = async () => {
           <v-col cols="12">
             <template v-if="isSuperadmin">
               <div class="d-flex align-center justify-between mb-2">
-                <v-label>Organización para filtrar roles <span class="text-error">*</span></v-label>
-                <v-icon :icon="mdiInformationSlabCircleOutline" color="primary" size="22" class="ml-2" style="cursor: pointer" />
+                <v-label
+                  >Organización para filtrar roles
+                  <span class="text-error">*</span></v-label
+                >
+                <v-icon
+                  :icon="mdiInformationSlabCircleOutline"
+                  color="primary"
+                  size="22"
+                  class="ml-2"
+                  style="cursor: pointer"
+                />
               </div>
               <div class="pb-superadmin-select">
                 <v-select
@@ -1400,9 +1546,17 @@ const validate = async () => {
 
         <v-row>
           <v-col cols="12" class="d-flex justify-end">
-            <v-btn color="primary" class="mt-6" :loading="isLoading" :disabled="isLoading" @click="validate">
-              <template v-slot:loader><v-progress-circular indeterminate color="white" size="20" /></template>
-              {{ isLoading ? 'Actualizando Formulario...' : 'Actualizar Formulario' }}
+            <v-btn
+              color="primary"
+              class="mt-6"
+              :loading="isLoading"
+              :disabled="isLoading"
+              @click="validate"
+            >
+              <template v-slot:loader
+                ><v-progress-circular indeterminate color="white" size="20"
+              /></template>
+              {{ isLoading ? "Actualizando Formulario..." : "Actualizar Formulario" }}
             </v-btn>
           </v-col>
         </v-row>
