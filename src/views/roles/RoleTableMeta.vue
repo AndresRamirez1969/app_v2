@@ -2,15 +2,15 @@
 const props = defineProps({
   items: {
     type: Array,
-    default: () => []
+    default: () => [],
   },
   page: Number,
   itemsPerPage: Number,
   sortBy: String,
   sortDesc: Boolean,
-  showOrganization: Boolean // Solo superadmin ve la columna
+  showOrganization: Boolean, // Solo superadmin ve la columna
 });
-const emit = defineEmits(['update:page', 'sort']);
+const emit = defineEmits(["update:page", "sort"]);
 </script>
 
 <template>
@@ -32,11 +32,18 @@ const emit = defineEmits(['update:page', 'sort']);
               Nombre
               <slot name="sort-icon" :column="'name'" />
             </th>
-            <th v-if="props.showOrganization" @click="emit('sort', 'organization_id')" class="cursor-pointer org-header">
+            <th
+              v-if="props.showOrganization"
+              @click="emit('sort', 'organization_id')"
+              class="cursor-pointer org-header"
+            >
               Organización
               <slot name="sort-icon" :column="'organization_id'" />
             </th>
-            <th @click="emit('sort', 'permissions')" class="cursor-pointer permissions-header">
+            <th
+              @click="emit('sort', 'permissions')"
+              class="cursor-pointer permissions-header"
+            >
               Permisos
               <slot name="sort-icon" :column="'permissions'" />
             </th>
@@ -48,15 +55,6 @@ const emit = defineEmits(['update:page', 'sort']);
         <slot name="rows" :showOrganization="props.showOrganization" />
       </tbody>
     </v-table>
-    <div class="d-flex justify-center mt-4">
-      <v-pagination
-        v-model="props.page"
-        :length="Math.ceil((props.items?.length || 1) / props.itemsPerPage)"
-        total-visible="7"
-        color="primary"
-        @update:modelValue="emit('update:page', $event)"
-      />
-    </div>
   </div>
 </template>
 

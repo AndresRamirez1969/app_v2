@@ -1,20 +1,23 @@
 <script setup>
-import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { useDisplay } from 'vuetify';
-import { mdiPlus } from '@mdi/js';
-import axios from '@/utils/axios';
-import { useAuthStore } from '@/stores/auth';
+import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useDisplay } from "vuetify";
+import { mdiPlus } from "@mdi/js";
+import axios from "@/utils/axios";
+import { useAuthStore } from "@/stores/auth";
 
-import RoleList from './RoleList.vue';
-import RoleFilters from './RoleFilters.vue';
+import RoleList from "./RoleList.vue";
+import RoleFilters from "./RoleFilters.vue";
 
 const router = useRouter();
 const roles = ref([]);
-const filteredRoles = ref([]);
+const total = ref(0);
+const perPage = ref(10);
+const currentPage = ref(1);
+const lastPage = ref(1);
 const { mdAndDown } = useDisplay();
 
-const searchText = ref('');
+const searchText = ref("");
 const filterOptions = ref({});
 
 const auth = useAuthStore();
@@ -23,62 +26,69 @@ const canCreate = ref(false);
 const isLoading = ref(false);
 
 function hasPermission(permission) {
-  return Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission);
+  return (
+    Array.isArray(auth.user?.permissions) && auth.user.permissions.includes(permission)
+  );
 }
 
+const fetchRoles = async (params = {}) => {
+  try {
+    isLoading.value = true;
+    const { data } = await axios.get("/roles", {
+      params: {
+        page: currentPage.value,
+        per_page: perPage.value,
+        search: searchText.value,
+        ...filterOptions.value,
+        ...params,
+      },
+    });
+    roles.value = data.data || [];
+    total.value = data.total || 0;
+    perPage.value = data.per_page || 10;
+    currentPage.value = data.current_page || 1;
+    lastPage.value = data.last_page || 1;
+  } catch (error) {
+    console.error("Error fetching roles:", error);
+    roles.value = [];
+    total.value = 0;
+    perPage.value = 10;
+    currentPage.value = 1;
+    lastPage.value = 1;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 onMounted(async () => {
-  if (!hasPermission('role.viewAny')) {
+  if (!hasPermission("role.viewAny")) {
     canView.value = false;
     return;
   }
   canView.value = true;
-  canCreate.value = hasPermission('role.create');
-  try {
-    isLoading.value = true;
-    await fetchRoles();
-  } catch (error) {
-    console.error('Error fetching roles:', error);
-  } finally {
-    isLoading.value = false;
-  }
+  canCreate.value = hasPermission("role.create");
+  await fetchRoles();
 });
 
-const fetchRoles = async (params = {}) => {
-  try {
-    const { data } = await axios.get('/roles', { params });
-    roles.value = data.data || [];
-    filteredRoles.value = data.data || [];
-  } catch (error) {
-    console.error('Error fetching roles:', error);
-    roles.value = [];
-    filteredRoles.value = [];
-  }
-};
-
 const goToCreate = () => {
-  router.push('/roles/crear');
+  router.push("/roles/crear");
 };
 
 function handleSearch(text) {
   searchText.value = text;
-  applyFilters();
+  currentPage.value = 1;
+  fetchRoles();
 }
 
 async function handleFilter(filters) {
-  if (filters.organizationId) {
-    filterOptions.value = { ...filters };
-  } else {
-    filterOptions.value = { ...filters, organizationId: undefined };
-  }
-  await applyFilters();
+  filterOptions.value = { ...filters };
+  currentPage.value = 1;
+  await fetchRoles();
 }
 
-async function applyFilters() {
-  const params = {
-    ...filterOptions.value,
-    search: searchText.value
-  };
-  await fetchRoles(params);
+function handlePageChange(page) {
+  currentPage.value = page;
+  fetchRoles();
 }
 </script>
 
@@ -107,7 +117,15 @@ async function applyFilters() {
 
       <v-row>
         <v-col>
-          <RoleList :items="filteredRoles" :isMobile="mdAndDown" :isLoading="isLoading" />
+          <RoleList
+            :items="roles"
+            :isMobile="mdAndDown"
+            :isLoading="isLoading"
+            :totalItems="total"
+            :page="currentPage"
+            :itemsPerPage="perPage"
+            @update:page="handlePageChange"
+          />
         </v-col>
       </v-row>
     </v-container>
