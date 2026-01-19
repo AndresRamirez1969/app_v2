@@ -8,6 +8,7 @@ import AnalyticsReport from './components/AnalyticsReport.vue';
 import { useToast } from 'vue-toastification';
 import { mdiCalendar } from '@mdi/js';
 import GeolocationMap from '@/utils/helpers/google/GeolocationMap.vue';
+import SACards from '@/layouts/dashboard/cards/SACards.vue';
 
 const today = new Date();
 const dd = String(today.getDate());
@@ -334,27 +335,92 @@ const getChartSeriesForField = (fieldStat) => {
   return [{ name: 'Respuestas', data: fieldStat.options.map((option) => fieldStat.optionCounts[option] || 0) }];
 };
 
-// Configuración de la gráfica general
+const formsChartData = computed(() => {
+  const allForms = forms.value.data || [];
+
+  if (isSuperadmin.value && !selectedOrgForDashboard.value) {
+    return {
+      categories: [],
+      responseData: [],
+      assignmentsData: [],
+    };
+  }
+  const categories = allForms.map(form => form.folio || form.name);
+  const responseData = allForms.map(form => form.responses_count || 0);
+  const assignmentsData = allForms.map(form => form.assignments_count || 0);
+  return {
+    categories,
+    responseData,
+    assignmentsData,
+  };
+})
+
 const chartOptions = computed(() => ({
-  chart: { type: 'bar', height: 350, toolbar: { show: true } },
-  plotOptions: { bar: { horizontal: false, columnWidth: '55%', borderRadius: 8, dataLabels: { position: 'top' } } },
-  dataLabels: { enabled: true, offsetY: -20, style: { fontSize: '12px', colors: ['#304758'] } },
-  xaxis: { categories: ['Formularios'], labels: { style: { fontSize: '14px', fontWeight: 600 } } },
-  yaxis: { title: { text: 'Cantidad de Formularios' } },
-  legend: { position: 'top', horizontalAlign: 'center' },
-  colors: ['#1976d2', '#4caf50', '#f44336'],
-  tooltip: { y: { formatter: (val) => `${val} formulario${val !== 1 ? 's' : ''}` } },
+  chart: {
+    type: 'bar',
+    height: 350,
+    toolbar: { show: true },
+    stacked: true,  // Gráfica apilada
+    stackType: '100%'  // Opcional: si quieres porcentajes, usa '100%', si no, quita esta línea
+  },
+  plotOptions: {
+    bar: {
+      horizontal: false,
+      columnWidth: '55%',
+      borderRadius: 8,
+      dataLabels: {
+        position: 'top'
+      }
+    }
+  },
+  dataLabels: {
+    enabled: true,
+    offsetY: -20,
+    style: {
+      fontSize: '12px',
+      colors: ['#304758']
+    }
+  },
+  xaxis: {
+    categories: formsChartData.value.categories,
+    labels: {
+      style: { fontSize: '12px' },
+      rotate: -45,
+      rotateAlways: formsChartData.value.categories.length > 5
+    }
+  },
+  yaxis: {
+    title: { text: 'Cantidad' }
+  },
+  legend: {
+    position: 'top',
+    horizontalAlign: 'center'
+  },
+  colors: ['#4caf50', '#2196f3'],  // Verde para respuestas, azul para asignaciones
+  tooltip: {
+    y: {
+      formatter: (val) => `${val}`
+    }
+  },
   title: {
-    text: `Estado General de Formularios${getDateFilterText()}`,
+    text: 'Respuestas vs Asignaciones por Formulario',
     align: 'left',
     style: { fontSize: '18px', fontWeight: 600 }
+  },
+  fill: {
+    opacity: 1
   }
 }));
 
 const chartSeries = computed(() => [
-  { name: 'Total', data: [formStats.value.total] },
-  { name: 'Con Respuestas', data: [formStats.value.withResponses] },
-  { name: 'Sin Respuestas', data: [formStats.value.withoutResponses] }
+  {
+    name: 'Respuestas',
+    data: formsChartData.value.responseData
+  },
+  {
+    name: 'Asignaciones',
+    data: formsChartData.value.assignmentsData
+  }
 ]);
 
 // Watcher para cargar detalles cuando se selecciona un formulario
@@ -475,7 +541,7 @@ onMounted(() => {
       <v-col cols="12">
         <div class="d-flex justify-space-between align-center">
           <div class="d-flex flex-column">
-            <h2 class="text-h4 font-weight-bold">Tu Dashboard</h2>
+            <h2 class="text-h4 font-weight-bold">Dashboard</h2>
             <p class="text-body-1 text-grey-darken-1">Hoy es {{ todayFormatted }}</p>
           </div>
           <div class="d-flex align-center" style="min-width: 300px">
@@ -507,6 +573,9 @@ onMounted(() => {
           </div>
         </div>
       </v-col>
+      <template v-if="isSuperadmin">
+        <SACards /> 
+      </template>
     </v-row>
     <template v-if="isSuperadmin">
       <div class="d-flex align-center justify-between mb-2">
