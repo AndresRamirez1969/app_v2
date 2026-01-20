@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import { mdiClose, mdiAlertCircleOutline, mdiPaperclip } from "@mdi/js";
+import { mdiClose, mdiAlertCircleOutline, mdiPaperclip, mdiCamera } from "@mdi/js";
 
 // Props
 const props = defineProps({
@@ -41,8 +41,23 @@ const closeEvidencesModel = computed({
   },
 });
 
-// Detectar si el dispositivo es Android
-const isAndroid = /Android/i.test(navigator.userAgent);
+// Función para manejar la selección de imágenes desde la galería
+const handleGalleryInput = (event) => {
+  const files = Array.from(event.target.files);
+  if (files.length > 4) {
+    files.splice(4); // Limitar a 4 imágenes
+  }
+  emit("update:closeEvidences", [...props.closeEvidences, ...files]);
+};
+
+// Función para manejar la captura de imágenes desde la cámara
+const handleCameraInput = (event) => {
+  const files = Array.from(event.target.files);
+  if (files.length > 4) {
+    files.splice(4); // Limitar a 4 imágenes
+  }
+  emit("update:closeEvidences", [...props.closeEvidences, ...files]);
+};
 </script>
 
 <template>
@@ -84,17 +99,45 @@ const isAndroid = /Android/i.test(navigator.userAgent);
           counter
         />
         <v-label>Evidencias</v-label>
-        <v-file-input
-          v-model="closeEvidencesModel"
-          variant="outlined"
-          color="primary"
-          class="mt-2 mb-4"
-          multiple
-          accept="image/*"
-          :capture="isAndroid ? 'camera' : undefined"
-          show-size
-          :prepend-icon="mdiPaperclip"
-        />
+        <div class="d-flex gap-4 mb-4">
+          <!-- Botón para abrir la galería -->
+          <v-btn
+            variant="outlined"
+            color="primary"
+            class="d-flex align-center"
+            style="flex: 1"
+          >
+            <v-icon :icon="mdiPaperclip" class="mr-2" />
+            <label for="gallery-input" style="cursor: pointer; margin: 0">Galería</label>
+            <input
+              id="gallery-input"
+              type="file"
+              accept="image/*"
+              multiple
+              style="display: none"
+              @change="handleGalleryInput"
+            />
+          </v-btn>
+
+          <!-- Botón para abrir la cámara -->
+          <v-btn
+            variant="outlined"
+            color="primary"
+            class="d-flex align-center"
+            style="flex: 1"
+          >
+            <v-icon :icon="mdiCamera" class="mr-2" />
+            <label for="camera-input" style="cursor: pointer; margin: 0">Cámara</label>
+            <input
+              id="camera-input"
+              type="file"
+              accept="image/*"
+              capture="camera"
+              style="display: none"
+              @change="handleCameraInput"
+            />
+          </v-btn>
+        </div>
         <div
           v-if="evidencePreviewUrls && evidencePreviewUrls.length"
           class="image-preview-row"
