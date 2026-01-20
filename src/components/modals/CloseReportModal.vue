@@ -62,6 +62,7 @@ const handleEvidenceInput = (event) => {
 
 // Función para manejar la selección de imágenes desde la cámara
 const handleCameraInput = (event) => {
+  console.log("Evento de cámara detectado:", event);
   const files = Array.from(event.target.files).filter((file) =>
     ["image/jpeg", "image/png", "image/jpg"].includes(file.type)
   );
@@ -91,8 +92,8 @@ const getPreviewUrl = (file) => {
   return file; // Si ya es una URL, devolverla directamente
 };
 
-// Detectar si el dispositivo es móvil (iOS o Android)
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+// Detectar si el dispositivo es Android
+const isAndroid = /Android/i.test(navigator.userAgent);
 </script>
 
 <template>
@@ -149,19 +150,19 @@ const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
           @change="handleEvidenceInput"
         />
 
-        <!-- Botón para abrir la cámara -->
-        <div class="mt-4">
+        <!-- Botón para abrir la cámara (solo en Android) -->
+        <div v-if="isAndroid" class="mt-4">
           <label for="camera-input">
-            <v-btn variant="outlined" color="primary" icon>
-              <v-icon :icon="mdiCamera" />
+            <v-btn variant="outlined" color="primary" class="camera-button">
+              <v-icon :icon="mdiCamera" class="me-2" />
               Tomar foto
             </v-btn>
           </label>
           <input
             id="camera-input"
             type="file"
-            accept="image/jpeg,image/png,image/jpg"
-            capture="camera"
+            accept="image/*"
+            capture="environment"
             multiple
             class="hidden-input"
             @change="handleCameraInput"
@@ -249,6 +250,11 @@ const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 .hidden-input {
   display: none;
+}
+
+.camera-button {
+  width: 100%; /* Hacer el botón rectangular y ocupar todo el ancho */
+  justify-content: center;
 }
 
 .close-info-icon {
