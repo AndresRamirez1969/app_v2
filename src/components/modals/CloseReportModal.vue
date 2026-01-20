@@ -81,7 +81,8 @@ const closeEvidencesModel = computed({
           color="primary"
           class="mt-2 mb-4"
           multiple
-          accept="image/png, image/jpeg, image/jpg"
+          accept="image/*"
+          capture="environment"
           show-size
           :prepend-icon="mdiPaperclip"
         />
