@@ -22,7 +22,13 @@ const emit = defineEmits([
 // Computed properties for two-way binding
 const showCloseInfoModel = computed({
   get: () => props.showCloseInfo,
-  set: (value) => emit("update:showCloseInfo", value),
+  set: (value) => {
+    if (!value) {
+      // Limpiar imágenes al cerrar el modal
+      emit("update:closeEvidences", []);
+    }
+    emit("update:showCloseInfo", value);
+  },
 });
 
 const closeCommentsModel = computed({
@@ -42,22 +48,51 @@ const closeEvidencesModel = computed({
 });
 
 // Función para manejar la selección de imágenes desde la galería
-const handleGalleryInput = (event) => {
-  const files = Array.from(event.target.files);
-  if (files.length > 4) {
-    files.splice(4); // Limitar a 4 imágenes
-  }
-  emit("update:closeEvidences", [...props.closeEvidences, ...files]);
+const handleEvidenceInput = (event) => {
+  const files = Array.from(event.target.files).filter((file) =>
+    ["image/jpeg", "image/png", "image/jpg"].includes(file.type)
+  );
+
+  // Limitar el número máximo de imágenes a 4
+  const limitedFiles = files.slice(0, 4);
+
+  console.log("Archivos seleccionados:", limitedFiles); // Verificar los archivos
+  emit("update:closeEvidences", limitedFiles);
 };
 
-// Función para manejar la captura de imágenes desde la cámara
+// Función para manejar la selección de imágenes desde la cámara
 const handleCameraInput = (event) => {
-  const files = Array.from(event.target.files);
-  if (files.length > 4) {
-    files.splice(4); // Limitar a 4 imágenes
-  }
-  emit("update:closeEvidences", [...props.closeEvidences, ...files]);
+  const files = Array.from(event.target.files).filter((file) =>
+    ["image/jpeg", "image/png", "image/jpg"].includes(file.type)
+  );
+
+  // Combinar las imágenes nuevas con las existentes
+  const updatedEvidences = [...props.closeEvidences, ...files];
+
+  // Limitar el número máximo de imágenes a 4
+  const limitedFiles = updatedEvidences.slice(0, 4);
+
+  console.log("Imágenes desde la cámara:", limitedFiles); // Verificar los archivos
+  emit("update:closeEvidences", limitedFiles);
 };
+
+// Función para eliminar una imagen específica desde la vista previa
+const removeEvidence = (index) => {
+  const updatedEvidences = [...props.closeEvidences];
+  updatedEvidences.splice(index, 1); // Eliminar la imagen en el índice especificado
+  emit("update:closeEvidences", updatedEvidences);
+};
+
+// Función para obtener la URL de vista previa
+const getPreviewUrl = (file) => {
+  if (file instanceof File) {
+    return URL.createObjectURL(file);
+  }
+  return file; // Si ya es una URL, devolverla directamente
+};
+
+// Detectar si el dispositivo es móvil (iOS o Android)
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 </script>
 
 <template>
@@ -99,63 +134,61 @@ const handleCameraInput = (event) => {
           counter
         />
         <v-label>Evidencias</v-label>
-        <div class="d-flex gap-4 mb-4">
-          <!-- Botón para abrir la galería -->
-          <v-btn
-            variant="outlined"
-            color="primary"
-            class="d-flex align-center"
-            style="flex: 1"
-          >
-            <v-icon :icon="mdiPaperclip" class="mr-2" />
-            <label for="gallery-input" style="cursor: pointer; margin: 0">Galería</label>
-            <input
-              id="gallery-input"
-              type="file"
-              accept="image/*"
-              multiple
-              style="display: none"
-              @change="handleGalleryInput"
-            />
-          </v-btn>
 
-          <!-- Botón para abrir la cámara -->
-          <v-btn
-            variant="outlined"
-            color="primary"
-            class="d-flex align-center"
-            style="flex: 1"
-          >
-            <v-icon :icon="mdiCamera" class="mr-2" />
-            <label for="camera-input" style="cursor: pointer; margin: 0">Cámara</label>
-            <input
-              id="camera-input"
-              type="file"
-              accept="image/*"
-              capture="camera"
-              style="display: none"
-              @change="handleCameraInput"
-            />
-          </v-btn>
-        </div>
-        <div
-          v-if="evidencePreviewUrls && evidencePreviewUrls.length"
-          class="image-preview-row"
-        >
-          <img
-            v-for="(file, i) in evidencePreviewUrls"
-            :key="i"
-            :src="file"
-            alt="Evidencia"
-            style="
-              width: 120px;
-              height: 120px;
-              object-fit: cover;
-              border-radius: 8px;
-              border: 1px solid #eee;
-            "
+        <!-- Campo de evidencias -->
+        <v-file-input
+          v-model="closeEvidencesModel"
+          accept="image/jpeg,image/png,image/jpg"
+          multiple
+          :counter="true"
+          :show-size="true"
+          variant="outlined"
+          :chips="true"
+          :clearable="true"
+          label="Adjuntar evidencias"
+          @change="handleEvidenceInput"
+        />
+
+        <!-- Botón para abrir la cámara -->
+        <div class="mt-4">
+          <label for="camera-input">
+            <v-btn variant="outlined" color="primary" icon>
+              <v-icon :icon="mdiCamera" />
+              Tomar foto
+            </v-btn>
+          </label>
+          <input
+            id="camera-input"
+            type="file"
+            accept="image/jpeg,image/png,image/jpg"
+            capture="camera"
+            multiple
+            class="hidden-input"
+            @change="handleCameraInput"
           />
         </div>
+
+        <!-- Vista previa de imágenes -->
+        <div v-if="closeEvidencesModel.length" class="image-preview-row mt-4">
+          <div
+            v-for="(file, index) in closeEvidencesModel"
+            :key="index"
+            class="image-preview-wrapper"
+          >
+            <img :src="getPreviewUrl(file)" alt="Evidencia" class="image-preview" />
+            <!-- Mostrar tachita solo en dispositivos móviles -->
+            <v-btn
+              v-if="isMobile"
+              icon
+              small
+              class="remove-image-btn"
+              @click="removeEvidence(index)"
+            >
+              <v-icon :icon="mdiClose" />
+            </v-btn>
+          </div>
+        </div>
+
         <p
           v-if="closeEvidencesModel.length >= 4"
           class="text-caption text-center text-danger"
@@ -186,6 +219,38 @@ const handleCameraInput = (event) => {
 </template>
 
 <style scoped>
+.image-preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.image-preview-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.image-preview {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  box-shadow: none;
+  background-color: transparent;
+  border-radius: 0;
+}
+
+.hidden-input {
+  display: none;
+}
+
 .close-info-icon {
   display: flex;
   justify-content: center;
@@ -197,16 +262,13 @@ const handleCameraInput = (event) => {
   width: 88px;
   height: 88px;
   border-radius: 50%;
-  background: #f9dfe3;
+  background-color: #f9dfe3;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.image-preview-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
+.icon-wrapper v-icon {
+  color: #e53935;
 }
 </style>
