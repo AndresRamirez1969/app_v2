@@ -40,6 +40,9 @@ const closeEvidencesModel = computed({
     emit("update:closeEvidences", value);
   },
 });
+
+// Detectar si el dispositivo es Android
+const isAndroid = /Android/i.test(navigator.userAgent);
 </script>
 
 <template>
@@ -88,6 +91,7 @@ const closeEvidencesModel = computed({
           class="mt-2 mb-4"
           multiple
           accept="image/*"
+          :capture="isAndroid ? 'camera' : undefined"
           show-size
           :prepend-icon="mdiPaperclip"
         />
