@@ -155,4 +155,11 @@ const closeEvidencesModel = computed({
   justify-content: center;
   align-items: center;
 }
+
+.image-preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
 </style>
