@@ -63,6 +63,7 @@ const handleEvidenceInput = (event) => {
 // Función para manejar la selección de imágenes desde la cámara
 const handleCameraInput = (event) => {
   console.log("Evento de cámara detectado:", event);
+
   const files = Array.from(event.target.files).filter((file) =>
     ["image/jpeg", "image/png", "image/jpg"].includes(file.type)
   );
@@ -75,6 +76,10 @@ const handleCameraInput = (event) => {
 
   console.log("Imágenes desde la cámara:", limitedFiles); // Verificar los archivos
   emit("update:closeEvidences", limitedFiles);
+
+  // Reset del input para permitir volver a tomar la MISMA foto (o misma ruta) sin que ignore el change
+  // (muy común en Android)
+  if (event?.target) event.target.value = "";
 };
 
 // Función para eliminar una imagen específica desde la vista previa
@@ -151,20 +156,24 @@ const isAndroid = /Android/i.test(navigator.userAgent);
         />
 
         <!-- Botón para abrir la cámara (solo en Android) -->
-        <div v-if="isAndroid" class="mt-4">
-          <label for="camera-input">
-            <v-btn variant="outlined" color="primary" class="camera-button">
-              <v-icon :icon="mdiCamera" class="me-2" />
-              Tomar foto
-            </v-btn>
-          </label>
+        <div v-if="isAndroid" class="mt-4 camera-wrap">
+          <v-btn variant="outlined" color="primary" class="camera-button">
+            <v-icon :icon="mdiCamera" class="me-2" />
+            Tomar foto
+          </v-btn>
+
+          <!--
+            IMPORTANTE:
+            - No usar display:none porque en Android/WebView muchas veces no abre la cámara/chooser.
+            - Input overlay transparente encima del botón para asegurar click real.
+            - Sin `multiple` para cámara (mejor compatibilidad).
+          -->
           <input
             id="camera-input"
             type="file"
             accept="image/*"
             capture="environment"
-            multiple
-            class="hidden-input"
+            class="camera-overlay-input"
             @change="handleCameraInput"
           />
         </div>
@@ -248,8 +257,19 @@ const isAndroid = /Android/i.test(navigator.userAgent);
   border-radius: 0;
 }
 
-.hidden-input {
-  display: none;
+/* ✅ Ya no usamos display:none para el input de cámara,
+   porque eso rompe el disparo del picker/cámara en varios Android/WebViews */
+.camera-wrap {
+  position: relative;
+}
+
+.camera-overlay-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
 }
 
 .camera-button {
