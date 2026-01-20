@@ -146,7 +146,7 @@ const isAndroid = /Android/i.test(navigator.userAgent);
           variant="outlined"
           :chips="true"
           :clearable="true"
-          label="Adjuntar evidencias"
+          label=""
           @change="handleEvidenceInput"
         />
 
