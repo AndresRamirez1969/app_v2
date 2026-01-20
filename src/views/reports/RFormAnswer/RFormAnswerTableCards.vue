@@ -186,7 +186,7 @@ const downloadPdf = (answer) => {
                       </template>
                       <v-list-item-title>Descargar PDF</v-list-item-title>
                     </v-list-item>
-                    <template v-if="answer.status !== 'closed'">
+                    <!-- <template v-if="answer.status !== 'closed'">
                       <v-divider />
                       <v-list-item @click="closeReport(answer.id)">
                         <template #prepend>
@@ -194,7 +194,7 @@ const downloadPdf = (answer) => {
                         </template>
                         <v-list-item-title>Cerrar Reporte</v-list-item-title>
                       </v-list-item>
-                    </template>
+                    </template> -->
                   </v-list>
                 </v-menu>
               </td>
