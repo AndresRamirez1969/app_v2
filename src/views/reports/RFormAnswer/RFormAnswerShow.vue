@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, reactive } from "vue";
+import { mdiPaperclip } from "@mdi/js";
 import { useRouter, useRoute } from "vue-router";
 import {
   mdiArrowLeft,
@@ -14,6 +15,9 @@ import {
 } from "@mdi/js";
 import { mdiFolderZipOutline, mdiAlertCircleOutline } from "@mdi/js";
 import StatusChip from "@/components/status/StatusChip.vue";
+import CloseReportModal from "@/components/modals/CloseReportModal.vue";
+import EditEvidenceModal from "@/components/modals/EditEvidenceModal.vue";
+
 import axios from "@/utils/axios";
 import JSZip from "jszip";
 import GoogleMap from "@/utils/helpers/google/GoogleMap.vue";
@@ -135,6 +139,15 @@ const scopeLink = ref("");
 const showCloseInfo = ref(false);
 const closingReport = ref(false);
 const downloadingPdf = ref(false);
+
+/* ================== NUEVO: Estado para cierre de reporte ================== */
+const closeComments = ref("");
+const closeEvidences = ref([]);
+
+/* ================== NUEVO: Estado para edición de evidencia ================== */
+const showEditEvidence = ref(false);
+const editComments = ref("");
+const editEvidences = ref([]);
 
 /* ================== Helpers de archivos ================== */
 const pickUrlish = (obj) => {
@@ -887,19 +900,32 @@ const downloadImagesZip = async (images, label = "imagenes") => {
 };
 
 /* ================== Acciones reporte ================== */
-const closeReport = async () => {
+async function closeReport() {
   if (closingReport.value) return;
   closingReport.value = true;
   try {
-    await axios.put(`/reportes/formulario/reportes/${reportId}`, { status: "closed" });
+    const formData = new FormData();
+    formData.append("status", "closed");
+    if (closeComments.value) formData.append("comments", closeComments.value);
+    if (closeEvidences.value && closeEvidences.value.length) {
+      closeEvidences.value.forEach((file) => {
+        formData.append("evidences[]", file);
+      });
+    }
+    await axios.put(`/reportes/formulario/reportes/${reportId}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     await fetchResponseDetail();
     showCloseInfo.value = false;
+    closeComments.value = "";
+    closeEvidences.value = [];
   } catch {
     alert("No se pudo cerrar el reporte.");
   } finally {
     closingReport.value = false;
   }
-};
+}
+
 const downloadPdf = async () => {
   if (downloadingPdf.value) return;
   downloadingPdf.value = true;
@@ -927,6 +953,73 @@ const downloadPdf = async () => {
     downloadingPdf.value = false;
   }
 };
+
+/* ========== Utilidad para detectar File en cualquier entorno ========== */
+function isFile(obj) {
+  return typeof window !== "undefined" && window.File && obj instanceof window.File;
+}
+
+/* ========== Evidences Preview URLs ========== */
+const evidencePreviewUrls = computed(() => {
+  if (!closeEvidences.value || !Array.isArray(closeEvidences.value)) return [];
+  return closeEvidences.value.map((file) => {
+    if (isFile(file) && window.URL?.createObjectURL) {
+      return window.URL.createObjectURL(file);
+    }
+    return "";
+  });
+});
+
+/* ========== Edit Evidence Preview URLs ========== */
+const editEvidencePreviewUrls = computed(() => {
+  if (!editEvidences.value || !Array.isArray(editEvidences.value)) return [];
+  return editEvidences.value.map((file) => {
+    if (isFile(file) && window.URL?.createObjectURL) {
+      return window.URL.createObjectURL(file);
+    }
+    if (typeof file === "string") return file;
+    if (typeof file === "object" && file?.url) return file.url;
+    return "";
+  });
+});
+
+/* ========== Abrir modal edición de evidencia ========== */
+function openEditEvidenceModal() {
+  editComments.value = reportData.value?.comments || "";
+  editEvidences.value = Array.isArray(reportData.value?.evidences)
+    ? [...reportData.value.evidences]
+    : [];
+  showEditEvidence.value = true;
+}
+
+/* ========== Guardar edición de evidencia ========== */
+async function saveEvidenceEdit() {
+  try {
+    const formData = new FormData();
+    formData.append("comments", editComments.value || "");
+    formData.append("status", "closed");
+
+    if (editEvidences.value && editEvidences.value.length) {
+      editEvidences.value.forEach((file, index) => {
+        if (isFile(file)) {
+          formData.append(`evidences[${index}]`, file);
+        } else if (typeof file === "string") {
+          formData.append(`existing_evidences[${index}]`, file);
+        }
+      });
+    }
+
+    await axios.put(`/reportes/formulario/reportes/${reportId}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    await fetchResponseDetail();
+    showEditEvidence.value = false;
+  } catch (error) {
+    console.error("Error al guardar la evidencia:", error);
+    alert("No se pudo guardar la evidencia.");
+  }
+}
 </script>
 
 <template>
@@ -1009,44 +1102,29 @@ const downloadPdf = async () => {
       </v-col>
     </v-row>
 
-    <!-- Modal cierre -->
-    <v-dialog v-model="showCloseInfo" max-width="520">
-      <v-card class="close-info-card">
-        <v-btn
-          icon
-          variant="text"
-          class="close-info-x"
-          @click="showCloseInfo = false"
-          aria-label="Cerrar"
-        >
-          <v-icon :icon="mdiClose" />
-        </v-btn>
-        <div class="close-info-icon">
-          <v-icon :icon="mdiAlertCircleOutline" size="48" color="error" />
-        </div>
-        <v-card-title class="text-center pt-2"
-          ><span class="close-info-title">Cierre de Reporte</span></v-card-title
-        >
-        <v-card-text class="pt-2">
-          <p class="mb-4 text-medium-emphasis text-center">
-            El reporte pasará a cerrado y no podrá reabrirse.
-          </p>
-        </v-card-text>
-        <v-card-actions class="px-6 pb-6">
-          <v-btn variant="outlined" color="grey" @click="showCloseInfo = false"
-            >Cancelar</v-btn
-          >
-          <v-spacer />
-          <v-btn
-            variant="outlined"
-            color="error"
-            :loading="closingReport"
-            @click="closeReport"
-            >Cerrar reporte</v-btn
-          >
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <CloseReportModal
+      :showCloseInfo="showCloseInfo"
+      :closeComments="closeComments"
+      :closeEvidences="closeEvidences"
+      :evidencePreviewUrls="evidencePreviewUrls"
+      :closingReport="closingReport"
+      @update:showCloseInfo="(val) => (showCloseInfo = val)"
+      @update:closeComments="(val) => (closeComments = val)"
+      @update:closeEvidences="(val) => (closeEvidences = val)"
+      @closeReport="closeReport"
+    />
+
+    <EditEvidenceModal
+      :showEditEvidence="showEditEvidence"
+      :editComments="editComments"
+      :editEvidences="editEvidences"
+      :editEvidencePreviewUrls="editEvidencePreviewUrls"
+      :closingReport="closingReport"
+      @update:showEditEvidence="(val) => (showEditEvidence = val)"
+      @update:editComments="(val) => (editComments = val)"
+      @update:editEvidences="(val) => (editEvidences = val)"
+      @saveEvidenceEdit="saveEvidenceEdit"
+    />
 
     <!-- Info general -->
     <v-row v-if="formData">
@@ -2149,6 +2227,121 @@ const downloadPdf = async () => {
         </div>
       </v-col>
     </v-row>
+
+    <!-- Cierre de Reporte: solo si el reporte está cerrado y hay comentarios o evidencias -->
+    <template
+      v-if="
+        reportStatus === 'closed' &&
+        (reportData?.comments ||
+          (Array.isArray(reportData?.evidences) && reportData.evidences.length))
+      "
+    >
+      <div class="mt-8">
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <div
+            class="font-weight-bold text-h6 pb-2"
+            style="padding-left: 0.5rem; font-size: 1.25rem"
+          >
+            Cierre de Reporte
+          </div>
+          <!-- Botón Editar Evidencia solo para organización 3 y usuarios de esa organización -->
+          <v-btn
+            v-if="formData?.organization?.id === 3 && auth.user?.organization_id === 3"
+            color="primary"
+            variant="outlined"
+            style="margin-right: 0; margin-bottom: 8px"
+            @click="openEditEvidenceModal"
+          >
+            Editar Evidencia
+          </v-btn>
+        </div>
+        <v-divider class="mb-6" />
+
+        <!-- Card de Comentarios -->
+        <v-card
+          v-if="reportData?.comments"
+          class="rounded-lg elevation-1 pa-0 card-business-unit mb-4"
+        >
+          <v-card-text>
+            <div class="field-label mb-2">Comentarios</div>
+            <div class="answer-row-bg">{{ reportData.comments }}</div>
+          </v-card-text>
+        </v-card>
+
+        <!-- Card de Evidencias -->
+        <v-card
+          v-if="Array.isArray(reportData?.evidences) && reportData.evidences.length"
+          class="rounded-lg elevation-1 pa-0 card-business-unit mb-4"
+        >
+          <v-card-text>
+            <div class="field-label mb-2">Evidencias</div>
+            <div class="image-preview-row">
+              <img
+                v-for="(img, i) in filterImages(reportData.evidences)"
+                :key="i"
+                :src="typeof img === 'object' ? img.url : img"
+                alt="Evidencia"
+                style="
+                  width: 120px;
+                  height: 120px;
+                  object-fit: cover;
+                  border-radius: 8px;
+                  border: 1px solid #eee;
+                "
+                @click="openImageModal(i, filterImages(reportData.evidences), 'image')"
+              />
+              <span v-if="!filterImages(reportData.evidences).length">—</span>
+            </div>
+            <div
+              v-if="filterDocuments(reportData.evidences).length"
+              class="document-list"
+              style="margin-top: 16px"
+            >
+              <div
+                v-for="(doc, i) in filterDocuments(reportData.evidences)"
+                :key="i"
+                class="document-card"
+              >
+                <v-icon
+                  :icon="
+                    ['.pdf'].includes(getFileExtension(doc))
+                      ? 'mdi-file-pdf-box'
+                      : ['.doc', '.docx'].includes(getFileExtension(doc))
+                      ? 'mdi-file-word-box'
+                      : ['.xls', '.xlsx'].includes(getFileExtension(doc))
+                      ? 'mdi-file-excel-box'
+                      : ['.ppt', '.pptx'].includes(getFileExtension(doc))
+                      ? 'mdi-file-powerpoint-box'
+                      : /\.(jpg|jpeg|png|gif)$/i.test(_asUrl(doc))
+                      ? 'mdi-file-image-box'
+                      : 'mdi-file-document-box'
+                  "
+                  size="32"
+                  color="primary"
+                  class="mr-2"
+                />
+                <div class="document-info">
+                  <div class="document-title">
+                    {{ getOriginalDocumentName(doc) }}
+                    <span class="document-ext">{{ getFileExtension(doc) }}</span>
+                  </div>
+                </div>
+                <v-btn
+                  icon
+                  variant="text"
+                  color="primary"
+                  class="document-download-btn"
+                  aria-label="Descargar documento"
+                  @click="downloadDocument(doc, getOriginalDocumentName(doc))"
+                >
+                  <v-icon :icon="mdiDownload" />
+                </v-btn>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+      </div>
+    </template>
 
     <!-- Viewer de imagen -->
     <v-dialog v-model="imageModal.open" fullscreen>

@@ -163,7 +163,7 @@ async function downloadTemplate() {
         </v-col>
         <v-col cols="auto" class="d-flex align-center justify-end" v-if="canCreate">
           <!-- Botón de importación masiva solo en desktop -->
-          <v-btn
+          <!-- <v-btn
             v-if="!mdAndDown"
             color="primary"
             class="text-white mr-2"
@@ -173,7 +173,7 @@ async function downloadTemplate() {
           >
             <v-icon :icon="mdiFileUploadOutline" start />
             <span>Importar Usuarios</span>
-          </v-btn>
+          </v-btn> -->
           <!-- Botón de agregar usuario -->
           <v-btn color="primary" class="text-white" elevation="1" @click="goToCreate">
             <template v-if="mdAndDown">
