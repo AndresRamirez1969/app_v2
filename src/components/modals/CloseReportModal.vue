@@ -32,7 +32,13 @@ const closeCommentsModel = computed({
 
 const closeEvidencesModel = computed({
   get: () => props.closeEvidences,
-  set: (value) => emit("update:closeEvidences", value),
+  set: (value) => {
+    // Limitar el número máximo de imágenes a 4
+    if (value.length > 4) {
+      value.splice(4); // Mantener solo las primeras 4 imágenes
+    }
+    emit("update:closeEvidences", value);
+  },
 });
 </script>
 
@@ -82,7 +88,6 @@ const closeEvidencesModel = computed({
           class="mt-2 mb-4"
           multiple
           accept="image/*"
-          capture="environment"
           show-size
           :prepend-icon="mdiPaperclip"
         />
@@ -104,6 +109,12 @@ const closeEvidencesModel = computed({
             "
           />
         </div>
+        <p
+          v-if="closeEvidencesModel.length >= 4"
+          class="text-caption text-center text-danger"
+        >
+          Solo puedes agregar un máximo de 4 imágenes.
+        </p>
       </v-card-text>
       <v-card-actions class="px-6 pb-6">
         <v-btn
