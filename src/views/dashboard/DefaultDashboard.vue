@@ -9,6 +9,7 @@ import { useToast } from 'vue-toastification';
 import { mdiCalendar } from '@mdi/js';
 import GeolocationMap from '@/utils/helpers/google/GeolocationMap.vue';
 import SACards from '@/layouts/dashboard/cards/SACards.vue';
+import GUCards from '@/layouts/dashboard/cards/GUCards.vue';
 
 const today = new Date();
 const dd = String(today.getDate());
@@ -343,15 +344,23 @@ const formsChartData = computed(() => {
       categories: [],
       responseData: [],
       assignmentsData: [],
+      formNames: [],
     };
   }
-  const categories = allForms.map(form => form.folio || form.name);
+  console.log('allForms', allForms);
+  const categories = allForms.map(form => form.name || form.folio);
   const responseData = allForms.map(form => form.responses_count || 0);
-  const assignmentsData = allForms.map(form => form.assignments_count || 0);
+  const assignmentsData = allForms.map(form => {
+    const totalAssignments = form.auditadoRoles?.length || 0;
+    const responses = form.responses_count || 0;
+    return Math.max(0, totalAssignments - responses);
+  });
+  const formNames = allForms.map(form => form.name || form.folio);
   return {
     categories,
     responseData,
     assignmentsData,
+    formNames,
   };
 })
 
@@ -361,7 +370,7 @@ const chartOptions = computed(() => ({
     height: 350,
     toolbar: { show: true },
     stacked: true,  // Gráfica apilada
-    stackType: '100%'  // Opcional: si quieres porcentajes, usa '100%', si no, quita esta línea
+
   },
   plotOptions: {
     bar: {
@@ -396,7 +405,7 @@ const chartOptions = computed(() => ({
     position: 'top',
     horizontalAlign: 'center'
   },
-  colors: ['#4caf50', '#2196f3'],  // Verde para respuestas, azul para asignaciones
+  colors: ['#4caf50', '#2196f3'],  
   tooltip: {
     y: {
       formatter: (val) => `${val}`
@@ -418,7 +427,7 @@ const chartSeries = computed(() => [
     data: formsChartData.value.responseData
   },
   {
-    name: 'Asignaciones',
+    name: 'Faltantes',
     data: formsChartData.value.assignmentsData
   }
 ]);
@@ -504,6 +513,24 @@ const requestGeolocation = () => {
     toast.warning('Tu navegador no soporta geolocalización.');
   }
 };
+const dateRangeForAPI = computed(() => {
+  if (filters.value.dateRange && filters.value.dateRange.start && filters.value.dateRange.end) {
+    return {
+      start: filters.value.dateRange.start,
+      end: filters.value.dateRange.end
+    };
+  }
+  // Por defecto: día actual
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+  return {
+    start: todayStr,
+    end: todayStr
+  };
+});
 
 onMounted(() => {
   fetchForms();
@@ -573,8 +600,11 @@ onMounted(() => {
           </div>
         </div>
       </v-col>
-      <template v-if="isSuperadmin">
+      <template v-if="isSuperadmin && !selectedOrgForDashboard">
         <SACards /> 
+      </template>
+      <template v-if="selectedOrgForDashboard">
+        <GUCards :selected-organization-id="selectedOrgForDashboard" :date-range="dateRangeForAPI" />
       </template>
     </v-row>
     <template v-if="isSuperadmin">
