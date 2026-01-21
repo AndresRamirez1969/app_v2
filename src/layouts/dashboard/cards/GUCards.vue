@@ -1,8 +1,8 @@
 //Cards de Usuario General
 <script setup>
-    import { ref, onMounted, computed, watch } from 'vue';
+    import { onMounted, computed, watch } from 'vue';
     import { mdiAccountGroup, mdiCheckCircle, mdiClockOutline, mdiArrowUp, mdiArrowDown } from '@mdi/js';
-    import axiosInstance from '@/utils/axios';
+    import { useCompletionData } from '@/composables/useCompletionData';
     
 
     const props = defineProps({
@@ -16,92 +16,34 @@
       }
     });
 
-    const scope = ref('');
-    const completion = ref({
-        start_date: null,
-        end_date: null,
-        expected: 0,
-        completed: 0,
-        rate: 0,
-    });
+    const { completion, scope, fetchCompletion } = useCompletionData();
 
-    const getTodayDate = () => {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-    
-    const fetchCards = async () => {
-      if (!props.selectedOrganizationId) {
-        scope.value = '';
-        completion.value = {
-          start_date: null,
-          end_date: null,
-          expected: 0,
-          completed: 0,
-          rate: 0,
-        };
-        return;
-      }
-      try {
-
-        const startDate = props.dateRange.start || getTodayDate();
-        const endDate = props.dateRange.end || getTodayDate();
-
-        const params = {
-            organization_id: props.selectedOrganizationId,
-            start_date: startDate,
-            end_date: endDate,
-            per_page: 100,
-            page: 1,
-        };
-        const { data } = await axiosInstance.get('/dashboard/completion', { params });
-
-        if (data.scope && data.completion) {
-            scope.value = data.scope;
-            completion.value = {
-                start_date: data.completion.start_date || null,
-                end_date: data.completion.end_date || null,
-                expected: data.completion.expected || 0,
-                completed: data.completion.completed || 0,
-                rate: data.completion.rate || 0,
-            };
-        }
-        console.log(scope.value, completion.value);
-      } catch (error) {
-        console.error('Error fetching completion data:', error);
-      }
-    };
-    
     watch(() => props.selectedOrganizationId, (newOrgId) => {
       if (newOrgId) {
-        fetchCards();
+        fetchCompletion(newOrgId, props.dateRange);
       } else {
-        scope.value = '';
         completion.value = {
-          start_date: null,
-          end_date: null,
           expected: 0,
           completed: 0,
           rate: 0,
+          start_date: null,
+          end_date: null
         };
+        scope.value = '';
       }
     }, { immediate: false });
 
     watch(() => props.dateRange, () => {
       if (props.selectedOrganizationId) {
-        fetchCards();
+        fetchCompletion(props.selectedOrganizationId, props.dateRange);
       }
     }, { deep: true });
 
     onMounted(() => {
       if (props.selectedOrganizationId) {
-        fetchCards();
+        fetchCompletion(props.selectedOrganizationId, props.dateRange);
       }
     });
-    
 
     const cards = computed(() => [
         {

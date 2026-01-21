@@ -10,6 +10,9 @@ import { mdiCalendar } from '@mdi/js';
 import GeolocationMap from '@/utils/helpers/google/GeolocationMap.vue';
 import SACards from '@/layouts/dashboard/cards/SACards.vue';
 import GUCards from '@/layouts/dashboard/cards/GUCards.vue';
+import { useCompletionData } from '@/composables/useCompletionData';
+
+const { completion, scope, fetchCompletion } = useCompletionData();
 
 const today = new Date();
 const dd = String(today.getDate());
@@ -84,6 +87,7 @@ const onDateRangeChange = (dateRange) => {
     dateRangeText.value = '';
     filters.value.dateRange = null;
   }
+  fetchForms();
   if (selectedFormId.value) {
     fetchFormStatus(selectedFormId.value);
   }
@@ -107,7 +111,7 @@ const getOrgParams = () => {
 const fetchForms = async () => {
   isLoading.value = true;
   try {
-    const params = { page: currentPage.value, ...getOrgParams() };
+    const params = { page: currentPage.value, ...getOrgParams(), start_date: filters.value.dateRange?.start, end_date: filters.value.dateRange?.end };
 
     const res = await axiosInstance.get('/forms', { params: params });
     forms.value = res.data;
@@ -140,11 +144,44 @@ const fetchFormStatus = async (formId) => {
   }
 };
 
+const dateRangeForAPI = computed(() => {
+  if (filters.value.dateRange && filters.value.dateRange.start && filters.value.dateRange.end) {
+    return {
+      start: filters.value.dateRange.start,
+      end: filters.value.dateRange.end
+    };
+  }
+  // Por defecto: día actual
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+  return {
+    start: todayStr,
+    end: todayStr
+  };
+});
+
 watch(selectedOrgForDashboard, () => {
   selectedFormId.value = null;
   selectedFormDetails.value = null;
   fetchForms();
+  // Actualizar completion data
+  if (selectedOrgForDashboard.value) {
+    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+  }
 });
+
+watch(
+  () => dateRangeForAPI.value,
+  () => {
+    if (selectedOrgForDashboard.value) {
+      fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+    }
+  },
+  { deep: true }
+);
 
 const getDateFilterText = () => {
   if (filters.value.dateRange) {
@@ -345,9 +382,11 @@ const formsChartData = computed(() => {
       responseData: [],
       assignmentsData: [],
       formNames: [],
+      totalExpected: 0,
+      totalCompleted: 0
     };
   }
-  console.log('allForms', allForms);
+
   const categories = allForms.map(form => form.name || form.folio);
   const responseData = allForms.map(form => form.responses_count || 0);
   const assignmentsData = allForms.map(form => {
@@ -356,13 +395,17 @@ const formsChartData = computed(() => {
     return Math.max(0, totalAssignments - responses);
   });
   const formNames = allForms.map(form => form.name || form.folio);
+  
   return {
     categories,
     responseData,
     assignmentsData,
     formNames,
+    // Agregar datos agregados del composable
+    totalExpected: completion.value.expected,
+    totalCompleted: completion.value.completed
   };
-})
+});
 
 const chartOptions = computed(() => ({
   chart: {
@@ -454,7 +497,6 @@ const selectedFormForAnalytics = computed(() => {
   return selectedFormDetails.value.form;
 });
 
-// --- INICIO: Advertencia de geolocalización con botón ---
 const toast = useToast();
 const geoPermissionWarning = ref(false);
 
@@ -513,24 +555,14 @@ const requestGeolocation = () => {
     toast.warning('Tu navegador no soporta geolocalización.');
   }
 };
-const dateRangeForAPI = computed(() => {
-  if (filters.value.dateRange && filters.value.dateRange.start && filters.value.dateRange.end) {
-    return {
-      start: filters.value.dateRange.start,
-      end: filters.value.dateRange.end
-    };
-  }
-  // Por defecto: día actual
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  const todayStr = `${year}-${month}-${day}`;
-  return {
-    start: todayStr,
-    end: todayStr
-  };
-});
+
+watch(
+  () => filters.value.dateRange,
+  () => {
+    fetchForms();
+  },
+  { deep: true }
+)
 
 onMounted(() => {
   fetchForms();
@@ -538,8 +570,12 @@ onMounted(() => {
     fetchOrganizations();
   }
   checkGeoPermission();
+
+  if (selectedOrgForDashboard.value) {
+    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+  }
 });
-// --- FIN: Advertencia de geolocalización con botón ---
+
 </script>
 
 <template>
