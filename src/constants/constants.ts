@@ -12,6 +12,15 @@ import { mdiFileImage } from '@mdi/js';
 import { mdiSignature } from '@mdi/js';
 import { mdiTuneVariant } from '@mdi/js';
 import { mdiToggleSwitch } from '@mdi/js';
+import { mdiCalendarRange } from '@mdi/js';
+
+export const getTodayDate = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export const TIMEZONES = [
   { label: 'Zona Sureste (UTC-5)', value: 'UTC-5' },
