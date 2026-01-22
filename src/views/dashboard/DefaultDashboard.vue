@@ -27,11 +27,22 @@ const auth = useAuthStore();
 const roles = computed(() => auth.user?.roles || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
 
+//Variables para organizations
 const organizationOptions = ref([]);
 const loadingOrganizations = ref(false);
 const selectedOrgForDashboard = ref(null);
 
+//Variables para businesses
+const businessOptions = ref([]);
+const loadingBusinesses = ref(false);
+const selectedBusinessForDashboard = ref(null);
+
 const userOrganizationId = computed(() => auth.user?.organization_id);
+const userBusinessId = computed(() => auth.user?.business_id);
+
+const canSelectBus = computed(() => {
+  return !userBusinessId.value && !!userOrganizationId.value;
+})
 
 const fetchOrganizations = async () => {
   if (!isSuperadmin.value) return;
@@ -50,7 +61,32 @@ const fetchOrganizations = async () => {
     loadingOrganizations.value = false;
   }
 };
-// Variables para el formulario específico
+
+const fetchBusinesses = async (organizationId) => {
+  if (!organizationId) {
+    businessOptions.value = [];
+    return;
+  }
+  loadingBusinesses.value = true;
+  try {
+    const { data } = await axiosInstance.get('/businesses', {
+      params: {
+        organization_id: organizationId,
+        limit: 100
+      }
+    });
+    businessOptions.value = (data.data || []).map((b) => ({
+      ...b,
+      title: `${b.folio} - ${b.name}`,
+      value: b.id,
+    }));
+  } catch {
+    businessOptions.value = [];
+  } finally {
+    loadingBusinesses.value = false;
+  }
+};
+
 const selectedFormId = ref(null);
 const selectedFormDetails = ref(null);
 const isLoadingFormDetails = ref(false);
@@ -64,8 +100,14 @@ const getOrgParams = () => {
     }
   } else {
     selectedOrgForDashboard.value = userOrganizationId.value;
+
+    if (canSelectBus.value && selectedBusinessForDashboard.value) {
+      params.business_id = selectedBusinessForDashboard.value;
+  } else if (userBusinessId.value) {
+    params.business_id = userBusinessId.value;
   }
   return params;
+}
 };
 
 const dateRangeForAPI = computed(() => {
@@ -141,12 +183,30 @@ const fetchFormStatus = async (formId) => {
   }
 };
 
+watch(
+  () => userOrganizationId.value,
+  (orgId) => {
+    if (!isSuperadmin.value && orgId && canSelectBus.value) {
+      fetchBusinesses(orgId);
+    }
+  },
+  { immediate: true }
+);
 
 watch(selectedOrgForDashboard, () => {
   selectedFormId.value = null;
   selectedFormDetails.value = null;
+  selectedBusinessForDashboard.value = null;
   fetchForms();
-  // Actualizar completion data
+  if (selectedOrgForDashboard.value) {
+    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+  }
+});
+
+watch(selectedBusinessForDashboard, () => {
+  selectedFormId.value = null;
+  selectedFormDetails.value = null;
+  fetchForms();
   if (selectedOrgForDashboard.value) {
     fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
   }
@@ -339,6 +399,8 @@ onMounted(() => {
   fetchForms();
   if (isSuperadmin.value) {
     fetchOrganizations();
+  } else if (canSelectBus.value) {
+    fetchBusinesses(userOrganizationId.value);
   }
   checkGeoPermission();
 
@@ -409,6 +471,28 @@ onMounted(() => {
       </div>
     </template>
 
+    <template v-if="canSelectBusiness">
+      <div class="d-flex align-center justify-between mb-2">
+        <v-label>Business para filtrar gráficas</v-label>
+        <v-icon :icon="mdiInformationSlabCircleOutline" color="primary" size="22" class="ml-2" style="cursor: pointer" />
+      </div>
+      <div class="padding-bottom: 18px;">
+        <v-select
+          v-model="selectedBusinessForDashboard"
+          :items="businessOptions"
+          :loading="loadingBusinesses"
+          item-title="title"
+          item-value="value"
+          clearable
+          hide-details
+          variant="outlined"
+          color="primary"
+          class="mt-2 mb-4 asignaciones-full-length"
+          placeholder="Selecciona un business (opcional)"
+        />
+      </div>
+    </template>
+
     <!-- Gráfica general -->
     <v-row class="mb-6">
       <v-col cols="12">
@@ -441,6 +525,7 @@ onMounted(() => {
       v-if="showFormDetails"
       :form-id="selectedFormId"
       :organization-id="selectedOrgForDashboard"
+      :business-id="selectedBusinessForDashboard"
       :date-range="dateRangeForAPI"
       @close="selectedFormId = null"
     />

@@ -125,6 +125,10 @@
       type: Number,
       default: null
     },
+    businessId: {
+      type: Number,
+      default: null
+    },
     dateRange: {
       type: Object,
       default: () => ({ start: null, end: null })
@@ -149,6 +153,9 @@
       }
     } else {
       params.organization_id = userOrganizationId.value;
+    }
+    if (props.businessId) {
+      params.business_id = props.businessId;
     }
     return params;
   };
