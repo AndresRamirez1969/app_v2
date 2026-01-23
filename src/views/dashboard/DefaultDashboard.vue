@@ -32,17 +32,8 @@ const organizationOptions = ref([]);
 const loadingOrganizations = ref(false);
 const selectedOrgForDashboard = ref(null);
 
-//Variables para businesses
-const businessOptions = ref([]);
-const loadingBusinesses = ref(false);
-const selectedBusinessForDashboard = ref(null);
 
 const userOrganizationId = computed(() => auth.user?.organization_id);
-const userBusinessId = computed(() => auth.user?.business_id);
-
-const canSelectBus = computed(() => {
-  return !userBusinessId.value && !!userOrganizationId.value;
-})
 
 const fetchOrganizations = async () => {
   if (!isSuperadmin.value) return;
@@ -62,30 +53,6 @@ const fetchOrganizations = async () => {
   }
 };
 
-const fetchBusinesses = async (organizationId) => {
-  if (!organizationId) {
-    businessOptions.value = [];
-    return;
-  }
-  loadingBusinesses.value = true;
-  try {
-    const { data } = await axiosInstance.get('/businesses', {
-      params: {
-        organization_id: organizationId,
-        limit: 100
-      }
-    });
-    businessOptions.value = (data.data || []).map((b) => ({
-      ...b,
-      title: `${b.folio} - ${b.name}`,
-      value: b.id,
-    }));
-  } catch {
-    businessOptions.value = [];
-  } finally {
-    loadingBusinesses.value = false;
-  }
-};
 
 const selectedFormId = ref(null);
 const selectedFormDetails = ref(null);
@@ -100,14 +67,8 @@ const getOrgParams = () => {
     }
   } else {
     selectedOrgForDashboard.value = userOrganizationId.value;
-
-    if (canSelectBus.value && selectedBusinessForDashboard.value) {
-      params.business_id = selectedBusinessForDashboard.value;
-  } else if (userBusinessId.value) {
-    params.business_id = userBusinessId.value;
   }
   return params;
-}
 };
 
 const dateRangeForAPI = computed(() => {
@@ -186,24 +147,14 @@ const fetchFormStatus = async (formId) => {
 watch(
   () => userOrganizationId.value,
   (orgId) => {
-    if (!isSuperadmin.value && orgId && canSelectBus.value) {
-      fetchBusinesses(orgId);
+    if (!isSuperadmin.value && orgId) {
+      fetchCompletion(orgId, dateRangeForAPI.value);
     }
   },
   { immediate: true }
 );
 
 watch(selectedOrgForDashboard, () => {
-  selectedFormId.value = null;
-  selectedFormDetails.value = null;
-  selectedBusinessForDashboard.value = null;
-  fetchForms();
-  if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
-  }
-});
-
-watch(selectedBusinessForDashboard, () => {
   selectedFormId.value = null;
   selectedFormDetails.value = null;
   fetchForms();
@@ -268,8 +219,11 @@ const chartOptions = computed(() => ({
       dataPointSelection: (event, chartContext, config) => {
         const dataPointIndex = config.dataPointIndex;
         const clickedFormId = formsChartData.value.formIds[dataPointIndex];
-        if (clickedFormId) {
+        const hasResponses = formsChartData.value.responseData[dataPointIndex] > 0;
+        if (clickedFormId && hasResponses) {
           selectedFormId.value = clickedFormId;
+        } else {
+          toast.warning('No hay respuestas para este formulario en el rango de fechas seleccionado.');
         }
       }
     }
@@ -307,7 +261,7 @@ const chartOptions = computed(() => ({
     position: 'top',
     horizontalAlign: 'center'
   },
-  colors: ['#4caf50', '#2196f3'],  
+  colors: ['#4caf50', '#f44336'],  
   tooltip: {
     y: {
       formatter: (val) => `${val}`
@@ -399,8 +353,6 @@ onMounted(() => {
   fetchForms();
   if (isSuperadmin.value) {
     fetchOrganizations();
-  } else if (canSelectBus.value) {
-    fetchBusinesses(userOrganizationId.value);
   }
   checkGeoPermission();
 
@@ -471,35 +423,13 @@ onMounted(() => {
       </div>
     </template>
 
-    <template v-if="canSelectBusiness">
-      <div class="d-flex align-center justify-between mb-2">
-        <v-label>Business para filtrar gráficas</v-label>
-        <v-icon :icon="mdiInformationSlabCircleOutline" color="primary" size="22" class="ml-2" style="cursor: pointer" />
-      </div>
-      <div class="padding-bottom: 18px;">
-        <v-select
-          v-model="selectedBusinessForDashboard"
-          :items="businessOptions"
-          :loading="loadingBusinesses"
-          item-title="title"
-          item-value="value"
-          clearable
-          hide-details
-          variant="outlined"
-          color="primary"
-          class="mt-2 mb-4 asignaciones-full-length"
-          placeholder="Selecciona un business (opcional)"
-        />
-      </div>
-    </template>
-
     <!-- Gráfica general -->
     <v-row class="mb-6">
       <v-col cols="12">
         <v-card elevation="2">
           <v-card-text>
             <div class="d-flex justify-space-between align-center mb-4">
-              <h3 class="text-h5 font-weight-bold">Estado General de Formularios</h3>
+              <h3 class="text-h5 font-weight-bold">Formularios Diarios</h3>
               <v-btn
                 v-if="showFormDetails"
                 variant="outlined"
@@ -525,7 +455,6 @@ onMounted(() => {
       v-if="showFormDetails"
       :form-id="selectedFormId"
       :organization-id="selectedOrgForDashboard"
-      :business-id="selectedBusinessForDashboard"
       :date-range="dateRangeForAPI"
       @close="selectedFormId = null"
     />

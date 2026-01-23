@@ -65,9 +65,9 @@ const downloadPdf = (answer) => {
 
     <template v-else>
       <div v-if="!items.length" class="text-center py-8">
-        <v-icon :icon="mdiDomainOff" size="64" color="grey lighten-1" />
-        <p class="mt-4 text-h6 text-grey-darken-1">No se han registrado reportes</p>
-        <p class="text-body-2 text-grey">
+        <v-icon :icon="mdiDomainOff" size="64" color="on-surface" />
+        <p class="mt-4 text-h6 text-on-surface">No se han registrado reportes</p>
+        <p class="text-body-2 text-on-surface">
           No se encontraron reportes con los filtros aplicados
         </p>
       </div>

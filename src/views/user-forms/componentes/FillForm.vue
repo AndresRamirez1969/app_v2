@@ -22,7 +22,11 @@ const form = ref(null);
 const formRef = ref(null);
 const signatureRefs = ref({});
 
+const formStartTime = ref(null);
+
 const showForm = async () => {
+  formStartTime.value = new Date().toISOString();
+  console.log(formStartTime.value);
   isLoading.value = true;
   try {
     const res = await axiosInstance.get(`/forms/${formId.value}`);
@@ -131,6 +135,11 @@ const submitForm = async () => {
     });
 
     dataToSend.append('answers', JSON.stringify(answers));
+
+    if (formStartTime.value) {
+      dataToSend.append('started_at', formStartTime.value);
+      console.log(formStartTime.value);
+    }
 
     // Agregar archivos de imagen
     Object.keys(fileData.value).forEach((fieldId) => {

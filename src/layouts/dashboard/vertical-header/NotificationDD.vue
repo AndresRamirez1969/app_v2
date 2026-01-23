@@ -1,7 +1,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
-import { CheckCircleOutlined, GiftOutlined, MessageOutlined, SettingOutlined, BellOutlined } from '@ant-design/icons-vue';
+import { CheckCircleOutlined, MessageOutlined, SettingOutlined, BellOutlined } from '@ant-design/icons-vue';
 import { useNotifications } from '@/utils/notifications';
+import { mdiThemeLightDark  } from '@mdi/js';
+import { useTheme } from 'vuetify';
+
+const theme = useTheme();
 
 const { notifications, unreadCount, isLoading, fetchNotifications, setupEchoNotifications, cleanupEcho } = useNotifications();
 
@@ -65,6 +69,24 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!-- <div class="d-flex align-center">
+    <v-tooltip text="Cambiar temática" location="bottom">
+      <template v-slot:activator="{ props }">
+        <v-btn
+          icon
+          variant="text"
+          class="text-secondary ml-sm-2 ml-1"
+          color="onSurface"
+          rounded="sm"
+          size="small"
+          v-bind="props"
+          @click="theme.global.name.value = theme.global.name.value === 'light' ? 'dark' : 'light'"
+        >
+          <v-icon :icon="mdiThemeLightDark" :style="{ fontSize: '16px' }" />
+        </v-btn>
+      </template>
+    </v-tooltip>
+  </div> -->
   <v-menu :close-on-content-click="false" offset="6, 0">
     <template v-slot:activator="{ props }">
       <v-btn icon class="text-secondary ml-sm-2 ml-1" color="darkText" rounded="sm" size="small" v-bind="props">
