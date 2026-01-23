@@ -656,6 +656,8 @@ const handlePageChange = async (newPage) => {
           :sortDesc="sortDesc"
           :hasRating="hasRating"
           :loading="loading"
+          :organizationId="formData?.organization?.id"
+          :formId="resolvedFormId"
           @update:page="handlePageChange"
           @sort="toggleSort"
           @view="viewAnswer"
