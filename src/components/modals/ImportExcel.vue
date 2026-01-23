@@ -53,7 +53,7 @@
         <!-- Botón para descargar plantilla -->
         <v-btn
           variant="outlined"
-          color="grey"
+          color="onSurface"
           class="mb-1"
           style="
             width: 100%;

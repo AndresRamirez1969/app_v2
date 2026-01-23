@@ -972,6 +972,8 @@ const triedSubmit = ref(false);
 const userLocation = ref(null);
 const geoCheckError = ref(null);
 
+const formStartTime = ref(null);
+
 // --- INTEGRACIÓN: Dirección de geolocalización para campos scope ---
 const geoAddress = ref('');
 const fetchAddressFromCoords = async (lat, lng) => {
@@ -1112,6 +1114,7 @@ const getUserLocation = () =>
   });
 
 const showForm = async () => {
+  formStartTime.value = new Date().toISOString();
   isLoading.value = true;
   geoCheckError.value = null;
   try {
@@ -1542,6 +1545,10 @@ const submitForm = async () => {
       const field = allFields.find((f) => f.id === a.form_field_id);
       return field && field.type === 'geolocation' && field.attributes?.mode === 'scope';
     });
+
+    if (formStartTime.value) {
+      dataToSend.append('started_at', formStartTime.value);
+    }
 
     dataToSend.append('answers', JSON.stringify(answers));
 

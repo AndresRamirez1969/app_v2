@@ -27,7 +27,8 @@
           completed: 0,
           rate: 0,
           start_date: null,
-          end_date: null
+          end_date: null,
+          avg_time: 0
         };
         scope.value = '';
       }
@@ -68,9 +69,19 @@
         },
         {
             id: 4,
-            icon: mdiClockOutline,
+            icon: mdiCheckCircle,
             value: completion.value.rate,
             label: 'Tasa de completitud',
+            change: {
+                isPositive: false
+            },
+            borderColor: 'warning',
+        },
+        {
+            id: 5,
+            icon: mdiClockOutline,
+            value: completion.value.avg_time,
+            label: 'Tiempo Promedio',
             change: {
                 isPositive: false
             },
