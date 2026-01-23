@@ -261,7 +261,7 @@ const chartOptions = computed(() => ({
     position: 'top',
     horizontalAlign: 'center'
   },
-  colors: ['#4caf50', '#f44336'],  
+  colors: ['#000080', '#741304'],  
   tooltip: {
     y: {
       formatter: (val) => `${val}`
