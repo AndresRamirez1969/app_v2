@@ -80,7 +80,7 @@
         {
             id: 5,
             icon: mdiClockOutline,
-            value: completion.value.avg_time,
+            value: completion.value.avg_time + 's',
             label: 'Tiempo Promedio',
             change: {
                 isPositive: false
