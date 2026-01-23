@@ -20,6 +20,8 @@ const props = defineProps({
   sortDesc: Boolean,
   hasRating: Boolean,
   loading: Boolean,
+  organizationId: Number, // Nueva propiedad para identificar la organización
+  formId: Number, // Nueva propiedad para identificar el formulario
 });
 
 const emit = defineEmits(["update:page", "sort", "view", "closeReport", "downloadPdf"]);
@@ -91,6 +93,11 @@ const downloadPdf = (answer) => {
             <StatusChip v-if="answer.status" :status="answer.status" />
           </div>
           <div class="font-weight-medium mb-1">{{ answer.name }}</div>
+          <!-- Nueva sección para CIAC: Solo para organización 3 y formulario 5 -->
+          <div v-if="organizationId === 3 && formId === 5" class="text-caption mb-1">
+            <strong>CIAC:</strong>
+            {{ answer.additional_field_response || "—" }}
+          </div>
           <div class="text-caption mb-1">
             <strong>Fecha de respuesta:</strong>
             {{ formatDate(answer.answer_date) }}
@@ -104,8 +111,6 @@ const downloadPdf = (answer) => {
             }}
           </div>
         </v-card>
-        <!-- La paginación móvil debe usar la paginación real del backend, NO local -->
-        <!-- Por eso, la paginación se muestra en el padre, no aquí -->
       </div>
 
       <!-- DESKTOP: tabla -->
@@ -117,6 +122,8 @@ const downloadPdf = (answer) => {
           :sortBy="sortBy"
           :sortDesc="sortDesc"
           :hasRating="hasRating"
+          :organizationId="organizationId"
+          :formId="formId"
           @update:page="handlePageChange"
           @sort="handleSort"
         >
@@ -144,6 +151,10 @@ const downloadPdf = (answer) => {
                 </a>
               </td>
               <td class="name-cell">{{ answer.name }}</td>
+              <!-- Nueva columna CIAC: Solo para organización 3 y formulario 5 -->
+              <td v-if="organizationId === 3 && formId === 5" class="ciac-cell">
+                {{ answer.additional_field_response || "—" }}
+              </td>
               <td class="answer-date-cell">{{ formatDate(answer.answer_date) }}</td>
               <td>
                 <StatusChip v-if="answer.status" :status="answer.status" />
@@ -186,15 +197,6 @@ const downloadPdf = (answer) => {
                       </template>
                       <v-list-item-title>Descargar PDF</v-list-item-title>
                     </v-list-item>
-                    <!-- <template v-if="answer.status !== 'closed'">
-                      <v-divider />
-                      <v-list-item @click="closeReport(answer.id)">
-                        <template #prepend>
-                          <v-icon :icon="mdiLock" size="18" />
-                        </template>
-                        <v-list-item-title>Cerrar Reporte</v-list-item-title>
-                      </v-list-item>
-                    </template> -->
                   </v-list>
                 </v-menu>
               </td>

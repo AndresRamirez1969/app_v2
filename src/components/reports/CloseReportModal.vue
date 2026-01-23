@@ -99,6 +99,11 @@ const getPreviewUrl = (file) => {
 
 // Detectar si el dispositivo es Android
 const isAndroid = /Android/i.test(navigator.userAgent);
+
+// Detectar si el dispositivo es móvil
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+  navigator.userAgent
+);
 </script>
 
 <template>
@@ -162,12 +167,6 @@ const isAndroid = /Android/i.test(navigator.userAgent);
             Tomar foto
           </v-btn>
 
-          <!--
-            IMPORTANTE:
-            - No usar display:none porque en Android/WebView muchas veces no abre la cámara/chooser.
-            - Input overlay transparente encima del botón para asegurar click real.
-            - Sin `multiple` para cámara (mejor compatibilidad).
-          -->
           <input
             id="camera-input"
             type="file"

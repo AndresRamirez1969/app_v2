@@ -15,8 +15,9 @@ import {
 } from "@mdi/js";
 import { mdiFolderZipOutline, mdiAlertCircleOutline } from "@mdi/js";
 import StatusChip from "@/components/status/StatusChip.vue";
-import CloseReportModal from "@/components/modals/CloseReportModal.vue";
-import EditEvidenceModal from "@/components/modals/EditEvidenceModal.vue";
+import CloseReportModal from "@/components/reports/CloseReportModal.vue";
+import EditEvidenceModal from "@/components/reports/EditEvidenceModal.vue";
+import ReOpenStatusModal from "@/components/reports/ReOpenStatusModal.vue";
 
 import axios from "@/utils/axios";
 import JSZip from "jszip";
@@ -1020,6 +1021,44 @@ async function saveEvidenceEdit() {
     alert("No se pudo guardar la evidencia.");
   }
 }
+
+/* ================== Reabrir Reporte ================== */
+async function reopenReport() {
+  if (closingReport.value) return;
+  closingReport.value = true;
+  try {
+    const formData = new FormData();
+    formData.append("status", "open");
+
+    await axios.put(`/reportes/formulario/reportes/${reportId}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    await fetchResponseDetail();
+    alert("El reporte ha sido reabierto correctamente.");
+  } catch {
+    alert("No se pudo reabrir el reporte.");
+  } finally {
+    closingReport.value = false;
+  }
+}
+
+const showReopenInfo = ref(false);
+const reopeningReport = ref(false);
+
+async function handleReopenReport() {
+  reopeningReport.value = true;
+  try {
+    await axios.put(`/reportes/formulario/reportes/${reportId}`, { status: "open" });
+    await fetchResponseDetail(); // Refresca los datos del reporte
+    showReopenInfo.value = false;
+  } catch (error) {
+    console.error("Error al reabrir el reporte:", error);
+    alert("No se pudo reabrir el reporte.");
+  } finally {
+    reopeningReport.value = false;
+  }
+}
 </script>
 
 <template>
@@ -1095,6 +1134,22 @@ async function saveEvidenceEdit() {
                   <v-icon :icon="mdiLock" size="18" />
                 </template>
                 <v-list-item-title>Cerrar reporte</v-list-item-title>
+              </v-list-item>
+            </template>
+            <!-- Nueva opción para reabrir reporte -->
+            <template
+              v-if="
+                reportStatus === 'closed' &&
+                formData?.organization?.id === 3 &&
+                auth.user?.organization_id === 3
+              "
+            >
+              <v-divider class="my-1" />
+              <v-list-item @click="showReopenInfo = true">
+                <template #prepend>
+                  <v-icon :icon="mdiLock" size="18" />
+                </template>
+                <v-list-item-title>Reabrir reporte</v-list-item-title>
               </v-list-item>
             </template>
           </v-list>
@@ -2420,6 +2475,12 @@ async function saveEvidenceEdit() {
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <ReOpenStatusModal
+      :showReopenInfo="showReopenInfo"
+      :reopeningReport="reopeningReport"
+      @update:showReopenInfo="(val) => (showReopenInfo = val)"
+      @reopenReport="handleReopenReport"
+    />
   </v-container>
 </template>
 
