@@ -11,7 +11,7 @@ import { getTodayDate } from '@/constants/constants';
 import DashboardFilters from './components/DashboardFilters.vue';
 import FormDetailChart from './components/FormDetailChart.vue';
 
-const { completion, scope, fetchCompletion } = useCompletionData();
+const { completion, fetchCompletion } = useCompletionData();
 
 const todayFormatted = getTodayDate();
 const forms = ref({ data: [], last_page: 1 });
@@ -23,6 +23,8 @@ const dateFilters = ref({
   created_at_end: null
 });
 
+const frequencyFilter = ref(null);
+
 const auth = useAuthStore();
 const roles = computed(() => auth.user?.roles || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
@@ -32,17 +34,8 @@ const organizationOptions = ref([]);
 const loadingOrganizations = ref(false);
 const selectedOrgForDashboard = ref(null);
 
-//Variables para businesses
-const businessOptions = ref([]);
-const loadingBusinesses = ref(false);
-const selectedBusinessForDashboard = ref(null);
 
 const userOrganizationId = computed(() => auth.user?.organization_id);
-const userBusinessId = computed(() => auth.user?.business_id);
-
-const canSelectBus = computed(() => {
-  return !userBusinessId.value && !!userOrganizationId.value;
-})
 
 const fetchOrganizations = async () => {
   if (!isSuperadmin.value) return;
@@ -62,34 +55,8 @@ const fetchOrganizations = async () => {
   }
 };
 
-const fetchBusinesses = async (organizationId) => {
-  if (!organizationId) {
-    businessOptions.value = [];
-    return;
-  }
-  loadingBusinesses.value = true;
-  try {
-    const { data } = await axiosInstance.get('/businesses', {
-      params: {
-        organization_id: organizationId,
-        limit: 100
-      }
-    });
-    businessOptions.value = (data.data || []).map((b) => ({
-      ...b,
-      title: `${b.folio} - ${b.name}`,
-      value: b.id,
-    }));
-  } catch {
-    businessOptions.value = [];
-  } finally {
-    loadingBusinesses.value = false;
-  }
-};
 
 const selectedFormId = ref(null);
-const selectedFormDetails = ref(null);
-const isLoadingFormDetails = ref(false);
 
 const getOrgParams = () => {
   const params = {};
@@ -100,14 +67,8 @@ const getOrgParams = () => {
     }
   } else {
     selectedOrgForDashboard.value = userOrganizationId.value;
-
-    if (canSelectBus.value && selectedBusinessForDashboard.value) {
-      params.business_id = selectedBusinessForDashboard.value;
-  } else if (userBusinessId.value) {
-    params.business_id = userBusinessId.value;
   }
   return params;
-}
 };
 
 const dateRangeForAPI = computed(() => {
@@ -129,16 +90,15 @@ const handleFilter = (filters) => {
     created_at_start: filters.created_at_start || null,
     created_at_end: filters.created_at_end || null
   };
+
+  frequencyFilter.value = filters.frequency || null;
   
   fetchForms();
   
   if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
   }
   
-  if (selectedFormId.value) {
-    fetchFormStatus(selectedFormId.value);
-  }
 };
 
 const fetchForms = async () => {
@@ -149,8 +109,13 @@ const fetchForms = async () => {
       page: currentPage.value, 
       ...getOrgParams(), 
       start_date: dateRange.start, 
-      end_date: dateRange.end 
+      end_date: dateRange.end,
+      status: 'active'
     };
+
+    if (frequencyFilter.value) {
+      params.frequency = frequencyFilter.value;
+    }
 
     const res = await axiosInstance.get('/forms', { params: params });
     forms.value = res.data;
@@ -161,33 +126,11 @@ const fetchForms = async () => {
   }
 };
 
-const fetchFormStatus = async (formId) => {
-  if (!formId) return;
-
-  isLoadingFormDetails.value = true;
-  try {
-    const dateRange = dateRangeForAPI.value;
-    const params = { 
-      ...getOrgParams(),
-      start_date: dateRange.start,
-      end_date: dateRange.end
-    };
-
-    const res = await axiosInstance.get(`/forms/${formId}/responses`, { params: params });
-    selectedFormDetails.value = res.data.data || res.data;
-  } catch (err) {
-    console.error('Failed to fetch form details', err);
-    selectedFormDetails.value = null;
-  } finally {
-    isLoadingFormDetails.value = false;
-  }
-};
-
 watch(
   () => userOrganizationId.value,
   (orgId) => {
-    if (!isSuperadmin.value && orgId && canSelectBus.value) {
-      fetchBusinesses(orgId);
+    if (!isSuperadmin.value && orgId) {
+      fetchCompletion(orgId, dateRangeForAPI.value, frequencyFilter.value);
     }
   },
   { immediate: true }
@@ -195,20 +138,9 @@ watch(
 
 watch(selectedOrgForDashboard, () => {
   selectedFormId.value = null;
-  selectedFormDetails.value = null;
-  selectedBusinessForDashboard.value = null;
   fetchForms();
   if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
-  }
-});
-
-watch(selectedBusinessForDashboard, () => {
-  selectedFormId.value = null;
-  selectedFormDetails.value = null;
-  fetchForms();
-  if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
   }
 });
 
@@ -216,7 +148,7 @@ watch(
   () => dateRangeForAPI.value,
   () => {
     if (selectedOrgForDashboard.value) {
-      fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+      fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
     }
   },
   { deep: true }
@@ -258,6 +190,40 @@ const formsChartData = computed(() => {
   };
 });
 
+const hasNoForms = computed(() => {
+  // No mostrar el mensaje si está cargando
+  if (isLoading.value) {
+    console.log('hasNoForms: isLoading is true, returning false');
+    return false;
+  }
+  
+  // Si es superadmin y no hay organización seleccionada, no mostrar el mensaje
+  if (isSuperadmin.value && !selectedOrgForDashboard.value) {
+    console.log('hasNoForms: superadmin without org, returning false');
+    return false;
+  }
+  
+  // Verificar si hay formularios
+  const allForms = forms.value?.data || [];
+  const hasOrg = isSuperadmin.value ? !!selectedOrgForDashboard.value : true;
+  const shouldShow = hasOrg && allForms.length === 0;
+  
+  // Debug temporal
+  console.log('hasNoForms final check:', {
+    isLoading: isLoading.value,
+    isSuperadmin: isSuperadmin.value,
+    selectedOrgForDashboard: selectedOrgForDashboard.value,
+    frequencyFilter: frequencyFilter.value,
+    allFormsLength: allForms.length,
+    hasOrg,
+    shouldShow,
+    willReturn: shouldShow
+  });
+  
+  return shouldShow;
+});
+
+
 const chartOptions = computed(() => ({
   chart: {
     type: 'bar',
@@ -268,8 +234,11 @@ const chartOptions = computed(() => ({
       dataPointSelection: (event, chartContext, config) => {
         const dataPointIndex = config.dataPointIndex;
         const clickedFormId = formsChartData.value.formIds[dataPointIndex];
-        if (clickedFormId) {
+        const hasResponses = formsChartData.value.responseData[dataPointIndex] > 0;
+        if (clickedFormId && hasResponses) {
           selectedFormId.value = clickedFormId;
+        } else {
+          toast.warning('No hay respuestas para este formulario en el rango de fechas seleccionado.');
         }
       }
     }
@@ -307,7 +276,7 @@ const chartOptions = computed(() => ({
     position: 'top',
     horizontalAlign: 'center'
   },
-  colors: ['#4caf50', '#2196f3'],  
+  colors: ['#000080', '#741304'],  
   tooltip: {
     y: {
       formatter: (val) => `${val}`
@@ -399,16 +368,13 @@ onMounted(() => {
   fetchForms();
   if (isSuperadmin.value) {
     fetchOrganizations();
-  } else if (canSelectBus.value) {
-    fetchBusinesses(userOrganizationId.value);
   }
   checkGeoPermission();
 
   if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
   }
 });
-
 </script>
 
 <template>
@@ -446,7 +412,9 @@ onMounted(() => {
       <template v-if="isSuperadmin && !selectedOrgForDashboard">
         <SACards /> 
       </template>
-      <GUCards :selected-organization-id="selectedOrgForDashboard" :date-range="dateRangeForAPI" />
+      <template v-if="selectedOrgForDashboard">
+        <GUCards :selected-organization-id="selectedOrgForDashboard" :date-range="dateRangeForAPI" :frequency="frequencyFilter" />
+      </template>
     </v-row>
     
     <template v-if="isSuperadmin">
@@ -471,35 +439,13 @@ onMounted(() => {
       </div>
     </template>
 
-    <template v-if="canSelectBusiness">
-      <div class="d-flex align-center justify-between mb-2">
-        <v-label>Business para filtrar gráficas</v-label>
-        <v-icon :icon="mdiInformationSlabCircleOutline" color="primary" size="22" class="ml-2" style="cursor: pointer" />
-      </div>
-      <div class="padding-bottom: 18px;">
-        <v-select
-          v-model="selectedBusinessForDashboard"
-          :items="businessOptions"
-          :loading="loadingBusinesses"
-          item-title="title"
-          item-value="value"
-          clearable
-          hide-details
-          variant="outlined"
-          color="primary"
-          class="mt-2 mb-4 asignaciones-full-length"
-          placeholder="Selecciona un business (opcional)"
-        />
-      </div>
-    </template>
-
     <!-- Gráfica general -->
     <v-row class="mb-6">
       <v-col cols="12">
         <v-card elevation="2">
           <v-card-text>
             <div class="d-flex justify-space-between align-center mb-4">
-              <h3 class="text-h5 font-weight-bold">Estado General de Formularios</h3>
+              <h3 class="text-h5 font-weight-bold">Formularios {{ frequencyFilter === 'multiple_per_day' ? 'Diarios' : 'Una vez al dia' }}</h3>
               <v-btn
                 v-if="showFormDetails"
                 variant="outlined"
@@ -513,6 +459,9 @@ onMounted(() => {
             <div v-if="isLoading" class="text-center py-8">
               <v-progress-circular indeterminate color="primary" />
             </div>
+            <div v-else-if="hasNoForms" class="text-center py-8">
+              <p class="text-h6 text-medium-emphasis">No existen formularios con esa frecuencia</p>
+            </div>
             <div v-else>
               <VueApexCharts type="bar" height="350" :options="chartOptions" :series="chartSeries" />
             </div>
@@ -525,7 +474,6 @@ onMounted(() => {
       v-if="showFormDetails"
       :form-id="selectedFormId"
       :organization-id="selectedOrgForDashboard"
-      :business-id="selectedBusinessForDashboard"
       :date-range="dateRangeForAPI"
       @close="selectedFormId = null"
     />

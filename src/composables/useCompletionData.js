@@ -21,14 +21,15 @@ export function useCompletionData() {
     return `${year}-${month}-${day}`;
   };
 
-  const fetchCompletion = async (organizationId, dateRange) => {
+  const fetchCompletion = async (organizationId, dateRange, frequency = null) => {
     if (!organizationId) {
       completion.value = {
         expected: 0,
         completed: 0,
         rate: 0,
         start_date: null,
-        end_date: null
+        end_date: null,
+        avg_time: 0
       };
       scope.value = '';
       return;
@@ -45,6 +46,10 @@ export function useCompletionData() {
         end_date: endDate
       };
 
+      if (frequency) {
+        params.frequency = frequency;
+      }
+
       const { data } = await axiosInstance.get('/dashboard/completion', { params });
 
       if (data.completion) {
@@ -53,7 +58,8 @@ export function useCompletionData() {
           completed: data.completion.completed || 0,
           rate: data.completion.rate || 0,
           start_date: data.completion.start_date || null,
-          end_date: data.completion.end_date || null
+          end_date: data.completion.end_date || null,
+          avg_time: data.completion.avg_time || 0
         };
       }
 
@@ -67,7 +73,8 @@ export function useCompletionData() {
         completed: 0,
         rate: 0,
         start_date: null,
-        end_date: null
+        end_date: null,
+        avg_time: 0
       };
       scope.value = '';
     } finally {

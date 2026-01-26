@@ -12,7 +12,7 @@
           <div class="text-subtitle-3 mb-2">La contraseña debe contener:</div>
           <v-list dense>
             <v-list-item v-for="(rule, index) in rules" :key="index" class="px-0 py-1" style="font-size: 0.85rem; min-height: 28px">
-              <v-icon size="20" :color="rule.valid ? 'primary' : 'grey'" class="mr-2" :icon="mdiCheck" />
+              <v-icon size="20" :color="rule.valid ? 'primary' : 'onSurface'" class="mr-2" :icon="mdiCheck" />
               <span
                 :style="{
                   textDecoration: rule.valid ? 'line-through' : 'none',
@@ -48,7 +48,7 @@
             label="Confirmar Nueva Contraseña"
             type="password"
             class="mb-2"
-            :color="passwordsMatch ? 'success' : undefined"
+            :color="passwordsMatch ? 'success' : 'onSurface'"
             variant="outlined"
             density="compact"
           >

@@ -46,6 +46,48 @@ const light: ThemeDefinition = {
   }
 };
 
+const dark: ThemeDefinition = {
+  dark: true,
+  variables: {
+    'border-color': '#424242',
+    'carousel-control-size': 10,
+    gradient: 'linear-gradient(250.38deg, #001529 2.39%, #002c8c 34.42%, #0958d9 60.95%, #1677ff 84.83%, #69b1ff 104.37%)',
+    gradient2: 'linear-gradient(to right, rgb(0, 44, 140), rgb(9, 89, 218))',
+    'card-shadow': '0px 1px 4px rgba(0, 0, 0, 0.3)',
+    'medium-opacity': 0.85,
+    'high-opacity': 1
+  },
+  colors: {
+    primary: '#1677ff',
+    secondary: '#8c8c8c',
+    info: '#13c2c2',
+    success: '#52c41a',
+    accent: '#FFAB91',
+    warning: '#faad14',
+    error: '#ff4d4f',
+    lightprimary: '#001529',
+    lightsecondary: '#1e1e1e',
+    lightsuccess: '#1a3a1a',
+    lighterror: '#3a1a1a',
+    lightwarning: '#3a2e1a',
+    darkText: '#ffffff', // Texto claro para fondo oscuro
+    lightText: '#b0b0b0', // Texto gris claro para fondo oscuro
+    darkprimary: '#4096ff',
+    darksecondary: '#a0a0a0',
+    borderLight: '#424242',
+    inputBorder: '#616161',
+    containerBg: '#121212',
+    surface: '#1e1e1e',
+    'on-surface-variant': '#1e1e1e',
+    facebook: '#4267b2',
+    twitter: '#1da1f2',
+    linkedin: '#0e76a8',
+    gray100: '#2e2e2e',
+    primary200: '#003a8c',
+    secondary200: '#2e2e2e'
+  }
+};
+
 export default createVuetify({
   components,
   directives,
@@ -61,7 +103,8 @@ export default createVuetify({
   theme: {
     defaultTheme: 'light',
     themes: {
-      light
+      light,
+      dark
     }
   },
   locale: {

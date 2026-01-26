@@ -208,7 +208,7 @@ const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/
       <v-card-actions class="px-6 pb-6">
         <v-btn
           variant="outlined"
-          color="grey"
+          color="onSurface"
           @click="$emit('update:showCloseInfo', false)"
         >
           Cancelar

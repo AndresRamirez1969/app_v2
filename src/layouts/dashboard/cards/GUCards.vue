@@ -13,6 +13,10 @@
       dateRange: {
         type: Object,
         default: () => ({ start: null, end: null})
+      },
+      frequency: {
+        type: String,
+        default: null
       }
     });
 
@@ -20,14 +24,15 @@
 
     watch(() => props.selectedOrganizationId, (newOrgId) => {
       if (newOrgId) {
-        fetchCompletion(newOrgId, props.dateRange);
+        fetchCompletion(newOrgId, props.dateRange, props.frequency);
       } else {
         completion.value = {
           expected: 0,
           completed: 0,
           rate: 0,
           start_date: null,
-          end_date: null
+          end_date: null,
+          avg_time: 0
         };
         scope.value = '';
       }
@@ -35,48 +40,69 @@
 
     watch(() => props.dateRange, () => {
       if (props.selectedOrganizationId) {
-        fetchCompletion(props.selectedOrganizationId, props.dateRange);
+        fetchCompletion(props.selectedOrganizationId, props.dateRange, props.frequency);
       }
     }, { deep: true });
 
     onMounted(() => {
       if (props.selectedOrganizationId) {
-        fetchCompletion(props.selectedOrganizationId, props.dateRange);
+        fetchCompletion(props.selectedOrganizationId, props.dateRange, props.frequency);
       }
     });
 
-    const cards = computed(() => [
+    const isMultiplePerDay = computed(() => props.frequency === 'multiple_per_day');
+
+    const cards = computed(() => {
+      const allCards = [
         {
-            id: 2,
-            icon: mdiAccountGroup,
-            value: completion.value.expected,
-            label: 'Esperados',
-            change: {
-                isPositive: true
-            },
-            borderColor: 'info',
+          id: 2,
+          icon: mdiAccountGroup,
+          value: completion.value.expected,
+          label: isMultiplePerDay.value ? 'Asignados' : 'Esperados',
+          change: {
+            isPositive: true
+          },
+          borderColor: 'info',
         },
         {
-            id: 3,
-            icon: mdiCheckCircle,
-            value: completion.value.completed,
-            label: 'Completados',
-            change: {
-                isPositive: true
-            },
-            borderColor: 'success',
+          id: 3,
+          icon: mdiCheckCircle,
+          value: completion.value.completed,
+          label: isMultiplePerDay.value ? 'Respuestas' : 'Completados',
+          change: {
+            isPositive: true
+          },
+          borderColor: 'success',
         },
         {
-            id: 4,
-            icon: mdiClockOutline,
-            value: completion.value.rate,
-            label: 'Tasa de completitud',
-            change: {
-                isPositive: false
-            },
-            borderColor: 'warning',
+          id: 4,
+          icon: mdiCheckCircle,
+          value: completion.value.rate,
+          label: 'Tasa de completitud',
+          change: {
+            isPositive: false
+          },
+          borderColor: 'warning',
+        },
+        {
+          id: 5,
+          icon: mdiClockOutline,
+          value: completion.value.avg_time + 's',
+          label: 'Tiempo Promedio',
+          change: {
+            isPositive: false
+          },
+          borderColor: 'warning',
         }
-    ]);
+      ];
+
+      return allCards.filter(card => {
+        if (isMultiplePerDay.value && card.id === 4) {
+          return false;
+        }
+        return true;
+      });
+    });
     </script>
     
     <template v-if="props.selectedOrganizationId">
