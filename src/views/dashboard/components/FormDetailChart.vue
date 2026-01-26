@@ -74,6 +74,47 @@
                   </v-col>
                 </v-row>
               </div>
+
+              <div v-if="numberFieldStats.length > 0" class="mb-6">
+                <h3 class="text-h5 font-weight-bold mb-4">Campos Numéricos</h3>
+                <v-row>
+                  <v-col
+                    v-for="numberStat in numberFieldStats"
+                    :key="numberStat.fieldId"
+                    cols="12"
+                    :md="numberFieldStats.length === 1 ? 12 : 6"
+                    >
+                    <v-card variant="outlined" class="mb-4">
+                      <v-card-text>
+                        <div class="d-flex justify-space-between align-center mb-2">
+                          <div>
+                            <v-chip size="small" color="info" class="mb-2">
+                              Numérico
+                            </v-chip>
+                            <div class="text-caption text-grey">Total de respuestas: {{ numberStat.totalResponses }}</div>
+                          </div>
+                        </div>
+                        <div class="text-center py-4">
+                          <div class="text-h3 font-weight-bold text-primary mb-2">
+                            {{ numberStat.average.toFixed(2) }}
+                          </div>
+                          <div class="text-body-2 text-grey mb-3">Promedio</div>
+                          <div class="d-flex justify-space-around mt-4">
+                            <div class="text-center">
+                              <div class="text-h6 font-weight-medium">{{ numberStat.min !== null ? numberStat.min.toFixed(2) : '—' }}</div>
+                              <div class="text-caption text-grey">Mínimo</div>
+                            </div>
+                            <div class="text-center">
+                              <div class="text-h6 font-weight-medium">{{ numberStat.max !== null ? numberStat.max.toFixed(2) : '—' }}</div>
+                              <div class="text-caption text-grey">Máximo</div>
+                            </div>
+                          </div>
+                        </div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </div>
   
               <!-- Mensaje cuando no hay campos para mostrar -->
               <div v-if="geolocationFields.length === 0 && fieldResponseStats.length === 0" class="text-center py-8 text-grey">
@@ -214,12 +255,8 @@
         }
       };
     
-      console.log('📊 Total de respuestas recibidas del backend:', userResponses.length);
-      console.log('📊 Estructura de datos:', selectedFormDetails.value);
-      console.log('📊 Primeras 3 respuestas:', userResponses.slice(0, 3));
     } catch (err) {
       console.error('Failed to fetch form details', err);
-      console.error('Error completo:', err.response?.data || err.message);
       selectedFormDetails.value = null;
     } finally {
       isLoadingFormDetails.value = false;
@@ -237,12 +274,20 @@
       const hasOptions = Array.isArray(field.options) && field.options.length > 0;
       
       if (isValidType && !hasOptions) {
-        console.warn('⚠️ Campo sin opciones (no se puede graficar):', { id: field.id, label: field.label, type: field.type });
+        console.warn('Campo sin opciones (no se puede graficar):', { id: field.id, label: field.label, type: field.type });
       }
       
       return isValidType && hasOptions;
     });
     
+    return graphableFields;
+  });
+
+  const numberFields = computed(() => {
+    if (!selectedFormDetails.value) return [];
+    const fields = selectedFormDetails.value.form.fields || []; 
+
+    const graphableFields = fields.filter((field) => field.type === 'number');
     return graphableFields;
   });
   
@@ -351,6 +396,53 @@
     
     return locations;
   };
+
+  const numberFieldStats = computed(() => {
+    const fields = numberFields.value;
+    const userResponses = selectedFormDetails.value?.form?.user_responses || [];
+    
+    return fields.map((field) => {
+      const numericValues = [];
+      let totalResponses = 0;
+
+      userResponses.forEach((userResponse) => {
+        const fieldResponses = userResponse.field_responses || [];
+
+        fieldResponses.forEach((fieldResponse) => { 
+          const fieldIdMatch = fieldResponse.field_id === field.id ||
+                              String(fieldResponse.field_id) === String(field.id) ||
+                              fieldResponse.form_field_id === field.id ||
+                              String(fieldResponse.form_field_id) === String(field.id);
+          if (fieldIdMatch && fieldResponse.value !== null ) {
+            totalResponses++;
+
+            const numValue = parseFloat(fieldResponse.value);
+            if (!isNaN(numValue)) {
+              numericValues.push(numValue);
+            }
+          }
+      });
+    });
+
+    const average = numericValues.length > 0
+      ? numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length
+      : 0;
+
+      const min = numericValues.length > 0 ? Math.min(...numericValues) : 0;
+      const max = numericValues.length > 0 ? Math.max(...numericValues) : 0;
+
+      return {
+        fieldId: field.id,
+        fieldLabel: field.label,
+        fieldType: field.type,
+        average: average,
+        totalResponses: totalResponses,
+        validValues: numericValues.length,
+        min: min,
+        max: max
+      }
+    });
+  });
 
   
   const fieldResponseStats = computed(() => {

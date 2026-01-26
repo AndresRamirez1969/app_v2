@@ -11,7 +11,7 @@ import { getTodayDate } from '@/constants/constants';
 import DashboardFilters from './components/DashboardFilters.vue';
 import FormDetailChart from './components/FormDetailChart.vue';
 
-const { completion, scope, fetchCompletion } = useCompletionData();
+const { completion, fetchCompletion } = useCompletionData();
 
 const todayFormatted = getTodayDate();
 const forms = ref({ data: [], last_page: 1 });
@@ -22,6 +22,8 @@ const dateFilters = ref({
   created_at_start: null,
   created_at_end: null
 });
+
+const frequencyFilter = ref(null);
 
 const auth = useAuthStore();
 const roles = computed(() => auth.user?.roles || []);
@@ -55,8 +57,6 @@ const fetchOrganizations = async () => {
 
 
 const selectedFormId = ref(null);
-const selectedFormDetails = ref(null);
-const isLoadingFormDetails = ref(false);
 
 const getOrgParams = () => {
   const params = {};
@@ -90,16 +90,15 @@ const handleFilter = (filters) => {
     created_at_start: filters.created_at_start || null,
     created_at_end: filters.created_at_end || null
   };
+
+  frequencyFilter.value = filters.frequency || null;
   
   fetchForms();
   
   if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
   }
   
-  if (selectedFormId.value) {
-    fetchFormStatus(selectedFormId.value);
-  }
 };
 
 const fetchForms = async () => {
@@ -110,8 +109,13 @@ const fetchForms = async () => {
       page: currentPage.value, 
       ...getOrgParams(), 
       start_date: dateRange.start, 
-      end_date: dateRange.end 
+      end_date: dateRange.end,
+      status: 'active'
     };
+
+    if (frequencyFilter.value) {
+      params.frequency = frequencyFilter.value;
+    }
 
     const res = await axiosInstance.get('/forms', { params: params });
     forms.value = res.data;
@@ -122,33 +126,11 @@ const fetchForms = async () => {
   }
 };
 
-const fetchFormStatus = async (formId) => {
-  if (!formId) return;
-
-  isLoadingFormDetails.value = true;
-  try {
-    const dateRange = dateRangeForAPI.value;
-    const params = { 
-      ...getOrgParams(),
-      start_date: dateRange.start,
-      end_date: dateRange.end
-    };
-
-    const res = await axiosInstance.get(`/forms/${formId}/responses`, { params: params });
-    selectedFormDetails.value = res.data.data || res.data;
-  } catch (err) {
-    console.error('Failed to fetch form details', err);
-    selectedFormDetails.value = null;
-  } finally {
-    isLoadingFormDetails.value = false;
-  }
-};
-
 watch(
   () => userOrganizationId.value,
   (orgId) => {
     if (!isSuperadmin.value && orgId) {
-      fetchCompletion(orgId, dateRangeForAPI.value);
+      fetchCompletion(orgId, dateRangeForAPI.value, frequencyFilter.value);
     }
   },
   { immediate: true }
@@ -156,10 +138,9 @@ watch(
 
 watch(selectedOrgForDashboard, () => {
   selectedFormId.value = null;
-  selectedFormDetails.value = null;
   fetchForms();
   if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
   }
 });
 
@@ -167,7 +148,7 @@ watch(
   () => dateRangeForAPI.value,
   () => {
     if (selectedOrgForDashboard.value) {
-      fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+      fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
     }
   },
   { deep: true }
@@ -208,6 +189,40 @@ const formsChartData = computed(() => {
     totalCompleted: completion.value.completed
   };
 });
+
+const hasNoForms = computed(() => {
+  // No mostrar el mensaje si está cargando
+  if (isLoading.value) {
+    console.log('hasNoForms: isLoading is true, returning false');
+    return false;
+  }
+  
+  // Si es superadmin y no hay organización seleccionada, no mostrar el mensaje
+  if (isSuperadmin.value && !selectedOrgForDashboard.value) {
+    console.log('hasNoForms: superadmin without org, returning false');
+    return false;
+  }
+  
+  // Verificar si hay formularios
+  const allForms = forms.value?.data || [];
+  const hasOrg = isSuperadmin.value ? !!selectedOrgForDashboard.value : true;
+  const shouldShow = hasOrg && allForms.length === 0;
+  
+  // Debug temporal
+  console.log('hasNoForms final check:', {
+    isLoading: isLoading.value,
+    isSuperadmin: isSuperadmin.value,
+    selectedOrgForDashboard: selectedOrgForDashboard.value,
+    frequencyFilter: frequencyFilter.value,
+    allFormsLength: allForms.length,
+    hasOrg,
+    shouldShow,
+    willReturn: shouldShow
+  });
+  
+  return shouldShow;
+});
+
 
 const chartOptions = computed(() => ({
   chart: {
@@ -357,10 +372,9 @@ onMounted(() => {
   checkGeoPermission();
 
   if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value);
+    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
   }
 });
-
 </script>
 
 <template>
@@ -398,7 +412,9 @@ onMounted(() => {
       <template v-if="isSuperadmin && !selectedOrgForDashboard">
         <SACards /> 
       </template>
-      <GUCards :selected-organization-id="selectedOrgForDashboard" :date-range="dateRangeForAPI" />
+      <template v-if="selectedOrgForDashboard">
+        <GUCards :selected-organization-id="selectedOrgForDashboard" :date-range="dateRangeForAPI" :frequency="frequencyFilter" />
+      </template>
     </v-row>
     
     <template v-if="isSuperadmin">
@@ -429,7 +445,7 @@ onMounted(() => {
         <v-card elevation="2">
           <v-card-text>
             <div class="d-flex justify-space-between align-center mb-4">
-              <h3 class="text-h5 font-weight-bold">Formularios Diarios</h3>
+              <h3 class="text-h5 font-weight-bold">Formularios {{ frequencyFilter === 'multiple_per_day' ? 'Diarios' : 'Una vez al dia' }}</h3>
               <v-btn
                 v-if="showFormDetails"
                 variant="outlined"
@@ -442,6 +458,9 @@ onMounted(() => {
             </div>
             <div v-if="isLoading" class="text-center py-8">
               <v-progress-circular indeterminate color="primary" />
+            </div>
+            <div v-else-if="hasNoForms" class="text-center py-8">
+              <p class="text-h6 text-medium-emphasis">No existen formularios con esa frecuencia</p>
             </div>
             <div v-else>
               <VueApexCharts type="bar" height="350" :options="chartOptions" :series="chartSeries" />
