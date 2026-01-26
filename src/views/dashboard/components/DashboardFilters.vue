@@ -1,5 +1,43 @@
 <template>
     <div class="d-flex align-center mb-6" style="gap: 16px">
+      <!-- Dropdown de Frecuencia -->
+    <v-menu>
+      <template #activator="{ props: menuProps }">
+        <v-btn
+          v-bind="menuProps"
+          variant="text"
+          style="border-radius: 8px; border: 1px solid #ccc; min-width: 44px; height: 44px"
+          color="#222"
+        >
+          <template v-if="mdAndDown">
+            <v-icon>
+              <svg viewBox="0 0 24 24" width="22" height="22">
+                <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+            </v-icon>
+          </template>
+          <template v-else>
+            <span class="d-flex align-center">
+              <span class="mr-2">{{ frequencyLabel }}</span>
+              <v-icon size="small">mdi-chevron-down</v-icon>
+            </span>
+          </template>
+        </v-btn>
+      </template>
+      <v-list>
+        <v-list-item
+          v-for="option in frequencyOptions"
+          :key="option.value"
+          :value="option.value"
+          @click="handleFrequencyChange(option.value)"
+        >
+          <v-list-item-title>{{ option.title }}</v-list-item-title>
+        </v-list-item>
+        <v-list-item @click="handleFrequencyChange(null)">
+          <v-list-item-title>Limpiar</v-list-item-title>
+        </v-list-item>
+      </v-list>
+    </v-menu>
       <!-- Filtros button con indicador -->
       <div class="filter-btn-wrapper ml-2 flex-shrink-0" style="min-width: 44px; position: relative">
         <v-btn
@@ -51,9 +89,9 @@
               </svg>
             </v-icon>
           </v-btn>
-          <v-card-title class="font-weight-bold">Filtros de Fecha</v-card-title>
+          <v-card-title class="font-weight-bold">Filtros</v-card-title>
           <v-card-text class="pb-0">
-           
+
             <!-- Rango de fechas de creación -->
             <div class="mb-3">
               <v-menu
@@ -131,53 +169,78 @@
   </template>
   
   <script setup>
-  import { ref, computed } from 'vue';
-  import { useDisplay } from 'vuetify';
-  import '@/styles/filters.css';
-  
-  const emit = defineEmits(['filter']);
-  
-  const dialog = ref(false);
-  
-  const status = ref(null);
-  const statusOptions = [
-    { title: 'Activo', value: 'active' },
-    { title: 'Inactivo', value: 'inactive' }
-  ];
-  
-  const createdAtStart = ref(null);
-  const createdAtEnd = ref(null);
-  const menuCreatedStart = ref(false);
-  const menuCreatedEnd = ref(false);
-  
-  const { mdAndDown } = useDisplay();
-  
-  const hasActiveFilters = computed(() => !!status.value || !!createdAtStart.value || !!createdAtEnd.value);
-  
-  function formatDateOnly(val) {
-    if (!val) return null;
-    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-    const d = new Date(val);
-    return d.toISOString().slice(0, 10);
-  }
-  
-  function applyFilters() {
-    emit('filter', {
-      status: status.value,
-      created_at_start: formatDateOnly(createdAtStart.value),
-      created_at_end: formatDateOnly(createdAtEnd.value)
-    });
-    dialog.value = false;
-  }
-  
-  function clearFilters() {
-    status.value = null;
-    createdAtStart.value = null;
-    createdAtEnd.value = null;
-    emit('filter', {
-      status: null,
-      created_at_start: null,
-      created_at_end: null
-    });
-  }
-  </script>
+import { ref, computed, watch } from 'vue';
+import { useDisplay } from 'vuetify';
+import '@/styles/filters.css';
+
+const emit = defineEmits(['filter']);
+
+const dialog = ref(false);
+
+const status = ref(null);
+const statusOptions = [
+  { title: 'Activo', value: 'active' },
+  { title: 'Inactivo', value: 'inactive' }
+];
+
+const frequency = ref(null);
+const frequencyOptions = [
+  { title: 'Una vez al dia', value: 'once_per_day' },
+  { title: 'Multiples veces al dia', value: 'multiple_per_day' }
+];
+
+const frequencyLabel = computed(() => {
+  if (!frequency.value) return 'Frecuencia';
+  const option = frequencyOptions.find(opt => opt.value === frequency.value);
+  return option ? option.title : 'Frecuencia';
+});
+
+const createdAtStart = ref(null);
+const createdAtEnd = ref(null);
+const menuCreatedStart = ref(false);
+const menuCreatedEnd = ref(false);
+
+const { mdAndDown } = useDisplay();
+
+const hasActiveFilters = computed(() => !!status.value || !!createdAtStart.value || !!createdAtEnd.value);
+
+function formatDateOnly(val) {
+  if (!val) return null;
+  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  const d = new Date(val);
+  return d.toISOString().slice(0, 10);
+}
+
+function handleFrequencyChange(value) {
+  frequency.value = value;
+  // Emitir inmediatamente cuando cambia la frecuencia
+  emit('filter', {
+    status: status.value,
+    frequency: frequency.value,
+    created_at_start: formatDateOnly(createdAtStart.value),
+    created_at_end: formatDateOnly(createdAtEnd.value)
+  });
+}
+
+function applyFilters() {
+  emit('filter', {
+    status: status.value,
+    frequency: frequency.value,
+    created_at_start: formatDateOnly(createdAtStart.value),
+    created_at_end: formatDateOnly(createdAtEnd.value)
+  });
+  dialog.value = false;
+}
+
+function clearFilters() {
+  status.value = null;
+  createdAtStart.value = null;
+  createdAtEnd.value = null;
+  emit('filter', {
+    status: null,
+    frequency: frequency.value,
+    created_at_start: null,
+    created_at_end: null
+  });
+}
+</script>

@@ -21,7 +21,7 @@ export function useCompletionData() {
     return `${year}-${month}-${day}`;
   };
 
-  const fetchCompletion = async (organizationId, dateRange) => {
+  const fetchCompletion = async (organizationId, dateRange, frequency = null) => {
     if (!organizationId) {
       completion.value = {
         expected: 0,
@@ -45,6 +45,10 @@ export function useCompletionData() {
         start_date: startDate,
         end_date: endDate
       };
+
+      if (frequency) {
+        params.frequency = frequency;
+      }
 
       const { data } = await axiosInstance.get('/dashboard/completion', { params });
 
