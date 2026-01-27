@@ -52,6 +52,12 @@ export function useCompletionData() {
 
       const { data } = await axiosInstance.get('/dashboard/completion', { params });
 
+      console.log('📈 Completion data received:', {
+        completed: data.completion?.completed,
+        expected: data.completion?.expected,
+        fullData: data
+      });
+
       if (data.completion) {
         completion.value = {
           expected: data.completion.expected || 0,
