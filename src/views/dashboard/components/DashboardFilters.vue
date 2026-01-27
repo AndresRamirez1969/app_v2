@@ -34,7 +34,7 @@
           <v-list-item-title>{{ option.title }}</v-list-item-title>
         </v-list-item>
         <v-list-item @click="handleFrequencyChange(null)">
-          <v-list-item-title>Limpiar</v-list-item-title>
+          <v-list-item-title>Todos</v-list-item-title>
         </v-list-item>
       </v-list>
     </v-menu>
@@ -190,9 +190,9 @@ const frequencyOptions = [
 ];
 
 const frequencyLabel = computed(() => {
-  if (!frequency.value) return 'Selecciona frecuencia *';
+  if (!frequency.value) return 'Frecuencia';
   const option = frequencyOptions.find(opt => opt.value === frequency.value);
-  return option ? option.title : 'Selecciona frecuencia *';
+  return option ? option.title : 'Frecuencia';
 });
 
 const createdAtStart = ref(null);

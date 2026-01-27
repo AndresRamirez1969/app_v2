@@ -1,7 +1,7 @@
 //Cards de Usuario General
 <script setup>
     import { onMounted, computed, watch } from 'vue';
-    import { mdiAccountGroup, mdiCheckCircle, mdiClockOutline, mdiArrowUp, mdiArrowDown } from '@mdi/js';
+    import { mdiAccountGroup, mdiCheckCircle, mdiClockOutline, mdiArrowUp, mdiArrowDown, mdiClipboardText } from '@mdi/js';
     import { useCompletionData } from '@/composables/useCompletionData';
     
 
@@ -20,7 +20,7 @@
       }
     });
 
-    const { completion, scope, fetchCompletion } = useCompletionData();
+    const { completion, generalMetrics, scope, fetchCompletion } = useCompletionData();
 
     const doFetch = () => {
       if (props.selectedOrganizationId) {
@@ -32,6 +32,12 @@
           rate: 0,
           start_date: null,
           end_date: null,
+          avg_time: 0
+        };
+        generalMetrics.value = {
+          forms_answered: 0,
+          responses_total: 0,
+          users_count: 0,
           avg_time: 0
         };
         scope.value = '';
@@ -51,8 +57,53 @@
     });
 
     const isMultiplePerDay = computed(() => props.frequency === 'multiple_per_day');
+    const hasFrequency = computed(() => !!props.frequency);
 
     const cards = computed(() => {
+      if (!hasFrequency.value) {
+        return [
+          {
+            id: 1,
+            icon: mdiClipboardText,
+            value: generalMetrics.value.forms_answered,
+            label: 'Formularios Respondidos',
+            change: {
+              isPositive: true
+            },
+            borderColor: 'primary',
+          },
+          {
+            id: 2,
+            icon: mdiCheckCircle,
+            value: generalMetrics.value.responses_total,
+            label: 'Total de Respuestas',
+            change: {
+              isPositive: true
+            },
+            borderColor: 'success',
+          },
+          {
+            id: 3,
+            icon: mdiAccountGroup,
+            value: generalMetrics.value.users_count,
+            label: 'Usuarios',
+            change: {
+              isPositive: true
+            },
+            borderColor: 'info',
+          },
+          {
+            id: 4,
+            icon: mdiClockOutline,
+            value: generalMetrics.value.avg_time + 's',
+            label: 'Tiempo Promedio',
+            change: {
+              isPositive: false
+            },
+            borderColor: 'warning',
+          }
+        ];
+      }
       const allCards = [
         {
           id: 2,

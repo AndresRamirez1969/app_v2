@@ -57,6 +57,8 @@ const fetchOrganizations = async () => {
 
 
 const selectedFormId = ref(null);
+const formResponseByRole = ref([]);
+const isLoadingFormResponse = ref(false);
 
 const getOrgParams = () => {
   const params = {};
@@ -84,6 +86,74 @@ const dateRangeForAPI = computed(() => {
     end: todayStr
   };
 });
+
+const fetchFormResponseByRole = async (formId) => {
+  if (!formId) return;
+
+  isLoadingFormResponse.value = true;
+  try {
+    const dateRange = dateRangeForAPI.value;
+    const todayStr = getTodayDate();
+
+    const startDate = dateRange?.start || todayStr;
+    const endDate = dateRange?.end || todayStr;
+
+    const params = {
+      ...getOrgParams(),
+      start_date: startDate,
+      end_date: endDate
+    };
+    if (frequencyFilter.value) {
+      params.frequency = frequencyFilter.value;
+    }
+    let allResponses = [];
+    let page = 1;
+    let lastPage = 1;
+
+    do {
+      const { data } = await axiosInstance.get(`/forms/${formId}/responses/reports`, {
+        params: { ...params, page, per_page: 100 }
+      });
+
+      const responses = Array.isArray(data?.responses) ? data.responses : [];
+      allResponses = [...allResponses, ...responses];
+      console.log('📋 Responses data received:', {
+        responsesCount: responses.length,
+        allResponsesCount: allResponses.length,
+        responses: responses.map(r => r.response?.user?.name || r.user?.name || 'Sin nombre')
+      });
+
+      if (data.last_page !== undefined) {
+        lastPage = data.last_page;
+        page++;
+      } else {
+        break;
+      }
+    } while (page <= lastPage);
+
+    const nameCounts = {};
+
+    allResponses.forEach((resp) => {
+      const user = resp.response?.user || resp.user || {};
+      const name = user.name || user.email || user.id || 'Sin nombre';
+
+      if (!name) {
+        nameCounts['Sin Rol'] = (nameCounts['Sin Rol'] || 0) + 1;
+      } else {
+        nameCounts[name] = (nameCounts[name] || 0) + 1;
+      }
+    });
+
+    formResponseByRole.value = Object.entries(nameCounts).map(([name, count]) => ({
+      name: name,
+      count: count
+    }));
+  } catch (err) {
+    console.error('Failed to fetch form response by role', err);
+  } finally {
+    isLoadingFormResponse.value = false;
+  }
+};
 
 const handleFilter = (filters) => {
   dateFilters.value = {
@@ -113,11 +183,11 @@ const fetchForms = async () => {
       ...getOrgParams(), 
       start_date: startDate,
       end_date: endDate,
-      status: 'active',
-      frequency: frequencyFilter.value
     };
 
-    console.log('📋 Fetching forms with params:', params);
+    if (frequencyFilter.value) {
+      params.frequency = frequencyFilter.value;
+    }
 
     const res = await axiosInstance.get('/forms', { params: params });
     forms.value = res.data;
@@ -133,6 +203,14 @@ const fetchForms = async () => {
     isLoading.value = false;
   }
 };
+
+watch(selectedFormId, (newFormId) => {
+  if (newFormId) {
+    fetchFormResponseByRole(newFormId);
+  } else {
+    formResponseByRole.value = [];
+  }
+});
 
 watch(
   () => userOrganizationId.value,
@@ -159,6 +237,21 @@ watch(
 
 
 const formsChartData = computed(() => {
+  // Si hay un formulario seleccionado, mostrar datos por roles
+  if (selectedFormId.value && formResponseByRole.value.length > 0) {
+    return {
+      categories: formResponseByRole.value.map(item => item.name),
+      responseData: formResponseByRole.value.map(item => item.count),
+      assignmentsData: [],
+      formNames: [],
+      formIds: [],
+      totalExpected: 0,
+      totalCompleted: 0,
+      isRoleView: true
+    };
+  }
+
+  // Vista normal: por formularios
   const allForms = forms.value.data || [];
 
   if (isSuperadmin.value && !selectedOrgForDashboard.value) {
@@ -168,7 +261,8 @@ const formsChartData = computed(() => {
       assignmentsData: [],
       formNames: [],
       totalExpected: 0,
-      totalCompleted: 0
+      totalCompleted: 0,
+      isRoleView: false
     };
   }
 
@@ -182,17 +276,6 @@ const formsChartData = computed(() => {
   const formNames = allForms.map(form => form.name || form.folio);
   const formIds = allForms.map(form => form.id);
 
-  const totalResponsesFromChart = responseData.reduce((sum, count) => sum + count, 0);
-  
-  console.log('📊 Data consistency check:', {
-    totalResponsesFromChart,
-    completionCompleted: completion.value.completed,
-    difference: totalResponsesFromChart - completion.value.completed,
-    formsCount: allForms.length,
-    responseData,
-    forms: allForms.map(f => ({ name: f.name, responses_count: f.responses_count }))
-  });
-  
   return {
     categories,
     responseData,
@@ -200,7 +283,8 @@ const formsChartData = computed(() => {
     formNames,
     formIds,
     totalExpected: completion.value.expected,
-    totalCompleted: completion.value.completed
+    totalCompleted: completion.value.completed,
+    isRoleView: false
   };
 });
 
@@ -238,86 +322,107 @@ const hasNoForms = computed(() => {
 });
 
 
-const chartOptions = computed(() => ({
-  chart: {
-    type: 'bar',
-    height: 350,
-    toolbar: { show: true },
-    stacked: true,
-    events: {
-      dataPointSelection: (event, chartContext, config) => {
-        const dataPointIndex = config.dataPointIndex;
-        const clickedFormId = formsChartData.value.formIds[dataPointIndex];
-        const hasResponses = formsChartData.value.responseData[dataPointIndex] > 0;
-        if (clickedFormId && hasResponses) {
-          selectedFormId.value = clickedFormId;
-        } else {
-          toast.warning('No hay respuestas para este formulario en el rango de fechas seleccionado.');
+const chartOptions = computed(() => {
+  const isRoleView = formsChartData.value.isRoleView;
+  
+  return {
+    chart: {
+      type: 'bar',
+      height: 350,
+      toolbar: { show: true },
+      stacked: !isRoleView, // Solo stacked cuando NO es vista de roles
+      events: isRoleView ? {} : {
+        dataPointSelection: (event, chartContext, config) => {
+          const dataPointIndex = config.dataPointIndex;
+          const clickedFormId = formsChartData.value.formIds[dataPointIndex];
+          const hasResponses = formsChartData.value.responseData[dataPointIndex] > 0;
+          if (clickedFormId && hasResponses) {
+            selectedFormId.value = clickedFormId;
+          } else {
+            toast.warning('No hay respuestas para este formulario en el rango de fechas seleccionado.');
+          }
         }
       }
-    }
-  },
-  plotOptions: {
-    bar: {
-      horizontal: false,
-      columnWidth: '55%',
-      borderRadius: 8,
-      dataLabels: {
-        position: 'top'
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '55%',
+        borderRadius: 8,
+        dataLabels: {
+          position: 'top'
+        }
       }
+    },
+    dataLabels: {
+      enabled: true,
+      offsetY: -20,
+      style: {
+        fontSize: '12px',
+        colors: ['#304758']
+      }
+    },
+    xaxis: {
+      categories: formsChartData.value.categories,
+      labels: {
+        style: { fontSize: '12px' },
+        rotate: -45,
+        rotateAlways: formsChartData.value.categories.length > 5
+      },
+      title: {
+        text: isRoleView ? 'Roles' : 'Formularios'
+      }
+    },
+    yaxis: {
+      title: { text: 'Cantidad de Respuestas' }
+    },
+    legend: {
+      position: 'top',
+      horizontalAlign: 'center',
+      show: !isRoleView // Ocultar leyenda cuando es vista de roles
+    },
+    colors: isRoleView ? ['#000080'] : ['#000080', '#741304'],
+    tooltip: {
+      y: {
+        formatter: (val) => `${val}`
+      }
+    },
+    title: {
+      text: isRoleView 
+        ? 'Respuestas por Rol' 
+        : 'Respuestas vs Asignaciones por Formulario',
+      align: 'left',
+      style: { fontSize: '18px', fontWeight: 600 }
+    },
+    fill: {
+      opacity: 1
     }
-  },
-  dataLabels: {
-    enabled: true,
-    offsetY: -20,
-    style: {
-      fontSize: '12px',
-      colors: ['#304758']
-    }
-  },
-  xaxis: {
-    categories: formsChartData.value.categories,
-    labels: {
-      style: { fontSize: '12px' },
-      rotate: -45,
-      rotateAlways: formsChartData.value.categories.length > 5
-    }
-  },
-  yaxis: {
-    title: { text: 'Cantidad' }
-  },
-  legend: {
-    position: 'top',
-    horizontalAlign: 'center'
-  },
-  colors: ['#000080', '#741304'],  
-  tooltip: {
-    y: {
-      formatter: (val) => `${val}`
-    }
-  },
-  title: {
-    text: 'Respuestas vs Asignaciones por Formulario',
-    align: 'left',
-    style: { fontSize: '18px', fontWeight: 600 }
-  },
-  fill: {
-    opacity: 1
-  }
-}));
+  };
+});
 
 const showFormDetails = computed(() => !!selectedFormId.value);
 
-const chartSeries = computed(() => [
-  {
-    name: 'Respuestas',
-    data: formsChartData.value.responseData
-  },
-  {
-    name: 'Faltantes',
-    data: formsChartData.value.assignmentsData
+const chartSeries = computed(() => {
+  const isRoleView = formsChartData.value.isRoleView;
+  if (isRoleView) {
+    return [
+      {
+        name: 'Respuestas',
+        data: formsChartData.value.responseData
+      }
+    ]
   }
-]);
+  return [
+    {
+      name: 'Respuestas',
+      data: formsChartData.value.responseData
+    },
+    {
+      name: 'Faltantes',
+      data: formsChartData.value.assignmentsData
+    }
+  ]
+});
 
 const toast = useToast();
 const geoPermissionWarning = ref(false);

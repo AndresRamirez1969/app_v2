@@ -10,6 +10,13 @@ export function useCompletionData() {
     end_date: null
   });
 
+  const generalMetrics = ref({
+    forms_answered: 0,
+    responses_total: 0,
+    users_count: 0,
+    avg_time: 0
+  });
+
   const scope = ref('');
   const isLoading = ref(false);
 
@@ -29,6 +36,12 @@ export function useCompletionData() {
         rate: 0,
         start_date: null,
         end_date: null,
+        avg_time: 0
+      };
+      generalMetrics.value = {
+        forms_answered: 0,
+        responses_total: 0,
+        users_count: 0,
         avg_time: 0
       };
       scope.value = '';
@@ -52,13 +65,7 @@ export function useCompletionData() {
 
       const { data } = await axiosInstance.get('/dashboard/completion', { params });
 
-      console.log('📈 Completion data received:', {
-        completed: data.completion?.completed,
-        expected: data.completion?.expected,
-        fullData: data
-      });
-
-      if (data.completion) {
+      if (frequency &&data.completion) {
         completion.value = {
           expected: data.completion.expected || 0,
           completed: data.completion.completed || 0,
@@ -66,6 +73,29 @@ export function useCompletionData() {
           start_date: data.completion.start_date || null,
           end_date: data.completion.end_date || null,
           avg_time: data.completion.avg_time || 0
+        };
+        generalMetrics.value = {
+          forms_answered: 0,
+          responses_total: 0,
+          users_count: 0,
+          avg_time: 0
+        };
+      }
+
+      else if (!frequency) {
+        generalMetrics.value = {
+          forms_answered: data.forms_answered || 0,
+          responses_total: data.responses_total || 0,
+          users_count: data.users_count || 0,
+          avg_time: data.avg_time || 0
+        };
+        completion.value = {
+          expected: 0,
+          completed: 0,
+          rate: 0,
+          start_date: null,
+          end_date: null,
+          avg_time: 0
         };
       }
 
@@ -82,6 +112,12 @@ export function useCompletionData() {
         end_date: null,
         avg_time: 0
       };
+      generalMetrics.value = {
+        forms_answered: 0,
+        responses_total: 0,
+        users_count: 0,
+        avg_time: 0
+      };
       scope.value = '';
     } finally {
       isLoading.value = false;
@@ -90,6 +126,7 @@ export function useCompletionData() {
 
   return {
     completion,
+    generalMetrics,
     scope,
     isLoading,
     fetchCompletion
