@@ -11,7 +11,7 @@ import { getTodayDate } from '@/constants/constants';
 import DashboardFilters from './components/DashboardFilters.vue';
 import FormDetailChart from './components/FormDetailChart.vue';
 
-const { completion, fetchCompletion } = useCompletionData();
+const { completion } = useCompletionData();
 
 const todayFormatted = getTodayDate();
 const forms = ref({ data: [], last_page: 1 });
@@ -94,31 +94,39 @@ const handleFilter = (filters) => {
   frequencyFilter.value = filters.frequency || null;
   
   fetchForms();
-  
-  if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
-  }
-  
+
 };
+
+//const hasFrequencyFilter = computed(() => !!frequencyFilter.value);
 
 const fetchForms = async () => {
   isLoading.value = true;
   try {
     const dateRange = dateRangeForAPI.value;
+    const todayStr = getTodayDate();
+    
+    const startDate = dateRange?.start || todayStr;
+    const endDate = dateRange?.end || todayStr;
+    
     const params = { 
       page: currentPage.value, 
       ...getOrgParams(), 
-      start_date: dateRange.start, 
-      end_date: dateRange.end,
-      status: 'active'
+      start_date: startDate,
+      end_date: endDate,
+      status: 'active',
+      frequency: frequencyFilter.value
     };
 
-    if (frequencyFilter.value) {
-      params.frequency = frequencyFilter.value;
-    }
+    console.log('📋 Fetching forms with params:', params);
 
     const res = await axiosInstance.get('/forms', { params: params });
     forms.value = res.data;
+
+    console.log('📋 Forms data received:', {
+      formsCount: res.data.data?.length || 0,
+      totalResponses: res.data.data?.reduce((sum, f) => sum + (f.responses_count || 0), 0) || 0,
+      forms: res.data.data?.map(f => ({ name: f.name, responses_count: f.responses_count })) || []
+    });
   } catch (err) {
     console.error('Failed to fetch forms', err);
   } finally {
@@ -130,7 +138,8 @@ watch(
   () => userOrganizationId.value,
   (orgId) => {
     if (!isSuperadmin.value && orgId) {
-      fetchCompletion(orgId, dateRangeForAPI.value, frequencyFilter.value);
+      // Solo llamar si no es superadmin, GUCards manejará su propia llamada
+      // fetchCompletion(orgId, dateRangeForAPI.value, frequencyFilter.value);
     }
   },
   { immediate: true }
@@ -139,17 +148,11 @@ watch(
 watch(selectedOrgForDashboard, () => {
   selectedFormId.value = null;
   fetchForms();
-  if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
-  }
 });
 
 watch(
   () => dateRangeForAPI.value,
   () => {
-    if (selectedOrgForDashboard.value) {
-      fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
-    }
   },
   { deep: true }
 );
@@ -178,6 +181,17 @@ const formsChartData = computed(() => {
   });
   const formNames = allForms.map(form => form.name || form.folio);
   const formIds = allForms.map(form => form.id);
+
+  const totalResponsesFromChart = responseData.reduce((sum, count) => sum + count, 0);
+  
+  console.log('📊 Data consistency check:', {
+    totalResponsesFromChart,
+    completionCompleted: completion.value.completed,
+    difference: totalResponsesFromChart - completion.value.completed,
+    formsCount: allForms.length,
+    responseData,
+    forms: allForms.map(f => ({ name: f.name, responses_count: f.responses_count }))
+  });
   
   return {
     categories,
@@ -370,10 +384,6 @@ onMounted(() => {
     fetchOrganizations();
   }
   checkGeoPermission();
-
-  if (selectedOrgForDashboard.value) {
-    fetchCompletion(selectedOrgForDashboard.value, dateRangeForAPI.value, frequencyFilter.value);
-  }
 });
 </script>
 
@@ -416,6 +426,22 @@ onMounted(() => {
         <GUCards :selected-organization-id="selectedOrgForDashboard" :date-range="dateRangeForAPI" :frequency="frequencyFilter" />
       </template>
     </v-row>
+
+    <!-- <template v-if="!hasFrequencyFilter">
+    <v-row class="mb-6">
+      <v-col cols="12">
+        <v-card elevation="2">
+          <v-card-text class="text-center py-12">
+            <v-icon size="64" color="primary" class="mb-4">mdi-filter</v-icon>
+            <h3 class="text-h5 font-weight-bold mb-2">Selecciona una frecuencia</h3>
+            <p class="text-body-1 text-medium-emphasis">
+              Por favor, selecciona una frecuencia de formulario para ver los datos del dashboard.
+            </p>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </template> -->
     
     <template v-if="isSuperadmin">
       <div class="d-flex align-center justify-between mb-2">

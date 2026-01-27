@@ -22,9 +22,9 @@
 
     const { completion, scope, fetchCompletion } = useCompletionData();
 
-    watch(() => props.selectedOrganizationId, (newOrgId) => {
-      if (newOrgId) {
-        fetchCompletion(newOrgId, props.dateRange, props.frequency);
+    const doFetch = () => {
+      if (props.selectedOrganizationId) {
+        fetchCompletion(props.selectedOrganizationId, props.dateRange, props.frequency);
       } else {
         completion.value = {
           expected: 0,
@@ -36,18 +36,18 @@
         };
         scope.value = '';
       }
-    }, { immediate: false });
+    };
 
-    watch(() => props.dateRange, () => {
-      if (props.selectedOrganizationId) {
-        fetchCompletion(props.selectedOrganizationId, props.dateRange, props.frequency);
-      }
-    }, { deep: true });
+    watch(
+      () => [props.selectedOrganizationId, props.dateRange, props.frequency],
+      () => {
+        doFetch();
+      },
+      { deep: true, immediate: false }
+    );
 
     onMounted(() => {
-      if (props.selectedOrganizationId) {
-        fetchCompletion(props.selectedOrganizationId, props.dateRange, props.frequency);
-      }
+      doFetch();
     });
 
     const isMultiplePerDay = computed(() => props.frequency === 'multiple_per_day');

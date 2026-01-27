@@ -190,9 +190,9 @@ const frequencyOptions = [
 ];
 
 const frequencyLabel = computed(() => {
-  if (!frequency.value) return 'Frecuencia';
+  if (!frequency.value) return 'Selecciona frecuencia *';
   const option = frequencyOptions.find(opt => opt.value === frequency.value);
-  return option ? option.title : 'Frecuencia';
+  return option ? option.title : 'Selecciona frecuencia *';
 });
 
 const createdAtStart = ref(null);
