@@ -10,10 +10,8 @@ import PermissionFilter from './permissionfilter.vue';
 
 const auth = useAuthStore();
 const router = useRouter();
-
-function isSuperadmin() {
-  return auth.user?.roles?.includes('superadmin');
-}
+const isSuperadmin = computed(() => auth.user?.roles?.includes('superadmin'));
+const isAdmin = computed(() => auth.user?.roles?.includes('admin'));
 
 const isMobile = ref(window.innerWidth < 600);
 window.addEventListener('resize', () => {
@@ -47,7 +45,8 @@ const modelNames = {
   businessUnitGroup: 'Grupo de Ubicaciones',
   organization: 'Organización',
   business: 'Negocio',
-  form: 'Formulario'
+  form: 'Formulario',
+  dashboard: 'Dashboard'
 };
 
 const canCreate = computed(() => auth.user?.permissions?.includes('role.create'));

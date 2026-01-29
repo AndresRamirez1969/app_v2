@@ -53,7 +53,8 @@ const modelNames = {
   organization: 'Organización',
   business: 'Negocio',
   form: 'Formulario',
-  person: 'Persona'
+  person: 'Persona',
+  dashboard: 'Dashboard'
   // Agrega aquí más modelos según tu sistema
 };
 

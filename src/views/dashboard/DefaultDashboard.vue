@@ -6,13 +6,14 @@ import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
 import SACards from '@/layouts/dashboard/cards/SACards.vue';
 import GUCards from '@/layouts/dashboard/cards/GUCards.vue';
+import { useRouter } from 'vue-router';
 import { useCompletionData } from '@/composables/useCompletionData';
 import { getTodayDate } from '@/constants/constants';
 import DashboardFilters from './components/DashboardFilters.vue';
 import FormDetailChart from './components/FormDetailChart.vue';
 
 const { completion } = useCompletionData();
-
+const router = useRouter();
 const todayFormatted = getTodayDate();
 const forms = ref({ data: [], last_page: 1 });
 const isLoading = ref(false);
@@ -28,6 +29,32 @@ const frequencyFilter = ref(null);
 const auth = useAuthStore();
 const roles = computed(() => auth.user?.roles || []);
 const isSuperadmin = computed(() => roles.value.includes('superadmin'));
+const isAdmin = computed(() => roles.value.includes('admin'));
+
+const checkDashboard = async () => {
+  if (isAdmin.value || isSuperadmin.value) {
+    return true;
+  }
+  try {
+    const { data } = await axiosInstance.get('/my-forms', {
+      params: { page: 1, per_page: 1 }
+    });
+    
+    const hasForms = (data.data?.length || 0) > 0;
+    
+    if (!hasForms) {
+      router.replace('/mis-formularios');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error checking dashboard access:', error);
+    // En caso de error, redirigir por seguridad
+    router.replace('/mis-formularios');
+    return false;
+  }
+}
 
 //Variables para organizations
 const organizationOptions = ref([]);
@@ -339,7 +366,7 @@ const chartOptions = computed(() => {
           if (clickedFormId && hasResponses) {
             selectedFormId.value = clickedFormId;
           } else {
-            toast.warning('No hay respuestas para este formulario en el rango de fechas seleccionado.');
+            console.log('No hay respuestas para este formulario en el rango de fechas seleccionado.');
           }
         }
       }
@@ -483,13 +510,18 @@ const requestGeolocation = () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  const hasAccess = await checkDashboard();
+  if (!hasAccess) {
+    return;
+  }
   fetchForms();
   if (isSuperadmin.value) {
     fetchOrganizations();
   }
   checkGeoPermission();
 });
+
 </script>
 
 <template>
