@@ -6,7 +6,7 @@
             <div class="d-flex justify-space-between align-center mb-4">
               <h3 class="text-h5 font-weight-bold">Análisis de Formulario</h3>
               <v-btn variant="outlined" color="primary" @click="$emit('close')">
-                <v-icon start>mdi-close</v-icon>
+                <v-icon :icon="mdiClose" start />
                 Cerrar
               </v-btn>
             </div>
@@ -156,6 +156,7 @@
   import GeolocationMap from '@/utils/helpers/google/GeolocationMap.vue';
   import AnalyticsReport from './AnalyticsReport.vue';
   import { useAuthStore } from '@/stores/auth';
+  import { mdiClose } from '@mdi/js';
   
   const props = defineProps({
     formId: {

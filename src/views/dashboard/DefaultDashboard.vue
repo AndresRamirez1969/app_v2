@@ -4,6 +4,7 @@ import axiosInstance from '@/utils/axios';
 import VueApexCharts from 'vue3-apexcharts';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
+import { mdiArrowLeft, mdiInformationSlabCircle, mdiMapMarkerOff } from '@mdi/js';
 import SACards from '@/layouts/dashboard/cards/SACards.vue';
 import GUCards from '@/layouts/dashboard/cards/GUCards.vue';
 import { useRouter } from 'vue-router';
@@ -262,6 +263,16 @@ watch(
   { deep: true }
 );
 
+const getDaysInRange = (startStr, endStr) => {
+  if (!startStr || !endStr) return 1;
+  const start = new Date(startStr + 'T12:00:00');
+  const end = new Date(endStr + 'T12:00:00');
+  if (end < start) return 1;
+  const diffMs = end - start;
+  const days = Math.ceil(diffMs / (24 * 60 * 60 * 1000)) + 1;
+  return Math.max(1, days);
+};
+
 
 const formsChartData = computed(() => {
   // Si hay un formulario seleccionado, mostrar datos por roles
@@ -293,12 +304,18 @@ const formsChartData = computed(() => {
     };
   }
 
+  const range = dateRangeForAPI.value;
+  const daysInRange = getDaysInRange(range?.start, range?.end);
+
   const categories = allForms.map(form => form.name || form.folio);
   const responseData = allForms.map(form => form.responses_count || 0);
-  const assignmentsData = allForms.map(form => {
-    const totalAssignments = form.auditadoRoles?.length || 0;
+  const assignmentsData = allForms.map((form) => {
+    const assignedCount = form.auditadoRoles?.length || 0;
     const responses = form.responses_count || 0;
-    return Math.max(0, totalAssignments - responses);
+    const frequency = form.frequency || form.frequency_type;
+    const expectedInRange =
+      frequency === 'once_per_day' ? assignedCount * daysInRange : assignedCount;
+    return Math.max(0, expectedInRange - responses);
   });
   const formNames = allForms.map(form => form.name || form.folio);
   const formIds = allForms.map(form => form.id);
@@ -534,7 +551,7 @@ onMounted(async () => {
       class="mb-4 text-left geo-warning"
       border="start"
       prominent
-      icon="mdi-map-marker-off"
+      :icon="mdiMapMarkerOff"
     >
       <div class="d-flex align-center">
         <div class="flex-grow-1">
@@ -583,7 +600,7 @@ onMounted(async () => {
     <template v-if="isSuperadmin">
       <div class="d-flex align-center justify-between mb-2">
         <v-label>Organización para filtrar graficas <span class="text-error">*</span></v-label>
-        <v-icon :icon="mdiInformationSlabCircleOutline" color="primary" size="22" class="ml-2" style="cursor: pointer" />
+        <v-icon :icon="mdiInformationSlabCircle" color="primary" size="22" class="ml-2" style="cursor: pointer" />
       </div>
       <div class="padding-bottom: 18px;">
         <v-select
@@ -608,14 +625,14 @@ onMounted(async () => {
         <v-card elevation="2">
           <v-card-text>
             <div class="d-flex justify-space-between align-center mb-4">
-              <h3 class="text-h5 font-weight-bold">Formularios {{ frequencyFilter === 'multiple_per_day' ? 'Diarios' : 'Una vez al dia' }}</h3>
+              <h3 class="text-h5 font-weight-bold">Respuestas x Formulario</h3>
               <v-btn
                 v-if="showFormDetails"
                 variant="outlined"
                 color="primary"
                 @click="selectedFormId = null"
               >
-                <v-icon start>mdi-arrow-left</v-icon>
+                <v-icon :icon="mdiArrowLeft" start />
                 Volver a vista general
               </v-btn>
             </div>
