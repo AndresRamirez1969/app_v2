@@ -44,7 +44,8 @@ const modelNames = {
   businessUnitGroup: 'Grupo de Ubicaciones',
   organization: 'Organización',
   business: 'Negocio',
-  form: 'Formulario'
+  form: 'Formulario',
+  dashboard: 'Dashboard'
 };
 
 const protectedRoles = ['superadmin', 'admin', 'sponsor'];

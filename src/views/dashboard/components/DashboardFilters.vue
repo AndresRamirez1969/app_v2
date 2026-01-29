@@ -19,7 +19,7 @@
           <template v-else>
             <span class="d-flex align-center">
               <span class="mr-2">{{ frequencyLabel }}</span>
-              <v-icon size="small">mdi-chevron-down</v-icon>
+              <v-icon :icon="mdiChevronDown" size="small" />
             </span>
           </template>
         </v-btn>
@@ -62,7 +62,7 @@
                   <path fill="currentColor" d="M3 6h18v2H3V6m3 6h12v2H6v-2m3 6h6v2H9v-2z" />
                 </svg>
               </v-icon>
-              <span>Filtros</span>
+              <span>Filtrar por Fechas</span>
             </span>
           </template>
         </v-btn>
@@ -89,7 +89,7 @@
               </svg>
             </v-icon>
           </v-btn>
-          <v-card-title class="font-weight-bold">Filtros</v-card-title>
+          <v-card-title class="font-weight-bold">Filtrar por Fechas</v-card-title>
           <v-card-text class="pb-0">
 
             <!-- Rango de fechas de creación -->
@@ -172,6 +172,7 @@
 import { ref, computed, watch } from 'vue';
 import { useDisplay } from 'vuetify';
 import '@/styles/filters.css';
+import { mdiChevronDown } from '@mdi/js';
 
 const emit = defineEmits(['filter']);
 

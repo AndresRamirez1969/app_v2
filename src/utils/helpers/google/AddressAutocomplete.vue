@@ -429,13 +429,19 @@ function initCreateFlow() {
     fields.value.longitude = Number(sLng);
     bootMapVisual({ lat: fields.value.latitude, lng: fields.value.longitude });
     setMarkerPosition({ lat: fields.value.latitude, lng: fields.value.longitude }, true);
+
+    // Obtener dirección y rellenar los campos
+    reverseGeocode(fields.value.latitude, fields.value.longitude, (place) => {
+      if (place) fillFieldsFromPlace(place);
+    });
+
     sessionHandled.value = true;
-    emit('update:parsedAddress', { ...fields.value });
+    emit("update:parsedAddress", { ...fields.value });
     return;
   }
 
-  const latCache = localStorage.getItem('geo_lat');
-  const lngCache = localStorage.getItem('geo_lng');
+  const latCache = localStorage.getItem("geo_lat");
+  const lngCache = localStorage.getItem("geo_lng");
   if (latCache && lngCache) {
     const lat = Number(latCache);
     const lng = Number(lngCache);
@@ -443,14 +449,19 @@ function initCreateFlow() {
     fields.value.longitude = lng;
     bootMapVisual({ lat, lng });
     setMarkerPosition({ lat, lng }, true);
-    emit('update:parsedAddress', { ...fields.value });
+
+    // Obtener dirección y rellenar los campos
+    reverseGeocode(lat, lng, (place) => {
+      if (place) fillFieldsFromPlace(place);
+    });
+
+    emit("update:parsedAddress", { ...fields.value });
     return;
   }
 
-  // Ya no se pide permiso aquí, solo se intenta obtener la ubicación en tiempo real si está disponible
+  // Si no hay ubicación previa, inicializa el mapa en una ubicación predeterminada
   bootMapVisual({ lat: 19.4326, lng: -99.1332 });
 }
-
 /* ====== Watchers ====== */
 watch(
   () => fields.value.geofence_radius,

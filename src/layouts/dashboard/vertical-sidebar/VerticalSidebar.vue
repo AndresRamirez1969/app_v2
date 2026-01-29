@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { useCustomizerStore } from "../../../stores/customizer";
 import sidebarItems from "./sidebarItem";
 import { useAuthStore } from "@/stores/auth";
+import axiosInstance from "@/utils/axios";
 
 import NavGroup from "./NavGroup/NavGroup.vue";
 import NavItem from "./NavItem/NavItem.vue";
@@ -12,6 +13,7 @@ const customizer = useCustomizerStore();
 const auth = useAuthStore();
 
 const isHovered = ref(false);
+const hasDashboardAccess = ref<boolean | null>(null);
 
 const userRoles = computed(() => auth.user?.roles || []);
 const permissions = computed(() => auth.user?.permissions || []);
@@ -58,7 +60,32 @@ function getRolesRoute() {
   return "/roles";
 }
 
-// Lógica de acceso a reportes replicando la policy del backend
+const checkDashboardAccess = async () => {
+  const user = auth.user;
+  if (!user) {
+    hasDashboardAccess.value = false;
+    return;
+  }
+
+  if (user.roles?.includes("admin") || user.roles?.includes("superadmin")) {
+    hasDashboardAccess.value = true;
+    return;
+  }
+
+  try {
+    const { data } = await axiosInstance.get('/my-forms', {
+      params: { page: 1, per_page: 1 }
+    });
+    
+    const hasForms = (data.data?.length || 0) > 0;
+    hasDashboardAccess.value = hasForms;
+  } catch (error) {
+    console.error('Error checking dashboard access:', error);
+    hasDashboardAccess.value = false;
+  }
+};
+
+
 function canViewReports(user: any): boolean {
   if (!user) return false;
 
@@ -93,6 +120,16 @@ function canViewReports(user: any): boolean {
 const sidebarMenu = computed(() => {
   return sidebarItems
     .map((item) => {
+      // Filtrar "Inicio" (Dashboard) basado en acceso
+      if (item.title === "Inicio") {
+        // Si aún no se ha verificado, no mostrar (evita flash)
+        if (hasDashboardAccess.value === null) {
+          return null;
+        }
+        // Solo mostrar si tiene acceso
+        return hasDashboardAccess.value ? item : null;
+      }
+      
       if (item.title === "Organizaciones") {
         const show = userRoles.value.includes("superadmin") || hasOrgViewAny.value;
         return show ? { ...item, to: getOrgRoute() } : null;
@@ -149,13 +186,16 @@ const sidebarMenu = computed(() => {
         return show ? { ...item, to: "/formularios" } : null;
       }
       if (item.title === "Reportes") {
-        // Aplica la lógica de la policy del backend
         const show = canViewReports(auth.user);
         return show ? { ...item, to: "/reportes" } : null;
       }
       return item;
     })
     .filter(Boolean);
+});
+
+onMounted(async () => {
+  await checkDashboardAccess();
 });
 </script>
 

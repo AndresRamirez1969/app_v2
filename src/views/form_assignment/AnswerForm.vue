@@ -1101,20 +1101,24 @@ const filteredEvidence = (fieldId) => {
 };
 
 const getUserLocation = () =>
-  new Promise(async (resolve, reject) => {
+  new Promise((resolve, reject) => {
     const lat = localStorage.getItem('geo_lat');
     const lng = localStorage.getItem('geo_lng');
     if (lat !== null && lng !== null && lat !== '' && lng !== '' && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
       // Obtener dirección
-      geoAddress.value = await fetchAddressFromCoords(parseFloat(lat), parseFloat(lng));
+      fetchAddressFromCoords(parseFloat(lat), parseFloat(lng)).then((address) => {
+        geoAddress.value = address;
+        resolve({ lat: parseFloat(lat), lng: parseFloat(lng) });
+      }).catch((err) => {
+        reject(err);
+      });
       resolve({ lat: parseFloat(lat), lng: parseFloat(lng) });
     } else {
       reject('No se encontró la ubicación del usuario. Por favor, inicia sesión de nuevo.');
     }
   });
 
-const showForm = async () => {
-  formStartTime.value = new Date().toISOString();
+  const showForm = async () => {
   isLoading.value = true;
   geoCheckError.value = null;
   try {
@@ -1128,56 +1132,56 @@ const showForm = async () => {
 
     (form.value?.fields || []).forEach((field) => {
       if (formData[field.id] === undefined) {
-        if (field.type === 'checkbox') formData[field.id] = [];
-        else formData[field.id] = '';
+        if (field.type === "checkbox") formData[field.id] = [];
+        else formData[field.id] = "";
       }
       if (evidenceData[field.id] === undefined) {
         evidenceData[field.id] = [];
       }
     });
 
-    const geoField = form.value?.fields?.find((f) => f.type === 'geolocation' && f.attributes?.mode === 'scope');
+    const geoField = form.value?.fields?.find(
+      (f) => f.type === "geolocation" && f.attributes?.mode === "manual"
+    );
     if (geoField) {
       try {
         userLocation.value = await getUserLocation();
         if (
-          typeof userLocation.value.lat !== 'number' ||
-          typeof userLocation.value.lng !== 'number' ||
+          typeof userLocation.value.lat !== "number" ||
+          typeof userLocation.value.lng !== "number" ||
           isNaN(userLocation.value.lat) ||
           isNaN(userLocation.value.lng)
         ) {
-          geoCheckError.value = 'Ubicación inválida. Por favor, vuelve a iniciar sesión.';
+          geoCheckError.value = "Ubicación inválida. Por favor, vuelve a iniciar sesión.";
           isLoading.value = false;
           return;
         }
-      } catch (err) {
-        geoCheckError.value = err || 'No se pudo obtener tu ubicación';
-        isLoading.value = false;
-        return;
-      }
-      try {
-        res = await axiosInstance.get(`/forms/${formId.value}`, {
-          params: { for_response: 1, 'location.lat': userLocation.value.lat, 'location.lng': userLocation.value.lng }
+
+        // Obtener dirección y rellenar campos de geolocalización manual
+        const address = await fetchAddressFromCoords(
+          userLocation.value.lat,
+          userLocation.value.lng
+        );
+        geoAddress.value = address;
+
+        // Rellenar automáticamente los campos de geolocalización manual
+        form.value.fields.forEach((field) => {
+          if (field.type === "geolocation" && field.attributes?.mode === "manual") {
+            handleGeolocationManual(field.id, {
+              latitude: userLocation.value.lat,
+              longitude: userLocation.value.lng,
+              address,
+            });
+          }
         });
-        form.value = res.data.form || res.data.forms?.[0] || res.data.data;
-        organization.value = form.value?.organization || null;
-        business.value = form.value?.business || null;
-        businessUnit.value = form.value?.business_unit || null;
-        businessUnitGroup.value = form.value?.business_unit_group || null;
       } catch (err) {
-        if (err.response && err.response.status === 403) {
-          geoCheckError.value = err.response.data.message || 'No puedes abrir este formulario fuera del alcance permitido.';
-        } else if (err.response && err.response.status === 422) {
-          geoCheckError.value = err.response.data.message || 'Se requiere la ubicación (lat/lng) para abrir el formulario.';
-        } else {
-          geoCheckError.value = 'No se pudo cargar el formulario';
-        }
+        geoCheckError.value = err || "No se pudo obtener tu ubicación";
         isLoading.value = false;
         return;
       }
     }
   } catch (err) {
-    geoCheckError.value = 'No se pudo cargar el formulario';
+    geoCheckError.value = "No se pudo cargar el formulario";
   } finally {
     isLoading.value = false;
   }

@@ -1,4 +1,8 @@
 export const permissionDescriptions = {
+
+  // DASHBOARD
+  'dashboard.view': 'Permite ver el dashboard siempre y cuando sea auditor o supervisor de algun formulario.',
+  // USER
   'user.viewAny': 'Permite ver la lista de todos los usuarios.',
   'user.view': 'Permite ver el detalle de un usuario específico.',
   'user.create': 'Permite crear nuevos usuarios.',

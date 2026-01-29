@@ -8,78 +8,72 @@ const props = defineProps({
   isLoading: { type: Boolean, default: false }
 });
 
-// Función para obtener los últimos 12 meses
-const getLast12Months = () => {
-  const months = [];
-  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
+const getLast7Days = () => {
+  const days = [];
   const now = new Date();
-  for (let i = 11; i >= 0; i--) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({
-      label: monthNames[date.getMonth()],
-      year: date.getFullYear(),
-      month: date.getMonth() + 1,
-      key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+    days.push({
+      label: `${day}/${month}`,
+      key: `${d.getFullYear()}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     });
   }
-  return months;
+  return days;
 };
 
-// Función para agrupar respuestas por mes
-const groupResponsesByMonth = (responses) => {
-  const monthlyData = {};
-  const last12Months = getLast12Months();
+const groupResponsesByDay = (responses) => {
+  const dailyData = {};
+  const last7Days = getLast7Days();
 
-  // Inicializar todos los meses con 0
-  last12Months.forEach((month) => {
-    monthlyData[month.key] = 0;
+  last7Days.forEach((day) => {
+    dailyData[day.key] = 0;
   });
 
-  // Contar respuestas por mes
   responses.forEach((response) => {
-    if (response.submitted_at) {
-      const date = new Date(response.submitted_at);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
-      if (monthlyData.hasOwnProperty(monthKey)) {
-        monthlyData[monthKey]++;
+    const dateStr = response.submitted_at || response.created_at;
+    if (dateStr) {
+      const d = new Date(dateStr);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (Object.hasOwn(dailyData, key)) {
+        dailyData[key]++;
       }
     }
   });
 
-  return last12Months.map((month) => ({ label: month.label, value: monthlyData[month.key] }));
+  return last7Days.map((day) => ({ label: day.label, value: dailyData[day.key] }));
 };
 
 // Computed para los datos de la gráfica
 const chartData = computed(() => {
   if (!props.formResponsesData || props.formResponsesData.length === 0) {
-    return { labels: getLast12Months().map((m) => m.label), values: new Array(12).fill(0) };
+    return { labels: getLast7Days().map((d) => d.label), values: new Array(7).fill(0) };
   }
-
-  const monthlyData = groupResponsesByMonth(props.formResponsesData);
-  return { labels: monthlyData.map((m) => m.label), values: monthlyData.map((m) => m.value) };
+  const dailyData = groupResponsesByDay(props.formResponsesData);
+  return { labels: dailyData.map((d) => d.label), values: dailyData.map((d) => d.value) };
 });
 
 // Estadísticas calculadas
 const stats = computed(() => {
   if (!props.formResponsesData || props.formResponsesData.length === 0) {
-    return { totalResponses: 0, averagePerMonth: 0, trend: 'neutral' };
+    return { totalResponses: 0, averagePerDay: 0, trend: 'neutral' };
   }
 
-  const monthlyData = groupResponsesByMonth(props.formResponsesData);
-  const totalResponses = monthlyData.reduce((sum, month) => sum + month.value, 0);
-  const averagePerMonth = totalResponses > 0 ? (totalResponses / 12).toFixed(1) : 0;
+  const dailyData = groupResponsesByDay(props.formResponsesData);
+  const totalResponses = dailyData.reduce((sum, day) => sum + day.value, 0);
+  const averagePerDay = totalResponses > 0 ? (totalResponses / 7).toFixed(1) : 0;
 
-  // Calcular tendencia (comparar últimos 3 meses vs primeros 3 meses)
-  const firstQuarter = monthlyData.slice(0, 3).reduce((sum, month) => sum + month.value, 0);
-  const lastQuarter = monthlyData.slice(-3).reduce((sum, month) => sum + month.value, 0);
+  // Tendencia: primeros 3 días vs últimos 3 días
+  const firstPart = dailyData.slice(0, 3).reduce((sum, day) => sum + day.value, 0);
+  const lastPart = dailyData.slice(-3).reduce((sum, day) => sum + day.value, 0);
 
   let trend = 'neutral';
-  if (lastQuarter > firstQuarter * 1.2) trend = 'up';
-  else if (lastQuarter < firstQuarter * 0.8) trend = 'down';
+  if (lastPart > firstPart * 1.2) trend = 'up';
+  else if (firstPart > 0 && lastPart < firstPart * 0.8) trend = 'down';
 
-  return { totalResponses, averagePerMonth, trend };
+  return { totalResponses, averagePerDay, trend };
 });
 
 const chartOptions1 = computed(() => {
@@ -122,7 +116,7 @@ const lineChart1 = computed(() => ({ series: [{ name: 'Respuestas por Mes', data
 
 const reports = computed(() => [
   { name: 'Total de Respuestas', value: stats.value.totalResponses, icon: 'mdi-clipboard-text', color: 'primary' },
-  { name: 'Promedio por Mes', value: stats.value.averagePerMonth, icon: 'mdi-chart-line', color: 'success' },
+  { name: 'Promedio por día', value: stats.value.averagePerDay, icon: 'mdi-chart-line', color: 'success' },
   {
     name: 'Tendencia',
     value: stats.value.trend === 'up' ? '↗ Creciente' : stats.value.trend === 'down' ? '↘ Decreciente' : '→ Estable',
