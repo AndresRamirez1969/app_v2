@@ -348,6 +348,9 @@ function hasResponses(form) {
 .row-clickable:hover {
   background: #f5f7fa;
 }
+.v-theme--dark .row-clickable:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
 .custom-dropdown {
   border-radius: 10px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);

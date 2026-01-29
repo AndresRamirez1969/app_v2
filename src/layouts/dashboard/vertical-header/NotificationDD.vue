@@ -69,7 +69,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- <div class="d-flex align-center">
+  <div class="d-flex align-center">
     <v-tooltip text="Cambiar temática" location="bottom">
       <template v-slot:activator="{ props }">
         <v-btn
@@ -86,7 +86,7 @@ onUnmounted(() => {
         </v-btn>
       </template>
     </v-tooltip>
-  </div> -->
+  </div>
   <v-menu :close-on-content-click="false" offset="6, 0">
     <template v-slot:activator="{ props }">
       <v-btn icon class="text-secondary ml-sm-2 ml-1" color="darkText" rounded="sm" size="small" v-bind="props">
