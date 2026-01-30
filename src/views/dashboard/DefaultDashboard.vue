@@ -12,6 +12,10 @@ import { useCompletionData } from '@/composables/useCompletionData';
 import { getTodayDate } from '@/constants/constants';
 import DashboardFilters from './components/DashboardFilters.vue';
 import FormDetailChart from './components/FormDetailChart.vue';
+import { useTheme } from 'vuetify';
+
+const theme = useTheme();
+const isDark = computed(() => theme.global.current.value.dark);
 
 const { completion } = useCompletionData();
 const router = useRouter();
@@ -40,14 +44,14 @@ const checkDashboard = async () => {
     const { data } = await axiosInstance.get('/my-forms', {
       params: { page: 1, per_page: 1 }
     });
-    
+
     const hasForms = (data.data?.length || 0) > 0;
-    
+
     if (!hasForms) {
       router.replace('/mis-formularios');
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error checking dashboard access:', error);
@@ -55,13 +59,12 @@ const checkDashboard = async () => {
     router.replace('/mis-formularios');
     return false;
   }
-}
+};
 
 //Variables para organizations
 const organizationOptions = ref([]);
 const loadingOrganizations = ref(false);
 const selectedOrgForDashboard = ref(null);
-
 
 const userOrganizationId = computed(() => auth.user?.organization_id);
 
@@ -82,7 +85,6 @@ const fetchOrganizations = async () => {
     loadingOrganizations.value = false;
   }
 };
-
 
 const selectedFormId = ref(null);
 const formResponseByRole = ref([]);
@@ -148,7 +150,7 @@ const fetchFormResponseByRole = async (formId) => {
       console.log('📋 Responses data received:', {
         responsesCount: responses.length,
         allResponsesCount: allResponses.length,
-        responses: responses.map(r => r.response?.user?.name || r.user?.name || 'Sin nombre')
+        responses: responses.map((r) => r.response?.user?.name || r.user?.name || 'Sin nombre')
       });
 
       if (data.last_page !== undefined) {
@@ -190,9 +192,8 @@ const handleFilter = (filters) => {
   };
 
   frequencyFilter.value = filters.frequency || null;
-  
-  fetchForms();
 
+  fetchForms();
 };
 
 //const hasFrequencyFilter = computed(() => !!frequencyFilter.value);
@@ -202,15 +203,15 @@ const fetchForms = async () => {
   try {
     const dateRange = dateRangeForAPI.value;
     const todayStr = getTodayDate();
-    
+
     const startDate = dateRange?.start || todayStr;
     const endDate = dateRange?.end || todayStr;
-    
-    const params = { 
-      page: currentPage.value, 
-      ...getOrgParams(), 
+
+    const params = {
+      page: currentPage.value,
+      ...getOrgParams(),
       start_date: startDate,
-      end_date: endDate,
+      end_date: endDate
     };
 
     if (frequencyFilter.value) {
@@ -223,7 +224,7 @@ const fetchForms = async () => {
     console.log('📋 Forms data received:', {
       formsCount: res.data.data?.length || 0,
       totalResponses: res.data.data?.reduce((sum, f) => sum + (f.responses_count || 0), 0) || 0,
-      forms: res.data.data?.map(f => ({ name: f.name, responses_count: f.responses_count })) || []
+      forms: res.data.data?.map((f) => ({ name: f.name, responses_count: f.responses_count })) || []
     });
   } catch (err) {
     console.error('Failed to fetch forms', err);
@@ -258,8 +259,7 @@ watch(selectedOrgForDashboard, () => {
 
 watch(
   () => dateRangeForAPI.value,
-  () => {
-  },
+  () => {},
   { deep: true }
 );
 
@@ -273,13 +273,12 @@ const getDaysInRange = (startStr, endStr) => {
   return Math.max(1, days);
 };
 
-
 const formsChartData = computed(() => {
   // Si hay un formulario seleccionado, mostrar datos por roles
   if (selectedFormId.value && formResponseByRole.value.length > 0) {
     return {
-      categories: formResponseByRole.value.map(item => item.name),
-      responseData: formResponseByRole.value.map(item => item.count),
+      categories: formResponseByRole.value.map((item) => item.name),
+      responseData: formResponseByRole.value.map((item) => item.count),
       assignmentsData: [],
       formNames: [],
       formIds: [],
@@ -307,23 +306,22 @@ const formsChartData = computed(() => {
   const range = dateRangeForAPI.value;
   const daysInRange = getDaysInRange(range?.start, range?.end);
 
-  const categories = allForms.map(form => form.name || form.folio);
-  const responseData = allForms.map(form => form.responses_count || 0);
+  const categories = allForms.map((form) => form.name || form.folio);
+  const responseData = allForms.map((form) => form.responses_count || 0);
   const assignmentsData = allForms.map((form) => {
     const assignedCount = form.auditadoRoles?.length || 0;
     const responses = form.responses_count || 0;
     const frequency = form.frequency || form.frequency_type;
-    const expectedInRange =
-      frequency === 'once_per_day' ? assignedCount * daysInRange : assignedCount;
+    const expectedInRange = frequency === 'once_per_day' ? assignedCount * daysInRange : assignedCount;
     return Math.max(0, expectedInRange - responses);
   });
-  const formNames = allForms.map(form => form.name || form.folio);
-  const formIds = allForms.map(form => form.id);
+  const formNames = allForms.map((form) => form.name || form.folio);
+  const formIds = allForms.map((form) => form.id);
 
   return {
     categories,
     responseData,
-    assignmentsData,  
+    assignmentsData,
     formNames,
     formIds,
     totalExpected: completion.value.expected,
@@ -338,18 +336,18 @@ const hasNoForms = computed(() => {
     console.log('hasNoForms: isLoading is true, returning false');
     return false;
   }
-  
+
   // Si es superadmin y no hay organización seleccionada, no mostrar el mensaje
   if (isSuperadmin.value && !selectedOrgForDashboard.value) {
     console.log('hasNoForms: superadmin without org, returning false');
     return false;
   }
-  
+
   // Verificar si hay formularios
   const allForms = forms.value?.data || [];
   const hasOrg = isSuperadmin.value ? !!selectedOrgForDashboard.value : true;
   const shouldShow = hasOrg && allForms.length === 0;
-  
+
   // Debug temporal
   console.log('hasNoForms final check:', {
     isLoading: isLoading.value,
@@ -361,32 +359,36 @@ const hasNoForms = computed(() => {
     shouldShow,
     willReturn: shouldShow
   });
-  
+
   return shouldShow;
 });
 
-
 const chartOptions = computed(() => {
   const isRoleView = formsChartData.value.isRoleView;
-  
+  const dark = isDark.value;
+  const textColor = dark ? '#e0e0e0' : undefined;
+  const titleColor = dark ? '#fff' : undefined;
+
   return {
     chart: {
       type: 'bar',
       height: 350,
       toolbar: { show: true },
-      stacked: !isRoleView, // Solo stacked cuando NO es vista de roles
-      events: isRoleView ? {} : {
-        dataPointSelection: (event, chartContext, config) => {
-          const dataPointIndex = config.dataPointIndex;
-          const clickedFormId = formsChartData.value.formIds[dataPointIndex];
-          const hasResponses = formsChartData.value.responseData[dataPointIndex] > 0;
-          if (clickedFormId && hasResponses) {
-            selectedFormId.value = clickedFormId;
-          } else {
-            console.log('No hay respuestas para este formulario en el rango de fechas seleccionado.');
+      stacked: !isRoleView,
+      events: isRoleView
+        ? {}
+        : {
+            dataPointSelection: (event, chartContext, config) => {
+              const dataPointIndex = config.dataPointIndex;
+              const clickedFormId = formsChartData.value.formIds[dataPointIndex];
+              const hasResponses = formsChartData.value.responseData[dataPointIndex] > 0;
+              if (clickedFormId && hasResponses) {
+                selectedFormId.value = clickedFormId;
+              } else {
+                console.log('No hay respuestas para este formulario en el rango de fechas seleccionado.');
+              }
+            }
           }
-        }
-      }
     },
     plotOptions: {
       bar: {
@@ -403,40 +405,44 @@ const chartOptions = computed(() => {
       offsetY: -20,
       style: {
         fontSize: '12px',
-        colors: ['#304758']
+        colors: [dark ? '#fff' : '#304758']
       }
     },
     xaxis: {
       categories: formsChartData.value.categories,
       labels: {
-        style: { fontSize: '12px' },
+        style: { fontSize: '12px', colors: textColor },
         rotate: -45,
         rotateAlways: formsChartData.value.categories.length > 5
       },
       title: {
-        text: isRoleView ? 'Roles' : 'Formularios'
+        text: isRoleView ? 'Roles' : 'Formularios',
+        style: { color: titleColor }
       }
     },
     yaxis: {
-      title: { text: 'Cantidad de Respuestas' }
+      title: {
+        text: 'Cantidad de Respuestas',
+        style: { color: titleColor }
+      }
     },
     legend: {
       position: 'top',
       horizontalAlign: 'center',
-      show: !isRoleView // Ocultar leyenda cuando es vista de roles
+      show: !isRoleView,
+      labels: { colors: textColor }
     },
-    colors: isRoleView ? ['#000080'] : ['#000080', '#741304'],
+    colors: isRoleView ? ['#171781'] : ['#171781', '#64261C'],
     tooltip: {
+      theme: dark ? 'dark' : 'light',
       y: {
         formatter: (val) => `${val}`
       }
     },
     title: {
-      text: isRoleView 
-        ? 'Respuestas por Rol' 
-        : 'Respuestas vs Asignaciones por Formulario',
+      text: isRoleView ? 'Respuestas por Rol' : 'Respuestas vs Asignaciones por Formulario',
       align: 'left',
-      style: { fontSize: '18px', fontWeight: 600 }
+      style: { fontSize: '18px', fontWeight: 600, color: titleColor }
     },
     fill: {
       opacity: 1
@@ -454,7 +460,7 @@ const chartSeries = computed(() => {
         name: 'Respuestas',
         data: formsChartData.value.responseData
       }
-    ]
+    ];
   }
   return [
     {
@@ -465,7 +471,7 @@ const chartSeries = computed(() => {
       name: 'Faltantes',
       data: formsChartData.value.assignmentsData
     }
-  ]
+  ];
 });
 
 const toast = useToast();
@@ -538,7 +544,6 @@ onMounted(async () => {
   }
   checkGeoPermission();
 });
-
 </script>
 
 <template>
@@ -574,7 +579,7 @@ onMounted(async () => {
         </div>
       </v-col>
       <template v-if="isSuperadmin && !selectedOrgForDashboard">
-        <SACards /> 
+        <SACards />
       </template>
       <template v-if="selectedOrgForDashboard">
         <GUCards :selected-organization-id="selectedOrgForDashboard" :date-range="dateRangeForAPI" :frequency="frequencyFilter" />
@@ -596,7 +601,7 @@ onMounted(async () => {
       </v-col>
     </v-row>
   </template> -->
-    
+
     <template v-if="isSuperadmin">
       <div class="d-flex align-center justify-between mb-2">
         <v-label>Organización para filtrar graficas <span class="text-error">*</span></v-label>
@@ -626,12 +631,7 @@ onMounted(async () => {
           <v-card-text>
             <div class="d-flex justify-space-between align-center mb-4">
               <h3 class="text-h5 font-weight-bold">Respuestas x Formulario</h3>
-              <v-btn
-                v-if="showFormDetails"
-                variant="outlined"
-                color="primary"
-                @click="selectedFormId = null"
-              >
+              <v-btn v-if="showFormDetails" variant="outlined" color="primary" @click="selectedFormId = null">
                 <v-icon :icon="mdiArrowLeft" start />
                 Volver a vista general
               </v-btn>
@@ -657,7 +657,6 @@ onMounted(async () => {
       :date-range="dateRangeForAPI"
       @close="selectedFormId = null"
     />
-    
   </v-container>
 </template>
 

@@ -13,6 +13,9 @@
   display: flex;
   align-items: center;
 }
+.v-theme--dark .filter-btn-wrapper {
+  color: #fff !important;
+}
 .filter-btn {
   border-radius: 8px !important;
   border: 1px solid #ccc !important;
@@ -26,6 +29,11 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+}
+
+.v-theme--dark .filter-btn {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #fff !important;
 }
 .filter-btn-center {
   display: flex !important;
@@ -41,6 +49,11 @@
 .filter-btn:hover,
 .filter-btn:focus {
   background: #f5f5f5 !important;
+}
+
+.v-theme--dark .filter-btn:hover,
+.v-theme--dark .filter-btn:focus {
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 .filter-indicator {
   position: absolute;
@@ -75,6 +88,15 @@
   z-index: 10 !important;
 }
 
+.v-theme--dark .close-btn {
+  color: #fff !important;
+}
+.v-theme--dark .close-btn .v-icon,
+.v-theme--dark .close-btn .v-icon svg path {
+  color: #fff !important;
+  fill: currentColor;
+}
+
 .filter-padding {
   padding-top: 0px !important;
   padding-bottom: 0px !important;
@@ -93,4 +115,25 @@
 }
 .pt-2 {
   padding-top: 8px !important;
+}
+
+/* Dark mode: texto e icono del botón Filtros en blanco */
+.v-theme--dark .filter-btn,
+.v-theme--dark .filter-btn .filter-btn-content,
+.v-theme--dark .filter-btn .v-icon {
+  color: #fff !important;
+}
+.v-theme--dark .filter-btn .v-icon svg path {
+  fill: currentColor;
+}
+
+.v-theme--dark .filter-btn {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.v-theme--dark .frequency-filter-btn,
+.v-theme--dark .frequency-filter-btn .v-icon,
+.v-theme--dark .frequency-filter-btn .v-icon svg path {
+  color: #fff !important;
+  fill: currentColor;
 }

@@ -202,6 +202,9 @@ const fillForm = (form) => {
   background: #f5f5f5;
   transition: background 0.2s;
 }
+.v-theme--dark .row-clickable:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
 
 .folio-cell,
 .name-cell,

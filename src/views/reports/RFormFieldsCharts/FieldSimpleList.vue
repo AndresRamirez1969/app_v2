@@ -281,36 +281,4 @@ function fmtPts(n) {
   </div>
 </template>
 
-<style scoped>
-.records-table {
-  border-collapse: separate !important;
-}
-.response-row {
-  background: #f5f5f5;
-  border-radius: 8px;
-}
-.records-table tr > td {
-  padding-bottom: 12px;
-  padding-top: 12px;
-}
-.records-cards .response-card {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08);
-  border: 1px solid #eaeaea;
-  margin-bottom: 16px;
-}
-@media (min-width: 768px) {
-  .records-cards {
-    display: none !important;
-  }
-}
-@media (max-width: 767px) {
-  .records-table {
-    display: none !important;
-  }
-  .records-cards {
-    display: block !important;
-  }
-}
-</style>
+<style scoped src="@/styles/report_field_charts.css"></style>

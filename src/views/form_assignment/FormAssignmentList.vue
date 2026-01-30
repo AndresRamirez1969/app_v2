@@ -257,9 +257,24 @@ const fillForm = (form) => {
   width: 150px;
   text-align: left;
 }
+tbody tr:last-child td {
+  border-bottom: none !important;
+}
+
 .folio-link {
   color: #1976d2 !important;
   text-decoration: underline;
   cursor: pointer;
+}
+.v-theme--dark .folio-cell,
+.v-theme--dark .name-cell,
+.v-theme--dark .description-cell,
+.v-theme--dark .scope-cell,
+.v-theme--dark .frequency-cell,
+.v-theme--dark .response-cell,
+.v-theme--dark .status-cell,
+.v-theme--dark .date-cell,
+.v-theme--dark .actions-cell {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
 }
 </style>

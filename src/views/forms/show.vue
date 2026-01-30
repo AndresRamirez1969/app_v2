@@ -943,54 +943,17 @@ onMounted(async () => {
   border: 1px solid #eaeaea !important;
   box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08) !important;
 }
+.v-theme--dark .card-shadow,
+.v-theme--dark .v-card.rounded-lg,
+.v-theme--dark .v-table.rounded-lg {
+  background: rgb(var(--v-theme-surface)) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0px 2px 8px 0px rgba(0, 0, 0, 0.2) !important;
+}
+
+.v-theme--dark .logo-avatar {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
 </style>
 
-<style scoped>
-.logo-avatar {
-  background: #f5f5f5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  overflow: hidden;
-  width: 320px;
-  height: 320px;
-  min-width: 320px;
-  min-height: 320px;
-  max-width: 320px;
-  max-height: 320px;
-}
-.logo-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 12px;
-  display: block;
-}
-.info-value-tight {
-  text-align: left !important;
-  padding-left: 120px !important;
-}
-.info-value {
-  text-align: left !important;
-  padding-left: 120px !important;
-}
-.custom-dropdown {
-  padding: 0;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.card-shadow {
-  box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08) !important;
-  border-radius: 16px !important;
-  background: #fff !important;
-  border: 1px solid #eaeaea !important;
-}
-.v-card.rounded-lg,
-.v-table.rounded-lg {
-  border-radius: 16px !important;
-  background: #fff !important;
-  border: 1px solid #eaeaea !important;
-  box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08) !important;
-}
-</style>

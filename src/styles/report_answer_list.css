@@ -1,0 +1,132 @@
+.logo-avatar {
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 320px;
+  height: 320px;
+  min-width: 320px;
+  min-height: 320px;
+  max-width: 320px;
+  max-height: 320px;
+}
+.logo-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  display: block;
+}
+.card-shadow {
+  box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08) !important;
+  border-radius: 16px !important;
+  background: #fff !important;
+  border: 1px solid #eaeaea !important;
+}
+.v-theme--dark .card-shadow,
+.v-theme--dark .v-card.rounded-lg.elevation-1.pa-0,
+.v-theme--dark .v-table.rounded-lg {
+  background: rgb(var(--v-theme-surface)) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0px 2px 8px 0px rgba(0, 0, 0, 0.25) !important;
+}
+
+.row-clickable:hover {
+  background: #f5f5f5;
+  transition: background 0.2s;
+}
+.folio-cell,
+.name-cell,
+.answer-date-cell {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+.actions-cell {
+  width: 60px;
+  text-align: center;
+  padding: 0 8px;
+}
+.custom-dropdown {
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 4px 0;
+  background: white;
+}
+.actions-btn {
+  min-width: 32px !important;
+  min-height: 32px !important;
+}
+.v-container {
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+  padding-top: 24px !important;
+  padding-bottom: 24px !important;
+}
+
+/* Responsive table visibility */
+.desktop-table {
+  display: block;
+}
+.mobile-table {
+  display: none;
+}
+@media (max-width: 960px) {
+  .v-container {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+  }
+  .answer-mobile-card {
+    box-shadow: 0px 2px 8px 0px rgba(60, 60, 60, 0.08) !important;
+    border-radius: 16px !important;
+    background: #fff !important;
+    border: 1px solid #eaeaea !important;
+  }
+  .desktop-table {
+    display: none !important;
+  }
+  .mobile-table {
+    display: block !important;
+  }
+}
+
+/* Mobile card styles for answers */
+.answer-mobile-card .logo-avatar-mobile,
+.logo-img-cover {
+  display: none !important;
+}
+.folio-link {
+  text-decoration: underline;
+  color: #1976d2 !important;
+  font-weight: 500;
+}
+.folio-small {
+  font-size: 0.85em;
+}
+
+/* Responsive header for hiding "Reportes -" y mostrar "R-Nombre" en mobile */
+.d-none {
+  display: none !important;
+}
+.d-block {
+  display: block !important;
+}
+@media (min-width: 960px) {
+  .d-md-block {
+    display: block !important;
+  }
+  .d-md-none {
+    display: none !important;
+  }
+}
+@media (max-width: 959px) {
+  .d-md-block {
+    display: none !important;
+  }
+  .d-md-none {
+    display: block !important;
+  }
+}

@@ -44,12 +44,13 @@ const sidebarItem: menu[] = [
     icon: ShopOutlined
   },
   {
-    title: 'Ubicaciones',
+    title: 'Unidades',
     icon: EnvironmentOutlined,
     children: [
       {
-        title: 'Ubicaciones',
-        icon: EnvironmentOutlined
+        title: 'Unidades de Negocio',
+        icon: EnvironmentOutlined,
+        to: '/ubicaciones'
       },
       {
         title: 'Grupos de Ubicaciones',

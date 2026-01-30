@@ -214,3 +214,61 @@
     display: block !important;
   }
 }
+
+/* ========== Dark mode ========== */
+.v-theme--dark .row-clickable:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.v-theme--dark .folio-cell,
+.v-theme--dark .name-cell,
+.v-theme--dark .frequency-cell,
+.v-theme--dark .answers-cell,
+.v-theme--dark .scope-cell {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.v-theme--dark .custom-dropdown {
+  background: rgb(var(--v-theme-surface)) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.v-theme--dark .cursor-pointer:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.v-theme--dark .folio-header,
+.v-theme--dark .name-header,
+.v-theme--dark .answers-header,
+.v-theme--dark .date-header,
+.v-theme--dark .scope-header,
+.v-theme--dark .actions-header {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.v-theme--dark .logo-avatar {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.v-theme--dark .close-btn {
+  color: #fff !important;
+}
+.v-theme--dark .close-btn .v-icon svg path {
+  fill: currentColor;
+}
+
+.v-theme--dark .filter-btn {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff !important;
+}
+.v-theme--dark .filter-btn .filter-btn-content,
+.v-theme--dark .filter-btn .v-icon {
+  color: #fff !important;
+}
+
+@media (max-width: 960px) {
+  .v-theme--dark .answer-mobile-card {
+    background: rgb(var(--v-theme-surface)) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
+}
