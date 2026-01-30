@@ -2,7 +2,7 @@
 const props = defineProps({
   items: {
     type: Array,
-    default: () => [],
+    default: () => []
   },
   page: Number,
   itemsPerPage: Number,
@@ -10,10 +10,10 @@ const props = defineProps({
   sortDesc: Boolean,
   pageCount: {
     type: Number,
-    default: 1,
-  },
+    default: 1
+  }
 });
-const emit = defineEmits(["update:page", "sort"]);
+const emit = defineEmits(['update:page', 'sort']);
 </script>
 
 <template>

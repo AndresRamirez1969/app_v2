@@ -1,15 +1,7 @@
 <script setup>
-import AnswerTableMeta from "./RFormAnswerTableMeta.vue";
-import StatusChip from "@/components/status/StatusChip.vue";
-import {
-  mdiChevronUp,
-  mdiChevronDown,
-  mdiDotsHorizontal,
-  mdiEye,
-  mdiLock,
-  mdiDomainOff,
-  mdiFilePdfBox,
-} from "@mdi/js";
+import AnswerTableMeta from './RFormAnswerTableMeta.vue';
+import StatusChip from '@/components/status/StatusChip.vue';
+import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye, mdiLock, mdiDomainOff, mdiFilePdfBox } from '@mdi/js';
 
 const props = defineProps({
   items: Array,
@@ -21,40 +13,38 @@ const props = defineProps({
   hasRating: Boolean,
   loading: Boolean,
   organizationId: Number, // Nueva propiedad para identificar la organización
-  formId: Number, // Nueva propiedad para identificar el formulario
+  formId: Number // Nueva propiedad para identificar el formulario
 });
 
-const emit = defineEmits(["update:page", "sort", "view", "closeReport", "downloadPdf"]);
+const emit = defineEmits(['update:page', 'sort', 'view', 'closeReport', 'downloadPdf']);
 
 const formatDate = (dateString) => {
-  if (!dateString) return "—";
+  if (!dateString) return '—';
   const date = new Date(dateString);
-  return date.toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+  return date.toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
   });
 };
 
-const handleSort = (column) => emit("sort", column);
-const handlePageChange = (newPage) => emit("update:page", newPage);
+const handleSort = (column) => emit('sort', column);
+const handlePageChange = (newPage) => emit('update:page', newPage);
 
 // Emitir evento para que el padre navegue a la ruta correcta
 const viewAnswer = (answer) => {
-  emit("view", {
+  emit('view', {
     formId: answer.form_id || answer.raw?.response?.form_id,
-    reportId: answer.id,
+    reportId: answer.id
   });
 };
 
-const closeReport = (id) => emit("closeReport", id);
+const closeReport = (id) => emit('closeReport', id);
 
 const downloadPdf = (answer) => {
   const createdAt = answer.created_at || answer.answer_date;
-  const localCreatedAt = createdAt
-    ? new Date(createdAt).toLocaleString("es-MX", { hour12: false })
-    : "";
-  emit("downloadPdf", { ...answer, local_created_at: localCreatedAt });
+  const localCreatedAt = createdAt ? new Date(createdAt).toLocaleString('es-MX', { hour12: false }) : '';
+  emit('downloadPdf', { ...answer, local_created_at: localCreatedAt });
 };
 </script>
 
@@ -69,9 +59,7 @@ const downloadPdf = (answer) => {
       <div v-if="!items.length" class="text-center py-8">
         <v-icon :icon="mdiDomainOff" size="64" color="on-surface" />
         <p class="mt-4 text-h6 text-on-surface">No se han registrado reportes</p>
-        <p class="text-body-2 text-on-surface">
-          No se encontraron reportes con los filtros aplicados
-        </p>
+        <p class="text-body-2 text-on-surface">No se encontraron reportes con los filtros aplicados</p>
       </div>
       <!-- MOBILE: tarjetas tipo OrganizationList SIN LOGO -->
       <div class="mobile-table" v-if="items.length">
@@ -83,11 +71,7 @@ const downloadPdf = (answer) => {
           style="cursor: pointer"
         >
           <div class="d-flex align-center mb-1" style="justify-content: space-between">
-            <span
-              class="folio-link folio-small"
-              @click.stop="viewAnswer(answer)"
-              style="cursor: pointer"
-            >
+            <span class="folio-link folio-small" @click.stop="viewAnswer(answer)" style="cursor: pointer">
               {{ answer.folio }}
             </span>
             <StatusChip v-if="answer.status" :status="answer.status" />
@@ -96,7 +80,7 @@ const downloadPdf = (answer) => {
           <!-- Nueva sección para CIAC: Solo para organización 3 y formulario 5 -->
           <div v-if="organizationId === 3 && formId === 5" class="text-caption mb-1">
             <strong>CIAC:</strong>
-            {{ answer.additional_field_response || "—" }}
+            {{ answer.additional_field_response || '—' }}
           </div>
           <div class="text-caption mb-1">
             <strong>Fecha de respuesta:</strong>
@@ -104,11 +88,7 @@ const downloadPdf = (answer) => {
           </div>
           <div v-if="hasRating" class="text-caption mb-1">
             <strong>Puntaje:</strong>
-            {{
-              answer.score !== null && answer.score !== undefined
-                ? Number(answer.score).toFixed(2)
-                : "—"
-            }}
+            {{ answer.score !== null && answer.score !== undefined ? Number(answer.score).toFixed(2) : '—' }}
           </div>
         </v-card>
       </div>
@@ -133,27 +113,16 @@ const downloadPdf = (answer) => {
             </v-icon>
           </template>
           <template #rows>
-            <tr
-              v-for="answer in items"
-              :key="answer.id"
-              @click="viewAnswer(answer)"
-              class="row-clickable"
-              style="cursor: pointer"
-            >
+            <tr v-for="answer in items" :key="answer.id" @click="viewAnswer(answer)" class="row-clickable" style="cursor: pointer">
               <td class="folio-cell">
-                <a
-                  href="#"
-                  class="folio-link"
-                  style="text-decoration: underline; color: #1976d2"
-                  @click.stop.prevent="viewAnswer(answer)"
-                >
+                <a href="#" class="folio-link" style="text-decoration: underline; color: #1976d2" @click.stop.prevent="viewAnswer(answer)">
                   {{ answer.folio }}
                 </a>
               </td>
               <td class="name-cell">{{ answer.name }}</td>
               <!-- Nueva columna CIAC: Solo para organización 3 y formulario 5 -->
               <td v-if="organizationId === 3 && formId === 5" class="ciac-cell">
-                {{ answer.additional_field_response || "—" }}
+                {{ answer.additional_field_response || '—' }}
               </td>
               <td class="answer-date-cell">{{ formatDate(answer.answer_date) }}</td>
               <td>
@@ -161,29 +130,16 @@ const downloadPdf = (answer) => {
                 <span v-else>—</span>
               </td>
               <td v-if="hasRating">
-                {{
-                  answer.score !== null && answer.score !== undefined
-                    ? Number(answer.score).toFixed(2)
-                    : "—"
-                }}
+                {{ answer.score !== null && answer.score !== undefined ? Number(answer.score).toFixed(2) : '—' }}
               </td>
               <td class="actions-cell" @click.stop>
                 <v-menu location="bottom end">
                   <template #activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      variant="text"
-                      class="actions-btn pa-0"
-                      min-width="0"
-                      height="24"
-                    >
+                    <v-btn v-bind="props" variant="text" class="actions-btn pa-0" min-width="0" height="24">
                       <v-icon :icon="mdiDotsHorizontal" size="20" color="black" />
                     </v-btn>
                   </template>
-                  <v-list
-                    class="custom-dropdown elevation-1 rounded-lg"
-                    style="min-width: 200px"
-                  >
+                  <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
                     <v-list-item @click="viewAnswer(answer)">
                       <template #prepend>
                         <v-icon :icon="mdiEye" size="18" />

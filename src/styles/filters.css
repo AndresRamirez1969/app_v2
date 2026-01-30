@@ -130,3 +130,10 @@
 .v-theme--dark .filter-btn {
   border-color: rgba(255, 255, 255, 0.3) !important;
 }
+
+.v-theme--dark .frequency-filter-btn,
+.v-theme--dark .frequency-filter-btn .v-icon,
+.v-theme--dark .frequency-filter-btn .v-icon svg path {
+  color: #fff !important;
+  fill: currentColor;
+}

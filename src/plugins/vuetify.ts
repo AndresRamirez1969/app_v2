@@ -101,7 +101,7 @@ export default createVuetify({
     }
   },
   theme: {
-    defaultTheme: 'light',
+    defaultTheme: typeof localStorage !== 'undefined' ? localStorage.getItem('app-theme') || 'light' : 'light',
     themes: {
       light,
       dark

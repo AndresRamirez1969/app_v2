@@ -1,15 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import ReportTableMeta from "./RFormTableMeta.vue";
-import {
-  mdiChevronUp,
-  mdiChevronDown,
-  mdiDotsHorizontal,
-  mdiEye,
-  mdiDomainOff,
-} from "@mdi/js";
-import { SCOPES } from "@/constants/constants";
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import ReportTableMeta from './RFormTableMeta.vue';
+import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye, mdiDomainOff } from '@mdi/js';
+import { SCOPES } from '@/constants/constants';
 
 const props = defineProps({
   items: Array,
@@ -18,14 +12,14 @@ const props = defineProps({
   page: Number,
   itemsPerPage: Number,
   totalItems: Number,
-  meta: Object, // <-- Integración de meta
+  meta: Object // <-- Integración de meta
 });
 
-const emit = defineEmits(["update:page", "sort"]);
+const emit = defineEmits(['update:page', 'sort']);
 
 const router = useRouter();
 
-const sortBy = ref("folio");
+const sortBy = ref('folio');
 const sortDesc = ref(false);
 
 const toggleSort = (column) => {
@@ -35,72 +29,70 @@ const toggleSort = (column) => {
     sortBy.value = column;
     sortDesc.value = false;
   }
-  emit("sort", { sortBy: sortBy.value, sortDesc: sortDesc.value });
+  emit('sort', { sortBy: sortBy.value, sortDesc: sortDesc.value });
 };
 
 const formatDate = (dateString) => {
-  if (!dateString) return "—";
+  if (!dateString) return '—';
   const date = new Date(dateString);
-  return date.toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+  return date.toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
   });
 };
 
 const getScopeInfo = (form) => {
   const scope = form.assignment_scope;
-  if (scope === "organization" && form.organization) {
+  if (scope === 'organization' && form.organization) {
     return {
-      label: `${form.organization.folio} - ${
-        form.organization.legal_name || form.organization.name
-      }`,
-      link: `/organizaciones/${form.organization.id}`,
+      label: `${form.organization.folio} - ${form.organization.legal_name || form.organization.name}`,
+      link: `/organizaciones/${form.organization.id}`
     };
   }
-  if (scope === "business" && form.business) {
+  if (scope === 'business' && form.business) {
     return {
       label: `${form.business.folio} - ${form.business.name}`,
-      link: `/empresas/${form.business.id}`,
+      link: `/empresas/${form.business.id}`
     };
   }
-  if (scope === "business_unit" && form.business_unit) {
+  if (scope === 'business_unit' && form.business_unit) {
     return {
       label: `${form.business_unit.folio} - ${form.business_unit.name}`,
-      link: `/ubicaciones/${form.business_unit.id}`,
+      link: `/ubicaciones/${form.business_unit.id}`
     };
   }
-  if (scope === "business_unit_group" && form.business_unit_group) {
+  if (scope === 'business_unit_group' && form.business_unit_group) {
     return {
       label: `${form.business_unit_group.id} - ${form.business_unit_group.name}`,
-      link: `/grupos/${form.business_unit_group.id}`,
+      link: `/grupos/${form.business_unit_group.id}`
     };
   }
   switch (scope) {
-    case "organization":
-      return { label: "Organización", link: null };
-    case "business":
-      return { label: "Empresa", link: null };
-    case "business_unit":
-      return { label: "Ubicación", link: null };
-    case "business_unit_group":
-      return { label: "Grupo", link: null };
+    case 'organization':
+      return { label: 'Organización', link: null };
+    case 'business':
+      return { label: 'Empresa', link: null };
+    case 'business_unit':
+      return { label: 'Ubicación', link: null };
+    case 'business_unit_group':
+      return { label: 'Grupo', link: null };
     default:
-      return { label: scope || "No definido", link: null };
+      return { label: scope || 'No definido', link: null };
   }
 };
 
 const getFrequencyLabel = (frequency) => {
-  if (!frequency) return "—";
-  if (frequency === "once_per_day") return "Una vez por día";
-  if (frequency === "multiple_per_day") return "Múltiples veces por día";
+  if (!frequency) return '—';
+  if (frequency === 'once_per_day') return 'Una vez por día';
+  if (frequency === 'multiple_per_day') return 'Múltiples veces por día';
   return frequency;
 };
 
 const sortedItems = computed(() => {
   return [...(props.items || [])].sort((a, b) => {
-    const aVal = a[sortBy.value]?.toString().toLowerCase() ?? "";
-    const bVal = b[sortBy.value]?.toString().toLowerCase() ?? "";
+    const aVal = a[sortBy.value]?.toString().toLowerCase() ?? '';
+    const bVal = b[sortBy.value]?.toString().toLowerCase() ?? '';
     return aVal.localeCompare(bVal) * (sortDesc.value ? -1 : 1);
   });
 });
@@ -118,7 +110,7 @@ const pageCount = computed(() => {
 
 // Navega a la lista de respuestas del formulario seleccionado
 const goToAnswerList = (form) => {
-  router.push({ name: "Report Answers", params: { formId: form.id } });
+  router.push({ name: 'Report Answers', params: { formId: form.id } });
 };
 </script>
 
@@ -131,9 +123,7 @@ const goToAnswerList = (form) => {
     <template v-else>
       <div v-if="!sortedItems.length" class="text-center py-8">
         <p class="mt-4 text-h6 text-grey-darken-1">No se han registrado respuestas</p>
-        <p class="text-body-2 text-grey">
-          No se encontraron reportes con los filtros aplicados
-        </p>
+        <p class="text-body-2 text-grey">No se encontraron reportes con los filtros aplicados</p>
       </div>
 
       <!-- Modo móvil (solo cards, SIN 3 puntitos) -->
@@ -147,32 +137,19 @@ const goToAnswerList = (form) => {
         >
           <v-row no-gutters align="center" class="mb-1">
             <v-col cols="12">
-              <div
-                class="d-flex align-center mb-1"
-                style="justify-content: space-between"
-              >
+              <div class="d-flex align-center mb-1" style="justify-content: space-between">
                 <div class="text-caption" style="margin-right: 8px">
-                  <router-link
-                    :to="`/formulario/${form.id}`"
-                    @click.stop
-                    class="blue-link"
-                  >
+                  <div class="text-caption">
                     {{ form.folio }}
-                  </router-link>
+                  </div>
                 </div>
               </div>
               <div class="font-weight-medium mb-1">{{ form.name }}</div>
-              <div class="text-caption">
-                <strong>Frecuencia:</strong> {{ getFrequencyLabel(form.frequency) }}
-              </div>
+              <div class="text-caption"><strong>Frecuencia:</strong> {{ getFrequencyLabel(form.frequency) }}</div>
               <div class="text-caption">
                 <strong>Alcance:</strong>
                 <template v-if="getScopeInfo(form).link">
-                  <router-link
-                    :to="getScopeInfo(form).link"
-                    @click.stop
-                    class="blue-link"
-                  >
+                  <router-link :to="getScopeInfo(form).link" @click.stop class="blue-link">
                     {{ getScopeInfo(form).label }}
                   </router-link>
                 </template>
@@ -184,9 +161,7 @@ const goToAnswerList = (form) => {
                 <strong>Respuestas:</strong>
                 {{ form.responses_count ?? (form.responses?.length || 0) }}
               </div>
-              <div class="text-caption">
-                <strong>Creado:</strong> {{ formatDate(form.created_at) }}
-              </div>
+              <div class="text-caption"><strong>Creado:</strong> {{ formatDate(form.created_at) }}</div>
             </v-col>
           </v-row>
         </v-card>
@@ -223,31 +198,17 @@ const goToAnswerList = (form) => {
           </template>
           <template #rows>
             <template v-if="sortedItems.length">
-              <tr
-                v-for="form in sortedItems"
-                :key="form.id"
-                @click="goToAnswerList(form)"
-                class="row-clickable"
-                style="cursor: pointer"
-              >
+              <tr v-for="form in sortedItems" :key="form.id" @click="goToAnswerList(form)" class="row-clickable" style="cursor: pointer">
                 <td class="folio-cell">
-                  <router-link
-                    :to="`/formulario/${form.id}`"
-                    @click.stop
-                    class="blue-link"
-                  >
+                  <div class="text-caption">
                     {{ form.folio }}
-                  </router-link>
+                  </div>
                 </td>
                 <td class="name-cell">{{ form.name }}</td>
                 <td class="frequency-cell">{{ getFrequencyLabel(form.frequency) }}</td>
                 <td class="scope-cell">
                   <template v-if="getScopeInfo(form).link">
-                    <router-link
-                      :to="getScopeInfo(form).link"
-                      @click.stop
-                      class="blue-link"
-                    >
+                    <router-link :to="getScopeInfo(form).link" @click.stop class="blue-link">
                       {{ getScopeInfo(form).label }}
                     </router-link>
                   </template>
@@ -261,20 +222,11 @@ const goToAnswerList = (form) => {
                 <td class="actions-cell" @click.stop>
                   <v-menu location="bottom end">
                     <template #activator="{ props }">
-                      <v-btn
-                        v-bind="props"
-                        variant="text"
-                        class="actions-btn pa-0"
-                        min-width="0"
-                        height="24"
-                      >
+                      <v-btn v-bind="props" variant="text" class="actions-btn pa-0" min-width="0" height="24">
                         <v-icon :icon="mdiDotsHorizontal" size="20" color="black" />
                       </v-btn>
                     </template>
-                    <v-list
-                      class="custom-dropdown elevation-1 rounded-lg"
-                      style="min-width: 200px"
-                    >
+                    <v-list class="custom-dropdown elevation-1 rounded-lg" style="min-width: 200px">
                       <v-list-item @click="goToAnswerList(form)">
                         <template #prepend>
                           <v-icon :icon="mdiEye" size="18" />
