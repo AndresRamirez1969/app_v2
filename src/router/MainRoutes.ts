@@ -183,6 +183,16 @@ const MainRoutes = {
       component: () => import('@/views/form_assignment/AnswerForm.vue')
     },
     {
+      name: 'My Assignments',
+      path: '/mis-asignaciones',
+      component: () => import('@/views/report_assignment/index.vue')
+    },
+    {
+      name: 'My Assignment Show',
+      path: '/mis-asignaciones/:reportId',
+      component: () => import('@/views/report_assignment/ReportAssignmentShow.vue')
+    },
+    {
       name: 'Reports',
       path: '/reportes',
       component: () => import('@/views/reports/RFormIndex.vue')

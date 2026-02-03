@@ -1,7 +1,7 @@
 <script setup>
 import AnswerTableMeta from './RFormAnswerTableMeta.vue';
 import StatusChip from '@/components/status/StatusChip.vue';
-import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye, mdiLock, mdiDomainOff, mdiFilePdfBox } from '@mdi/js';
+import { mdiChevronUp, mdiChevronDown, mdiDotsHorizontal, mdiEye, mdiDomainOff, mdiFilePdfBox, mdiAccountArrowLeft } from '@mdi/js';
 
 const props = defineProps({
   items: Array,
@@ -16,7 +16,7 @@ const props = defineProps({
   formId: Number // Nueva propiedad para identificar el formulario
 });
 
-const emit = defineEmits(['update:page', 'sort', 'view', 'closeReport', 'downloadPdf']);
+const emit = defineEmits(['update:page', 'sort', 'view', 'closeReport', 'downloadPdf', 'asignReport']);
 
 const formatDate = (dateString) => {
   if (!dateString) return '—';
@@ -45,6 +45,11 @@ const downloadPdf = (answer) => {
   const createdAt = answer.created_at || answer.answer_date;
   const localCreatedAt = createdAt ? new Date(createdAt).toLocaleString('es-MX', { hour12: false }) : '';
   emit('downloadPdf', { ...answer, local_created_at: localCreatedAt });
+};
+
+const asignReport = (answer) => {
+  emit('asignReport', answer);
+  console.log(answer);
 };
 </script>
 
@@ -152,6 +157,13 @@ const downloadPdf = (answer) => {
                         <v-icon :icon="mdiFilePdfBox" size="18" />
                       </template>
                       <v-list-item-title>Descargar PDF</v-list-item-title>
+                    </v-list-item>
+                    <v-divider />
+                    <v-list-item @click="asignReport(answer)">
+                      <template #prepend>
+                        <v-icon :icon="mdiAccountArrowLeft" size="18" />
+                      </template>
+                      <v-list-item-title>Asignar Reporte</v-list-item-title>
                     </v-list-item>
                   </v-list>
                 </v-menu>

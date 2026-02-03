@@ -14,7 +14,9 @@ import {
 } from '@ant-design/icons-vue';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
+import { useTheme } from 'vuetify';
 
+const theme = useTheme();
 const tab = ref(null);
 const authStore = useAuthStore();
 const router = useRouter();
@@ -91,6 +93,7 @@ function isBusinessUnitDwDisabled() {
 }
 
 const handleLogout = async () => {
+  theme.global.name.value = 'light';
   await authStore.logout();
   router.push('/login');
 };

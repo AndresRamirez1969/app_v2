@@ -71,8 +71,19 @@ const sidebarItem: menu[] = [
   },
   {
     title: 'Reportes',
-    icon: FolderOpenOutlined,
-    to: '/reportes'
+    icon: FileTextOutlined,
+    children: [
+      {
+        title: 'Reportes',
+        icon: FolderOpenOutlined,
+        to: '/reportes'
+      },
+      {
+        title: 'Mis Asignaciones',
+        icon: FileTextOutlined,
+        to: '/mis-asignaciones'
+      }
+    ]
   },
   {
     title: 'Usuarios',
