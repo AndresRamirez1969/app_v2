@@ -119,6 +119,7 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem('authUser');
       localStorage.removeItem('authPermissions');
       localStorage.removeItem('tokenExpiresAt');
+      localStorage.setItem('app-theme', 'light');
       axiosInstance.post('/logout').catch(() => {});
     },
 
