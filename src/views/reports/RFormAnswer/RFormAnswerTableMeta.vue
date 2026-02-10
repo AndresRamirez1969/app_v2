@@ -2,7 +2,7 @@
 const props = defineProps({
   items: {
     type: Array,
-    default: () => [],
+    default: () => []
   },
   page: Number,
   itemsPerPage: Number,
@@ -10,12 +10,12 @@ const props = defineProps({
   sortDesc: Boolean,
   hasRating: {
     type: Boolean,
-    default: false,
+    default: false
   },
   organizationId: Number, // Nueva propiedad para identificar la organización
-  formId: Number, // Nueva propiedad para identificar el formulario
+  formId: Number // Nueva propiedad para identificar el formulario
 });
-const emit = defineEmits(["update:page", "sort"]);
+const emit = defineEmits(['update:page', 'sort']);
 </script>
 
 <template>
@@ -32,18 +32,11 @@ const emit = defineEmits(["update:page", "sort"]);
             <slot name="sort-icon" :column="'name'" />
           </th>
           <!-- Nueva columna CIAC: Solo para organización 3 y formulario 5 -->
-          <th
-            v-if="organizationId === 3 && formId === 5"
-            @click="emit('sort', 'ciac')"
-            class="cursor-pointer ciac-header"
-          >
+          <th v-if="Number(organizationId) === 3 && Number(formId) === 5" @click="emit('sort', 'ciac')" class="cursor-pointer ciac-header">
             CIAC
             <slot name="sort-icon" :column="'ciac'" />
           </th>
-          <th
-            @click="emit('sort', 'answer_date')"
-            class="cursor-pointer answer-date-header"
-          >
+          <th @click="emit('sort', 'answer_date')" class="cursor-pointer answer-date-header">
             Fecha de Respuesta
             <slot name="sort-icon" :column="'answer_date'" />
           </th>
@@ -53,11 +46,7 @@ const emit = defineEmits(["update:page", "sort"]);
           </th>
 
           <!-- Header de Puntaje SOLO si hay rating -->
-          <th
-            v-if="props.hasRating"
-            @click="emit('sort', 'score')"
-            class="cursor-pointer score-header"
-          >
+          <th v-if="props.hasRating" @click="emit('sort', 'score')" class="cursor-pointer score-header">
             Puntaje
             <slot name="sort-icon" :column="'score'" />
           </th>

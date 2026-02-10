@@ -83,7 +83,7 @@ const asignReport = (answer) => {
           </div>
           <div class="font-weight-medium mb-1">{{ answer.name }}</div>
           <!-- Nueva sección para CIAC: Solo para organización 3 y formulario 5 -->
-          <div v-if="organizationId === 3 && formId === 5" class="text-caption mb-1">
+          <div v-if="Number(organizationId) === 3 && Number(formId) === 5" class="text-caption mb-1">
             <strong>CIAC:</strong>
             {{ answer.additional_field_response || '—' }}
           </div>
@@ -126,7 +126,7 @@ const asignReport = (answer) => {
               </td>
               <td class="name-cell">{{ answer.name }}</td>
               <!-- Nueva columna CIAC: Solo para organización 3 y formulario 5 -->
-              <td v-if="organizationId === 3 && formId === 5" class="ciac-cell">
+              <td v-if="Number(organizationId) === 3 && Number(formId) === 5" class="ciac-cell">
                 {{ answer.additional_field_response || '—' }}
               </td>
               <td class="answer-date-cell">{{ formatDate(answer.answer_date) }}</td>

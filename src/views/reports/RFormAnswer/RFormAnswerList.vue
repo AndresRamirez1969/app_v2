@@ -132,11 +132,24 @@ const fetchAnswers = async () => {
     // La respuesta backend ahora siempre es paginada y responses es un array
     const responses = Array.isArray(data.responses) ? data.responses : data.responses?.data || data.responses || [];
 
+    console.log(responses);
+
     if (!responses.length) {
       items.value = [];
       loading.value = false;
       return;
     }
+
+    const extractCIAC = (fieldResponses) => {
+      if (!Array.isArray(fieldResponses)) return null;
+
+      const ciacField = fieldResponses.find((fr) => {
+        const fieldLabel = fr?.field_label || fr?.fieldLabel || fr?.field_name || '';
+        return fieldLabel === 'Número de CIAC';
+      });
+
+      return ciacField?.value || null;
+    };
 
     // Solo mostrar reportes, no respuestas sin reporte
     items.value = responses.flatMap((resp) => {
@@ -153,12 +166,16 @@ const fetchAnswers = async () => {
         (resp.response?.user && typeof resp.response.user === 'string' ? resp.response.user : undefined) ||
         '—';
 
+      // Extraer field_responses para buscar el campo CIAC
+      const fieldResponses = resp.response?.field_responses || resp.response?.fieldResponses || [];
+
       const base = {
         folio: resp.response.folio,
         name: userName,
         answer_date: resp.response.submitted_at || '—',
         score: resp.response.score,
-        form_id: resp.response.form_id
+        form_id: resp.response.form_id,
+        additional_field_response: extractCIAC(fieldResponses)
       };
 
       return resp.reports.map((report) => ({
@@ -556,7 +573,7 @@ const handlePageChange = async (newPage) => {
           :hasRating="hasRating"
           :loading="loading"
           :organizationId="formData?.organization?.id"
-          :formId="resolvedFormId"
+          :formId="Number(resolvedFormId) || null"
           @update:page="handlePageChange"
           @sort="toggleSort"
           @view="viewAnswer"
