@@ -86,6 +86,7 @@ const asignReport = (answer) => {
           <div v-if="Number(organizationId) === 3 && Number(formId) === 5" class="text-caption mb-1">
             <strong>CIAC:</strong>
             {{ answer.additional_field_response || '—' }}
+            <span v-if="answer.origen" class="ml-1"> . <strong>Origen:</strong> {{ answer.origen }}</span>
           </div>
           <div class="text-caption mb-1">
             <strong>Fecha de respuesta:</strong>

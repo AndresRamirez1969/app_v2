@@ -33,7 +33,7 @@ const emit = defineEmits(['update:page', 'sort']);
           </th>
           <!-- Nueva columna CIAC: Solo para organización 3 y formulario 5 -->
           <th v-if="Number(organizationId) === 3 && Number(formId) === 5" @click="emit('sort', 'ciac')" class="cursor-pointer ciac-header">
-            CIAC
+            CIAC / Origen
             <slot name="sort-icon" :column="'ciac'" />
           </th>
           <th @click="emit('sort', 'answer_date')" class="cursor-pointer answer-date-header">

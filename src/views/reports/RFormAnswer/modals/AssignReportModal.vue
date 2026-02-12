@@ -74,8 +74,10 @@ const assign = async () => {
 
 watch(
   () => props.modelValue,
-  (val) => {
+  async (val) => {
     if (val) {
+      selectedUserId.value = props.assignedUser?.id || null;
+      await fetchUsers('');
       const assigned = props.assignedUser;
       if (assigned?.id) {
         const option = toUserOption(assigned);
@@ -83,10 +85,6 @@ watch(
         if (!exists) {
           userOptions.value = [option, ...userOptions.value];
         }
-        selectedUserId.value = assigned.id;
-      }
-      if (userOptions.value.length === 0) {
-        fetchUsers('');
       }
     }
   }

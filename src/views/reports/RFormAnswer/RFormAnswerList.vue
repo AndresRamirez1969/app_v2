@@ -151,6 +151,37 @@ const fetchAnswers = async () => {
       return ciacField?.value || null;
     };
 
+    const extractOrigen = (fieldResponses) => {
+      if (!Array.isArray(fieldResponses)) return null;
+
+      const origenField = fieldResponses.find((fr) => {
+        const fieldLabel = fr?.field_label || fr?.fieldLabel || fr?.field_name || '';
+        return fieldLabel === 'Origen';
+      });
+
+      const raw = origenField?.value;
+      if (raw === null || raw === undefined || raw === '') return null;
+
+      let arr = raw;
+      if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if (trimmed.startsWith('[')) {
+          try {
+            arr = JSON.parse(trimmed);
+          } catch {
+            return raw;
+          }
+        } else if (trimmed.startsWith(',')) {
+          arr = trimmed.split(',').map((s) => s.trim());
+        } else {
+          arr = trimmed ? [trimmed] : [];
+        }
+      }
+      if (!Array.isArray(arr)) return String(raw);
+      const joined = arr.filter(Boolean).join(', ');
+      return joined || null;
+    };
+
     // Solo mostrar reportes, no respuestas sin reporte
     items.value = responses.flatMap((resp) => {
       // Validación para evitar errores si resp.response o resp.reports no existen
@@ -175,7 +206,8 @@ const fetchAnswers = async () => {
         answer_date: resp.response.submitted_at || '—',
         score: resp.response.score,
         form_id: resp.response.form_id,
-        additional_field_response: extractCIAC(fieldResponses)
+        additional_field_response: extractCIAC(fieldResponses),
+        origen: extractOrigen(fieldResponses)
       };
 
       return resp.reports.map((report) => ({
