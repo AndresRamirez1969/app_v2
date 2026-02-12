@@ -155,7 +155,7 @@ const fetchAnswers = async () => {
       if (!Array.isArray(fieldResponses)) return null;
 
       const origenField = fieldResponses.find((fr) => {
-        const fieldLabel = fr?.field_label || fr?.fieldLabel || fr?.field_name || '';
+        const fieldLabel = fr?.field_label || fr?.fieldLabel || fr?.field_name || fr?.form_field?.label || fr?.field?.label || '';
         return fieldLabel === 'Origen';
       });
 
@@ -167,11 +167,11 @@ const fetchAnswers = async () => {
         const trimmed = raw.trim();
         if (trimmed.startsWith('[')) {
           try {
-            arr = JSON.parse(trimmed);
+            arr = JSON.parse(raw);
           } catch {
             return raw;
           }
-        } else if (trimmed.startsWith(',')) {
+        } else if (trimmed.includes(',')) {
           arr = trimmed.split(',').map((s) => s.trim());
         } else {
           arr = trimmed ? [trimmed] : [];

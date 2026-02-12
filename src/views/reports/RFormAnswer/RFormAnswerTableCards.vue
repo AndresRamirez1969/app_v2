@@ -127,8 +127,10 @@ const asignReport = (answer) => {
               </td>
               <td class="name-cell">{{ answer.name }}</td>
               <!-- Nueva columna CIAC: Solo para organización 3 y formulario 5 -->
+              <!-- Columna CIAC / Origen: Solo para organización 3 y formulario 5 -->
               <td v-if="Number(organizationId) === 3 && Number(formId) === 5" class="ciac-cell">
                 {{ answer.additional_field_response || '—' }}
+                <span v-if="answer.origen"> · {{ answer.origen }}</span>
               </td>
               <td class="answer-date-cell">{{ formatDate(answer.answer_date) }}</td>
               <td>
