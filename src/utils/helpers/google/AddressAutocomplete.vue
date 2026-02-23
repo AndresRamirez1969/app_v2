@@ -166,6 +166,9 @@ const mapBooted = ref(false);
 const markerBooted = ref(false);
 const sessionHandled = ref(false);
 
+//Flags para ubi del pin
+const userMovedPin = ref(false);
+
 const countrySearch = ref('');
 const countries = [{ name: 'México' }, { name: 'Estados Unidos' }, { name: 'Canadá' }, { name: 'España' }, { name: 'Argentina' }];
 
@@ -267,6 +270,7 @@ function bootMapVisual(center = { lat: 19.4326, lng: -99.1332 }) {
     setMarkerPosition({ lat, lng }, true);
     fields.value.latitude = lat;
     fields.value.longitude = lng;
+    userMovedPin.value = true;
     reverseGeocode(lat, lng, (place) => {
       if (place) fillFieldsFromPlace(place);
     });
@@ -288,6 +292,7 @@ function ensureMarker() {
       setMarkerPosition({ lat: dLat, lng: dLng }, false);
       fields.value.latitude = dLat;
       fields.value.longitude = dLng;
+      userMovedPin.value = true;
       reverseGeocode(dLat, dLng, (place) => {
         if (place) fillFieldsFromPlace(place);
       });
@@ -360,6 +365,7 @@ function initAutocomplete() {
       const lng = place.geometry.location.lng();
       fields.value.latitude = lat;
       fields.value.longitude = lng;
+      userMovedPin.value = true;
       bootMapVisual({ lat, lng });
       setMarkerPosition({ lat, lng }, true);
       emit('update:parsedAddress', { ...fields.value });
@@ -369,6 +375,7 @@ function initAutocomplete() {
         geocodeAddress(addr, ({ lat, lng }) => {
           fields.value.latitude = lat;
           fields.value.longitude = lng;
+          userMovedPin.value = true;
           bootMapVisual({ lat, lng });
           setMarkerPosition({ lat, lng }, true);
           emit('update:parsedAddress', { ...fields.value });
@@ -436,12 +443,12 @@ function initCreateFlow() {
     });
 
     sessionHandled.value = true;
-    emit("update:parsedAddress", { ...fields.value });
+    emit('update:parsedAddress', { ...fields.value });
     return;
   }
 
-  const latCache = localStorage.getItem("geo_lat");
-  const lngCache = localStorage.getItem("geo_lng");
+  const latCache = localStorage.getItem('geo_lat');
+  const lngCache = localStorage.getItem('geo_lng');
   if (latCache && lngCache) {
     const lat = Number(latCache);
     const lng = Number(lngCache);
@@ -455,7 +462,7 @@ function initCreateFlow() {
       if (place) fillFieldsFromPlace(place);
     });
 
-    emit("update:parsedAddress", { ...fields.value });
+    emit('update:parsedAddress', { ...fields.value });
     return;
   }
 
@@ -616,17 +623,15 @@ onMounted(() => {
     if (isCreate.value && geoPermissionGranted.value && navigator.geolocation) {
       geoWatchId = navigator.geolocation.watchPosition(
         (pos) => {
+          if (userMovedPin.value) return;
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          // SIEMPRE actualiza la ubicación y el marcador en tiempo real en modo create
           fields.value.latitude = lat;
           fields.value.longitude = lng;
           setMarkerPosition({ lat, lng }, true);
           emit('update:parsedAddress', { ...fields.value });
         },
-        (err) => {
-          // No hacer nada si falla, ya que el permiso ya fue otorgado en login
-        },
+        (err) => {},
         { enableHighAccuracy: true }
       );
     }
