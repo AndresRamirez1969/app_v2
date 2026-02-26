@@ -15,6 +15,7 @@ import Toast from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 import '@formkit/themes/genesis';
 import { VueSignaturePad } from 'vue-signature-pad';
+import Camera from 'simple-vue-camera';
 
 // google-fonts
 import '@fontsource/public-sans/400.css';
@@ -27,6 +28,7 @@ import { fakeBackend } from '@/utils/helpers/fake-backend';
 
 const app = createApp(App);
 app.component('VueSignaturePad', VueSignaturePad);
+app.component('CameraCrop', Camera);
 const pro = createProPlugin('fk-748c917a9d', inputs);
 fakeBackend();
 app.use(

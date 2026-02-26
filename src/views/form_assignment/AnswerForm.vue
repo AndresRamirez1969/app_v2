@@ -308,30 +308,50 @@
                             </div>
 
                             <!-- Campo Documento -->
-                            <div v-else-if="item.field.type === 'document'" class="d-flex align-center">
-                              <v-file-input
-                                :key="fileVersion[item.field.id] || 0"
-                                :model-value="fileData[item.field.id] || []"
-                                accept="application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                                multiple
-                                :counter="true"
-                                :show-size="true"
-                                :rules="[
-                                  (v) =>
-                                    !item.field.is_required ||
-                                    (fileData[item.field.id]?.length >= 1 &&
-                                      fileData[item.field.id]?.length <= (item.field.attributes?.max_files || 2)) ||
-                                    ''
-                                ]"
-                                @change="onFilesSelected(item.field.id, $event)"
-                                variant="outlined"
-                                :chips="true"
-                                :clearable="true"
-                                class="flex-grow-1"
-                                @click:clear="clearFiles(item.field.id)"
-                              />
+                            <div v-else-if="item.field.type === 'document'" class="d-flex flex-column align-stretch">
+                              <template v-if="cameraOpenFieldId !== item.field.id">
+                                <v-btn
+                                  variant="outlined"
+                                  color="primary"
+                                  :prepend-icon="mdiCamera"
+                                  @click="openDocumentCamera(item.field.id)"
+                                >
+                                  Tomar foto ID
+                                </v-btn>
+                                <div v-if="fileData[item.field.id]?.length" class="d-flex flex-wrap mt-3 image-preview-row">
+                                  <div v-for="(file, idx) in fileData[item.field.id]" :key="file?.name + idx">
+                                    <v-img
+                                      :src="getImagePreview(file)"
+                                      :alt="file?.name"
+                                      style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
+                                    />
+                                  </div>
+                                </div>
+                              </template>
+                              <template v-else>
+                                <CameraCrop
+                                  :ref="
+                                    (el) => {
+                                      documentCameraRef = el;
+                                    }
+                                  "
+                                  :resolution="{ width: 1200, height: 1200 }"
+                                  autoplay
+                                  :show-download-button="false"
+                                  :show-preview="false"
+                                  :show-upload-button="false"
+                                  :show-delete-button="false"
+                                  class="flex-grow-1"
+                                >
+                                  <div class="id-frame-overlay">
+                                    <div class="id-frame-inner" />
+                                    <p class="id-frame-text">Coloca tu documento dentro del marco</p>
+                                    <v-btn color="primary" class="id-frame-capture-btn" @click="captureDocumentPhoto()"> Capturar </v-btn>
+                                  </div></CameraCrop
+                                >
+                                <v-btn variant="outlined" size="small" class="mt-2" @click="closeDocumentCamera()"> Cerrar cámara </v-btn>
+                              </template>
                             </div>
-
                             <!-- Campo Checkbox -->
                             <div v-else-if="item.field.type === 'checkbox'">
                               <div class="checkbox-group">
@@ -718,28 +738,44 @@
                                         </div>
 
                                         <!-- Campo Documento -->
-                                        <div v-else-if="field.type === 'document'" class="d-flex align-center">
-                                          <v-file-input
-                                            :key="fileVersion[field.id] || 0"
-                                            :model-value="fileData[field.id] || []"
-                                            accept="application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                                            multiple
-                                            :counter="true"
-                                            :show-size="true"
-                                            :rules="[
-                                              (v) =>
-                                                !field.is_required ||
-                                                (fileData[field.id]?.length >= 1 &&
-                                                  fileData[field.id]?.length <= (field.attributes?.max_files || 2)) ||
-                                                ''
-                                            ]"
-                                            @change="onFilesSelected(field.id, $event)"
-                                            variant="outlined"
-                                            :chips="true"
-                                            :clearable="true"
-                                            class="flex-grow-1"
-                                            @click:clear="clearFiles(field.id)"
-                                          />
+                                        <div v-else-if="field.type === 'document'" class="d-flex flex-column align-stretch">
+                                          <template v-if="cameraOpenFieldId !== field.id">
+                                            <v-btn
+                                              variant="outlined"
+                                              color="primary"
+                                              :prepend-icon="mdiCamera"
+                                              @click="openDocumentCamera(field.id)"
+                                            >
+                                              Tomar foto ID
+                                            </v-btn>
+                                          </template>
+                                          <template v-else>
+                                            <CameraCrop
+                                              :ref="
+                                                (el) => {
+                                                  documentCameraRef = el;
+                                                }
+                                              "
+                                              :resolution="{ width: 1200, height: 1200 }"
+                                              autoplay
+                                              :show-download-button="false"
+                                              :show-preview="false"
+                                              :show-upload-button="false"
+                                              :show-delete-button="false"
+                                              class="flex-grow-1"
+                                            >
+                                              <div class="id-frame-overlay">
+                                                <div class="id-frame-inner" />
+                                                <p class="id-frame-text">Coloca tu documento dentro del marco</p>
+                                                <v-btn color="primary" class="id-frame-capture-btn" @click="captureDocumentPhoto()">
+                                                  Capturar
+                                                </v-btn>
+                                              </div></CameraCrop
+                                            >
+                                            <v-btn variant="outlined" size="small" class="mt-2" @click="closeDocumentCamera()">
+                                              Cerrar cámara
+                                            </v-btn>
+                                          </template>
                                         </div>
 
                                         <!-- Campo Checkbox -->
@@ -974,6 +1010,36 @@ const geoCheckError = ref(null);
 
 const formStartTime = ref(null);
 
+const cameraOpenFieldId = ref(null);
+const documentCameraRef = ref(null);
+
+async function captureDocumentPhoto() {
+  const fieldId = cameraOpenFieldId.value;
+  if (!fieldId || !documentCameraRef.value) return;
+  try {
+    const blob = await documentCameraRef.value?.snapshot();
+    if (!blob) return;
+    const field = form.value?.fields?.find((f) => f.id == fieldId);
+    const fileName = `id_${field?.label ?? fieldId}.jpg`;
+    const file = new File([blob], fileName, { type: 'image/jpeg' });
+    fileData[fieldId] = [file];
+    formData[fieldId] = [fileName];
+    bumpVersion(fieldId);
+    toast.success('Foto capturada correctamente');
+    closeDocumentCamera();
+  } catch (error) {
+    console.error('Error al capturar foto del documento:', error);
+    toast.error('Error al capturar foto del documento');
+  }
+}
+
+function openDocumentCamera(fieldId) {
+  cameraOpenFieldId.value = fieldId;
+}
+
+function closeDocumentCamera() {
+  cameraOpenFieldId.value = null;
+}
 // --- INTEGRACIÓN: Dirección de geolocalización para campos scope ---
 const geoAddress = ref('');
 const fetchAddressFromCoords = async (lat, lng) => {
@@ -1106,19 +1172,21 @@ const getUserLocation = () =>
     const lng = localStorage.getItem('geo_lng');
     if (lat !== null && lng !== null && lat !== '' && lng !== '' && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
       // Obtener dirección
-      fetchAddressFromCoords(parseFloat(lat), parseFloat(lng)).then((address) => {
-        geoAddress.value = address;
-        resolve({ lat: parseFloat(lat), lng: parseFloat(lng) });
-      }).catch((err) => {
-        reject(err);
-      });
+      fetchAddressFromCoords(parseFloat(lat), parseFloat(lng))
+        .then((address) => {
+          geoAddress.value = address;
+          resolve({ lat: parseFloat(lat), lng: parseFloat(lng) });
+        })
+        .catch((err) => {
+          reject(err);
+        });
       resolve({ lat: parseFloat(lat), lng: parseFloat(lng) });
     } else {
       reject('No se encontró la ubicación del usuario. Por favor, inicia sesión de nuevo.');
     }
   });
 
-  const showForm = async () => {
+const showForm = async () => {
   isLoading.value = true;
   geoCheckError.value = null;
   try {
@@ -1132,56 +1200,51 @@ const getUserLocation = () =>
 
     (form.value?.fields || []).forEach((field) => {
       if (formData[field.id] === undefined) {
-        if (field.type === "checkbox") formData[field.id] = [];
-        else formData[field.id] = "";
+        if (field.type === 'checkbox') formData[field.id] = [];
+        else formData[field.id] = '';
       }
       if (evidenceData[field.id] === undefined) {
         evidenceData[field.id] = [];
       }
     });
 
-    const geoField = form.value?.fields?.find(
-      (f) => f.type === "geolocation" && f.attributes?.mode === "manual"
-    );
+    const geoField = form.value?.fields?.find((f) => f.type === 'geolocation' && f.attributes?.mode === 'manual');
     if (geoField) {
       try {
         userLocation.value = await getUserLocation();
         if (
-          typeof userLocation.value.lat !== "number" ||
-          typeof userLocation.value.lng !== "number" ||
+          typeof userLocation.value.lat !== 'number' ||
+          typeof userLocation.value.lng !== 'number' ||
           isNaN(userLocation.value.lat) ||
           isNaN(userLocation.value.lng)
         ) {
-          geoCheckError.value = "Ubicación inválida. Por favor, vuelve a iniciar sesión.";
+          geoCheckError.value = 'Ubicación inválida. Por favor, vuelve a iniciar sesión.';
           isLoading.value = false;
           return;
         }
 
         // Obtener dirección y rellenar campos de geolocalización manual
-        const address = await fetchAddressFromCoords(
-          userLocation.value.lat,
-          userLocation.value.lng
-        );
+        const address = await fetchAddressFromCoords(userLocation.value.lat, userLocation.value.lng);
         geoAddress.value = address;
 
         // Rellenar automáticamente los campos de geolocalización manual
         form.value.fields.forEach((field) => {
-          if (field.type === "geolocation" && field.attributes?.mode === "manual") {
+          if (field.type === 'geolocation' && field.attributes?.mode === 'manual') {
             handleGeolocationManual(field.id, {
               latitude: userLocation.value.lat,
               longitude: userLocation.value.lng,
-              address,
+              address
             });
           }
         });
       } catch (err) {
-        geoCheckError.value = err || "No se pudo obtener tu ubicación";
+        geoCheckError.value = err || 'No se pudo obtener tu ubicación';
         isLoading.value = false;
         return;
       }
     }
   } catch (err) {
-    geoCheckError.value = "No se pudo cargar el formulario";
+    geoCheckError.value = 'No se pudo cargar el formulario';
   } finally {
     isLoading.value = false;
   }
@@ -1646,5 +1709,4 @@ const orderedFieldsAndGroups = computed(() => {
 // --- FIN INTEGRACIÓN ---
 </script>
 
-<style scoped src="@/styles/answer_form.css">
-</style>
+<style scoped src="@/styles/answer_form.css"></style>

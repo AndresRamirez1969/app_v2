@@ -205,13 +205,13 @@ const submitForm = async () => {
               <!-- Campo de archivo -->
               <div v-if="field.type === 'file'">
                 <v-label class="mb-2">{{ field.label }}</v-label>
-                <v-file-input
+                <VueAdvancedCropper
                   v-model="fileData[field.id]"
-                  :accept="'image/*'"
-                  label="Seleccionar imagen"
-                  :rules="field.is_required ? [(v) => !!v || 'Este campo es requerido'] : []"
-                  @change="handleFileChange(field.id, $event)"
-                  variant="outlined"
+                  :aspect-ratio="1"
+                  :min-size="100"
+                  :max-size="1000"
+                  :min-aspect-ratio="1"
+                  :max-aspect-ratio="1"
                 />
                 <div v-if="fileData[field.id]" class="text-caption text-grey">Archivo seleccionado: {{ fileData[field.id].name }}</div>
               </div>
