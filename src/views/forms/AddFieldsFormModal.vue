@@ -1380,7 +1380,7 @@ const removeOption = (index) => {
       <v-dialog v-model="showEditDialog" max-width="600px" @click:outside="showEditDialog = false">
         <v-card class="pa-0" style="border-radius: 0">
           <div class="d-flex align-center justify-space-between px-4 py-2">
-            <span class="text-h5">Editar Campo</span>
+            <span class="text-h5">Editar {{ availableFieldTypes.find((f) => f.value === editingField.type)?.description }}</span>
             <v-btn icon variant="plain" @click="showEditDialog = false">
               <v-icon :icon="mdiClose" color="grey-darken-2" size="24"></v-icon>
             </v-btn>

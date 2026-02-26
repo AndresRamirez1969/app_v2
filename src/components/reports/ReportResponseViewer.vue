@@ -315,7 +315,7 @@ const getAnswer = (fieldOrId, fieldType, asArray = false, evidence = false) => {
   if (!resp) return asArray ? [] : '';
   if (evidence) return normalizeFileUrls(resp.evidence_files);
   const t = String(fieldType || '').toLowerCase();
-  if (t === 'image' || t === 'document' || t === 'signature') return normalizeFileUrls(resp.value);
+  if (t === 'image' || t === 'document' || t === 'signature' || t === 'id') return normalizeFileUrls(resp.value);
   if (t === 'geolocation') return parseGeoValue(resp.value) || '';
   if (['checkbox', 'selector', 'select'].includes(t)) {
     if (asArray) {
@@ -592,9 +592,9 @@ const downloadImagesZip = async (images, label = 'imagenes') => {
                   </div>
                   <div class="mt-2 answer-row-bg" style="position: relative">
                     <template v-if="getAnswer(item.field, item.field?.type)">
-                      <template v-if="item.field?.type === 'image'">
+                      <template v-if="item.field?.type === 'image' || item.field?.type === 'id'">
                         <v-btn
-                          v-if="filterImages(getAnswer(item.field, 'image', true)).length"
+                          v-if="filterImages(getAnswer(item.field, item?.field?.type, true)).length"
                           variant="text"
                           class="custom-action-btn image-zip-btn px-3 py-2"
                           style="
@@ -610,20 +610,20 @@ const downloadImagesZip = async (images, label = 'imagenes') => {
                           size="small"
                           color="primary"
                           aria-label="Descargar ZIP"
-                          @click="downloadImagesZip(getAnswer(item.field, 'image', true), item.field?.label)"
+                          @click="downloadImagesZip(getAnswer(item.field, item.field?.type, true), item.field?.label)"
                         >
                           <v-icon :icon="mdiFolderZipOutline" /><span class="custom-action-label">Descargar Zip</span>
                         </v-btn>
                         <div class="image-preview-row">
                           <img
-                            v-for="(img, i) in filterImages(getAnswer(item.field, 'image', true))"
+                            v-for="(img, i) in filterImages(getAnswer(item.field, item.field?.type, true))"
                             :key="i"
                             :src="typeof img === 'object' ? img.url : img"
                             alt="Evidencia"
                             style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
-                            @click="openImageModal(i, filterImages(getAnswer(item.field, 'image', true)))"
+                            @click="openImageModal(i, filterImages(getAnswer(item.field, item.field?.type, true)))"
                           />
-                          <span v-if="!filterImages(getAnswer(item.field, 'image', true)).length">—</span>
+                          <span v-if="!filterImages(getAnswer(item.field, item.field?.type, true)).length">—</span>
                         </div>
                       </template>
                       <template v-else-if="item.field?.type === 'signature'">
@@ -889,9 +889,9 @@ const downloadImagesZip = async (images, label = 'imagenes') => {
                               </div>
                               <div class="mt-2 answer-row-bg" style="position: relative">
                                 <template v-if="getAnswer(field, field?.type)">
-                                  <template v-if="field?.type === 'image'">
+                                  <template v-if="field?.type === 'image' || field?.type === 'id'">
                                     <v-btn
-                                      v-if="filterImages(getAnswer(field, 'image', true)).length"
+                                      v-if="filterImages(getAnswer(field, field?.type, true)).length"
                                       variant="text"
                                       class="custom-action-btn image-zip-btn px-3 py-2"
                                       style="
@@ -907,20 +907,20 @@ const downloadImagesZip = async (images, label = 'imagenes') => {
                                       size="small"
                                       color="primary"
                                       aria-label="Descargar ZIP"
-                                      @click="downloadImagesZip(getAnswer(field, 'image', true), field?.label)"
+                                      @click="downloadImagesZip(getAnswer(field, field?.type, true), field?.label)"
                                     >
                                       <v-icon :icon="mdiFolderZipOutline" /><span class="custom-action-label">Descargar Zip</span>
                                     </v-btn>
                                     <div class="image-preview-row">
                                       <img
-                                        v-for="(img, i) in filterImages(getAnswer(field, 'image', true))"
+                                        v-for="(img, i) in filterImages(getAnswer(field, field?.type, true))"
                                         :key="i"
                                         :src="typeof img === 'object' ? img.url : img"
                                         alt="Evidencia"
                                         style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #eee"
-                                        @click="openImageModal(i, filterImages(getAnswer(field, 'image', true)))"
+                                        @click="openImageModal(i, filterImages(getAnswer(field, field?.type, true)))"
                                       />
-                                      <span v-if="!filterImages(getAnswer(field, 'image', true)).length">—</span>
+                                      <span v-if="!filterImages(getAnswer(field, field?.type, true)).length">—</span>
                                     </div>
                                   </template>
                                   <template v-else-if="field?.type === 'signature'">

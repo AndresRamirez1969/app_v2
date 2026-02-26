@@ -308,7 +308,32 @@
                             </div>
 
                             <!-- Campo Documento -->
-                            <div v-else-if="item.field.type === 'document'" class="d-flex flex-column align-stretch">
+                            <div v-else-if="item.field.type === 'document'" class="d-flex align-center">
+                              <v-file-input
+                                :key="fileVersion[item.field.id] || 0"
+                                :model-value="fileData[item.field.id] || []"
+                                accept="application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                                multiple
+                                :counter="true"
+                                :show-size="true"
+                                :rules="[
+                                  (v) =>
+                                    !item.field.is_required ||
+                                    (fileData[item.field.id]?.length >= 1 &&
+                                      fileData[item.field.id]?.length <= (item.field.attributes?.max_files || 2)) ||
+                                    ''
+                                ]"
+                                @change="onFilesSelected(item.field.id, $event)"
+                                variant="outlined"
+                                :chips="true"
+                                :clearable="true"
+                                class="flex-grow-1"
+                                @click:clear="clearFiles(item.field.id)"
+                              />
+                            </div>
+
+                            <!-- Campo Documento -->
+                            <div v-else-if="item.field.type === 'id'" class="d-flex flex-column align-stretch">
                               <template v-if="cameraOpenFieldId !== item.field.id">
                                 <v-btn
                                   variant="outlined"
@@ -352,6 +377,7 @@
                                 <v-btn variant="outlined" size="small" class="mt-2" @click="closeDocumentCamera()"> Cerrar cámara </v-btn>
                               </template>
                             </div>
+
                             <!-- Campo Checkbox -->
                             <div v-else-if="item.field.type === 'checkbox'">
                               <div class="checkbox-group">
@@ -738,7 +764,31 @@
                                         </div>
 
                                         <!-- Campo Documento -->
-                                        <div v-else-if="field.type === 'document'" class="d-flex flex-column align-stretch">
+                                        <div v-else-if="field.type === 'document'" class="d-flex align-center">
+                                          <v-file-input
+                                            :key="fileVersion[field.id] || 0"
+                                            :model-value="fileData[field.id] || []"
+                                            accept="application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                                            multiple
+                                            :counter="true"
+                                            :show-size="true"
+                                            :rules="[
+                                              (v) =>
+                                                !field.is_required ||
+                                                (fileData[field.id]?.length >= 1 &&
+                                                  fileData[field.id]?.length <= (field.attributes?.max_files || 2)) ||
+                                                ''
+                                            ]"
+                                            @change="onFilesSelected(field.id, $event)"
+                                            variant="outlined"
+                                            :chips="true"
+                                            :clearable="true"
+                                            class="flex-grow-1"
+                                            @click:clear="clearFiles(field.id)"
+                                          />
+                                        </div>
+                                        <!-- Campo ID -->
+                                        <div v-else-if="field.type === 'id'" class="d-flex flex-column align-stretch">
                                           <template v-if="cameraOpenFieldId !== field.id">
                                             <v-btn
                                               variant="outlined"
@@ -1040,6 +1090,7 @@ function openDocumentCamera(fieldId) {
 function closeDocumentCamera() {
   cameraOpenFieldId.value = null;
 }
+
 // --- INTEGRACIÓN: Dirección de geolocalización para campos scope ---
 const geoAddress = ref('');
 const fetchAddressFromCoords = async (lat, lng) => {
@@ -1587,7 +1638,7 @@ const submitForm = async () => {
 
     const answers = allFields.map((field) => {
       let value;
-      if (field.type === 'image' || field.type === 'document' || field.type === 'signature') {
+      if (field.type === 'image' || field.type === 'document' || field.type === 'signature' || field.type === 'id') {
         value = (formData[field.id] || []).join(',');
       } else if (field.type === 'geolocation' && field.attributes?.mode === 'manual') {
         value = JSON.stringify(formData[field.id] || {});
@@ -1603,7 +1654,7 @@ const submitForm = async () => {
         value = convertoToString(formData[field.id]);
       }
       const ans = { form_field_id: field.id, value };
-      if (field.type === 'image' || field.type === 'document' || field.type === 'signature') ans.is_file = true;
+      if (field.type === 'image' || field.type === 'document' || field.type === 'signature' || field.type === 'id') ans.is_file = true;
       return ans;
     });
 

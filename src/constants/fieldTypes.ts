@@ -10,7 +10,7 @@ import { mdiSignature } from '@mdi/js';
 import { mdiTuneVariant } from '@mdi/js';
 import { mdiToggleSwitch } from '@mdi/js';
 import { mdiMapMarker } from '@mdi/js';
-import { mdiLink, mdiEyeOff, mdiCellphone, mdiPalette } from '@mdi/js';
+import { mdiLink, mdiEyeOff, mdiCellphone, mdiPalette, mdiIdCard } from '@mdi/js';
 import { mdiFolderPlus } from '@mdi/js';
 
 export const AVAILABLE_FIELDS = [
@@ -89,6 +89,13 @@ export const AVAILABLE_FIELDS = [
     value: 'image',
     icon: mdiFileImage,
     description: 'Subida de imágenes (jpg, png, etc.)',
+    preview: 'v-file-input'
+  },
+  {
+    label: 'Foto de Identidad',
+    value: 'id',
+    icon: mdiIdCard,
+    description: 'Subida de foto de ID (jpg, png, etc.)',
     preview: 'v-file-input'
   },
   {
