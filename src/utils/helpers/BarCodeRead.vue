@@ -16,6 +16,7 @@ const scannedMessage = ref('');
 let msgTimer = null;
 
 let codeReader = null;
+let scannerControls = null;
 
 function showAlreadyScanned() {
   scannedMessage.value = 'Código ya escaneado';
@@ -32,20 +33,22 @@ onMounted(async () => {
     const devices = await BrowserMultiFormatReader.listVideoInputDevices();
     const backCamera = devices.find((d) => d.label.toLowerCase().includes('back'));
 
-    await codeReader.decodeFromVideoDevice(backCamera?.deviceId || devices[0]?.deviceId, video.value, (res) => {
+    scannerControls = await codeReader.decodeFromVideoDevice(backCamera?.deviceId || devices[0]?.deviceId, video.value, (res) => {
       if (!res) return;
 
-      const text = res.getText();
+      const code = res.getText();
+      const formatEnum = res.getBarcodeFormat();
+      const format = String(formatEnum);
 
-      if (scannedSet.value.has(text)) {
+      if (scannedSet.value.has(code)) {
         showAlreadyScanned();
         return;
       }
 
-      scannedSet.value.add(text);
-      results.value.push(text);
-      emit('scanned', text);
-      console.log('Scanned', text);
+      scannedSet.value.add(code);
+      results.value.push({ code, format });
+      emit('scanned', { code, format });
+      console.log('Scanned', code);
     });
   } catch (error) {
     console.error(error);
@@ -53,16 +56,18 @@ onMounted(async () => {
 });
 
 function stopScanner() {
-  if (codeReader) codeReader.reset();
-  results.value = [];
-  scannedSet.value = new Set();
-  scannedMessage.value = '';
-  if (msgTimer) clearTimeout(msgTimer);
-  msgTimer = null;
+  try {
+    scannerControls?.stop();
+  } catch (e) {
+    console.warn(e);
+  } finally {
+    scannerControls = null;
+    emit('close');
+  }
 }
 
 onBeforeUnmount(() => {
-  if (codeReader) codeReader.reset();
+  if (scannerControls) scannerControls.stop();
   if (msgTimer) clearTimeout(msgTimer);
 });
 </script>
@@ -78,8 +83,8 @@ onBeforeUnmount(() => {
       {{ scannedMessage }}
     </div>
 
-    <p v-if="results.length > 0">Scanned: {{ results.join(', ') }}</p>
-    <v-btn variant="outlined" color="primary" @click="stopScanner()"> Detener </v-btn>
+    <p v-if="results.length > 0">Scanned: {{ results.map((r) => `${r.code} (${r.format})`).join(', ') }}</p>
+    <v-btn variant="outlined" color="primary" class="mt-2" @click="stopScanner()"> Detener </v-btn>
   </div>
 </template>
 

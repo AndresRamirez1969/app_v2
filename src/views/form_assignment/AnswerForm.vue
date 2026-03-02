@@ -386,8 +386,11 @@
                                 </div>
                               </template>
                               <template v-else>
-                                <BarCodeRead :field-id="item.field.id" @scanned="(val) => handleBarcodeScanned(item.field.id, val)" />
-                                <v-btn variant="outlined" size="small" class="mt-2" @click="closeBarcodeScanner()"> Cerrar escáner </v-btn>
+                                <BarCodeRead
+                                  :field-id="item.field.id"
+                                  @scanned="(val) => handleBarcodeScanned(item.field.id, val)"
+                                  @close="closeBarcodeScanner()"
+                                />
                               </template>
                             </div>
 
@@ -851,10 +854,11 @@
                                             </div>
                                           </template>
                                           <template v-else>
-                                            <BarCodeRead :field-id="field.id" @scanned="(val) => handleBarcodeScanned(field.id, val)" />
-                                            <v-btn variant="outlined" size="small" class="mt-2" @click="closeBarcodeScanner()">
-                                              Cerrar escáner
-                                            </v-btn>
+                                            <BarCodeRead
+                                              :field-id="field.id"
+                                              @scanned="(val) => handleBarcodeScanned(field.id, val)"
+                                              @close="closeBarcodeScanner()"
+                                            />
                                           </template>
                                         </div>
 
@@ -1128,7 +1132,7 @@ function openBarcodeScanner(fieldId) {
   barcodeOpenFieldId.value = fieldId;
 }
 
-function closeBarcodeReader() {
+function closeBarcodeScanner() {
   barcodeOpenFieldId.value = null;
 }
 
@@ -1137,7 +1141,7 @@ function handleBarcodeScanned(fieldId, value) {
   formData[fieldId] = [...current, value]; // array
   bumpVersion(fieldId);
   toast.success('Código escaneado correctamente');
-  closeBarcodeReader();
+  closeBarcodeScanner();
 }
 
 // --- INTEGRACIÓN: Dirección de geolocalización para campos scope ---
@@ -1688,7 +1692,8 @@ const submitForm = async () => {
     const answers = allFields.map((field) => {
       let value;
       if (field.type === 'barcode') {
-        value = Array.isArray(formData[field.id]) ? formData[field.id] : [];
+        const list = Array.isArray(formData[field.id]) ? formData[field.id] : [];
+        value = JSON.stringify(list);
       } else if (field.type === 'image' || field.type === 'document' || field.type === 'signature' || field.type === 'id') {
         value = (formData[field.id] || []).join(',');
       } else if (field.type === 'geolocation' && field.attributes?.mode === 'manual') {
