@@ -1,57 +1,70 @@
 <script setup>
 import { BrowserMultiFormatReader } from '@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { ref, onMounted, onBeforeUnmount } from 'vue';
-
-const props = defineProps({
-  fieldId: { type: [String, Number], default: null }
-});
 
 const emit = defineEmits(['scanned', 'close']);
 
 const video = ref(null);
-const results = ref([]);
-
-const scannedSet = ref(new Set());
 const scannedMessage = ref('');
-let msgTimer = null;
+const results = ref([]);
 
 let codeReader = null;
 let scannerControls = null;
+let msgTimer = null;
+
+// Evita lecturas repetidas inmediatas
+let lastScanned = null;
+let scanLock = false;
 
 function showAlreadyScanned() {
   scannedMessage.value = 'Código ya escaneado';
   if (msgTimer) clearTimeout(msgTimer);
   msgTimer = setTimeout(() => {
     scannedMessage.value = '';
-  }, 2000);
+  }, 1500);
 }
 
 onMounted(async () => {
-  codeReader = new BrowserMultiFormatReader();
-
   try {
-    const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-    const backCamera = devices.find((d) => d.label.toLowerCase().includes('back'));
+    // 🔹 Restringimos solo a CODE_128 (más rápido y preciso)
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]);
 
-    scannerControls = await codeReader.decodeFromVideoDevice(backCamera?.deviceId || devices[0]?.deviceId, video.value, (res) => {
-      if (!res) return;
+    codeReader = new BrowserMultiFormatReader(hints);
 
-      const code = res.getText();
-      const formatEnum = res.getBarcodeFormat();
-      const format = String(formatEnum);
+    scannerControls = await codeReader.decodeFromConstraints(
+      {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      },
+      video.value,
+      (result) => {
+        if (!result || scanLock) return;
 
-      if (scannedSet.value.has(code)) {
-        showAlreadyScanned();
-        return;
+        const code = result.getText();
+
+        if (code === lastScanned) {
+          showAlreadyScanned();
+          return;
+        }
+
+        scanLock = true;
+        lastScanned = code;
+
+        results.value.push(code);
+        emit('scanned', code);
+
+        // 🔹 Pequeño delay para evitar múltiples lecturas
+        setTimeout(() => {
+          scanLock = false;
+        }, 1000);
       }
-
-      scannedSet.value.add(code);
-      results.value.push({ code, format });
-      emit('scanned', { code, format });
-      console.log('Scanned', code);
-    });
+    );
   } catch (error) {
-    console.error(error);
+    console.error('Scanner error:', error);
   }
 });
 
@@ -76,44 +89,60 @@ onBeforeUnmount(() => {
   <div class="scanner-container">
     <div class="scanner-video-wrapper">
       <video ref="video" class="scanner-video"></video>
-      <div class="scan-frame"></div>
+      <div class="scan-line"></div>
     </div>
 
-    <div v-if="scannedMessage" class="text-caption text-warning mt-2">
+    <div v-if="scannedMessage" class="text-warning mt-2">
       {{ scannedMessage }}
     </div>
 
-    <p v-if="results.length > 0">Scanned: {{ results.map((r) => `${r.code} (${r.format})`).join(', ') }}</p>
-    <v-btn variant="outlined" color="primary" class="mt-2" @click="stopScanner()"> Detener </v-btn>
+    <p v-if="results.length">Scanned: {{ results.join(', ') }}</p>
+
+    <v-btn variant="outlined" color="primary" class="mt-2" @click="stopScanner"> Detener </v-btn>
   </div>
 </template>
 
 <style scoped>
 .scanner-container {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .scanner-video-wrapper {
   position: relative;
   width: 100%;
   max-width: 400px;
-  margin: 0 auto;
   overflow: hidden;
+  border-radius: 12px;
 }
 
 .scanner-video {
   width: 100%;
   display: block;
+  border-radius: 12px;
 }
 
-.scan-frame {
+/* 🔴 Línea roja animada */
+.scan-line {
   position: absolute;
   left: 10%;
   width: 80%;
   height: 3px;
   background: red;
-  top: 50%;
-  transform: translateY(-50%);
+  animation: scan 2s linear infinite;
   pointer-events: none;
+}
+
+@keyframes scan {
+  0% {
+    top: 25%;
+  }
+  50% {
+    top: 75%;
+  }
+  100% {
+    top: 25%;
+  }
 }
 </style>
