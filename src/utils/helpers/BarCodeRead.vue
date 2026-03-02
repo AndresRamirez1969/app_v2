@@ -13,7 +13,6 @@ let codeReader = null;
 let scannerControls = null;
 let msgTimer = null;
 
-// Evita lecturas repetidas inmediatas
 let lastScanned = null;
 let scanLock = false;
 
@@ -27,7 +26,6 @@ function showAlreadyScanned() {
 
 onMounted(async () => {
   try {
-    // 🔹 Restringimos solo a CODE_128 (más rápido y preciso)
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]);
 
@@ -36,6 +34,7 @@ onMounted(async () => {
     scannerControls = await codeReader.decodeFromConstraints(
       {
         video: {
+          facingMode: 'environment',
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
@@ -57,7 +56,6 @@ onMounted(async () => {
         results.value.push(code);
         emit('scanned', code);
 
-        // 🔹 Pequeño delay para evitar múltiples lecturas
         setTimeout(() => {
           scanLock = false;
         }, 1000);
@@ -123,7 +121,6 @@ onBeforeUnmount(() => {
   border-radius: 12px;
 }
 
-/* 🔴 Línea roja animada */
 .scan-line {
   position: absolute;
   left: 10%;
