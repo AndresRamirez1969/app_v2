@@ -31,6 +31,8 @@
     "@syncfusion/ej2-vue-inputs": "^30.2.4",
     "@tsconfig/node20": "20.1.4",
     "@typescript-eslint/parser": "^8.18.2",
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "ag-charts-vue3": "^12.2.0",
     "ant-design-vue": "4.2.6",
     "apexcharts": "^5.3.4",

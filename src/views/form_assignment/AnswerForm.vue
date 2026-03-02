@@ -378,6 +378,19 @@
                               </template>
                             </div>
 
+                            <div v-else-if="item.field.type === 'barcode'" class="d-flex flex-column align-stretch">
+                              <template v-if="barcodeOpenFieldId !== item.field.id">
+                                <v-btn variant="outlined" color="primary" @click="openBarcodeScanner(item.field.id)"> Escanear </v-btn>
+                                <div v-if="formData[item.field.id]" class="mt-2">
+                                  <v-chip color="success" size="small">{{ formData[item.field.id] }}</v-chip>
+                                </div>
+                              </template>
+                              <template v-else>
+                                <BarCodeRead :field-id="item.field.id" @scanned="(val) => handleBarcodeScanned(item.field.id, val)" />
+                                <v-btn variant="outlined" size="small" class="mt-2" @click="closeBarcodeScanner()"> Cerrar escáner </v-btn>
+                              </template>
+                            </div>
+
                             <!-- Campo Checkbox -->
                             <div v-else-if="item.field.type === 'checkbox'">
                               <div class="checkbox-group">
@@ -828,6 +841,23 @@
                                           </template>
                                         </div>
 
+                                        <div v-else-if="field.type === 'barcode'" class="d-flex flex-column align-stretch">
+                                          <template v-if="barcodeOpenFieldId !== field.id">
+                                            <v-btn variant="outlined" color="primary" @click="openBarcodeScanner(field.id)">
+                                              Escanear
+                                            </v-btn>
+                                            <div v-if="formData[field.id]" class="mt-2">
+                                              <v-chip color="success" size="small">{{ formData[field.id] }}</v-chip>
+                                            </div>
+                                          </template>
+                                          <template v-else>
+                                            <BarCodeRead :field-id="field.id" @scanned="(val) => handleBarcodeScanned(field.id, val)" />
+                                            <v-btn variant="outlined" size="small" class="mt-2" @click="closeBarcodeScanner()">
+                                              Cerrar escáner
+                                            </v-btn>
+                                          </template>
+                                        </div>
+
                                         <!-- Campo Checkbox -->
                                         <div v-else-if="field.type === 'checkbox'">
                                           <div class="checkbox-group">
@@ -1031,6 +1061,7 @@ import { convertoToString } from '@/utils/helpers/formHelper';
 import SignaturePad from '@/styles/SignaturePad.vue';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 import imageCompression from 'browser-image-compression';
+import BarCodeRead from '@/utils/helpers/BarCodeRead.vue';
 
 const toast = useToast();
 const router = useRouter();
@@ -1089,6 +1120,22 @@ function openDocumentCamera(fieldId) {
 
 function closeDocumentCamera() {
   cameraOpenFieldId.value = null;
+}
+
+const barcodeOpenFieldId = ref(null);
+
+function openBarcodeScanner(fieldId) {
+  barcodeOpenFieldId.value = fieldId;
+}
+
+function closeBarcodeReader() {
+  barcodeOpenFieldId.value = null;
+}
+
+function handleBarcodeScanned(fieldId, value) {
+  formData[fieldId] = value;
+  bumpVersion(fieldId);
+  closeBarcodeReader();
 }
 
 // --- INTEGRACIÓN: Dirección de geolocalización para campos scope ---

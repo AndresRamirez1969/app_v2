@@ -12,6 +12,7 @@ import { mdiToggleSwitch } from '@mdi/js';
 import { mdiMapMarker } from '@mdi/js';
 import { mdiLink, mdiEyeOff, mdiCellphone, mdiPalette, mdiIdCard } from '@mdi/js';
 import { mdiFolderPlus } from '@mdi/js';
+import { mdiBarcode } from '@mdi/js';
 
 export const AVAILABLE_FIELDS = [
   {
@@ -97,6 +98,13 @@ export const AVAILABLE_FIELDS = [
     icon: mdiIdCard,
     description: 'Subida de foto de ID (jpg, png, etc.)',
     preview: 'v-file-input'
+  },
+  {
+    label: 'Código de Barras',
+    value: 'barcode',
+    icon: mdiBarcode,
+    description: 'Captura de código de barras',
+    preview: 'barcode-read'
   },
   {
     label: 'Documento',
