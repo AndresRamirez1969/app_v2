@@ -1133,8 +1133,10 @@ function closeBarcodeReader() {
 }
 
 function handleBarcodeScanned(fieldId, value) {
-  formData[fieldId] = value;
+  const current = Array.isArray(formData[fieldId]) ? formData[fieldId] : [];
+  formData[fieldId] = [...current, value]; // array
   bumpVersion(fieldId);
+  toast.success('Código escaneado correctamente');
   closeBarcodeReader();
 }
 
@@ -1685,7 +1687,9 @@ const submitForm = async () => {
 
     const answers = allFields.map((field) => {
       let value;
-      if (field.type === 'image' || field.type === 'document' || field.type === 'signature' || field.type === 'id') {
+      if (field.type === 'barcode') {
+        value = Array.isArray(formData[field.id]) ? formData[field.id] : [];
+      } else if (field.type === 'image' || field.type === 'document' || field.type === 'signature' || field.type === 'id') {
         value = (formData[field.id] || []).join(',');
       } else if (field.type === 'geolocation' && field.attributes?.mode === 'manual') {
         value = JSON.stringify(formData[field.id] || {});
