@@ -317,6 +317,20 @@ const getAnswer = (fieldOrId, fieldType, asArray = false, evidence = false) => {
   const t = String(fieldType || '').toLowerCase();
   if (t === 'image' || t === 'document' || t === 'signature' || t === 'id') return normalizeFileUrls(resp.value);
   if (t === 'geolocation') return parseGeoValue(resp.value) || '';
+  if (t === 'barcode') {
+    let val = JSON.parse(resp.value);
+    const list = Array.isArray(val) ? val : val ? [val] : [];
+
+    const codes = list
+      .map((item) => {
+        if (!item) return null;
+        if (typeof item === 'string') return item;
+        return item.code || null;
+      })
+      .filter(Boolean);
+
+    return asArray ? codes : codes.join(', ');
+  }
   if (['checkbox', 'selector', 'select'].includes(t)) {
     if (asArray) {
       let val = resp.value;
