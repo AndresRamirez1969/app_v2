@@ -27,7 +27,7 @@ function showAlreadyScanned() {
 onMounted(async () => {
   try {
     const hints = new Map();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]);
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128, BarcodeFormat.EAN_13]);
 
     codeReader = new BrowserMultiFormatReader(hints);
 
@@ -54,7 +54,7 @@ onMounted(async () => {
         lastScanned = code;
 
         results.value.push(code);
-        emit('scanned', code);
+        emit('scanned', { code });
 
         setTimeout(() => {
           scanLock = false;
